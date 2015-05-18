@@ -1,3 +1,4 @@
+# Generic ignores for libtool project
 Makefile.in
 Makefile
 /autom4te.cache
@@ -16,3 +17,6 @@ Makefile
 /ltmain.sh
 /libtool
 /libjwt/.deps/*
+
+# Explicit stuff
+!/m4/openssl.m4

@@ -5,6 +5,8 @@ LT_PREREQ([2.2])
 LT_INIT([])
 AC_CONFIG_MACRO_DIR([m4])
 
+CHECK_SSL
+
 AC_CONFIG_FILES([Makefile include/Makefile libjwt/Makefile])
 
 AC_OUTPUT
