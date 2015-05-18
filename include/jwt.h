@@ -22,7 +22,25 @@
 extern "C" {
 #endif
 
-void jwt(void);
+typedef struct jwt jwt_t;
+
+/* Allocates a JWT object for later use. */
+int jwt_new(jwt_t **jwt);
+
+/* Free's a JWT object and any memory it is using. */
+void jwt_free(jwt_t *jwt);
+
+/* Return a value for a grant. Returns NULL if it doesn't exist. */
+const char *jwt_get_grant(jwt_t *jwt, const char *grant);
+
+/* Add a new grant and value to the JWT. */
+int jwt_add_grant(jwt_t *jwt, const char *grant, const char *val);
+
+/* Delete a grant from the JWT. */
+int jwt_del_grant(jwt_t *jwt, const char *grant);
+
+/* Dump the contents of the grants to FILE* */
+void jwt_dump_fp(jwt_t *jwt, FILE *fp, int pretty);
 
 #ifdef __cplusplus
 }

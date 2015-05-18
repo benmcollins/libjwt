@@ -20,3 +20,7 @@ Makefile
 
 # Explicit stuff
 !/m4/openssl.m4
+*.la
+*.lo
+*.o
+*/.libs/*
