@@ -42,6 +42,9 @@ int jwt_del_grant(jwt_t *jwt, const char *grant);
 /* Dump the contents of the grants to FILE* */
 void jwt_dump_fp(jwt_t *jwt, FILE *fp, int pretty);
 
+/* Encode the grants to FILE* with b64 encoding. */
+int jwt_encode_fp(jwt_t *jwt, FILE *fp);
+
 #ifdef __cplusplus
 }
 #endif

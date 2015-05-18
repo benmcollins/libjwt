@@ -20,6 +20,9 @@
 #include <string.h>
 #include <errno.h>
 
+#include <openssl/bio.h>
+#include <openssl/evp.h>
+
 #include <jwt.h>
 
 /* Singly linked list of key and value pairs. */
@@ -29,9 +32,28 @@ struct jwt_grant {
 	struct jwt_grant *next;
 };
 
+typedef enum jwt_alg {
+	JWT_ALG_NONE = 0,
+	JWT_ALG_HS256
+} jwt_alg_t;
+
 struct jwt {
+	jwt_alg_t alg;
 	struct jwt_grant *grants;
 };
+
+static const char *jwt_alg_str(jwt_alg_t alg)
+{
+	switch (alg) {
+	case JWT_ALG_NONE:
+		return "none";
+	case JWT_ALG_HS256:
+		return "HS256";
+	}
+
+	/* Should never be reached. */
+	return NULL;
+}
 
 int jwt_new(jwt_t **jwt)
 {
@@ -39,8 +61,12 @@ int jwt_new(jwt_t **jwt)
 		return EINVAL;
 
 	*jwt = malloc(sizeof(jwt_t));
+	if (!*jwt)
+		return ENOMEM;
 
-	return *jwt ? 0 : ENOMEM;
+	memset(*jwt, 0, sizeof(jwt_t));
+
+	return 0;
 }
 
 void jwt_free(jwt_t *jwt)
@@ -155,4 +181,63 @@ void jwt_dump_fp(jwt_t *jwt, FILE *fp, int pretty)
 	}
 
 	fputs("}\n", fp);
+}
+
+int jwt_encode_fp(jwt_t *jwt, FILE *fp)
+{
+	struct jwt_grant *jlist;
+	BIO *bio, *b64;
+
+	/* Setup the OpenSSL base64 encoder. */
+	b64 = BIO_new(BIO_f_base64());
+	bio = BIO_new_fp(fp, BIO_NOCLOSE);
+	if (!b64 || !bio)
+		return ENOMEM;
+
+	BIO_push(b64, bio);
+	BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
+
+	/* Print the header first. */
+	BIO_puts(b64, "{");
+
+	/* An unsecured JWT is a JWS and provides no "typ".
+	 * -- draft-ietf-oauth-json-web-token-32 #6. */
+	if (jwt->alg != JWT_ALG_NONE)
+		BIO_puts(b64, "\"typ\":\"JWT\"");
+
+	BIO_printf(b64, "\"alg\":\"%s\"", jwt_alg_str(jwt->alg));
+
+	BIO_puts(b64, "}");
+
+	BIO_flush(b64);
+
+	putc('.', fp);
+
+	/* Now the body. */
+	BIO_puts(b64, "{");
+
+	for (jlist = jwt->grants; jlist; jlist = jlist->next) {
+		BIO_printf(b64, "\"%s\":\"%s\"", jlist->key, jlist->val);
+		if (jlist->next)
+			BIO_puts(b64, ",");
+	}
+
+	BIO_puts(b64, "}");
+
+	BIO_flush(b64);
+
+	putc('.', fp);
+
+	/* Now the signature. */
+	if (jwt->alg != JWT_ALG_NONE)
+		/* TODO */;
+
+	BIO_flush(b64);
+
+	/* All done. */
+	BIO_free_all(b64);
+
+	putc('\n', fp);
+
+	return 0;
 }
