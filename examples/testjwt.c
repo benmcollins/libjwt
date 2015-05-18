@@ -15,7 +15,8 @@ static void jwt_exit(void)
 int main(int argc, char *argv[])
 {
 	jwt_t *jwt, *new;
-	unsigned char key[32] = "012345678901234567890123456789XY";
+	unsigned char key256[32] = "012345678901234567890123456789XY";
+	unsigned char key384[48] = "aaaabbbbccccddddeeeeffffgggghhhhiiiijjjjkkkkllll";
 
 	if (jwt_new(&jwt))
 		jwt_exit();
@@ -46,7 +47,7 @@ int main(int argc, char *argv[])
 	jwt_encode_fp(jwt, stdout);
 	putc('\n', stdout);
 
-	jwt_set_alg(jwt, JWT_ALG_HS256, key, sizeof(key));
+	jwt_set_alg(jwt, JWT_ALG_HS256, key256, sizeof(key256));
 
 	jwt_dump_fp(jwt, stdout, 1);
 	jwt_dump_fp(jwt, stdout, 0);
@@ -57,7 +58,9 @@ int main(int argc, char *argv[])
 	new = jwt_dup(jwt);
 	if (!new)
 		jwt_exit();
-	jwt_encode_fp(jwt, stdout);
+
+	jwt_set_alg(new, JWT_ALG_HS384, key384, sizeof(key384));
+	jwt_encode_fp(new, stdout);
 	putc('\n', stdout);
 
 	jwt_free(new);

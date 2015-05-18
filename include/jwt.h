@@ -33,7 +33,9 @@ typedef struct jwt jwt_t;
 /** JWT algorithm types. */
 typedef enum jwt_alg {
 	JWT_ALG_NONE = 0,
-	JWT_ALG_HS256
+	JWT_ALG_HS256,
+	JWT_ALG_HS384,
+	JWT_ALG_HS512
 } jwt_alg_t;
 
 /**

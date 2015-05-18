@@ -49,6 +49,10 @@ static const char *jwt_alg_str(jwt_alg_t alg)
 		return "none";
 	case JWT_ALG_HS256:
 		return "HS256";
+	case JWT_ALG_HS384:
+		return "HS384";
+	case JWT_ALG_HS512:
+		return "HS512";
 	}
 
 	/* Should never be reached. */
@@ -62,6 +66,10 @@ static int jwt_alg_key_len(jwt_alg_t alg)
 		return 0;
 	case JWT_ALG_HS256:
 		return 32;
+	case JWT_ALG_HS384:
+		return 48;
+	case JWT_ALG_HS512:
+		return 64;
 	}
 
 	/* Should never be reached. */
@@ -95,6 +103,8 @@ int jwt_set_alg(jwt_t *jwt, jwt_alg_t alg, unsigned char *key, int len)
 		break;
 
 	case JWT_ALG_HS256:
+	case JWT_ALG_HS384:
+	case JWT_ALG_HS512:
 		if (!key || len != key_len)
 			return EINVAL;
 
@@ -350,12 +360,13 @@ int jwt_dump_fp(jwt_t *jwt, FILE *fp, int pretty)
 	return 0;
 }
 
-static int jwt_sign_hs256(jwt_t *jwt, BIO *out, const char *str)
+static int jwt_sign_sha_hmac(jwt_t *jwt, BIO *out, const EVP_MD *alg,
+			     const char *str)
 {
-	unsigned char res[32];
+	unsigned char res[jwt->key_len];
 	unsigned int res_len;
 
-	HMAC(EVP_sha256(), jwt->key, jwt->key_len,
+	HMAC(alg, jwt->key, jwt->key_len,
 	     (const unsigned char *)str, strlen(str), res, &res_len);
 
 	BIO_write(out, res, res_len);
@@ -372,9 +383,14 @@ static int jwt_sign(jwt_t *jwt, BIO *out, const char *str)
 		return 0;
 
 	case JWT_ALG_HS256:
-		return jwt_sign_hs256(jwt, out, str);
+		return jwt_sign_sha_hmac(jwt, out, EVP_sha256(), str);
+	case JWT_ALG_HS384:
+		return jwt_sign_sha_hmac(jwt, out, EVP_sha384(), str);
+	case JWT_ALG_HS512:
+		return jwt_sign_sha_hmac(jwt, out, EVP_sha512(), str);
 	}
 
+	/* Should never get here. */
 	return EINVAL;
 }
 
