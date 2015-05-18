@@ -15,6 +15,11 @@
    License along with the GNU C Library; if not, see
    <http://www.gnu.org/licenses/>.  */
 
+/**
+ * @file jwt.h
+ * @brief JWT C Library
+ */
+
 #ifndef JWT_H
 #define JWT_H
 
@@ -22,12 +27,24 @@
 extern "C" {
 #endif
 
+/** Opaque JWT object. */
 typedef struct jwt jwt_t;
 
+/** JWT algorithm types. */
 typedef enum jwt_alg {
 	JWT_ALG_NONE = 0,
 	JWT_ALG_HS256
 } jwt_alg_t;
+
+/**
+ * @defgroup jwt_new JWT Object Creation
+ * Functions used to create and destroy JWT objects.
+ *
+ * Generally, one would use the jwt_new() function to create an object
+ * from scratch and jwt_decode() to create and verify and object from an
+ * existing token.
+ * @{
+ */
 
 /**
  * Allocate a new, empty, JWT object.
@@ -53,6 +70,15 @@ int jwt_new(jwt_t **jwt);
  */
 void jwt_free(jwt_t *jwt);
 
+/** @} */
+
+/**
+ * @defgroup jwt_grant JWT Grant Manipulation
+ * These functions allow you to add, remove and retrieve grants from a JWT
+ * object.
+ * @{
+ */
+
 /**
  * Return the value of a grant.
  *
@@ -71,7 +97,8 @@ const char *jwt_get_grant(jwt_t *jwt, const char *grant);
  *
  * Creates a new grant for this object. The string for grant and val
  * are copied internally, so do not require that the pointer or string
- * remain valid for the lifetime of this object.
+ * remain valid for the lifetime of this object. It is an error if you
+ * try to add a grant that already exists.
  *
  * @param jwt Pointer to a JWT object.
  * @param grant String containing the name of the grant to return a value
@@ -94,6 +121,15 @@ int jwt_add_grant(jwt_t *jwt, const char *grant, const char *val);
  * @return Returns 0 on success, valid errno otherwise.
  */
 int jwt_del_grant(jwt_t *jwt, const char *grant);
+
+/** @} */
+
+/**
+ * @defgroup jwt_encode JWT Output Functions
+ * Functions that enable seeing the plain text or fully encoded version of
+ * a JWT object.
+ * @{
+ */
 
 /**
  * Output plain text representation to a FILE pointer.
@@ -124,6 +160,14 @@ int jwt_dump_fp(jwt_t *jwt, FILE *fp, int pretty);
  */
 int jwt_encode_fp(jwt_t *jwt, FILE *fp);
 
+/** @} */
+
+/**
+ * @defgroup jwt_alg JWT Algorithm Functions
+ * Set and check algorithms and algorithm specific values.
+ * @{
+ */
+
 /**
  * Set an algorithm from jwt_alg_t for this JWT object.
  *
@@ -139,6 +183,8 @@ int jwt_encode_fp(jwt_t *jwt, FILE *fp);
  * @return Returns 0 on success, valid errno otherwise.
  */
 int jwt_set_alg(jwt_t *jwt, jwt_alg_t alg, unsigned char *key, int len);
+
+/** @} */
 
 #ifdef __cplusplus
 }
