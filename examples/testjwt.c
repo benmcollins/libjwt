@@ -20,7 +20,7 @@ int main(int argc, char *argv[])
 	if (jwt_new(&jwt))
 		jwt_exit();
 
-	if (jwt_add_grant(jwt, "iss", "files-v2.cyphre.com"))
+	if (jwt_add_grant(jwt, "iss", "files.cyphre.com"))
 		jwt_exit();
 
 	if (jwt_add_grant(jwt, "sub", "user0"))

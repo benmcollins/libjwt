@@ -68,27 +68,35 @@ static int jwt_alg_key_len(jwt_alg_t alg)
 	return -1;
 }
 
+static void jwt_scrub_key(jwt_t *jwt)
+{
+	if (!jwt->key)
+		return;
+
+	/* Overwrite it so it's gone from memory. */
+	memset(jwt->key, 0, jwt->key_len);
+
+	free(jwt->key);
+	jwt->key = NULL;
+	jwt->key_len = 0;
+}
+
 int jwt_set_alg(jwt_t *jwt, jwt_alg_t alg, unsigned char *key, int len)
 {
 	int key_len = jwt_alg_key_len(alg);
+
+	/* No matter what happens here, we do this. */
+	jwt_scrub_key(jwt);
 
 	switch (alg) {
 	case JWT_ALG_NONE:
 		if (key || len)
 			return EINVAL;
-
-		if (jwt->key)
-			free(jwt->key);
-
-		jwt->key = NULL;
 		break;
 
 	case JWT_ALG_HS256:
 		if (!key || len != key_len)
 			return EINVAL;
-
-		if (jwt->key)
-			free(jwt->key);
 
 		jwt->key = malloc(key_len);
 		if (!jwt->key)
@@ -128,6 +136,8 @@ void jwt_free(jwt_t *jwt)
 	if (!jwt)
 		return;
 
+	jwt_scrub_key(jwt);
+
 	jlist = jwt->grants;
 	while (jlist) {
 		side = jlist;
@@ -137,9 +147,6 @@ void jwt_free(jwt_t *jwt)
 		free(side->val);
 		free(side);
 	}
-
-	if (jwt->key)
-		free(jwt->key);
 
 	free(jwt);
 }
