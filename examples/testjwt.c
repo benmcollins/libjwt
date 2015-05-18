@@ -32,8 +32,18 @@ int main(int argc, char *argv[])
 	jwt_del_grant(jwt, "ref");
 
 	jwt_dump_fp(jwt, stdout, 0);
+	putc('\n', stdout);
 
 	jwt_encode_fp(jwt, stdout);
+	putc('\n', stdout);
+
+	jwt_set_alg(jwt, JWT_ALG_HS256);
+
+	jwt_dump_fp(jwt, stdout, 1);
+	jwt_dump_fp(jwt, stdout, 0);
+	putc('\n', stdout);
+	jwt_encode_fp(jwt, stdout);
+	putc('\n', stdout);
 
 	jwt_free(jwt);
 

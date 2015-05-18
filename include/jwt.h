@@ -24,6 +24,11 @@ extern "C" {
 
 typedef struct jwt jwt_t;
 
+typedef enum jwt_alg {
+	JWT_ALG_NONE = 0,
+	JWT_ALG_HS256
+} jwt_alg_t;
+
 /* Allocates a JWT object for later use. */
 int jwt_new(jwt_t **jwt);
 
@@ -40,10 +45,13 @@ int jwt_add_grant(jwt_t *jwt, const char *grant, const char *val);
 int jwt_del_grant(jwt_t *jwt, const char *grant);
 
 /* Dump the contents of the grants to FILE* */
-void jwt_dump_fp(jwt_t *jwt, FILE *fp, int pretty);
+int jwt_dump_fp(jwt_t *jwt, FILE *fp, int pretty);
 
 /* Encode the grants to FILE* with b64 encoding. */
 int jwt_encode_fp(jwt_t *jwt, FILE *fp);
+
+/* Set the algorithm for the JWT. */
+int jwt_set_alg(jwt_t *jwt, jwt_alg_t alg);
 
 #ifdef __cplusplus
 }

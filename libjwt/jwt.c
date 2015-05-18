@@ -34,11 +34,6 @@ struct jwt_grant {
 	struct jwt_grant *next;
 };
 
-typedef enum jwt_alg {
-	JWT_ALG_NONE = 0,
-	JWT_ALG_HS256
-} jwt_alg_t;
-
 struct jwt {
 	jwt_alg_t alg;
 	struct jwt_grant *grants;
@@ -55,6 +50,18 @@ static const char *jwt_alg_str(jwt_alg_t alg)
 
 	/* Should never be reached. */
 	return NULL;
+}
+
+int jwt_set_alg(jwt_t *jwt, jwt_alg_t alg)
+{
+	switch (alg) {
+	case JWT_ALG_NONE:
+	case JWT_ALG_HS256:
+		jwt->alg = alg;
+		return 0;
+	}
+
+	return EINVAL;
 }
 
 int jwt_new(jwt_t **jwt)
@@ -160,34 +167,97 @@ int jwt_del_grant(jwt_t *jwt, const char *grant)
 	return 0;
 }
 
-void jwt_dump_fp(jwt_t *jwt, FILE *fp, int pretty)
+static void jwt_write_bio_head(jwt_t *jwt, BIO *bio, int pretty)
+{
+	BIO_puts(bio, "{");
+
+	if (pretty)
+		BIO_puts(bio, "\n");
+
+	/* An unsecured JWT is a JWS and provides no "typ".
+	 * -- draft-ietf-oauth-json-web-token-32 #6. */
+	if (jwt->alg != JWT_ALG_NONE) {
+		if (pretty)
+			BIO_puts(bio, "    ");
+
+		BIO_puts(bio, "\"typ\":\"JWT\",");
+
+		if (pretty)
+			BIO_puts(bio, "\n");
+	}
+
+	if (pretty)
+		BIO_puts(bio, "    ");
+
+	BIO_printf(bio, "\"alg\":\"%s\"", jwt_alg_str(jwt->alg));
+
+	if (pretty)
+		BIO_puts(bio, "\n");
+
+	BIO_puts(bio, "}");
+
+	if (pretty)
+		BIO_puts(bio, "\n");
+
+	BIO_flush(bio);
+}
+
+static void jwt_write_bio_body(jwt_t *jwt, BIO *bio, int pretty)
 {
 	struct jwt_grant *jlist;
 
-	putc('{', fp);
+	if (pretty)
+		BIO_puts(bio, "\n");
+
+	BIO_puts(bio, "{");
 
 	if (pretty)
-		putc('\n', fp);
+		BIO_puts(bio, "\n");
 
 	for (jlist = jwt->grants; jlist; jlist = jlist->next) {
 		if (pretty)
-			fputs("    ", fp);
+			BIO_puts(bio, "    ");
 
-		fprintf(fp, "\"%s\":\"%s\"", jlist->key, jlist->val);
+		BIO_printf(bio, "\"%s\":\"%s\"", jlist->key, jlist->val);
 
 		if (jlist->next)
-			putc(',', fp);
+			BIO_puts(bio, ",");
 
 		if (pretty)
-			putc('\n', fp);
+			BIO_puts(bio, "\n");
 	}
 
-	fputs("}\n", fp);
+	BIO_puts(bio, "}");
+
+	if (pretty)
+		BIO_puts(bio, "\n");
+
+	BIO_flush(bio);
+}
+
+int jwt_dump_fp(jwt_t *jwt, FILE *fp, int pretty)
+{
+	BIO *bio;
+
+	bio = BIO_new_fp(fp, BIO_NOCLOSE);
+	if (!bio)
+		return ENOMEM;
+
+	jwt_write_bio_head(jwt, bio, pretty);
+
+	BIO_puts(bio, ".");
+
+	jwt_write_bio_body(jwt, bio, pretty);
+
+	BIO_flush(bio);
+
+	BIO_free_all(bio);
+
+	return 0;
 }
 
 int jwt_encode_fp(jwt_t *jwt, FILE *fp)
 {
-	struct jwt_grant *jlist;
 	BIO *bio, *b64;
 
 	/* Setup the OpenSSL base64 encoder. */
@@ -200,35 +270,14 @@ int jwt_encode_fp(jwt_t *jwt, FILE *fp)
 	BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
 
 	/* Print the header first. */
-	BIO_puts(b64, "{");
+	jwt_write_bio_head(jwt, b64, 0);
 
-	/* An unsecured JWT is a JWS and provides no "typ".
-	 * -- draft-ietf-oauth-json-web-token-32 #6. */
-	if (jwt->alg != JWT_ALG_NONE)
-		BIO_puts(b64, "\"typ\":\"JWT\"");
-
-	BIO_printf(b64, "\"alg\":\"%s\"", jwt_alg_str(jwt->alg));
-
-	BIO_puts(b64, "}");
-
-	BIO_flush(b64);
-
-	putc('.', fp);
+	BIO_puts(bio, ".");
 
 	/* Now the body. */
-	BIO_puts(b64, "{");
+	jwt_write_bio_body(jwt, b64, 0);
 
-	for (jlist = jwt->grants; jlist; jlist = jlist->next) {
-		BIO_printf(b64, "\"%s\":\"%s\"", jlist->key, jlist->val);
-		if (jlist->next)
-			BIO_puts(b64, ",");
-	}
-
-	BIO_puts(b64, "}");
-
-	BIO_flush(b64);
-
-	putc('.', fp);
+	BIO_puts(bio, ".");
 
 	/* Now the signature. */
 	if (jwt->alg != JWT_ALG_NONE)
@@ -238,8 +287,6 @@ int jwt_encode_fp(jwt_t *jwt, FILE *fp)
 
 	/* All done. */
 	BIO_free_all(b64);
-
-	putc('\n', fp);
 
 	return 0;
 }
