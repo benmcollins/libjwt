@@ -50,8 +50,9 @@ int jwt_dump_fp(jwt_t *jwt, FILE *fp, int pretty);
 /* Encode the grants to FILE* with b64 encoding. */
 int jwt_encode_fp(jwt_t *jwt, FILE *fp);
 
-/* Set the algorithm for the JWT. */
-int jwt_set_alg(jwt_t *jwt, jwt_alg_t alg);
+/* Set the algorithm for the JWT. Key must be sufficient length to match
+ * the algorithm specified. */
+int jwt_set_alg(jwt_t *jwt, jwt_alg_t alg, unsigned char *key, int len);
 
 #ifdef __cplusplus
 }

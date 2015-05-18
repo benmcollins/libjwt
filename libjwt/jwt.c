@@ -22,6 +22,7 @@
 
 #include <openssl/bio.h>
 #include <openssl/evp.h>
+#include <openssl/hmac.h>
 
 #include <jwt.h>
 
@@ -36,6 +37,8 @@ struct jwt_grant {
 
 struct jwt {
 	jwt_alg_t alg;
+	unsigned char *key;
+	int key_len;
 	struct jwt_grant *grants;
 };
 
@@ -52,16 +55,56 @@ static const char *jwt_alg_str(jwt_alg_t alg)
 	return NULL;
 }
 
-int jwt_set_alg(jwt_t *jwt, jwt_alg_t alg)
+static int jwt_alg_key_len(jwt_alg_t alg)
 {
 	switch (alg) {
 	case JWT_ALG_NONE:
-	case JWT_ALG_HS256:
-		jwt->alg = alg;
 		return 0;
+	case JWT_ALG_HS256:
+		return 32;
 	}
 
-	return EINVAL;
+	/* Should never be reached. */
+	return -1;
+}
+
+int jwt_set_alg(jwt_t *jwt, jwt_alg_t alg, unsigned char *key, int len)
+{
+	int key_len = jwt_alg_key_len(alg);
+
+	switch (alg) {
+	case JWT_ALG_NONE:
+		if (key || len)
+			return EINVAL;
+
+		if (jwt->key)
+			free(jwt->key);
+
+		jwt->key = NULL;
+		break;
+
+	case JWT_ALG_HS256:
+		if (!key || len != key_len)
+			return EINVAL;
+
+		if (jwt->key)
+			free(jwt->key);
+
+		jwt->key = malloc(key_len);
+		if (!jwt->key)
+			return ENOMEM;
+
+		memcpy(jwt->key, key, key_len);
+		break;
+
+	default:
+		return EINVAL;
+	}
+
+	jwt->alg = alg;
+	jwt->key_len = key_len;
+
+	return 0;
 }
 
 int jwt_new(jwt_t **jwt)
@@ -94,6 +137,9 @@ void jwt_free(jwt_t *jwt)
 		free(side->val);
 		free(side);
 	}
+
+	if (jwt->key)
+		free(jwt->key);
 
 	free(jwt);
 }
@@ -256,37 +302,100 @@ int jwt_dump_fp(jwt_t *jwt, FILE *fp, int pretty)
 	return 0;
 }
 
+static int jwt_sign_hs256(jwt_t *jwt, BIO *out, const char *str)
+{
+	unsigned char res[32];
+	unsigned int res_len;
+
+	HMAC(EVP_sha256(), jwt->key, jwt->key_len,
+	     (const unsigned char *)str, strlen(str), res, &res_len);
+
+	BIO_write(out, res, res_len);
+
+	BIO_flush(out);
+
+	return 0;
+}
+
+static int jwt_sign(jwt_t *jwt, BIO *out, const char *str)
+{
+	switch (jwt->alg) {
+	case JWT_ALG_NONE:
+		return 0;
+
+	case JWT_ALG_HS256:
+		return jwt_sign_hs256(jwt, out, str);
+	}
+
+	return EINVAL;
+}
+
 int jwt_encode_fp(jwt_t *jwt, FILE *fp)
 {
-	BIO *bio, *b64;
+	BIO *bfp, *b64, *bmem;
+	char buf[BUFSIZ];
+	int len, len2, ret;
 
 	/* Setup the OpenSSL base64 encoder. */
 	b64 = BIO_new(BIO_f_base64());
-	bio = BIO_new_fp(fp, BIO_NOCLOSE);
-	if (!b64 || !bio)
+	bfp = BIO_new_fp(fp, BIO_NOCLOSE);
+	bmem = BIO_new(BIO_s_mem());
+	if (!b64 || !bfp || !bmem)
 		return ENOMEM;
 
-	BIO_push(b64, bio);
+	BIO_push(b64, bmem);
 	BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
 
-	/* Print the header first. */
+	/* First the header. */
 	jwt_write_bio_head(jwt, b64, 0);
+	len = BIO_gets(bmem, buf, sizeof(buf));
+	if (len <= 0) {
+		BIO_free_all(b64);
+		BIO_free_all(bfp);
+		return EINVAL;
+	}
+	buf[len++] = '\0';
 
-	BIO_puts(bio, ".");
+	strcat(buf, ".");
 
 	/* Now the body. */
 	jwt_write_bio_body(jwt, b64, 0);
+	len2 = BIO_gets(bmem, buf + len, sizeof(buf) - len);
+	if (len <= 0) {
+		BIO_free_all(b64);
+		BIO_free_all(bfp);
+		return EINVAL;
+	}
+	len += len2;
+	buf[len] = '\0';
 
-	BIO_puts(bio, ".");
+	BIO_puts(bfp, buf);
+
+	BIO_puts(bfp, ".");
 
 	/* Now the signature. */
-	if (jwt->alg != JWT_ALG_NONE)
-		/* TODO */;
+	ret = jwt_sign(jwt, b64, buf);
+	if (ret) {
+		BIO_free_all(b64);
+		BIO_free_all(bfp);
+		return ret;
+	}
 
-	BIO_flush(b64);
+	len = BIO_gets(bmem, buf, sizeof(buf));
+	if (len < 0) {
+		BIO_free_all(b64);
+		BIO_free_all(bfp);
+		return EINVAL;
+	}
+	buf[len] = '\0';
+
+	BIO_puts(bfp, buf);
+
+	BIO_flush(bfp);
 
 	/* All done. */
 	BIO_free_all(b64);
+	BIO_free_all(bfp);
 
 	return 0;
 }
