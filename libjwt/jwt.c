@@ -25,6 +25,8 @@
 
 #include <jwt.h>
 
+#include "config.h"
+
 /* Singly linked list of key and value pairs. */
 struct jwt_grant {
 	char *key;

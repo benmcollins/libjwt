@@ -16,11 +16,14 @@ Makefile
 /config.status
 /ltmain.sh
 /libtool
-/libjwt/.deps/*
-
-# Explicit stuff
-!/m4/openssl.m4
+*/.deps/*
 *.la
 *.lo
 *.o
 */.libs/*
+*/config.h
+*/config.h.in
+*/stamp-h1
+
+# Explicit stuff
+!/m4/ax_check_openssl.m4
