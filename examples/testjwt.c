@@ -29,6 +29,13 @@ int main(int argc, char *argv[])
 	if (jwt_add_grant(jwt, "ref", "XXX-111-222-444-666"))
 		jwt_exit();
 
+	if (jwt_add_grant(jwt, "ref", "11212lkjke1el1e12lk")) {
+		printf("Passed duplicate grant check.\n");
+	} else {
+		fprintf(stderr, "FAILED duplicate grant check.\n");
+		exit(2);
+	}
+
 	jwt_dump_fp(jwt, stdout, 1);
 
 	jwt_del_grant(jwt, "ref");
