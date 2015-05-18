@@ -86,7 +86,7 @@ static void jwt_scrub_key(jwt_t *jwt)
 
 	free(jwt->key);
 	jwt->key = NULL;
-	jwt->key_len = 0;
+	jwt->key_len = JWT_ALG_NONE;
 }
 
 int jwt_set_alg(jwt_t *jwt, jwt_alg_t alg, unsigned char *key, int len)
