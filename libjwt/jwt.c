@@ -151,6 +151,47 @@ void jwt_free(jwt_t *jwt)
 	free(jwt);
 }
 
+jwt_t *jwt_dup(jwt_t *jwt)
+{
+	struct jwt_grant *jlist;
+	jwt_t *new;
+
+	errno = 0;
+
+	new = malloc(sizeof(jwt_t));
+	if (!new) {
+		errno = ENOMEM;
+		return NULL;
+	}
+
+	memset(new, 0, sizeof(jwt_t));
+
+	if (jwt->key_len) {
+		new->key = malloc(jwt->key_len);
+		if (!new->key) {
+			errno = ENOMEM;
+			goto dup_fail;
+		}
+		memcpy(new->key, jwt->key, jwt->key_len);
+		new->key_len = jwt->key_len;
+	}
+
+	/* This creates in reverse order, but who cares. */
+	for (jlist = jwt->grants; jlist; jlist = jlist->next) {
+		errno = jwt_add_grant(new, jlist->key, jlist->val);
+		if (errno)
+			break;
+	}
+
+dup_fail:
+	if (errno) {
+		jwt_free(new);
+		new = NULL;
+	}
+
+	return new;
+}
+
 const char *jwt_get_grant(jwt_t *jwt, const char *grant)
 {
 	struct jwt_grant *jlist;

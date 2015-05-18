@@ -14,7 +14,7 @@ static void jwt_exit(void)
 
 int main(int argc, char *argv[])
 {
-	jwt_t *jwt;
+	jwt_t *jwt, *new;
 	unsigned char key[32] = "012345678901234567890123456789XY";
 
 	if (jwt_new(&jwt))
@@ -54,6 +54,13 @@ int main(int argc, char *argv[])
 	jwt_encode_fp(jwt, stdout);
 	putc('\n', stdout);
 
+	new = jwt_dup(jwt);
+	if (!new)
+		jwt_exit();
+	jwt_encode_fp(jwt, stdout);
+	putc('\n', stdout);
+
+	jwt_free(new);
 	jwt_free(jwt);
 
 	exit(0);

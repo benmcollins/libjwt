@@ -70,6 +70,17 @@ int jwt_new(jwt_t **jwt);
  */
 void jwt_free(jwt_t *jwt);
 
+/**
+ * Duplicate an existing JWT object.
+ *
+ * Copies all grants and algorithm specific bits to a new JWT object.
+ *
+ * @param jwt Pointer to a JWT object.
+ * @return A new object on success, NULL on error with errno set
+ *         appropriately.
+ */
+jwt_t *jwt_dup(jwt_t *jwt);
+
 /** @} */
 
 /**
@@ -165,6 +176,11 @@ int jwt_encode_fp(jwt_t *jwt, FILE *fp);
 /**
  * @defgroup jwt_alg JWT Algorithm Functions
  * Set and check algorithms and algorithm specific values.
+ *
+ * When working with functions that require a key, the underlying library
+ * takes care to scrub memory when the key is no longer used (e.g. when
+ * calling jwt_free() or when changing the algorithm, the old key, if it
+ * exists, is scrubbed).
  * @{
  */
 
