@@ -56,10 +56,37 @@ typedef enum jwt_alg {
  * memory used by it.
  *
  * @param jwt Pointer to a JWT object pointer. Will be allocated on
- *            success.
+ *     success.
  * @return 0 on success, valid errno otherwise.
  */
 int jwt_new(jwt_t **jwt);
+
+/**
+ * Allocate and verify a new JWT object from an existing token.
+ *
+ * Decodes a JWT string and verifies the signature (if one is supplied).
+ * If no signature is used (JWS, alg="none") or key is NULL, then no
+ * validation is done other than formatting. It is not suggested to use
+ * this one a string that has a signature without passing the key to
+ * verify it.
+ *
+ * @param jwt Pointer to a JWT object pointer. Will be allocated on
+ *     success.
+ * @param token Pointer to a valid JWT string, nul terminated.
+ * @param key Pointer to the key for validating the JWT signature or for
+ *     decrypting the token or NULL if no validation is to be performed.
+ * @param key_len The length of the above key. Must match the algorithm
+ *     (e.g. 32 for HS256) and the lenght of the data in key.
+ * @return 0 on success, valid errno otherwise. If the token is signed and
+ *     fails validation, then ENOKEY is returned, but the JWT object
+ *     pointer will still be valid and represent the object in its
+ *     decoded state. If the token is encrypted, and decryption fails,
+ *     then ENOENT is returned, but the JWT object is not valid. All
+ *     other issues decoding the object (e.g. errors in base64
+ *     decoding) will return EINVAL.
+ */
+int jwt_decode(jwt_t **jwt, const char *token, const unsigned char *key,
+	       int key_len);
 
 /**
  * Free a JWT object and any other resources it is using.
@@ -79,7 +106,7 @@ void jwt_free(jwt_t *jwt);
  *
  * @param jwt Pointer to a JWT object.
  * @return A new object on success, NULL on error with errno set
- *         appropriately.
+ *     appropriately.
  */
 jwt_t *jwt_dup(jwt_t *jwt);
 
@@ -100,7 +127,7 @@ jwt_t *jwt_dup(jwt_t *jwt);
  *
  * @param jwt Pointer to a JWT object.
  * @param grant String containing the name of the grant to return a value
- *        for.
+ *     for.
  * @return Returns a string for the value, or NULL when not found.
  */
 const char *jwt_get_grant(jwt_t *jwt, const char *grant);
@@ -115,9 +142,9 @@ const char *jwt_get_grant(jwt_t *jwt, const char *grant);
  *
  * @param jwt Pointer to a JWT object.
  * @param grant String containing the name of the grant to return a value
- *        for.
+ *     for.
  * @param val String containing the value to be saved or grant. Can be
- *            an empty string, but cannot be NULL.
+ *     an empty string, but cannot be NULL.
  * @return Returns 0 on success, valid errno otherwise.
  */
 int jwt_add_grant(jwt_t *jwt, const char *grant, const char *val);
@@ -130,7 +157,7 @@ int jwt_add_grant(jwt_t *jwt, const char *grant, const char *val);
  *
  * @param jwt Pointer to a JWT object.
  * @param grant String containing the name of the grant to return a value
- *        for.
+ *     for.
  * @return Returns 0 on success, valid errno otherwise.
  */
 int jwt_del_grant(jwt_t *jwt, const char *grant);
@@ -155,7 +182,7 @@ int jwt_del_grant(jwt_t *jwt, const char *grant);
  * @param jwt Pointer to a JWT object.
  * @param fp Valid FILE pointer to write data to.
  * @param pretty Enabled better visual formatting of output. Generally only
- *               used for debugging.
+ *     used for debugging.
  * @return Returns 0 on success, valid errno otherwise.
  */
 int jwt_dump_fp(jwt_t *jwt, FILE *fp, int pretty);

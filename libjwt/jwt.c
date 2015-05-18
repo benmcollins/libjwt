@@ -202,6 +202,12 @@ dup_fail:
 	return new;
 }
 
+int jwt_decode(jwt_t **jwt, const char *token, const unsigned char *key,
+	       int key_len)
+{
+	return EINVAL;
+}
+
 const char *jwt_get_grant(jwt_t *jwt, const char *grant)
 {
 	struct jwt_grant *jlist;
