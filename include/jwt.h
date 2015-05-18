@@ -141,7 +141,7 @@ int jwt_del_grant(jwt_t *jwt, const char *grant);
  *
  * @param jwt Pointer to a JWT object.
  * @param fp Valid FILE pointer to write data to.
- * @param pretty Enabled better visual formatting of out. Generally only
+ * @param pretty Enabled better visual formatting of output. Generally only
  *               used for debugging.
  * @return Returns 0 on success, valid errno otherwise.
  */
@@ -151,7 +151,7 @@ int jwt_dump_fp(jwt_t *jwt, FILE *fp, int pretty);
  * Fully encode a JWT object and write it to FILE.
  *
  * This will create and write the complete JWT object to FILE. All parts
- * will be Bas64 encoded and signatures or encryption will be applied if
+ * will be Base64 encoded and signatures or encryption will be applied if
  * the algorithm specified requires it.
  *
  * @param jwt Pointer to a JWT object.
