@@ -23,6 +23,7 @@
 #include <openssl/bio.h>
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
+#include <openssl/buffer.h>
 
 #include <jansson.h>
 
@@ -30,18 +31,11 @@
 
 #include "config.h"
 
-/* Singly linked list of key and value pairs. */
-struct jwt_grant {
-	char *key;
-	char *val;
-	struct jwt_grant *next;
-};
-
 struct jwt {
 	jwt_alg_t alg;
 	unsigned char *key;
 	int key_len;
-	struct jwt_grant *grants;
+	json_t *grants;
 };
 
 static const char *jwt_alg_str(jwt_alg_t alg)
@@ -155,34 +149,30 @@ int jwt_new(jwt_t **jwt)
 
 	memset(*jwt, 0, sizeof(jwt_t));
 
+	(*jwt)->grants = json_object();
+	if (!(*jwt)->grants) {
+		free(*jwt);
+		*jwt = NULL;
+		return ENOMEM;
+	}
+
 	return 0;
 }
 
 void jwt_free(jwt_t *jwt)
 {
-	struct jwt_grant *jlist, *side;
-
 	if (!jwt)
 		return;
 
 	jwt_scrub_key(jwt);
 
-	jlist = jwt->grants;
-	while (jlist) {
-		side = jlist;
-		jlist = side->next;
-
-		free(side->key);
-		free(side->val);
-		free(side);
-	}
+	json_decref(jwt->grants);
 
 	free(jwt);
 }
 
 jwt_t *jwt_dup(jwt_t *jwt)
 {
-	struct jwt_grant *jlist;
 	jwt_t *new;
 
 	errno = 0;
@@ -205,12 +195,11 @@ jwt_t *jwt_dup(jwt_t *jwt)
 		new->key_len = jwt->key_len;
 	}
 
-	/* This creates in reverse order, but who cares. */
-	for (jlist = jwt->grants; jlist; jlist = jlist->next) {
-		errno = jwt_add_grant(new, jlist->key, jlist->val);
-		if (errno)
-			break;
-	}
+	new->grants = json_deep_copy(jwt->grants);
+	if (!new->grants)
+		errno = ENOMEM;
+	else
+		errno = 0;
 
 dup_fail:
 	if (errno) {
@@ -235,9 +224,8 @@ static const char *get_js_string(json_t *js, const char *key)
 
 static json_t *jwt_b64_decode(char *src)
 {
-	json_t *js = NULL;
-	char buf[BUFSIZ];
 	BIO *b64, *bmem;
+	char *buf;
 	int len;
 
 	/* Setup the OpenSSL base64 decoder. */
@@ -249,19 +237,24 @@ static json_t *jwt_b64_decode(char *src)
 	BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
 	BIO_push(b64, bmem);
 
-	len = BIO_read(b64, buf, sizeof(buf));
-	BIO_free_all(b64);
-
-	if (len <= 0)
+	len = BIO_pending(b64);
+	if (len <= 0) {
+		BIO_free_all(b64);
 		return NULL;
+	}
+
+	buf = alloca(len);
+	if (!buf) {
+		BIO_free_all(b64);
+		return NULL;
+	}
+
+	len = BIO_read(b64, buf, len);
+	BIO_free_all(b64);
 
 	buf[len] = '\0';
 
-	js = json_loads(buf, 0, NULL);
-	if (!js)
-		return NULL;
-
-	return js;
+	return json_loads(buf, 0, NULL);
 }
 
 static int jwt_sign_sha_hmac(jwt_t *jwt, BIO *out, const EVP_MD *alg,
@@ -300,23 +293,11 @@ static int jwt_sign(jwt_t *jwt, BIO *out, const char *str)
 
 static int jwt_parse_body(jwt_t *jwt, char *body)
 {
-	struct jwt_grant *jlist;
-	json_t *js = NULL;
-	const char *val, *key;
-	int ret = 0;
-
-	js = jwt_b64_decode(body);
-	if (!js)
+	jwt->grants = jwt_b64_decode(body);
+	if (!jwt->grants)
 		return EINVAL;
 
-	json_object_foreach(js, key, val) {
-		val = get_js_string(js, key);
-		ret = jwt_add_grant(jwt, key, val);
-		if (ret)
-			break;
-	}
-
-	return ret;
+	return 0;
 }
 
 static int jwt_verify_head(jwt_t *jwt, char *head)
@@ -353,7 +334,7 @@ static int jwt_verify_head(jwt_t *jwt, char *head)
 
 verify_head_done:
 	if (js)
-		free(js);
+		json_decref(js);
 
 	return ret;
 }
@@ -416,8 +397,8 @@ int jwt_decode(jwt_t **jwt, const char *token, const unsigned char *key,
 
 	/* Back up a bit so check the sig if needed. */
 	if (new->alg != JWT_ALG_NONE) {
-		char buf[BUFSIZ];
 		BIO *bmem, *b64;
+		char *buf;
 		int len;
 
 		b64 = BIO_new(BIO_f_base64());
@@ -435,18 +416,25 @@ int jwt_decode(jwt_t **jwt, const char *token, const unsigned char *key,
 		if (ret)
 			goto decode_done;
 
-		len = BIO_read(bmem, buf, sizeof(buf));
-		BIO_free_all(b64);
-
+		len = BIO_pending(bmem);
 		if (len < 0) {
 			ret = EINVAL;
 			goto decode_done;
 		}
+
+		buf = alloca(len + 1);
+		if (!buf) {
+			ret = ENOMEM;
+			goto decode_done;
+		}
+
+		len = BIO_read(bmem, buf, len);
+		BIO_free_all(b64);
+
 		buf[len] = '\0';
 
 		/* And now... */
-		if (strcmp(buf, sig))
-			ret = EINVAL;
+		ret = strcmp(buf, sig) ? EINVAL : 0;
 	} else {
 		ret = 0;
 	}
@@ -464,69 +452,26 @@ decode_done:
 
 const char *jwt_get_grant(jwt_t *jwt, const char *grant)
 {
-	struct jwt_grant *jlist;
-
-	if (!grant || !strlen(grant))
-		return NULL;
-
-	for (jlist = jwt->grants; jlist; jlist = jlist->next) {
-		if (!strcmp(jlist->key, grant))
-			return jlist->val;
-	}
-
-	return NULL;
+	return get_js_string(jwt->grants, grant);
 }
 
 int jwt_add_grant(jwt_t *jwt, const char *grant, const char *val)
 {
-	struct jwt_grant *jlist;
-
-	/* Allow the value to be empty. */
 	if (!grant || !strlen(grant) || !val)
 		return EINVAL;
 
-	if (jwt_get_grant(jwt, grant) != NULL)
+	if (get_js_string(jwt->grants, grant) != NULL)
 		return EEXIST;
 
-	jlist = malloc(sizeof(*jlist));
-	if (!jlist)
-		return ENOMEM;
-
-	memset(jlist, 0, sizeof(*jlist));
-	jlist->key = strdup(grant);
-	jlist->val = strdup(val);
-	jlist->next = jwt->grants;
-	jwt->grants = jlist;
+	if (json_object_set_new(jwt->grants, grant, json_string(val)))
+		return EINVAL;
 
 	return 0;
 }
 
 int jwt_del_grant(jwt_t *jwt, const char *grant)
 {
-	struct jwt_grant *jlist, *side = NULL;
-
-	if (!grant || !strlen(grant))
-		return EINVAL;
-
-	for (jlist = jwt->grants; jlist; jlist = jlist->next) {
-		if (!strcmp(jlist->key, grant))
-			break;
-		/* Track the last one. */
-		side = jlist;
-	}
-
-	/* If it ain't here, then we ok wit dat. */
-	if (!jlist)
-		return 0;
-
-	if (side)
-		side->next = jlist->next;
-	else
-		jwt->grants = jlist->next;
-
-	free(jlist->key);
-	free(jlist->val);
-	free(jlist);
+	json_object_del(jwt->grants, grant);
 
 	return 0;
 }
@@ -544,7 +489,7 @@ static void jwt_write_bio_head(jwt_t *jwt, BIO *bio, int pretty)
 		if (pretty)
 			BIO_puts(bio, "    ");
 
-		BIO_puts(bio, "\"typ\":\"JWT\",");
+		BIO_printf(bio, "\"typ\":%s\"JWT\",", pretty?" ":"");
 
 		if (pretty)
 			BIO_puts(bio, "\n");
@@ -553,7 +498,8 @@ static void jwt_write_bio_head(jwt_t *jwt, BIO *bio, int pretty)
 	if (pretty)
 		BIO_puts(bio, "    ");
 
-	BIO_printf(bio, "\"alg\":\"%s\"", jwt_alg_str(jwt->alg));
+	BIO_printf(bio, "\"alg\":%s\"%s\"", pretty?" ":"",
+		   jwt_alg_str(jwt->alg));
 
 	if (pretty)
 		BIO_puts(bio, "\n");
@@ -568,30 +514,22 @@ static void jwt_write_bio_head(jwt_t *jwt, BIO *bio, int pretty)
 
 static void jwt_write_bio_body(jwt_t *jwt, BIO *bio, int pretty)
 {
-	struct jwt_grant *jlist;
+	/* Sort keys for repeatability */
+	size_t flags = JSON_SORT_KEYS;
+	char *serial;
 
-	if (pretty)
+	if (pretty) {
 		BIO_puts(bio, "\n");
-
-	BIO_puts(bio, "{");
-
-	if (pretty)
-		BIO_puts(bio, "\n");
-
-	for (jlist = jwt->grants; jlist; jlist = jlist->next) {
-		if (pretty)
-			BIO_puts(bio, "    ");
-
-		BIO_printf(bio, "\"%s\":\"%s\"", jlist->key, jlist->val);
-
-		if (jlist->next)
-			BIO_puts(bio, ",");
-
-		if (pretty)
-			BIO_puts(bio, "\n");
+		flags |= JSON_INDENT(4);
+	} else {
+		flags |= JSON_COMPACT;
 	}
 
-	BIO_puts(bio, "}");
+	serial = json_dumps(jwt->grants, flags);
+
+	BIO_puts(bio, serial);
+
+	free(serial);
 
 	if (pretty)
 		BIO_puts(bio, "\n");
@@ -608,30 +546,56 @@ int jwt_dump_fp(jwt_t *jwt, FILE *fp, int pretty)
 		return ENOMEM;
 
 	jwt_write_bio_head(jwt, bio, pretty);
-
 	BIO_puts(bio, ".");
-
 	jwt_write_bio_body(jwt, bio, pretty);
-
-	BIO_flush(bio);
 
 	BIO_free_all(bio);
 
 	return 0;
 }
 
-/* TODO: Get rid of BUFSIZ stack alloc. */
-int jwt_encode_fp(jwt_t *jwt, FILE *fp)
+char *jwt_dump_str(jwt_t *jwt, int pretty)
 {
-	BIO *bfp, *b64, *bmem;
-	char buf[BUFSIZ];
+	BIO *bmem = BIO_new(BIO_s_mem());
+	char *out;
+	int len;
+
+	if (!bmem) {
+		errno = ENOMEM;
+		return NULL;
+	}
+
+	jwt_write_bio_head(jwt, bmem, pretty);
+	BIO_puts(bmem, ".");
+	jwt_write_bio_body(jwt, bmem, pretty);
+
+	len = BIO_pending(bmem);
+	out = malloc(len + 1);
+	if (!out) {
+		BIO_free_all(bmem);
+		errno = ENOMEM;
+		return NULL;
+	}
+
+	len = BIO_read(bmem, out, len);
+	out[len] = '\0';
+
+	BIO_free_all(bmem);
+	errno = 0;
+
+	return out;
+}
+
+static int jwt_encode_bio(jwt_t *jwt, BIO *out)
+{
+	BIO *b64, *bmem;
+	char *buf;
 	int len, len2, ret;
 
 	/* Setup the OpenSSL base64 encoder. */
 	b64 = BIO_new(BIO_f_base64());
-	bfp = BIO_new_fp(fp, BIO_NOCLOSE);
 	bmem = BIO_new(BIO_s_mem());
-	if (!b64 || !bfp || !bmem)
+	if (!b64 || !bmem)
 		return ENOMEM;
 
 	BIO_push(b64, bmem);
@@ -639,54 +603,99 @@ int jwt_encode_fp(jwt_t *jwt, FILE *fp)
 
 	/* First the header. */
 	jwt_write_bio_head(jwt, b64, 0);
-	len = BIO_gets(bmem, buf, sizeof(buf));
-	if (len <= 0) {
-		BIO_free_all(b64);
-		BIO_free_all(bfp);
-		return EINVAL;
-	}
-	buf[len++] = '\0';
 
-	strcat(buf, ".");
+	BIO_puts(bmem, ".");
 
 	/* Now the body. */
 	jwt_write_bio_body(jwt, b64, 0);
-	len2 = BIO_gets(bmem, buf + len, sizeof(buf) - len);
-	if (len <= 0) {
+
+	len = BIO_pending(bmem);
+	buf = alloca(len + 1);
+	if (!buf) {
 		BIO_free_all(b64);
-		BIO_free_all(bfp);
-		return EINVAL;
+		return ENOMEM;
 	}
-	len += len2;
+
+	len = BIO_read(bmem, buf, len);
 	buf[len] = '\0';
 
-	BIO_puts(bfp, buf);
-
-	BIO_puts(bfp, ".");
+	BIO_puts(out, buf);
+	BIO_puts(out, ".");
 
 	/* Now the signature. */
 	ret = jwt_sign(jwt, b64, buf);
-	if (ret) {
-		BIO_free_all(b64);
-		BIO_free_all(bfp);
-		return ret;
+	if (ret)
+		goto encode_bio_done;
+
+	len2 = BIO_pending(bmem);
+	if (len2 > len) {
+		buf = alloca(len2 + 1);
+		if (!buf) {
+			ret = ENOMEM;
+			goto encode_bio_done;
+		}
+	} else if (len2 < 0) {
+		ret = EINVAL;
+		goto encode_bio_done;
 	}
 
-	len = BIO_gets(bmem, buf, sizeof(buf));
-	if (len < 0) {
-		BIO_free_all(b64);
-		BIO_free_all(bfp);
-		return EINVAL;
-	}
-	buf[len] = '\0';
+	len2 = BIO_read(bmem, buf, len2);
+	buf[len2] = '\0';
 
-	BIO_puts(bfp, buf);
+	BIO_puts(out, buf);
 
-	BIO_flush(bfp);
+	BIO_flush(out);
 
+	ret = 0;
+
+encode_bio_done:
 	/* All done. */
 	BIO_free_all(b64);
+
+	return ret;
+}
+
+int jwt_encode_fp(jwt_t *jwt, FILE *fp)
+{
+	BIO *bfp = BIO_new_fp(fp, BIO_NOCLOSE);
+	int ret;
+
+	if (!bfp)
+		return ENOMEM;
+
+	ret = jwt_encode_bio(jwt, bfp);
 	BIO_free_all(bfp);
 
-	return 0;
+	return ret;
+}
+
+char *jwt_encode_str(jwt_t *jwt)
+{
+	BIO *bmem = BIO_new(BIO_s_mem());
+	char *str = NULL;
+	int len;
+
+	if (!bmem) {
+		errno = ENOMEM;
+		return NULL;
+	}
+
+	errno = jwt_encode_bio(jwt, bmem);
+	if (errno)
+		goto encode_str_done;
+
+	len = BIO_pending(bmem);
+	str = malloc(len);
+	if (!str) {
+		errno = ENOMEM;
+		goto encode_str_done;
+	}
+
+	len = BIO_read(bmem, str, len);
+	str[len] = '\0';
+
+encode_str_done:
+	BIO_free_all(bmem);
+
+	return str;
 }

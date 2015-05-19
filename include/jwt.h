@@ -186,6 +186,20 @@ int jwt_del_grant(jwt_t *jwt, const char *grant);
 int jwt_dump_fp(jwt_t *jwt, FILE *fp, int pretty);
 
 /**
+ * Return plain text representation as a string.
+ *
+ * Similar to jwt_dump_fp() except that a string is returned. The string
+ * must be freed by the caller.
+ *
+ * @param jwt Pointer to a JWT object.
+ * @param pretty Enabled better visual formatting of output. Generally only
+ *     used for debugging.
+ * @return A nul terminated string on success, NULL on error with errno
+ *     set appropriately.
+ */
+char *jwt_dump_str(jwt_t *jwt, int pretty);
+
+/**
  * Fully encode a JWT object and write it to FILE.
  *
  * This will create and write the complete JWT object to FILE. All parts
@@ -197,6 +211,18 @@ int jwt_dump_fp(jwt_t *jwt, FILE *fp, int pretty);
  * @return Returns 0 on success, valid errno otherwise.
  */
 int jwt_encode_fp(jwt_t *jwt, FILE *fp);
+
+/**
+ * Fully encode a JWT object and return as a string.
+ *
+ * Similar to jwt_encode_fp() except that a string is returned. The string
+ * must be freed by the caller.
+ *
+ * @param jwt Pointer to a JWT object.
+ * @return A nul terminated string on success, NULL on error with errno
+ *     set appropriately.
+ */
+char *jwt_encode_str(jwt_t *jwt);
 
 /** @} */
 

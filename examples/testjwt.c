@@ -15,7 +15,7 @@ static char hs384_res[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzM4NCJ9.eyJpc3MiOi"
 
 static void jwt_exit(void)
 {
-	perror("testjwt:");
+	perror("testjwt");
 	exit(1);
 }
 
@@ -25,10 +25,13 @@ int main(int argc, char *argv[])
 	unsigned char key256[32] = "012345678901234567890123456789XY";
 	unsigned char key384[48] = "aaaabbbbccccddddeeeeffffgggghhhh"
 				   "iiiijjjjkkkkllll";
+	char *out;
 
+	puts("Creating JWT");
 	if (jwt_new(&jwt))
 		jwt_exit();
 
+	puts("Adding grants");
 	if (jwt_add_grant(jwt, "iss", "files.cyphre.com"))
 		jwt_exit();
 
@@ -39,7 +42,7 @@ int main(int argc, char *argv[])
 		jwt_exit();
 
 	if (jwt_add_grant(jwt, "ref", "11212lkjke1el1e12lk")) {
-		printf("Passed duplicate grant check.\n");
+		puts("Passed duplicate grant check.");
 	} else {
 		fprintf(stderr, "FAILED duplicate grant check.\n");
 		exit(2);
@@ -74,10 +77,11 @@ int main(int argc, char *argv[])
 	jwt_free(new);
 	jwt_free(jwt);
 
+	puts("Checking decode.");
 	if (jwt_decode(&jwt, hs384_res, key384, sizeof(key384)))
 		jwt_exit();
 	else
-		printf("Decoding succeeded.\n");
+		puts("Decoding succeeded.");
 
 	jwt_dump_fp(jwt, stdout, 1);
 
@@ -88,6 +92,25 @@ int main(int argc, char *argv[])
 
 	jwt_encode_fp(jwt, stdout);
 	putc('\n', stdout);
+
+	puts("Checking dump_str");
+	out = jwt_dump_str(jwt, 1);
+	if (!out) {
+		perror("dump_str");
+	} else {
+		fputs(out, stdout);
+		free(out);
+	}
+
+	puts("Checking encode_str");
+	jwt_set_alg(jwt, JWT_ALG_HS256, key256, sizeof(key256));
+	out = jwt_encode_str(jwt);
+	if (!out) {
+		perror("encode_str");
+	} else {
+		puts(out);
+		free(out);
+	}
 
 	jwt_free(jwt);
 
