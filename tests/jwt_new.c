@@ -24,16 +24,13 @@ END_TEST
 
 START_TEST(test_jwt_decode)
 {
-	char hs384_res[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzM4NCJ9.eyJpc3MiOi"
-			   "JmaWxlcy5jeXBocmUuY29tIiwic3ViIjoidXNlcjAifQ==."
-			   "k9MApCWNkjZi47zVzPw/SkHOPEtlMuzGcseuKqhzwfGaqnL"
-			   "p3aIArg1wuUU+4QB2";
-	unsigned char key384[48] = "aaaabbbbccccddddeeeeffffgggghhhh"
-				   "iiiijjjjkkkkllll";
+	const char token[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzM4NCJ9."
+			     "eyJpc3MiOiJmaWxlcy5jeXBocmUuY29tIiwic"
+			     "3ViIjoidXNlcjAifQ==.";
 	jwt_t *jwt;
 	int ret;
 
-	ret = jwt_decode(&jwt, hs384_res, key384, sizeof(key384));
+	ret = jwt_decode(&jwt, token, NULL, 0);
 	ck_assert_int_eq(ret, 0);
 	ck_assert(jwt != NULL);
 
