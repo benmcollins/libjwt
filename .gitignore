@@ -24,6 +24,7 @@ Makefile
 */config.h
 */config.h.in
 */stamp-h1
+/test-driver
 
 # Explicit stuff
 !/m4/ax_check_openssl.m4

@@ -1,0 +1,4 @@
+jwt_grant
+jwt_new
+*.log
+*.trs

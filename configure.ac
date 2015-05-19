@@ -9,7 +9,8 @@ AC_CONFIG_HEADERS([libjwt/config.h])
 AC_SUBST([AM_CFLAGS], [-Wall])
 
 CHECK_SSL
-PKG_CHECK_MODULES([JANSSON], [jansson >= 0.26])
+PKG_CHECK_MODULES([JANSSON], [jansson >= 2.0])
+PKG_CHECK_MODULES([CHECK], [check >= 0.9.4])
 
 DX_MAN_FEATURE(ON)
 DX_HTML_FEATURE(OFF)
@@ -25,7 +26,7 @@ AC_CONFIG_FILES([
 	Makefile
 	include/Makefile
 	libjwt/Makefile
-	examples/Makefile
+	tests/Makefile
 	libjwt/libjwt.pc
 ])
 
