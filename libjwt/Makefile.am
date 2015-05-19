@@ -4,3 +4,6 @@ libjwt_la_SOURCES = jwt.c
 libjwt_la_LDFLAGS = -version-info 0:0:0 $(OPENSSL_LDFLAGS)
 libjwt_la_CPPFLAGS = -I$(top_srcdir)/include $(OPENSSL_INCLUDES)
 libjwt_la_LIBADD = $(OPENSSL_LIBS)
+
+pkgconfiglibdir = $(libdir)/pkgconfig
+pkgconfiglib_DATA = libjwt.pc

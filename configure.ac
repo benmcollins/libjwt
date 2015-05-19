@@ -25,6 +25,7 @@ AC_CONFIG_FILES([
 	include/Makefile
 	libjwt/Makefile
 	examples/Makefile
+	libjwt/libjwt.pc
 ])
 
 AC_OUTPUT
