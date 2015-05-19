@@ -537,6 +537,13 @@ static void jwt_write_bio_body(jwt_t *jwt, BIO *bio, int pretty)
 	BIO_flush(bio);
 }
 
+static void jwt_dump_bio(jwt_t *jwt, BIO *out, int pretty)
+{
+	jwt_write_bio_head(jwt, out, pretty);
+	BIO_puts(out, ".");
+	jwt_write_bio_body(jwt, out, pretty);
+}
+
 int jwt_dump_fp(jwt_t *jwt, FILE *fp, int pretty)
 {
 	BIO *bio;
@@ -545,9 +552,7 @@ int jwt_dump_fp(jwt_t *jwt, FILE *fp, int pretty)
 	if (!bio)
 		return ENOMEM;
 
-	jwt_write_bio_head(jwt, bio, pretty);
-	BIO_puts(bio, ".");
-	jwt_write_bio_body(jwt, bio, pretty);
+	jwt_dump_bio(jwt, bio, pretty);
 
 	BIO_free_all(bio);
 
@@ -565,9 +570,7 @@ char *jwt_dump_str(jwt_t *jwt, int pretty)
 		return NULL;
 	}
 
-	jwt_write_bio_head(jwt, bmem, pretty);
-	BIO_puts(bmem, ".");
-	jwt_write_bio_body(jwt, bmem, pretty);
+	jwt_dump_bio(jwt, bmem, pretty);
 
 	len = BIO_pending(bmem);
 	out = malloc(len + 1);
