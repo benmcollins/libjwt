@@ -51,9 +51,8 @@ typedef enum jwt_alg {
 /**
  * Allocate a new, empty, JWT object.
  *
- * This is generally used to create a new object for a JWT. After you
- * have finished with the object, use jwt_free() to clean up the
- * memory used by it.
+ * This is used to create a new object for a JWT. After you have finished
+ * with the object, use jwt_free() to clean up the memory used by it.
  *
  * @param jwt Pointer to a JWT object pointer. Will be allocated on
  *     success.
@@ -62,13 +61,14 @@ typedef enum jwt_alg {
 int jwt_new(jwt_t **jwt);
 
 /**
- * Allocate and verify a new JWT object from an existing token.
+ * Verify an existing JWT and allocate a new JWT object from it.
  *
  * Decodes a JWT string and verifies the signature (if one is supplied).
  * If no signature is used (JWS, alg="none") or key is NULL, then no
  * validation is done other than formatting. It is not suggested to use
- * this one a string that has a signature without passing the key to
- * verify it.
+ * this on a string that has a signature without passing the key to
+ * verify it. If the JWT is encrypted and no key is supplied, an error
+ * is returned.
  *
  * @param jwt Pointer to a JWT object pointer. Will be allocated on
  *     success.
@@ -76,12 +76,14 @@ int jwt_new(jwt_t **jwt);
  * @param key Pointer to the key for validating the JWT signature or for
  *     decrypting the token or NULL if no validation is to be performed.
  * @param key_len The length of the above key. Must match the algorithm
- *     (e.g. 32 for HS256) and the lenght of the data in key.
+ *     (e.g. 32 for HS256) and the length of the data in key.
  * @return 0 on success, valid errno otherwise.
+ *
  * @remark If a key is supplied, the token must pass sig check or decrypt
  *     for it to be parsed without error. If no key is supplied, then a
  *     non-encrypted token will be parsed without any checks for a valid
- *     signature.
+ *     signature, however, standard validation of the token is still
+ *     performed.
  */
 int jwt_decode(jwt_t **jwt, const char *token, const unsigned char *key,
 	       int key_len);
@@ -90,7 +92,7 @@ int jwt_decode(jwt_t **jwt, const char *token, const unsigned char *key,
  * Free a JWT object and any other resources it is using.
  *
  * After calling, the JWT object referenced will no longer be valid and
- * it's memory will be freed.
+ * its memory will be freed.
  *
  * @param jwt Pointer to a JWT object previously created with jwt_new()
  *            or jwt_decode().
@@ -139,9 +141,8 @@ const char *jwt_get_grant(jwt_t *jwt, const char *grant);
  * try to add a grant that already exists.
  *
  * @param jwt Pointer to a JWT object.
- * @param grant String containing the name of the grant to return a value
- *     for.
- * @param val String containing the value to be saved or grant. Can be
+ * @param grant String containing the name of the grant to add.
+ * @param val String containing the value to be saved for grant. Can be
  *     an empty string, but cannot be NULL.
  * @return Returns 0 on success, valid errno otherwise.
  */
@@ -151,11 +152,10 @@ int jwt_add_grant(jwt_t *jwt, const char *grant, const char *val);
  * Delete a grant from this JWT object.
  *
  * Deletes the named grant from this object. It is not an error if there
- * is no grant matching the passed value.
+ * is no grant matching the passed name.
  *
  * @param jwt Pointer to a JWT object.
- * @param grant String containing the name of the grant to return a value
- *     for.
+ * @param grant String containing the name of the grant to delete.
  * @return Returns 0 on success, valid errno otherwise.
  */
 int jwt_del_grant(jwt_t *jwt, const char *grant);
@@ -179,7 +179,7 @@ int jwt_del_grant(jwt_t *jwt, const char *grant);
  *
  * @param jwt Pointer to a JWT object.
  * @param fp Valid FILE pointer to write data to.
- * @param pretty Enabled better visual formatting of output. Generally only
+ * @param pretty Enables better visual formatting of output. Generally only
  *     used for debugging.
  * @return Returns 0 on success, valid errno otherwise.
  */
@@ -192,7 +192,7 @@ int jwt_dump_fp(jwt_t *jwt, FILE *fp, int pretty);
  * must be freed by the caller.
  *
  * @param jwt Pointer to a JWT object.
- * @param pretty Enabled better visual formatting of output. Generally only
+ * @param pretty Enables better visual formatting of output. Generally only
  *     used for debugging.
  * @return A nul terminated string on success, NULL on error with errno
  *     set appropriately.
@@ -243,10 +243,10 @@ char *jwt_encode_str(jwt_t *jwt);
  * Specifies an algorithm for a JWT object. If JWT_ALG_NONE is used, then
  * key must be NULL and len must be 0. All other algorithms must have a
  * valid pointer to key data of a length specific to the algorithm
- * specified (e.g., HS256 requires 32 Bytes of key).
+ * requested (e.g., HS256 requires 32 Bytes of key data).
  *
  * @param jwt Pointer to a JWT object.
- * @param alg A valid jwt_alg_t specififier.
+ * @param alg A valid jwt_alg_t specifier.
  * @param key The key data to use for the algorithm.
  * @param len The length of the key data.
  * @return Returns 0 on success, valid errno otherwise.
