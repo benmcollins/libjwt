@@ -24,6 +24,8 @@
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
 
+#include <jansson.h>
+
 #include <jwt.h>
 
 #include "config.h"
@@ -59,6 +61,22 @@ static const char *jwt_alg_str(jwt_alg_t alg)
 	return NULL;
 }
 
+static int jwt_str_alg(jwt_t *jwt, const char *alg)
+{
+	if (!strcasecmp(alg, "none"))
+		jwt->alg = JWT_ALG_NONE;
+	else if (!strcasecmp(alg, "HS256"))
+		jwt->alg = JWT_ALG_HS256;
+	else if (!strcasecmp(alg, "HS384"))
+		jwt->alg = JWT_ALG_HS384;
+	else if (!strcasecmp(alg, "HS512"))
+		jwt->alg = JWT_ALG_HS512;
+	else
+		return EINVAL;
+
+	return 0;
+}
+
 static int jwt_alg_key_len(jwt_alg_t alg)
 {
 	switch (alg) {
@@ -78,15 +96,16 @@ static int jwt_alg_key_len(jwt_alg_t alg)
 
 static void jwt_scrub_key(jwt_t *jwt)
 {
-	if (!jwt->key)
-		return;
+	if (jwt->key) {
+		/* Overwrite it so it's gone from memory. */
+		memset(jwt->key, 0, jwt->key_len);
 
-	/* Overwrite it so it's gone from memory. */
-	memset(jwt->key, 0, jwt->key_len);
+		free(jwt->key);
+		jwt->key = NULL;
+	}
 
-	free(jwt->key);
-	jwt->key = NULL;
-	jwt->key_len = JWT_ALG_NONE;
+	jwt->key_len = 0;
+	jwt->alg = JWT_ALG_NONE;
 }
 
 int jwt_set_alg(jwt_t *jwt, jwt_alg_t alg, unsigned char *key, int len)
@@ -202,10 +221,245 @@ dup_fail:
 	return new;
 }
 
+static const char *get_js_string(json_t *js, const char *key)
+{
+	const char *val = NULL;
+	json_t *js_val;
+
+	js_val = json_object_get(js, key);
+	if (js_val)
+		val = json_string_value(js_val);
+
+	return val;
+}
+
+static json_t *jwt_b64_decode(char *src)
+{
+	json_t *js = NULL;
+	char buf[BUFSIZ];
+	BIO *b64, *bmem;
+	int len;
+
+	/* Setup the OpenSSL base64 decoder. */
+	b64 = BIO_new(BIO_f_base64());
+	bmem = BIO_new_mem_buf(src, strlen(src));
+	if (!b64 || !bmem)
+		return NULL;
+
+	BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
+	BIO_push(b64, bmem);
+
+	len = BIO_read(b64, buf, sizeof(buf));
+	BIO_free_all(b64);
+
+	if (len <= 0)
+		return NULL;
+
+	buf[len] = '\0';
+
+	js = json_loads(buf, 0, NULL);
+	if (!js)
+		return NULL;
+
+	return js;
+}
+
+static int jwt_sign_sha_hmac(jwt_t *jwt, BIO *out, const EVP_MD *alg,
+			     const char *str)
+{
+	unsigned char res[jwt->key_len];
+	unsigned int res_len;
+
+	HMAC(alg, jwt->key, jwt->key_len,
+	     (const unsigned char *)str, strlen(str), res, &res_len);
+
+	BIO_write(out, res, res_len);
+
+	BIO_flush(out);
+
+	return 0;
+}
+
+static int jwt_sign(jwt_t *jwt, BIO *out, const char *str)
+{
+	switch (jwt->alg) {
+	case JWT_ALG_NONE:
+		return 0;
+
+	case JWT_ALG_HS256:
+		return jwt_sign_sha_hmac(jwt, out, EVP_sha256(), str);
+	case JWT_ALG_HS384:
+		return jwt_sign_sha_hmac(jwt, out, EVP_sha384(), str);
+	case JWT_ALG_HS512:
+		return jwt_sign_sha_hmac(jwt, out, EVP_sha512(), str);
+	}
+
+	/* Should never get here. */
+	return EINVAL;
+}
+
+static int jwt_parse_body(jwt_t *jwt, char *body)
+{
+	struct jwt_grant *jlist;
+	json_t *js = NULL;
+	const char *val, *key;
+	int ret = 0;
+
+	js = jwt_b64_decode(body);
+	if (!js)
+		return EINVAL;
+
+	json_object_foreach(js, key, val) {
+		val = get_js_string(js, key);
+		ret = jwt_add_grant(jwt, key, val);
+		if (ret)
+			break;
+	}
+
+	return ret;
+}
+
+static int jwt_verify_head(jwt_t *jwt, char *head)
+{
+	json_t *js = NULL;
+	const char *val;
+	int ret;
+
+	js = jwt_b64_decode(head);
+	if (!js)
+		return EINVAL;
+
+	val = get_js_string(js, "alg");
+	ret = jwt_str_alg(jwt, val);
+	if (ret)
+		goto verify_head_done;
+
+	/* If alg is not NONE, there should be a typ. */
+	if (jwt->alg != JWT_ALG_NONE) {
+		int len;
+
+		val = get_js_string(js, "typ");
+		if (!val || strcasecmp(val, "JWT"))
+			ret = EINVAL;
+
+		if (jwt->key) {
+			len = jwt_alg_key_len(jwt->alg);
+			if (len != jwt->key_len)
+				ret = EINVAL;
+		} else {
+			jwt_scrub_key(jwt);
+		}
+	}
+
+verify_head_done:
+	if (js)
+		free(js);
+
+	return ret;
+}
+
 int jwt_decode(jwt_t **jwt, const char *token, const unsigned char *key,
 	       int key_len)
 {
-	return EINVAL;
+	char *head = strdup(token);
+	jwt_t *new = NULL;
+	char *body, *sig;
+	int ret = EINVAL;
+
+	if (!jwt)
+		return EINVAL;
+
+	*jwt = NULL;
+
+	if (!head)
+		return ENOMEM;
+
+	/* Find the components. */
+	for (body = head; body[0] != '.'; body++) {
+		if (body[0] == '\0')
+			goto decode_done;
+	}
+
+	body[0] = '\0';
+	body++;
+
+	for (sig = body; sig[0] != '.'; sig++) {
+		if (sig[0] == '\0')
+			goto decode_done;
+	}
+
+	sig[0] = '\0';
+	sig++;
+
+	/* Now that we have everything split up, let's check out the
+	 * header. */
+	ret = jwt_new(&new);
+	if (ret)
+		goto decode_done;
+
+	/* Copy the key over for verify_head. */
+	if (key_len) {
+		new->key = malloc(key_len);
+		if (!new->key)
+			goto decode_done;
+		memcpy(new->key, key, key_len);
+		new->key_len = key_len;
+	}
+
+	ret = jwt_verify_head(new, head);
+	if (ret)
+		goto decode_done;
+
+	ret = jwt_parse_body(new, body);
+	if (ret)
+		goto decode_done;
+
+	/* Back up a bit so check the sig if needed. */
+	if (new->alg != JWT_ALG_NONE) {
+		char buf[BUFSIZ];
+		BIO *bmem, *b64;
+		int len;
+
+		b64 = BIO_new(BIO_f_base64());
+		bmem = BIO_new(BIO_s_mem());
+		if (!b64 || !bmem) {
+			ret = ENOMEM;
+			goto decode_done;
+		}
+
+		BIO_push(b64, bmem);
+		BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
+
+		body[-1] = '.';
+		ret = jwt_sign(new, b64, head);
+		if (ret)
+			goto decode_done;
+
+		len = BIO_read(bmem, buf, sizeof(buf));
+		BIO_free_all(b64);
+
+		if (len < 0) {
+			ret = EINVAL;
+			goto decode_done;
+		}
+		buf[len] = '\0';
+
+		/* And now... */
+		if (strcmp(buf, sig))
+			ret = EINVAL;
+	} else {
+		ret = 0;
+	}
+
+decode_done:
+	if (ret)
+		jwt_free(new);
+	else
+		*jwt = new;
+
+	free(head);
+
+	return ret;
 }
 
 const char *jwt_get_grant(jwt_t *jwt, const char *grant)
@@ -366,40 +620,7 @@ int jwt_dump_fp(jwt_t *jwt, FILE *fp, int pretty)
 	return 0;
 }
 
-static int jwt_sign_sha_hmac(jwt_t *jwt, BIO *out, const EVP_MD *alg,
-			     const char *str)
-{
-	unsigned char res[jwt->key_len];
-	unsigned int res_len;
-
-	HMAC(alg, jwt->key, jwt->key_len,
-	     (const unsigned char *)str, strlen(str), res, &res_len);
-
-	BIO_write(out, res, res_len);
-
-	BIO_flush(out);
-
-	return 0;
-}
-
-static int jwt_sign(jwt_t *jwt, BIO *out, const char *str)
-{
-	switch (jwt->alg) {
-	case JWT_ALG_NONE:
-		return 0;
-
-	case JWT_ALG_HS256:
-		return jwt_sign_sha_hmac(jwt, out, EVP_sha256(), str);
-	case JWT_ALG_HS384:
-		return jwt_sign_sha_hmac(jwt, out, EVP_sha384(), str);
-	case JWT_ALG_HS512:
-		return jwt_sign_sha_hmac(jwt, out, EVP_sha512(), str);
-	}
-
-	/* Should never get here. */
-	return EINVAL;
-}
-
+/* TODO: Get rid of BUFSIZ stack alloc. */
 int jwt_encode_fp(jwt_t *jwt, FILE *fp)
 {
 	BIO *bfp, *b64, *bmem;

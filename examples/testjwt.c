@@ -6,6 +6,13 @@
 
 #include <jwt.h>
 
+/* Our HS384 encoding should produce this. We also use it to test
+ * decoding. */
+static char hs384_res[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzM4NCJ9.eyJpc3MiOi"
+			  "JmaWxlcy5jeXBocmUuY29tIiwic3ViIjoidXNlcjAifQ==."
+			  "k9MApCWNkjZi47zVzPw/SkHOPEtlMuzGcseuKqhzwfGaqnL"
+			  "p3aIArg1wuUU+4QB2";
+
 static void jwt_exit(void)
 {
 	perror("testjwt:");
@@ -16,7 +23,8 @@ int main(int argc, char *argv[])
 {
 	jwt_t *jwt, *new;
 	unsigned char key256[32] = "012345678901234567890123456789XY";
-	unsigned char key384[48] = "aaaabbbbccccddddeeeeffffgggghhhhiiiijjjjkkkkllll";
+	unsigned char key384[48] = "aaaabbbbccccddddeeeeffffgggghhhh"
+				   "iiiijjjjkkkkllll";
 
 	if (jwt_new(&jwt))
 		jwt_exit();
@@ -64,6 +72,23 @@ int main(int argc, char *argv[])
 	putc('\n', stdout);
 
 	jwt_free(new);
+	jwt_free(jwt);
+
+	if (jwt_decode(&jwt, hs384_res, key384, sizeof(key384)))
+		jwt_exit();
+	else
+		printf("Decoding succeeded.\n");
+
+	jwt_dump_fp(jwt, stdout, 1);
+
+	jwt_free(jwt);
+
+	if (jwt_decode(&jwt, hs384_res, NULL, 0))
+		jwt_exit();
+
+	jwt_encode_fp(jwt, stdout);
+	putc('\n', stdout);
+
 	jwt_free(jwt);
 
 	exit(0);

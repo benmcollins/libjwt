@@ -77,13 +77,11 @@ int jwt_new(jwt_t **jwt);
  *     decrypting the token or NULL if no validation is to be performed.
  * @param key_len The length of the above key. Must match the algorithm
  *     (e.g. 32 for HS256) and the lenght of the data in key.
- * @return 0 on success, valid errno otherwise. If the token is signed and
- *     fails validation, then ENOKEY is returned, but the JWT object
- *     pointer will still be valid and represent the object in its
- *     decoded state. If the token is encrypted, and decryption fails,
- *     then ENOENT is returned, but the JWT object is not valid. All
- *     other issues decoding the object (e.g. errors in base64
- *     decoding) will return EINVAL.
+ * @return 0 on success, valid errno otherwise.
+ * @remark If a key is supplied, the token must pass sig check or decrypt
+ *     for it to be parsed without error. If no key is supplied, then a
+ *     non-encrypted token will be parsed without any checks for a valid
+ *     signature.
  */
 int jwt_decode(jwt_t **jwt, const char *token, const unsigned char *key,
 	       int key_len);
