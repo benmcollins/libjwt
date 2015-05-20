@@ -47,6 +47,35 @@ START_TEST(test_jwt_dup)
 }
 END_TEST
 
+START_TEST(test_jwt_dup_signed)
+{
+	unsigned char key256[32] = "012345678901234567890123456789XY";
+	jwt_t *jwt = NULL, *new = NULL;
+	int ret = 0;
+	const char *val = NULL;
+
+	ret = jwt_new(&jwt);
+	ck_assert_int_eq(ret, 0);
+	ck_assert(jwt != NULL);
+
+	ret = jwt_add_grant(jwt, "iss", "test");
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_set_alg(jwt, JWT_ALG_HS256, key256, sizeof(key256));
+	ck_assert_int_eq(ret, 0);
+
+	new = jwt_dup(jwt);
+	ck_assert(new != NULL);
+
+	val = jwt_get_grant(new, "iss");
+	ck_assert(val != NULL);
+	ck_assert_str_eq(val, "test");
+
+	jwt_free(new);
+	jwt_free(jwt);
+}
+END_TEST
+
 START_TEST(test_jwt_decode)
 {
 	const char token[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzM4NCJ9."
@@ -102,6 +131,26 @@ START_TEST(test_jwt_decode_hs384)
 }
 END_TEST
 
+START_TEST(test_jwt_decode_hs512)
+{
+        const char token[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpc3Mi"
+			     "OiJmaWxlcy5jeXBocmUuY29tIiwic3ViIjoidXNlcjAif"
+			     "Q==.tBAUpyW1r7kPc66uCBogFVilA6SYHwLHL8M/atmdy"
+			     "u56LYvDeiLGVd1mVOW17s/tC0+F9uJfRu1p334DvHkk4Q"
+			     "==";
+	unsigned char key512[64] = "012345678901234567890123456789XY"
+				   "012345678901234567890123456789XY";
+	jwt_t *jwt;
+        int ret;
+
+	ret = jwt_decode(&jwt, token, key512, sizeof(key512));
+	ck_assert_int_eq(ret, 0);
+	ck_assert(jwt != NULL);
+
+	jwt_free(jwt);
+}
+END_TEST
+
 Suite *libjwt_suite(void)
 {
 	Suite *s;
@@ -112,9 +161,11 @@ Suite *libjwt_suite(void)
 	tc_core = tcase_create("jwt_new");
 	tcase_add_test(tc_core, test_jwt_new);
 	tcase_add_test(tc_core, test_jwt_dup);
+	tcase_add_test(tc_core, test_jwt_dup_signed);
 	tcase_add_test(tc_core, test_jwt_decode);
 	tcase_add_test(tc_core, test_jwt_decode_hs256);
 	tcase_add_test(tc_core, test_jwt_decode_hs384);
+	tcase_add_test(tc_core, test_jwt_decode_hs512);
 	suite_add_tcase(s, tc_core);
 
 	return s;
