@@ -79,6 +79,30 @@ START_TEST(test_jwt_del_grant)
 }
 END_TEST
 
+START_TEST(test_jwt_grant_invalid)
+{
+	jwt_t *jwt = NULL;
+	const char *val;
+	int ret = 0;
+
+	ret = jwt_new(&jwt);
+	ck_assert_int_eq(ret, 0);
+	ck_assert(jwt != NULL);
+
+	ret = jwt_add_grant(jwt, "iss", NULL);
+	ck_assert_int_eq(ret, EINVAL);
+
+	ret = jwt_del_grant(jwt, "");
+	ck_assert_int_eq(ret, EINVAL);
+
+	val = jwt_get_grant(jwt, NULL);
+	ck_assert_int_eq(errno, EINVAL);
+	ck_assert(val == NULL);
+
+	jwt_free(jwt);
+}
+END_TEST
+
 Suite *libjwt_suite(void)
 {
 	Suite *s;
@@ -91,6 +115,7 @@ Suite *libjwt_suite(void)
 	tcase_add_test(tc_core, test_jwt_add_grant);
 	tcase_add_test(tc_core, test_jwt_get_grant);
 	tcase_add_test(tc_core, test_jwt_del_grant);
+	tcase_add_test(tc_core, test_jwt_grant_invalid);
 
 	suite_add_tcase(s, tc_core);
 

@@ -14,6 +14,9 @@ START_TEST(test_jwt_new)
 	jwt_t *jwt = NULL;
 	int ret = 0;
 
+	ret = jwt_new(NULL);
+	ck_assert_int_eq(ret, EINVAL);
+
 	ret = jwt_new(&jwt);
 	ck_assert_int_eq(ret, 0);
 	ck_assert(jwt != NULL);
@@ -27,6 +30,9 @@ START_TEST(test_jwt_dup)
 	jwt_t *jwt = NULL, *new = NULL;
 	int ret = 0;
 	const char *val = NULL;
+
+	new = jwt_dup(NULL);
+	ck_assert(new == NULL);
 
 	ret = jwt_new(&jwt);
 	ck_assert_int_eq(ret, 0);
@@ -92,13 +98,92 @@ START_TEST(test_jwt_decode)
 }
 END_TEST
 
+START_TEST(test_jwt_decode_invalid_final_dot)
+{
+	const char token[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzM4NCJ9."
+			     "eyJpc3MiOiJmaWxlcy5jeXBocmUuY29tIiwic"
+			     "3ViIjoidXNlcjAifQ==";
+	jwt_t *jwt;
+	int ret;
+
+	ret = jwt_decode(&jwt, token, NULL, 0);
+	ck_assert_int_eq(ret, EINVAL);
+	ck_assert(jwt == NULL);
+
+	jwt_free(jwt);
+}
+END_TEST
+
+START_TEST(test_jwt_decode_invalid_alg)
+{
+	const char token[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIQUhBSCJ9."
+			     "eyJpc3MiOiJmaWxlcy5jeXBocmUuY29tIiwic"
+			     "3ViIjoidXNlcjAifQ==.";
+	jwt_t *jwt;
+	int ret;
+
+	ret = jwt_decode(&jwt, token, NULL, 0);
+	ck_assert_int_eq(ret, EINVAL);
+	ck_assert(jwt == NULL);
+
+	jwt_free(jwt);
+}
+END_TEST
+
+START_TEST(test_jwt_decode_invalid_typ)
+{
+	const char token[] = "eyJ0eXAiOiJBTEwiLCJhbGciOiJIUzI1NiJ9."
+			     "eyJpc3MiOiJmaWxlcy5jeXBocmUuY29tIiwic"
+			     "3ViIjoidXNlcjAifQ==.";
+	jwt_t *jwt;
+	int ret;
+
+	ret = jwt_decode(&jwt, token, NULL, 0);
+	ck_assert_int_eq(ret, EINVAL);
+	ck_assert(jwt == NULL);
+
+	jwt_free(jwt);
+}
+END_TEST
+
+START_TEST(test_jwt_decode_invalid_head)
+{
+	const char token[] = "yJ0eXAiOiJKV1QiLCJhbGciOiJIUzM4NCJ9."
+			     "eyJpc3MiOiJmaWxlcy5jeXBocmUuY29tIiwic"
+			     "3ViIjoidXNlcjAifQ==.";
+	jwt_t *jwt;
+	int ret;
+
+	ret = jwt_decode(&jwt, token, NULL, 0);
+	ck_assert_int_eq(ret, EINVAL);
+	ck_assert(jwt == NULL);
+
+	jwt_free(jwt);
+}
+END_TEST
+
+START_TEST(test_jwt_decode_invalid_body)
+{
+	const char token[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzM4NCJ9."
+			     "eyJpc3MiOiJmaWxlcy5jeBocmUuY29tIiwic"
+			     "3ViIjoidXNlcjAifQ==.";
+	jwt_t *jwt;
+	int ret;
+
+	ret = jwt_decode(&jwt, token, NULL, 0);
+	ck_assert_int_eq(ret, EINVAL);
+	ck_assert(jwt == NULL);
+
+	jwt_free(jwt);
+}
+END_TEST
+
 START_TEST(test_jwt_decode_hs256)
 {
-	const char token[] = "eyJhbGciOiJub25lIn0=.eyJpc3MiOiJmaWxl"
-			     "cy5jeXBocmUuY29tIiwic3ViIjoidXNlcjAif"
-			     "Q==.eyJhbGciOiJub25lIn0=.eyJpc3MiOiJm"
-			     "aWxlcy5jeXBocmUuY29tIiwic3ViIjoidXNlc"
-			     "jAifQ==";
+	const char token[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3Mi"
+			     "OiJmaWxlcy5jeXBocmUuY29tIiwic3ViIjoidXNlcjAif"
+			     "Q==.S/0JN3II9oApK/FNV23YOkfAREWU3tJmQduJCUYzW"
+			     "BM=";
 	unsigned char key256[32] = "012345678901234567890123456789XY";
 	jwt_t *jwt;
 	int ret;
@@ -163,6 +248,11 @@ Suite *libjwt_suite(void)
 	tcase_add_test(tc_core, test_jwt_dup);
 	tcase_add_test(tc_core, test_jwt_dup_signed);
 	tcase_add_test(tc_core, test_jwt_decode);
+	tcase_add_test(tc_core, test_jwt_decode_invalid_alg);
+	tcase_add_test(tc_core, test_jwt_decode_invalid_typ);
+	tcase_add_test(tc_core, test_jwt_decode_invalid_head);
+	tcase_add_test(tc_core, test_jwt_decode_invalid_body);
+	tcase_add_test(tc_core,test_jwt_decode_invalid_final_dot);
 	tcase_add_test(tc_core, test_jwt_decode_hs256);
 	tcase_add_test(tc_core, test_jwt_decode_hs384);
 	tcase_add_test(tc_core, test_jwt_decode_hs512);

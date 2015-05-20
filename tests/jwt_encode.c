@@ -237,6 +237,10 @@ START_TEST(test_jwt_encode_invalid)
 	ret = jwt_set_alg(jwt, JWT_ALG_NONE, key512, sizeof(key512));
 	ck_assert_int_eq(ret, EINVAL);
 
+	/* Set a value that will never happen. */
+	ret = jwt_set_alg(jwt, 999, NULL, 0);
+	ck_assert_int_eq(ret, EINVAL);
+
 	jwt_free(jwt);
 }
 END_TEST

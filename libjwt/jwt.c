@@ -51,8 +51,7 @@ static const char *jwt_alg_str(jwt_alg_t alg)
 		return "HS512";
 	}
 
-	/* Should never be reached. */
-	return NULL;
+	return NULL; // LCOV_EXCL_LINE
 }
 
 static int jwt_str_alg(jwt_t *jwt, const char *alg)
@@ -84,8 +83,7 @@ static int jwt_alg_key_len(jwt_alg_t alg)
 		return 64;
 	}
 
-	/* Should never be reached. */
-	return -1;
+	return -1; // LCOV_EXCL_LINE
 }
 
 static void jwt_scrub_key(jwt_t *jwt)
@@ -122,8 +120,9 @@ int jwt_set_alg(jwt_t *jwt, jwt_alg_t alg, unsigned char *key, int len)
 			return EINVAL;
 
 		jwt->key = malloc(key_len);
-		if (!jwt->key)
-			return ENOMEM;
+		if (!jwt->key) {
+			return ENOMEM; // LCOV_EXCL_LINE
+		}
 
 		memcpy(jwt->key, key, key_len);
 		break;
@@ -151,9 +150,11 @@ int jwt_new(jwt_t **jwt)
 
 	(*jwt)->grants = json_object();
 	if (!(*jwt)->grants) {
+		// LCOV_EXCL_START
 		free(*jwt);
 		*jwt = NULL;
 		return ENOMEM;
+		// LCOV_EXCL_STOP
 	}
 
 	return 0;
@@ -175,12 +176,19 @@ jwt_t *jwt_dup(jwt_t *jwt)
 {
 	jwt_t *new;
 
+	if (!jwt) {
+		errno = EINVAL;
+		goto dup_fail;
+	}
+
 	errno = 0;
 
 	new = malloc(sizeof(jwt_t));
 	if (!new) {
+		// LCOV_EXCL_START
 		errno = ENOMEM;
 		return NULL;
+		// LCOV_EXCL_STOP
 	}
 
 	memset(new, 0, sizeof(jwt_t));
@@ -188,18 +196,21 @@ jwt_t *jwt_dup(jwt_t *jwt)
 	if (jwt->key_len) {
 		new->key = malloc(jwt->key_len);
 		if (!new->key) {
+			// LCOV_EXCL_START
 			errno = ENOMEM;
 			goto dup_fail;
+			// LCOV_EXCL_STOP
 		}
 		memcpy(new->key, jwt->key, jwt->key_len);
 		new->key_len = jwt->key_len;
 	}
 
 	new->grants = json_deep_copy(jwt->grants);
-	if (!new->grants)
-		errno = ENOMEM;
-	else
+	if (!new->grants) {
+		errno = ENOMEM; // LCOV_EXCL_LINE
+	} else {
 		errno = 0;
+	}
 
 dup_fail:
 	if (errno) {
@@ -231,8 +242,9 @@ static json_t *jwt_b64_decode(char *src)
 	/* Setup the OpenSSL base64 decoder. */
 	b64 = BIO_new(BIO_f_base64());
 	bmem = BIO_new_mem_buf(src, strlen(src));
-	if (!b64 || !bmem)
-		return NULL;
+	if (!b64 || !bmem) {
+		return NULL; // LCOV_EXCL_LINE
+	}
 
 	BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
 	BIO_push(b64, bmem);
@@ -287,8 +299,7 @@ static int jwt_sign(jwt_t *jwt, BIO *out, const char *str)
 		return jwt_sign_sha_hmac(jwt, out, EVP_sha512(), str);
 	}
 
-	/* Should never get here. */
-	return EINVAL;
+	return EINVAL; // LCOV_EXCL_LINE
 }
 
 static int jwt_parse_body(jwt_t *jwt, char *body)
@@ -375,14 +386,16 @@ int jwt_decode(jwt_t **jwt, const char *token, const unsigned char *key,
 	/* Now that we have everything split up, let's check out the
 	 * header. */
 	ret = jwt_new(&new);
-	if (ret)
-		goto decode_done;
+	if (ret) {
+		goto decode_done; // LCOV_EXCL_LINE
+	}
 
 	/* Copy the key over for verify_head. */
 	if (key_len) {
 		new->key = malloc(key_len);
-		if (!new->key)
-			goto decode_done;
+		if (!new->key) {
+			goto decode_done; // LCOV_EXCL_LINE
+		}
 		memcpy(new->key, key, key_len);
 		new->key_len = key_len;
 	}
@@ -404,8 +417,10 @@ int jwt_decode(jwt_t **jwt, const char *token, const unsigned char *key,
 		b64 = BIO_new(BIO_f_base64());
 		bmem = BIO_new(BIO_s_mem());
 		if (!b64 || !bmem) {
+			// LCOV_EXCL_START
 			ret = ENOMEM;
 			goto decode_done;
+			// LCOV_EXCL_STOP
 		}
 
 		BIO_push(b64, bmem);
@@ -424,8 +439,10 @@ int jwt_decode(jwt_t **jwt, const char *token, const unsigned char *key,
 
 		buf = alloca(len + 1);
 		if (!buf) {
+			// LCOV_EXCL_START
 			ret = ENOMEM;
 			goto decode_done;
+			// LCOV_EXCL_STOP
 		}
 
 		len = BIO_read(bmem, buf, len);
@@ -452,12 +469,19 @@ decode_done:
 
 const char *jwt_get_grant(jwt_t *jwt, const char *grant)
 {
+	if (!jwt || !grant || !strlen(grant)) {
+		errno = EINVAL;
+		return NULL;
+	}
+
+	errno = 0;
+
 	return get_js_string(jwt->grants, grant);
 }
 
 int jwt_add_grant(jwt_t *jwt, const char *grant, const char *val)
 {
-	if (!grant || !strlen(grant) || !val)
+	if (!jwt || !grant || !strlen(grant) || !val)
 		return EINVAL;
 
 	if (get_js_string(jwt->grants, grant) != NULL)
@@ -471,6 +495,9 @@ int jwt_add_grant(jwt_t *jwt, const char *grant, const char *val)
 
 int jwt_del_grant(jwt_t *jwt, const char *grant)
 {
+	if (!jwt || !grant || !strlen(grant))
+		return EINVAL;
+
 	json_object_del(jwt->grants, grant);
 
 	return 0;
@@ -566,8 +593,10 @@ char *jwt_dump_str(jwt_t *jwt, int pretty)
 	int len;
 
 	if (!bmem) {
+		// LCOV_EXCL_START
 		errno = ENOMEM;
 		return NULL;
+		// LCOV_EXCL_STOP
 	}
 
 	jwt_dump_bio(jwt, bmem, pretty);
@@ -575,9 +604,11 @@ char *jwt_dump_str(jwt_t *jwt, int pretty)
 	len = BIO_pending(bmem);
 	out = malloc(len + 1);
 	if (!out) {
+		// LCOV_EXCL_START
 		BIO_free_all(bmem);
 		errno = ENOMEM;
 		return NULL;
+		// LCOV_EXCL_STOP
 	}
 
 	len = BIO_read(bmem, out, len);
@@ -598,8 +629,9 @@ static int jwt_encode_bio(jwt_t *jwt, BIO *out)
 	/* Setup the OpenSSL base64 encoder. */
 	b64 = BIO_new(BIO_f_base64());
 	bmem = BIO_new(BIO_s_mem());
-	if (!b64 || !bmem)
-		return ENOMEM;
+	if (!b64 || !bmem) {
+		return ENOMEM; // LCOV_EXCL_LINE
+	}
 
 	BIO_push(b64, bmem);
 	BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
@@ -615,8 +647,10 @@ static int jwt_encode_bio(jwt_t *jwt, BIO *out)
 	len = BIO_pending(bmem);
 	buf = alloca(len + 1);
 	if (!buf) {
+		// LCOV_EXCL_START
 		BIO_free_all(b64);
 		return ENOMEM;
+		// LCOV_EXCL_STOP
 	}
 
 	len = BIO_read(bmem, buf, len);
@@ -679,8 +713,10 @@ char *jwt_encode_str(jwt_t *jwt)
 	int len;
 
 	if (!bmem) {
+		// LCOV_EXCL_START
 		errno = ENOMEM;
 		return NULL;
+		// LCOV_EXCL_STOP
 	}
 
 	errno = jwt_encode_bio(jwt, bmem);
@@ -690,8 +726,10 @@ char *jwt_encode_str(jwt_t *jwt)
 	len = BIO_pending(bmem);
 	str = malloc(len);
 	if (!str) {
+		// LCOV_EXCL_START
 		errno = ENOMEM;
 		goto encode_str_done;
+		// LCOV_EXCL_STOP
 	}
 
 	len = BIO_read(bmem, str, len);
