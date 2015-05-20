@@ -174,7 +174,7 @@ void jwt_free(jwt_t *jwt)
 
 jwt_t *jwt_dup(jwt_t *jwt)
 {
-	jwt_t *new;
+	jwt_t *new = NULL;
 
 	if (!jwt) {
 		errno = EINVAL;
