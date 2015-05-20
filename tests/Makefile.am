@@ -1,6 +1,8 @@
 TESTS =			\
 	jwt_new		\
-	jwt_grant
+	jwt_grant	\
+	jwt_dump	\
+	jwt_encode
 
 check_PROGRAMS = $(TESTS)
 

@@ -1,4 +1,6 @@
 jwt_grant
 jwt_new
+jwt_dump
+jwt_encode
 *.log
 *.trs
