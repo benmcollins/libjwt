@@ -1,11 +1,12 @@
-env:
-  matrix:
-    - LIBJWT_BUILD_METHOD=autotools
 language: c
 compiler:
   - gcc
+before_install:
+  - sudo pip install cpp-coveralls
 install:
   - sudo apt-get update -qq
   - sudo apt-get install -y -qq libjansson-dev check libssl-dev lcov curl
 script:
-  - if [ "$LIBJWT_BUILD_METHOD" = "autotools" ]; then autoreconf -i && ./configure && make check; fi
+  - ./configure --enable-gcov && make coverage
+after_success:
+  - coveralls --exclude tests --gcov-options '\-lp'

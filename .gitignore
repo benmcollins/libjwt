@@ -25,6 +25,9 @@ Makefile
 */config.h.in
 */stamp-h1
 /test-driver
+/coverage.info
+/coveragereport/*
+*.gcno
 
 # Explicit stuff
 !/m4/ax_check_openssl.m4
