@@ -32,5 +32,6 @@ Makefile
 # Explicit stuff
 !/m4/ax_check_openssl.m4
 !/m4/doxygen.m4
+!/m4/gcov.m4
 /doxygen-doc/*
 /libjwt/libjwt.pc
