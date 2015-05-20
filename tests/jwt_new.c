@@ -84,9 +84,8 @@ END_TEST
 
 START_TEST(test_jwt_decode)
 {
-	const char token[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzM4NCJ9."
-			     "eyJpc3MiOiJmaWxlcy5jeXBocmUuY29tIiwic"
-			     "3ViIjoidXNlcjAifQ==.";
+	const char token[] = "eyJhbGciOiJub25lIn0=.eyJpc3MiOiJmaWxlcy5jeXBo"
+			     "cmUuY29tIiwic3ViIjoidXNlcjAifQ==.";
 	jwt_t *jwt;
 	int ret;
 

@@ -144,7 +144,7 @@ int jwt_new(jwt_t **jwt)
 
 	*jwt = malloc(sizeof(jwt_t));
 	if (!*jwt)
-		return ENOMEM;
+		return ENOMEM; // LCOV_EXCL_LINE
 
 	memset(*jwt, 0, sizeof(jwt_t));
 
