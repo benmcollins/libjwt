@@ -7,6 +7,6 @@ install:
   - sudo apt-get update -qq
   - sudo apt-get install -y -qq libjansson-dev check libssl-dev lcov curl
 script:
-  - ./configure --enable-gcov && make coverage
+  - autoreconf -i && ./configure --enable-gcov && make coverage
 after_success:
   - coveralls --exclude tests --gcov-options '\-lp'
