@@ -84,8 +84,8 @@ END_TEST
 
 START_TEST(test_jwt_decode)
 {
-	const char token[] = "eyJhbGciOiJub25lIn0=.eyJpc3MiOiJmaWxlcy5jeXBo"
-			     "cmUuY29tIiwic3ViIjoidXNlcjAifQ==.";
+	const char token[] = "eyJhbGciOiJub25lIn0.eyJpc3MiOiJmaWxlcy5jeXBo"
+			     "cmUuY29tIiwic3ViIjoidXNlcjAifQ.";
 	jwt_t *jwt;
 	int ret;
 
@@ -101,7 +101,7 @@ START_TEST(test_jwt_decode_invalid_final_dot)
 {
 	const char token[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzM4NCJ9."
 			     "eyJpc3MiOiJmaWxlcy5jeXBocmUuY29tIiwic"
-			     "3ViIjoidXNlcjAifQ==";
+			     "3ViIjoidXNlcjAifQ";
 	jwt_t *jwt;
 	int ret;
 
@@ -117,7 +117,7 @@ START_TEST(test_jwt_decode_invalid_alg)
 {
 	const char token[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIQUhBSCJ9."
 			     "eyJpc3MiOiJmaWxlcy5jeXBocmUuY29tIiwic"
-			     "3ViIjoidXNlcjAifQ==.";
+			     "3ViIjoidXNlcjAifQ.";
 	jwt_t *jwt;
 	int ret;
 
@@ -133,7 +133,7 @@ START_TEST(test_jwt_decode_invalid_typ)
 {
 	const char token[] = "eyJ0eXAiOiJBTEwiLCJhbGciOiJIUzI1NiJ9."
 			     "eyJpc3MiOiJmaWxlcy5jeXBocmUuY29tIiwic"
-			     "3ViIjoidXNlcjAifQ==.";
+			     "3ViIjoidXNlcjAifQ.";
 	jwt_t *jwt;
 	int ret;
 
@@ -149,7 +149,7 @@ START_TEST(test_jwt_decode_invalid_head)
 {
 	const char token[] = "yJ0eXAiOiJKV1QiLCJhbGciOiJIUzM4NCJ9."
 			     "eyJpc3MiOiJmaWxlcy5jeXBocmUuY29tIiwic"
-			     "3ViIjoidXNlcjAifQ==.";
+			     "3ViIjoidXNlcjAifQ.";
 	jwt_t *jwt;
 	int ret;
 
@@ -165,7 +165,7 @@ START_TEST(test_jwt_decode_invalid_body)
 {
 	const char token[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzM4NCJ9."
 			     "eyJpc3MiOiJmaWxlcy5jeBocmUuY29tIiwic"
-			     "3ViIjoidXNlcjAifQ==.";
+			     "3ViIjoidXNlcjAifQ.";
 	jwt_t *jwt;
 	int ret;
 
@@ -181,8 +181,7 @@ START_TEST(test_jwt_decode_hs256)
 {
 	const char token[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3Mi"
 			     "OiJmaWxlcy5jeXBocmUuY29tIiwic3ViIjoidXNlcjAif"
-			     "Q==.S/0JN3II9oApK/FNV23YOkfAREWU3tJmQduJCUYzW"
-			     "BM=";
+			     "Q.dLFbrHVViu1e3VD1yeCd9aaLNed-bfXhSsF0Gh56fBg";
 	unsigned char key256[32] = "012345678901234567890123456789XY";
 	jwt_t *jwt;
 	int ret;
@@ -199,9 +198,9 @@ START_TEST(test_jwt_decode_hs384)
 {
 	const char token[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzM4NCJ9."
 			     "eyJpc3MiOiJmaWxlcy5jeXBocmUuY29tIiwic"
-			     "3ViIjoidXNlcjAifQ==.k9MApCWNkjZi47zVz"
-			     "Pw/SkHOPEtlMuzGcseuKqhzwfGaqnLp3aIArg"
-			     "1wuUU+4QB2";
+			     "3ViIjoidXNlcjAifQ.xqea3OVgPEMxsCgyikr"
+			     "R3gGv4H2yqMyXMm7xhOlQWpA-NpT6n2a1d7TD"
+			     "GgU6LOe4";
 	const unsigned char key384[48] = "aaaabbbbccccddddeeeeffffg"
 					 "ggghhhhiiiijjjjkkkkllll";
 	jwt_t *jwt;
@@ -219,9 +218,8 @@ START_TEST(test_jwt_decode_hs512)
 {
         const char token[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpc3Mi"
 			     "OiJmaWxlcy5jeXBocmUuY29tIiwic3ViIjoidXNlcjAif"
-			     "Q==.tBAUpyW1r7kPc66uCBogFVilA6SYHwLHL8M/atmdy"
-			     "u56LYvDeiLGVd1mVOW17s/tC0+F9uJfRu1p334DvHkk4Q"
-			     "==";
+			     "Q.u-4XQB1xlYV8SgAnKBof8fOWOtfyNtc1ytTlc_vHo0U"
+			     "lh5uGT238te6kSacnVzBbC6qwzVMT1806oa1Y8_8EOg";
 	unsigned char key512[64] = "012345678901234567890123456789XY"
 				   "012345678901234567890123456789XY";
 	jwt_t *jwt;

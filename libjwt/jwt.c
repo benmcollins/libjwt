@@ -236,12 +236,37 @@ static const char *get_js_string(json_t *js, const char *key)
 static json_t *jwt_b64_decode(char *src)
 {
 	BIO *b64, *bmem;
-	char *buf;
-	int len;
+	char *buf, *new;
+	int len, i, z;
+
+	/* Decode based on RFC-4648 URI safe encoding. */
+	len = strlen(src);
+	new = alloca(len + 4);
+	if (!new)
+		return NULL;
+
+	for (i = 0; i < len; i++) {
+		switch (src[i]) {
+		case '-':
+			new[i] = '+';
+			break;
+		case '_':
+			new[i] = '/';
+			break;
+		default:
+			new[i] = src[i];
+		}
+	}
+	z = 4 - (i % 4);
+	if (z < 4) {
+		while (z--)
+			new[i++] = '=';
+	}
+	new[i] = '\0';
 
 	/* Setup the OpenSSL base64 decoder. */
 	b64 = BIO_new(BIO_f_base64());
-	bmem = BIO_new_mem_buf(src, strlen(src));
+	bmem = BIO_new_mem_buf(new, strlen(new));
 	if (!b64 || !bmem) {
 		return NULL; // LCOV_EXCL_LINE
 	}
@@ -350,6 +375,29 @@ verify_head_done:
 	return ret;
 }
 
+static void base64uri_encode(char *str)
+{
+	int len = strlen(str);
+	int i, t;
+
+	for (i = t = 0; i < len; i++) {
+		switch (str[i]) {
+		case '+':
+			str[t] = '-';
+			break;
+		case '/':
+			str[t] = '_';
+			break;
+		case '=':
+			continue;
+		}
+
+		t++;
+	}
+
+	str[t] = '\0';
+}
+
 int jwt_decode(jwt_t **jwt, const char *token, const unsigned char *key,
 	       int key_len)
 {
@@ -449,6 +497,8 @@ int jwt_decode(jwt_t **jwt, const char *token, const unsigned char *key,
 		BIO_free_all(b64);
 
 		buf[len] = '\0';
+
+		base64uri_encode(buf);
 
 		/* And now... */
 		ret = strcmp(buf, sig) ? EINVAL : 0;
@@ -656,6 +706,8 @@ static int jwt_encode_bio(jwt_t *jwt, BIO *out)
 	len = BIO_read(bmem, buf, len);
 	buf[len] = '\0';
 
+	base64uri_encode(buf);
+
 	BIO_puts(out, buf);
 	BIO_puts(out, ".");
 
@@ -678,6 +730,8 @@ static int jwt_encode_bio(jwt_t *jwt, BIO *out)
 
 	len2 = BIO_read(bmem, buf, len2);
 	buf[len2] = '\0';
+
+	base64uri_encode(buf);
 
 	BIO_puts(out, buf);
 
