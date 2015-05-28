@@ -86,12 +86,16 @@ START_TEST(test_jwt_decode)
 {
 	const char token[] = "eyJhbGciOiJub25lIn0.eyJpc3MiOiJmaWxlcy5jeXBo"
 			     "cmUuY29tIiwic3ViIjoidXNlcjAifQ.";
+	jwt_alg_t alg;
 	jwt_t *jwt;
 	int ret;
 
 	ret = jwt_decode(&jwt, token, NULL, 0);
 	ck_assert_int_eq(ret, 0);
 	ck_assert(jwt != NULL);
+
+	alg = jwt_get_alg(jwt);
+	ck_assert(alg == JWT_ALG_NONE);
 
 	jwt_free(jwt);
 }

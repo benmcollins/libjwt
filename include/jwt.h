@@ -266,6 +266,16 @@ char *jwt_encode_str(jwt_t *jwt);
  */
 int jwt_set_alg(jwt_t *jwt, jwt_alg_t alg, unsigned char *key, int len);
 
+/**
+ * Get the jwt_alg_t set for this JWT object.
+ *
+ * Returns the jwt_alg_t type for this JWT object.
+ *
+ * @param jwt Pointer to a JWT object.
+ * @returns Returns a jwt_alg_t type for this object.
+ */
+jwt_alg_t jwt_get_alg(jwt_t *jwt);
+
 /** @} */
 
 #ifdef __cplusplus
