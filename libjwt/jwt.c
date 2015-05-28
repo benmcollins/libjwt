@@ -543,6 +543,21 @@ int jwt_add_grant(jwt_t *jwt, const char *grant, const char *val)
 	return 0;
 }
 
+int jwt_add_grants_json(jwt_t *jwt, const char *json)
+{
+	json_t *grants = json_loads(json, JSON_REJECT_DUPLICATES, NULL);
+	int ret;
+
+	if (grants == NULL)
+		return EINVAL;
+
+	ret = json_object_update(jwt->grants, grants);
+
+	json_decref(grants);
+
+	return ret ? EINVAL : 0;
+}
+
 int jwt_del_grant(jwt_t *jwt, const char *grant)
 {
 	if (!jwt || !grant || !strlen(grant))
