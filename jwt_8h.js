@@ -9,6 +9,7 @@ var jwt_8h =
       [ "JWT_ALG_HS512", "jwt_8h.html#a3f05228338020adcde0d799e814e1851a596b0da85c01e17b43a6574f82159081", null ]
     ] ],
     [ "jwt_add_grant", "jwt_8h.html#ga91d9bfe88d3e7b246ee67d2ed4609955", null ],
+    [ "jwt_add_grants_json", "jwt_8h.html#ga0509c745c45eebb41c278cebb0617a55", null ],
     [ "jwt_decode", "jwt_8h.html#ga4d498ffdcf1c95d67b81c224e2a447e5", null ],
     [ "jwt_del_grant", "jwt_8h.html#ga4c5ff4001da586297266bf4d3816bcfc", null ],
     [ "jwt_dump_fp", "jwt_8h.html#gacc77ae9e2214c9b07352a400758f1f4d", null ],

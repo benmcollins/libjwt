@@ -4,7 +4,7 @@
 <meta http-equiv="Content-Type" content="text/xhtml;charset=UTF-8"/>
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
 <meta name="generator" content="Doxygen 1.8.6"/>
-<title>libjwt-1.2.1: jwt.h Source File</title>
+<title>libjwt-1.3.0: jwt.h Source File</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -24,7 +24,7 @@
  <tbody>
  <tr style="height: 56px;">
   <td style="padding-left: 0.5em;">
-   <div id="projectname">libjwt-1.2.1
+   <div id="projectname">libjwt-1.3.0
    </div>
   </td>
  </tr>
@@ -114,21 +114,23 @@ $(document).ready(function(){initNavTree('jwt_8h_source.html','');});
 <div class="line"><a name="l00150"></a><span class="lineno">  150</span>&#160;</div>
 <div class="line"><a name="l00161"></a><span class="lineno">  161</span>&#160;<span class="keywordtype">int</span> <a class="code" href="group__jwt__grant.html#ga4c5ff4001da586297266bf4d3816bcfc">jwt_del_grant</a>(<a class="code" href="jwt_8h.html#abf0acfb990d245214216af589c1d0947">jwt_t</a> *jwt, <span class="keyword">const</span> <span class="keywordtype">char</span> *grant);</div>
 <div class="line"><a name="l00162"></a><span class="lineno">  162</span>&#160;</div>
-<div class="line"><a name="l00186"></a><span class="lineno">  186</span>&#160;<span class="keywordtype">int</span> <a class="code" href="group__jwt__encode.html#gacc77ae9e2214c9b07352a400758f1f4d">jwt_dump_fp</a>(<a class="code" href="jwt_8h.html#abf0acfb990d245214216af589c1d0947">jwt_t</a> *jwt, FILE *fp, <span class="keywordtype">int</span> pretty);</div>
-<div class="line"><a name="l00187"></a><span class="lineno">  187</span>&#160;</div>
-<div class="line"><a name="l00200"></a><span class="lineno">  200</span>&#160;<span class="keywordtype">char</span> *<a class="code" href="group__jwt__encode.html#ga879135911589a45137afedf456cf28e9">jwt_dump_str</a>(<a class="code" href="jwt_8h.html#abf0acfb990d245214216af589c1d0947">jwt_t</a> *jwt, <span class="keywordtype">int</span> pretty);</div>
-<div class="line"><a name="l00201"></a><span class="lineno">  201</span>&#160;</div>
-<div class="line"><a name="l00213"></a><span class="lineno">  213</span>&#160;<span class="keywordtype">int</span> <a class="code" href="group__jwt__encode.html#ga2782abdbb190b626a5bd4eb3943b7b8d">jwt_encode_fp</a>(<a class="code" href="jwt_8h.html#abf0acfb990d245214216af589c1d0947">jwt_t</a> *jwt, FILE *fp);</div>
+<div class="line"><a name="l00174"></a><span class="lineno">  174</span>&#160;<span class="keywordtype">int</span> <a class="code" href="group__jwt__grant.html#ga0509c745c45eebb41c278cebb0617a55">jwt_add_grants_json</a>(<a class="code" href="jwt_8h.html#abf0acfb990d245214216af589c1d0947">jwt_t</a> *jwt, <span class="keyword">const</span> <span class="keywordtype">char</span> *json);</div>
+<div class="line"><a name="l00175"></a><span class="lineno">  175</span>&#160;</div>
+<div class="line"><a name="l00199"></a><span class="lineno">  199</span>&#160;<span class="keywordtype">int</span> <a class="code" href="group__jwt__encode.html#gacc77ae9e2214c9b07352a400758f1f4d">jwt_dump_fp</a>(<a class="code" href="jwt_8h.html#abf0acfb990d245214216af589c1d0947">jwt_t</a> *jwt, FILE *fp, <span class="keywordtype">int</span> pretty);</div>
+<div class="line"><a name="l00200"></a><span class="lineno">  200</span>&#160;</div>
+<div class="line"><a name="l00213"></a><span class="lineno">  213</span>&#160;<span class="keywordtype">char</span> *<a class="code" href="group__jwt__encode.html#ga879135911589a45137afedf456cf28e9">jwt_dump_str</a>(<a class="code" href="jwt_8h.html#abf0acfb990d245214216af589c1d0947">jwt_t</a> *jwt, <span class="keywordtype">int</span> pretty);</div>
 <div class="line"><a name="l00214"></a><span class="lineno">  214</span>&#160;</div>
-<div class="line"><a name="l00225"></a><span class="lineno">  225</span>&#160;<span class="keywordtype">char</span> *<a class="code" href="group__jwt__encode.html#gae660380bf45c955fd8909b14dae2441a">jwt_encode_str</a>(<a class="code" href="jwt_8h.html#abf0acfb990d245214216af589c1d0947">jwt_t</a> *jwt);</div>
-<div class="line"><a name="l00226"></a><span class="lineno">  226</span>&#160;</div>
-<div class="line"><a name="l00254"></a><span class="lineno">  254</span>&#160;<span class="keywordtype">int</span> <a class="code" href="group__jwt__alg.html#ga1f3d73b71620c0c246f3fb779f0cc33c">jwt_set_alg</a>(<a class="code" href="jwt_8h.html#abf0acfb990d245214216af589c1d0947">jwt_t</a> *jwt, <a class="code" href="jwt_8h.html#af798055c91128486537a739cfa20f1fb">jwt_alg_t</a> alg, <span class="keywordtype">unsigned</span> <span class="keywordtype">char</span> *key, <span class="keywordtype">int</span> len);</div>
-<div class="line"><a name="l00255"></a><span class="lineno">  255</span>&#160;</div>
-<div class="line"><a name="l00258"></a><span class="lineno">  258</span>&#160;<span class="preprocessor">#ifdef __cplusplus</span></div>
-<div class="line"><a name="l00259"></a><span class="lineno">  259</span>&#160;<span class="preprocessor"></span>}</div>
-<div class="line"><a name="l00260"></a><span class="lineno">  260</span>&#160;<span class="preprocessor">#endif</span></div>
-<div class="line"><a name="l00261"></a><span class="lineno">  261</span>&#160;<span class="preprocessor"></span></div>
-<div class="line"><a name="l00262"></a><span class="lineno">  262</span>&#160;<span class="preprocessor">#endif </span><span class="comment">/* JWT_H */</span><span class="preprocessor"></span></div>
+<div class="line"><a name="l00226"></a><span class="lineno">  226</span>&#160;<span class="keywordtype">int</span> <a class="code" href="group__jwt__encode.html#ga2782abdbb190b626a5bd4eb3943b7b8d">jwt_encode_fp</a>(<a class="code" href="jwt_8h.html#abf0acfb990d245214216af589c1d0947">jwt_t</a> *jwt, FILE *fp);</div>
+<div class="line"><a name="l00227"></a><span class="lineno">  227</span>&#160;</div>
+<div class="line"><a name="l00238"></a><span class="lineno">  238</span>&#160;<span class="keywordtype">char</span> *<a class="code" href="group__jwt__encode.html#gae660380bf45c955fd8909b14dae2441a">jwt_encode_str</a>(<a class="code" href="jwt_8h.html#abf0acfb990d245214216af589c1d0947">jwt_t</a> *jwt);</div>
+<div class="line"><a name="l00239"></a><span class="lineno">  239</span>&#160;</div>
+<div class="line"><a name="l00267"></a><span class="lineno">  267</span>&#160;<span class="keywordtype">int</span> <a class="code" href="group__jwt__alg.html#ga1f3d73b71620c0c246f3fb779f0cc33c">jwt_set_alg</a>(<a class="code" href="jwt_8h.html#abf0acfb990d245214216af589c1d0947">jwt_t</a> *jwt, <a class="code" href="jwt_8h.html#af798055c91128486537a739cfa20f1fb">jwt_alg_t</a> alg, <span class="keywordtype">unsigned</span> <span class="keywordtype">char</span> *key, <span class="keywordtype">int</span> len);</div>
+<div class="line"><a name="l00268"></a><span class="lineno">  268</span>&#160;</div>
+<div class="line"><a name="l00271"></a><span class="lineno">  271</span>&#160;<span class="preprocessor">#ifdef __cplusplus</span></div>
+<div class="line"><a name="l00272"></a><span class="lineno">  272</span>&#160;<span class="preprocessor"></span>}</div>
+<div class="line"><a name="l00273"></a><span class="lineno">  273</span>&#160;<span class="preprocessor">#endif</span></div>
+<div class="line"><a name="l00274"></a><span class="lineno">  274</span>&#160;<span class="preprocessor"></span></div>
+<div class="line"><a name="l00275"></a><span class="lineno">  275</span>&#160;<span class="preprocessor">#endif </span><span class="comment">/* JWT_H */</span><span class="preprocessor"></span></div>
 <div class="ttc" id="group__jwt__alg_html_ga1f3d73b71620c0c246f3fb779f0cc33c"><div class="ttname"><a href="group__jwt__alg.html#ga1f3d73b71620c0c246f3fb779f0cc33c">jwt_set_alg</a></div><div class="ttdeci">int jwt_set_alg(jwt_t *jwt, jwt_alg_t alg, unsigned char *key, int len)</div><div class="ttdoc">Set an algorithm from jwt_alg_t for this JWT object. </div></div>
 <div class="ttc" id="group__jwt__grant_html_gab8bafff3b4cbca17c5f04fd6d4cbe59a"><div class="ttname"><a href="group__jwt__grant.html#gab8bafff3b4cbca17c5f04fd6d4cbe59a">jwt_get_grant</a></div><div class="ttdeci">const char * jwt_get_grant(jwt_t *jwt, const char *grant)</div><div class="ttdoc">Return the value of a grant. </div></div>
 <div class="ttc" id="jwt_8h_html_af798055c91128486537a739cfa20f1fb"><div class="ttname"><a href="jwt_8h.html#af798055c91128486537a739cfa20f1fb">jwt_alg_t</a></div><div class="ttdeci">enum jwt_alg jwt_alg_t</div><div class="ttdoc">JWT algorithm types. </div></div>
@@ -145,6 +147,7 @@ $(document).ready(function(){initNavTree('jwt_8h_source.html','');});
 <div class="ttc" id="group__jwt__new_html_ga9ce4e8fb6c2eb66e41b07a7a57d8a68a"><div class="ttname"><a href="group__jwt__new.html#ga9ce4e8fb6c2eb66e41b07a7a57d8a68a">jwt_new</a></div><div class="ttdeci">int jwt_new(jwt_t **jwt)</div><div class="ttdoc">Allocate a new, empty, JWT object. </div></div>
 <div class="ttc" id="group__jwt__new_html_gab69bff3779be7d0b92bd86456af80991"><div class="ttname"><a href="group__jwt__new.html#gab69bff3779be7d0b92bd86456af80991">jwt_dup</a></div><div class="ttdeci">jwt_t * jwt_dup(jwt_t *jwt)</div><div class="ttdoc">Duplicate an existing JWT object. </div></div>
 <div class="ttc" id="jwt_8h_html_abf0acfb990d245214216af589c1d0947"><div class="ttname"><a href="jwt_8h.html#abf0acfb990d245214216af589c1d0947">jwt_t</a></div><div class="ttdeci">struct jwt jwt_t</div><div class="ttdoc">Opaque JWT object. </div><div class="ttdef"><b>Definition:</b> <a href="jwt_8h_source.html#l00031">jwt.h:31</a></div></div>
+<div class="ttc" id="group__jwt__grant_html_ga0509c745c45eebb41c278cebb0617a55"><div class="ttname"><a href="group__jwt__grant.html#ga0509c745c45eebb41c278cebb0617a55">jwt_add_grants_json</a></div><div class="ttdeci">int jwt_add_grants_json(jwt_t *jwt, const char *json)</div><div class="ttdoc">Add grants from a JSON encoded object string. </div></div>
 <div class="ttc" id="group__jwt__grant_html_ga91d9bfe88d3e7b246ee67d2ed4609955"><div class="ttname"><a href="group__jwt__grant.html#ga91d9bfe88d3e7b246ee67d2ed4609955">jwt_add_grant</a></div><div class="ttdeci">int jwt_add_grant(jwt_t *jwt, const char *grant, const char *val)</div><div class="ttdoc">Add a new grant to this JWT object. </div></div>
 <div class="ttc" id="group__jwt__new_html_ga4d498ffdcf1c95d67b81c224e2a447e5"><div class="ttname"><a href="group__jwt__new.html#ga4d498ffdcf1c95d67b81c224e2a447e5">jwt_decode</a></div><div class="ttdeci">int jwt_decode(jwt_t **jwt, const char *token, const unsigned char *key, int key_len)</div><div class="ttdoc">Verify an existing JWT and allocate a new JWT object from it. </div></div>
 <div class="ttc" id="group__jwt__new_html_gafd51b076050815be44081439d1cb33fc"><div class="ttname"><a href="group__jwt__new.html#gafd51b076050815be44081439d1cb33fc">jwt_free</a></div><div class="ttdeci">void jwt_free(jwt_t *jwt)</div><div class="ttdoc">Free a JWT object and any other resources it is using. </div></div>
@@ -154,7 +157,7 @@ $(document).ready(function(){initNavTree('jwt_8h_source.html','');});
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
     <li class="navelem"><a class="el" href="jwt_8h.html">jwt.h</a></li>
-    <li class="footer">Generated on Thu May 21 2015 22:06:04 for libjwt-1.2.1 by
+    <li class="footer">Generated on Thu May 28 2015 17:57:29 for libjwt-1.3.0 by
     <a href="http://www.doxygen.org/index.html">
     <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.8.6 </li>
   </ul>
