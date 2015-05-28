@@ -18,6 +18,7 @@ var jwt_8h =
     [ "jwt_encode_fp", "jwt_8h.html#ga2782abdbb190b626a5bd4eb3943b7b8d", null ],
     [ "jwt_encode_str", "jwt_8h.html#gae660380bf45c955fd8909b14dae2441a", null ],
     [ "jwt_free", "jwt_8h.html#gafd51b076050815be44081439d1cb33fc", null ],
+    [ "jwt_get_alg", "jwt_8h.html#ga5c5bece149deeb9546bf155646cf9797", null ],
     [ "jwt_get_grant", "jwt_8h.html#gab8bafff3b4cbca17c5f04fd6d4cbe59a", null ],
     [ "jwt_new", "jwt_8h.html#ga9ce4e8fb6c2eb66e41b07a7a57d8a68a", null ],
     [ "jwt_set_alg", "jwt_8h.html#ga1f3d73b71620c0c246f3fb779f0cc33c", null ]

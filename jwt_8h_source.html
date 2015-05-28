@@ -4,7 +4,7 @@
 <meta http-equiv="Content-Type" content="text/xhtml;charset=UTF-8"/>
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
 <meta name="generator" content="Doxygen 1.8.6"/>
-<title>libjwt-1.3.0: jwt.h Source File</title>
+<title>libjwt-1.3.1: jwt.h Source File</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -24,7 +24,7 @@
  <tbody>
  <tr style="height: 56px;">
   <td style="padding-left: 0.5em;">
-   <div id="projectname">libjwt-1.3.0
+   <div id="projectname">libjwt-1.3.1
    </div>
   </td>
  </tr>
@@ -126,11 +126,13 @@ $(document).ready(function(){initNavTree('jwt_8h_source.html','');});
 <div class="line"><a name="l00239"></a><span class="lineno">  239</span>&#160;</div>
 <div class="line"><a name="l00267"></a><span class="lineno">  267</span>&#160;<span class="keywordtype">int</span> <a class="code" href="group__jwt__alg.html#ga1f3d73b71620c0c246f3fb779f0cc33c">jwt_set_alg</a>(<a class="code" href="jwt_8h.html#abf0acfb990d245214216af589c1d0947">jwt_t</a> *jwt, <a class="code" href="jwt_8h.html#af798055c91128486537a739cfa20f1fb">jwt_alg_t</a> alg, <span class="keywordtype">unsigned</span> <span class="keywordtype">char</span> *key, <span class="keywordtype">int</span> len);</div>
 <div class="line"><a name="l00268"></a><span class="lineno">  268</span>&#160;</div>
-<div class="line"><a name="l00271"></a><span class="lineno">  271</span>&#160;<span class="preprocessor">#ifdef __cplusplus</span></div>
-<div class="line"><a name="l00272"></a><span class="lineno">  272</span>&#160;<span class="preprocessor"></span>}</div>
-<div class="line"><a name="l00273"></a><span class="lineno">  273</span>&#160;<span class="preprocessor">#endif</span></div>
-<div class="line"><a name="l00274"></a><span class="lineno">  274</span>&#160;<span class="preprocessor"></span></div>
-<div class="line"><a name="l00275"></a><span class="lineno">  275</span>&#160;<span class="preprocessor">#endif </span><span class="comment">/* JWT_H */</span><span class="preprocessor"></span></div>
+<div class="line"><a name="l00277"></a><span class="lineno">  277</span>&#160;<a class="code" href="jwt_8h.html#af798055c91128486537a739cfa20f1fb">jwt_alg_t</a> <a class="code" href="group__jwt__alg.html#ga5c5bece149deeb9546bf155646cf9797">jwt_get_alg</a>(<a class="code" href="jwt_8h.html#abf0acfb990d245214216af589c1d0947">jwt_t</a> *jwt);</div>
+<div class="line"><a name="l00278"></a><span class="lineno">  278</span>&#160;</div>
+<div class="line"><a name="l00281"></a><span class="lineno">  281</span>&#160;<span class="preprocessor">#ifdef __cplusplus</span></div>
+<div class="line"><a name="l00282"></a><span class="lineno">  282</span>&#160;<span class="preprocessor"></span>}</div>
+<div class="line"><a name="l00283"></a><span class="lineno">  283</span>&#160;<span class="preprocessor">#endif</span></div>
+<div class="line"><a name="l00284"></a><span class="lineno">  284</span>&#160;<span class="preprocessor"></span></div>
+<div class="line"><a name="l00285"></a><span class="lineno">  285</span>&#160;<span class="preprocessor">#endif </span><span class="comment">/* JWT_H */</span><span class="preprocessor"></span></div>
 <div class="ttc" id="group__jwt__alg_html_ga1f3d73b71620c0c246f3fb779f0cc33c"><div class="ttname"><a href="group__jwt__alg.html#ga1f3d73b71620c0c246f3fb779f0cc33c">jwt_set_alg</a></div><div class="ttdeci">int jwt_set_alg(jwt_t *jwt, jwt_alg_t alg, unsigned char *key, int len)</div><div class="ttdoc">Set an algorithm from jwt_alg_t for this JWT object. </div></div>
 <div class="ttc" id="group__jwt__grant_html_gab8bafff3b4cbca17c5f04fd6d4cbe59a"><div class="ttname"><a href="group__jwt__grant.html#gab8bafff3b4cbca17c5f04fd6d4cbe59a">jwt_get_grant</a></div><div class="ttdeci">const char * jwt_get_grant(jwt_t *jwt, const char *grant)</div><div class="ttdoc">Return the value of a grant. </div></div>
 <div class="ttc" id="jwt_8h_html_af798055c91128486537a739cfa20f1fb"><div class="ttname"><a href="jwt_8h.html#af798055c91128486537a739cfa20f1fb">jwt_alg_t</a></div><div class="ttdeci">enum jwt_alg jwt_alg_t</div><div class="ttdoc">JWT algorithm types. </div></div>
@@ -140,6 +142,7 @@ $(document).ready(function(){initNavTree('jwt_8h_source.html','');});
 <div class="ttc" id="jwt_8h_html_a3f05228338020adcde0d799e814e1851a596b0da85c01e17b43a6574f82159081"><div class="ttname"><a href="jwt_8h.html#a3f05228338020adcde0d799e814e1851a596b0da85c01e17b43a6574f82159081">JWT_ALG_HS512</a></div><div class="ttdef"><b>Definition:</b> <a href="jwt_8h_source.html#l00038">jwt.h:38</a></div></div>
 <div class="ttc" id="jwt_8h_html_a3f05228338020adcde0d799e814e1851"><div class="ttname"><a href="jwt_8h.html#a3f05228338020adcde0d799e814e1851">jwt_alg</a></div><div class="ttdeci">jwt_alg</div><div class="ttdoc">JWT algorithm types. </div><div class="ttdef"><b>Definition:</b> <a href="jwt_8h_source.html#l00034">jwt.h:34</a></div></div>
 <div class="ttc" id="group__jwt__encode_html_gae660380bf45c955fd8909b14dae2441a"><div class="ttname"><a href="group__jwt__encode.html#gae660380bf45c955fd8909b14dae2441a">jwt_encode_str</a></div><div class="ttdeci">char * jwt_encode_str(jwt_t *jwt)</div><div class="ttdoc">Fully encode a JWT object and return as a string. </div></div>
+<div class="ttc" id="group__jwt__alg_html_ga5c5bece149deeb9546bf155646cf9797"><div class="ttname"><a href="group__jwt__alg.html#ga5c5bece149deeb9546bf155646cf9797">jwt_get_alg</a></div><div class="ttdeci">jwt_alg_t jwt_get_alg(jwt_t *jwt)</div><div class="ttdoc">Get the jwt_alg_t set for this JWT object. </div></div>
 <div class="ttc" id="jwt_8h_html_a3f05228338020adcde0d799e814e1851a3249a71140a0bb4b3cb196fe15114b89"><div class="ttname"><a href="jwt_8h.html#a3f05228338020adcde0d799e814e1851a3249a71140a0bb4b3cb196fe15114b89">JWT_ALG_NONE</a></div><div class="ttdef"><b>Definition:</b> <a href="jwt_8h_source.html#l00035">jwt.h:35</a></div></div>
 <div class="ttc" id="group__jwt__encode_html_ga879135911589a45137afedf456cf28e9"><div class="ttname"><a href="group__jwt__encode.html#ga879135911589a45137afedf456cf28e9">jwt_dump_str</a></div><div class="ttdeci">char * jwt_dump_str(jwt_t *jwt, int pretty)</div><div class="ttdoc">Return plain text representation as a string. </div></div>
 <div class="ttc" id="jwt_8h_html_a3f05228338020adcde0d799e814e1851af0adc69b9caa89fbc2eeaf744d7cf4f2"><div class="ttname"><a href="jwt_8h.html#a3f05228338020adcde0d799e814e1851af0adc69b9caa89fbc2eeaf744d7cf4f2">JWT_ALG_HS384</a></div><div class="ttdef"><b>Definition:</b> <a href="jwt_8h_source.html#l00037">jwt.h:37</a></div></div>
@@ -157,7 +160,7 @@ $(document).ready(function(){initNavTree('jwt_8h_source.html','');});
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
     <li class="navelem"><a class="el" href="jwt_8h.html">jwt.h</a></li>
-    <li class="footer">Generated on Thu May 28 2015 17:57:29 for libjwt-1.3.0 by
+    <li class="footer">Generated on Thu May 28 2015 18:15:12 for libjwt-1.3.1 by
     <a href="http://www.doxygen.org/index.html">
     <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.8.6 </li>
   </ul>
