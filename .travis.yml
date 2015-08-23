@@ -2,11 +2,11 @@ language: c
 compiler:
   - gcc
 before_install:
-  - sudo pip install cpp-coveralls
+  - sudo pip install codecov
 install:
   - sudo apt-get update -qq
   - sudo apt-get install -y -qq libjansson-dev check libssl-dev lcov curl
 script:
   - autoreconf -i && ./configure --enable-gcov && make coverage
 after_success:
-  - coveralls --exclude tests --gcov-options '\-lp'
+  - codecov
