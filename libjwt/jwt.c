@@ -142,7 +142,7 @@ jwt_alg_t jwt_get_alg(jwt_t *jwt)
 	return jwt->alg;
 }
 
-jwt_t *jwt_make()
+jwt_t *jwt_create()
 {
   int errno;
   jwt_t *new;

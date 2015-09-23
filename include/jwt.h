@@ -58,7 +58,7 @@ typedef enum jwt_alg {
  * @return jwt Pointer to a JWT object pointer. Will be allocated on
  *     success. Null on fail.
  */
-jwt_t *jwt_make();
+jwt_t *jwt_create();
 
 /**
  * Allocate a new, empty, JWT object.
