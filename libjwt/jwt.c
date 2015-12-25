@@ -798,7 +798,7 @@ char *jwt_encode_str(jwt_t *jwt)
 		goto encode_str_done;
 
 	len = BIO_pending(bmem);
-	str = malloc(len);
+	str = malloc(len + 1);
 	if (!str) {
 		// LCOV_EXCL_START
 		errno = ENOMEM;
