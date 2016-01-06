@@ -334,6 +334,11 @@ static int jwt_sign(jwt_t *jwt, BIO *out, const char *str)
 
 static int jwt_parse_body(jwt_t *jwt, char *body)
 {
+	if (jwt->grants) {
+		json_decref(jwt->grants);
+		jwt->grants = NULL;
+	}
+
 	jwt->grants = jwt_b64_decode(body);
 	if (!jwt->grants)
 		return EINVAL;
