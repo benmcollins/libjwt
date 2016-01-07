@@ -552,6 +552,16 @@ const char *jwt_get_grant(jwt_t *jwt, const char *grant)
 	return get_js_string(jwt->grants, grant);
 }
 
+char *jwt_get_grant_json(jwt_t *jwt, const char *grant)
+{
+	if (!jwt || !grant || !strlen(grant)) {
+		errno = EINVAL;
+		return NULL;
+	}
+
+	return get_js_object(jwt->grants, grant);
+}
+
 int jwt_add_grant(jwt_t *jwt, const char *grant, const char *val)
 {
 	if (!jwt || !grant || !strlen(grant) || !val)
