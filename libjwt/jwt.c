@@ -238,6 +238,19 @@ static const char *get_js_string(json_t *js, const char *key)
 	return val;
 }
 
+static char *get_js_object(json_t *js, const char *key)
+{
+	size_t flags = JSON_SORT_KEYS | JSON_COMPACT | JSON_ENCODE_ANY;
+	char *val = NULL;
+	json_t *js_val;
+
+	js_val = json_object_get(js, key);
+	if (js_val)
+		val = json_dumps(js_val, flags);
+
+	return val;
+}
+
 static json_t *jwt_b64_decode(char *src)
 {
 	BIO *b64, *bmem;
