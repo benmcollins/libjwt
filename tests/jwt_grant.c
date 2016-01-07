@@ -107,10 +107,11 @@ START_TEST(test_jwt_grants_json)
 {
 	const char *json = "{\"ref\":\"385d6518-fb73-45fc-b649-0527d8576130\""
 		",\"id\":\"FVvGYTr3FhiURCFebsBOpBqTbzHdX/DvImiA2yheXr8=\","
-		"\"iss\":\"localhost\",\"scopes\":\"storage\",\"sub\":"
-		"\"user0\"}";
+		"\"iss\":\"localhost\",\"scopes\":[\"storage\",\"email\","
+                "\"birthdate\"],\"sub\":{\"foo\":\"bar\",\"baz\":\"quux\"}}";
 	jwt_t *jwt = NULL;
 	const char *val;
+	char *val_json;
 	int ret = 0;
 
 	ret = jwt_new(&jwt);
@@ -123,6 +124,21 @@ START_TEST(test_jwt_grants_json)
 	val = jwt_get_grant(jwt, "ref");
 	ck_assert(val != NULL);
 	ck_assert_str_eq(val, "385d6518-fb73-45fc-b649-0527d8576130");
+
+	val_json = jwt_get_grant_json(jwt, "ref");
+	ck_assert(val_json != NULL);
+	ck_assert_str_eq(val_json, "\"385d6518-fb73-45fc-b649-0527d8576130\"");
+        free(val_json);
+
+	val_json = jwt_get_grant_json(jwt, "scopes");
+	ck_assert(val_json != NULL);
+	ck_assert_str_eq(val_json, "[\"storage\",\"email\",\"birthdate\"]");
+        free(val_json);
+
+	val_json = jwt_get_grant_json(jwt, "sub");
+	ck_assert(val_json != NULL);
+	ck_assert_str_eq(val_json, "{\"baz\":\"quux\",\"foo\":\"bar\"}");
+        free(val_json);
 
 	jwt_free(jwt);
 }
