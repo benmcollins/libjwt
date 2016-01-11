@@ -103,7 +103,7 @@ START_TEST(test_jwt_grant_invalid)
 }
 END_TEST
 
-START_TEST(test_jwt_grants_json)
+START_TEST(test_jwt_replace_grants)
 {
 	const char *json = "{\"ref\":\"385d6518-fb73-45fc-b649-0527d8576130\""
 		",\"id\":\"FVvGYTr3FhiURCFebsBOpBqTbzHdX/DvImiA2yheXr8=\","
@@ -117,7 +117,7 @@ START_TEST(test_jwt_grants_json)
 	ck_assert_int_eq(ret, 0);
 	ck_assert(jwt != NULL);
 
-	ret = jwt_add_grants_json(jwt, json);
+	ret = jwt_replace_grants(jwt, json);
 	ck_assert_int_eq(ret, 0);
 
 	val = jwt_get_grant(jwt, "ref");
@@ -141,7 +141,7 @@ Suite *libjwt_suite(void)
 	tcase_add_test(tc_core, test_jwt_get_grant);
 	tcase_add_test(tc_core, test_jwt_del_grant);
 	tcase_add_test(tc_core, test_jwt_grant_invalid);
-	tcase_add_test(tc_core,test_jwt_grants_json);
+	tcase_add_test(tc_core,test_jwt_replace_grants);
 
 	suite_add_tcase(s, tc_core);
 

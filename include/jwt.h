@@ -161,7 +161,7 @@ int jwt_add_grant(jwt_t *jwt, const char *grant, const char *val);
 int jwt_del_grant(jwt_t *jwt, const char *grant);
 
 /**
- * Add grants from a JSON encoded object string.
+ * Replace grants from a JSON encoded object string.
  *
  * Loads grants from an existing JSON encoded object string (the body
  * portion). Overwrites any existing grants. Should be used on a jwt_new()
@@ -171,7 +171,7 @@ int jwt_del_grant(jwt_t *jwt, const char *grant);
  * @param json String containing a JSON encoded object of grants.
  * @return Returns 0 on success, valid errno otherwise.
  */
-int jwt_add_grants_json(jwt_t *jwt, const char *json);
+int jwt_replace_grants(jwt_t *jwt, const char *json);
 
 /** @} */
 
