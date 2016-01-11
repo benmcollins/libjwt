@@ -25,8 +25,6 @@
 #include <openssl/hmac.h>
 #include <openssl/buffer.h>
 
-#include <jansson.h>
-
 #include <jwt.h>
 
 #include "config.h"
@@ -551,6 +549,18 @@ int jwt_add_grant(jwt_t *jwt, const char *grant, const char *val)
 		return EINVAL;
 
 	return 0;
+}
+
+const json_t *jwt_get_grant_json(jwt_t *jwt, const char *grant)
+{
+	if (!jwt || !grant || !strlen(grant)) {
+		errno = EINVAL;
+		return NULL;
+	}
+
+	errno = 0;
+
+	return json_object_get(jwt->grants, grant);
 }
 
 int jwt_replace_grants(jwt_t *jwt, const char *json)

@@ -20,6 +20,8 @@
  * @brief JWT C Library
  */
 
+#include <jansson.h>
+
 #ifndef JWT_H
 #define JWT_H
 
@@ -159,6 +161,20 @@ int jwt_add_grant(jwt_t *jwt, const char *grant, const char *val);
  * @return Returns 0 on success, valid errno otherwise.
  */
 int jwt_del_grant(jwt_t *jwt, const char *grant);
+
+/**
+ * Return the value of a grant as a json_t.
+ *
+ * Returns the json_t value for a grant. If it does not exit, NULL
+ * will be returned. The returned json_t is only borrowed and will be
+ * freed when the JWT object is freed with jwt_free().
+ *
+ * @param jwt Pointer to a JWT object.
+ * @param grant String containing the name of the grant to return a value
+ *     for.
+ * @return Returns a json_t for the value, or NULL when not found.
+ */
+const json_t *jwt_get_grant_json(jwt_t *jwt, const char *grant);
 
 /**
  * Replace grants from a JSON encoded object string.
