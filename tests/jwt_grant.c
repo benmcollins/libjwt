@@ -9,6 +9,17 @@
 
 #include <jwt.h>
 
+#define _assert_json_eq_flags (JSON_SORT_KEYS | JSON_COMPACT | JSON_ENCODE_ANY)
+#define assert_json_eq(X, Y) do {					\
+		char *X_str = json_dumps((X), _assert_json_eq_flags);	\
+		char *Y_str = json_dumps((Y), _assert_json_eq_flags);	\
+									\
+		ck_assert_str_eq(X_str, Y_str);				\
+									\
+		free(X_str);						\
+		free(Y_str);						\
+	} while (0)
+
 START_TEST(test_jwt_add_grant)
 {
 	jwt_t *jwt = NULL;
@@ -103,6 +114,45 @@ START_TEST(test_jwt_grant_invalid)
 }
 END_TEST
 
+START_TEST(test_jwt_grant_json)
+{
+	jwt_t *jwt = NULL;
+	json_t *testintval, *testobjval;
+	const json_t *retintval, *retobjval;
+	int ret = 0;
+
+	ret = jwt_new(&jwt);
+	ck_assert_int_eq(ret, 0);
+	ck_assert(jwt != NULL);
+
+	testintval = json_integer(42);
+	ck_assert(testintval != NULL);
+	testobjval = json_loads("{\"quux\": \"foobar\", \"baz\": 21}",
+				JSON_REJECT_DUPLICATES, NULL);
+	ck_assert(testobjval != NULL);
+
+	ret = jwt_add_grant_json(jwt, "foo", testintval);
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_add_grant_json(jwt, "bar", testobjval);
+	ck_assert_int_eq(ret, 0);
+	json_decref(testobjval);
+
+	retintval = jwt_get_grant_json(jwt, "foo");
+	ck_assert(retintval != NULL);
+	assert_json_eq(testintval, retintval);
+
+	retobjval = jwt_get_grant_json(jwt, "bar");
+	ck_assert(retobjval != NULL);
+	assert_json_eq(testobjval, retobjval);
+
+	json_decref(testintval);
+	json_decref(testobjval);
+
+	jwt_free(jwt);
+}
+END_TEST
+
 START_TEST(test_jwt_replace_grants)
 {
 	const char *json = "{\"ref\":\"385d6518-fb73-45fc-b649-0527d8576130\""
@@ -140,6 +190,7 @@ Suite *libjwt_suite(void)
 	tcase_add_test(tc_core, test_jwt_add_grant);
 	tcase_add_test(tc_core, test_jwt_get_grant);
 	tcase_add_test(tc_core, test_jwt_del_grant);
+	tcase_add_test(tc_core, test_jwt_grant_json);
 	tcase_add_test(tc_core, test_jwt_grant_invalid);
 	tcase_add_test(tc_core,test_jwt_replace_grants);
 
