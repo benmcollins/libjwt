@@ -376,6 +376,11 @@ static int jwt_verify_head(jwt_t *jwt, char *head)
 		} else {
 			jwt_scrub_key(jwt);
 		}
+	} else {
+		/* If alg is NONE, there should not be a key */
+		if (jwt->key){
+			ret = EINVAL;
+		}
 	}
 
 verify_head_done:

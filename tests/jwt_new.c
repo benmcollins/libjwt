@@ -165,6 +165,22 @@ START_TEST(test_jwt_decode_invalid_head)
 }
 END_TEST
 
+START_TEST(test_jwt_decode_alg_none_with_key)
+{
+	const char token[] = "eyJhbGciOiJub25lIn0."
+			     "eyJpc3MiOiJmaWxlcy5jeXBocmUuY29tIiwic"
+			     "3ViIjoidXNlcjAifQ.";
+	jwt_t *jwt;
+	int ret;
+
+	ret = jwt_decode(&jwt, token, "key", 3);
+	ck_assert_int_eq(ret, EINVAL);
+	ck_assert(jwt == NULL);
+
+	jwt_free(jwt);
+}
+END_TEST
+
 START_TEST(test_jwt_decode_invalid_body)
 {
 	const char token[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzM4NCJ9."
@@ -252,8 +268,9 @@ Suite *libjwt_suite(void)
 	tcase_add_test(tc_core, test_jwt_decode_invalid_alg);
 	tcase_add_test(tc_core, test_jwt_decode_invalid_typ);
 	tcase_add_test(tc_core, test_jwt_decode_invalid_head);
+	tcase_add_test(tc_core, test_jwt_decode_alg_none_with_key);
 	tcase_add_test(tc_core, test_jwt_decode_invalid_body);
-	tcase_add_test(tc_core,test_jwt_decode_invalid_final_dot);
+	tcase_add_test(tc_core, test_jwt_decode_invalid_final_dot);
 	tcase_add_test(tc_core, test_jwt_decode_hs256);
 	tcase_add_test(tc_core, test_jwt_decode_hs384);
 	tcase_add_test(tc_core, test_jwt_decode_hs512);
