@@ -223,13 +223,13 @@ START_TEST(test_jwt_encode_invalid)
 	ck_assert_int_eq(ret, 0);
 
 	ret = jwt_set_alg(jwt, JWT_ALG_HS512, key512, 32);
-	ck_assert_int_eq(ret, EINVAL);
+	ck_assert_int_eq(ret, 0);
 
 	ret = jwt_set_alg(jwt, JWT_ALG_HS256, key512, 64);
-	ck_assert_int_eq(ret, EINVAL);
+	ck_assert_int_eq(ret, 0);
 
 	ret = jwt_set_alg(jwt, JWT_ALG_HS384, key512, 16);
-	ck_assert_int_eq(ret, EINVAL);
+	ck_assert_int_eq(ret, 0);
 
 	ret = jwt_set_alg(jwt, JWT_ALG_HS512, NULL, 64);
 	ck_assert_int_eq(ret, EINVAL);
