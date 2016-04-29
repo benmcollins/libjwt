@@ -187,6 +187,15 @@ START_TEST(test_jwt_encode_change_alg)
 	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
 	ck_assert_int_eq(ret, 0);
 
+	ret = jwt_set_alg(jwt, JWT_ALG_HS512, key512, 32);
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_set_alg(jwt, JWT_ALG_HS256, key512, 64);
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_set_alg(jwt, JWT_ALG_HS384, key512, 16);
+	ck_assert_int_eq(ret, 0);
+
 	ret = jwt_set_alg(jwt, JWT_ALG_HS512, key512, sizeof(key512));
 	ck_assert_int_eq(ret, 0);
 
@@ -220,15 +229,6 @@ START_TEST(test_jwt_encode_invalid)
 	ck_assert_int_eq(ret, 0);
 
 	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_set_alg(jwt, JWT_ALG_HS512, key512, 32);
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_set_alg(jwt, JWT_ALG_HS256, key512, 64);
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_set_alg(jwt, JWT_ALG_HS384, key512, 16);
 	ck_assert_int_eq(ret, 0);
 
 	ret = jwt_set_alg(jwt, JWT_ALG_HS512, NULL, 64);

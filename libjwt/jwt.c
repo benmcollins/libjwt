@@ -102,8 +102,6 @@ static void jwt_scrub_key(jwt_t *jwt)
 
 int jwt_set_alg(jwt_t *jwt, jwt_alg_t alg, unsigned char *key, int len)
 {
-	//int key_len = jwt_alg_key_len(alg);
-
 	/* No matter what happens here, we do this. */
 	jwt_scrub_key(jwt);
 
@@ -118,10 +116,9 @@ int jwt_set_alg(jwt_t *jwt, jwt_alg_t alg, unsigned char *key, int len)
 	case JWT_ALG_HS512:
 		if (!key)
 			return EINVAL;
-		// key length is not required to equal jwt_alg_key_len (msg digest len)
-		// HMAC algorithm will either pad or truncate the key as necessary.
-		// if (!key || len != key_len)
-		// 	return EINVAL;
+		/* key length is not required to equal jwt_alg_key_len (msg digest len)
+		   HMAC algorithm will either pad or truncate the key as necessary.
+		*/
 
 		jwt->key = malloc(len);
 		if (!jwt->key) {
@@ -306,8 +303,6 @@ static json_t *jwt_b64_decode(char *src)
 static int jwt_sign_sha_hmac(jwt_t *jwt, BIO *out, const EVP_MD *alg,
 			     const char *str)
 {
-  // HMAC function outputs a message digest, so we need a buffer
-  // of max digest size.
 	unsigned char res[EVP_MAX_MD_SIZE];
 	unsigned int res_len;
 
@@ -373,16 +368,7 @@ static int jwt_verify_head(jwt_t *jwt, char *head)
 		if (!val || strcasecmp(val, "JWT"))
 			ret = EINVAL;
 
-		if (jwt->key) {
-#if 0
- 		  int len;
-      // key length is not required to equal jwt_alg_key_len (msg digest len)
-      // HMAC algorithm will either pad or truncate the key as necessary.
-			len = jwt_alg_key_len(jwt->alg);
-			if (len != jwt->key_len)
-				ret = EINVAL;
-#endif
-		} else {
+		if (!jwt->key) {
 			jwt_scrub_key(jwt);
 		}
 	} else {
