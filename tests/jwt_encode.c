@@ -9,12 +9,15 @@
 
 #include <jwt.h>
 
+extern void jwt_dbg (const char *fmt, ...);
+
 START_TEST(test_jwt_encode_fp)
 {
 	FILE *out;
 	jwt_t *jwt = NULL;
 	int ret = 0;
 
+	jwt_dbg ("\n--- test_jwt_encode_fp\n");
 	ret = jwt_new(&jwt);
 	ck_assert_int_eq(ret, 0);
 	ck_assert(jwt != NULL);
@@ -46,6 +49,7 @@ START_TEST(test_jwt_encode_str)
 	int ret = 0;
 	char *out;
 
+	jwt_dbg ("\n--- test_jwt_encode_str\n");
 	ret = jwt_new(&jwt);
 	ck_assert_int_eq(ret, 0);
 	ck_assert(jwt != NULL);
@@ -61,9 +65,7 @@ START_TEST(test_jwt_encode_str)
 
 	out = jwt_encode_str(jwt);
 	ck_assert(out != NULL);
-
 	free(out);
-
 	jwt_free(jwt);
 }
 END_TEST
@@ -75,6 +77,7 @@ START_TEST(test_jwt_encode_hs256)
 	int ret = 0;
 	char *out;
 
+	jwt_dbg ("\n--- test_jwt_encode_hs256\n");
 	ret = jwt_new(&jwt);
 	ck_assert_int_eq(ret, 0);
 	ck_assert(jwt != NULL);
@@ -108,6 +111,7 @@ START_TEST(test_jwt_encode_hs384)
 	int ret = 0;
 	char *out;
 
+	jwt_dbg ("\n--- test_jwt_encode_hs384\n");
 	ret = jwt_new(&jwt);
 	ck_assert_int_eq(ret, 0);
 	ck_assert(jwt != NULL);
@@ -141,6 +145,7 @@ START_TEST(test_jwt_encode_hs512)
 	int ret = 0;
 	char *out;
 
+	jwt_dbg ("\n--- test_jwt_encode_hs512\n");
 	ret = jwt_new(&jwt);
 	ck_assert_int_eq(ret, 0);
 	ck_assert(jwt != NULL);
@@ -174,6 +179,7 @@ START_TEST(test_jwt_encode_change_alg)
 	int ret = 0;
 	char *out;
 
+	jwt_dbg ("\n--- test_jwt_encode_change_alg\n");
 	ret = jwt_new(&jwt);
 	ck_assert_int_eq(ret, 0);
 	ck_assert(jwt != NULL);
@@ -218,6 +224,7 @@ START_TEST(test_jwt_encode_invalid)
 	jwt_t *jwt = NULL;
 	int ret = 0;
 
+	jwt_dbg ("\n--- test_jwt_encode_invalid\n");
 	ret = jwt_new(&jwt);
 	ck_assert_int_eq(ret, 0);
 	ck_assert(jwt != NULL);

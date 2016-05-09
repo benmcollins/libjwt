@@ -35,8 +35,13 @@ typedef enum jwt_alg {
 	JWT_ALG_NONE = 0,
 	JWT_ALG_HS256,
 	JWT_ALG_HS384,
-	JWT_ALG_HS512
+	JWT_ALG_HS512,
+	JWT_ALG_RS256,
+	JWT_ALG_RS384,
+	JWT_ALG_RS512
 } jwt_alg_t;
+
+#define IS_RSA_ALG(alg) ((alg) >= JWT_ALG_RS256)
 
 /**
  * @defgroup jwt_new JWT Object Creation
