@@ -572,7 +572,7 @@ int jwt_decode(jwt_t **jwt, const char *token, const unsigned char *key,
 	}
 
 	/* Copy the key over for verify_head. */
-	if (key_len) {
+	if ((NULL != key) && (key_len > 0)) {
 		new->key = malloc(key_len);
 		if (!new->key) {
       jwt_dbg ("malloc key error\n");
@@ -888,18 +888,18 @@ static int jwt_encode_bio(jwt_t *jwt, BIO *out)
 		goto encode_bio_done;
 
 	len2 = BIO_pending(bmem);
-	if (len2 > len) {
-		buf = alloca(len2 + 1);
-		if (!buf) {
-			ret = ENOMEM;
-			goto encode_bio_done;
-		}
-	} else if (len2 < 0) {
+	if (len2 < 0) {
 		ret = EINVAL;
 		goto encode_bio_done;
 	}
-
 	if (len2 > 0) {
+		if (len2 > len) {
+			buf = alloca(len2 + 1);
+			if (!buf) {
+				ret = ENOMEM;
+				goto encode_bio_done;
+			}
+		}
 		len2 = BIO_read(bmem, buf, len2);
 		buf[len2] = '\0';
 	
