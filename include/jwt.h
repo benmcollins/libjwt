@@ -35,8 +35,13 @@ typedef enum jwt_alg {
 	JWT_ALG_NONE = 0,
 	JWT_ALG_HS256,
 	JWT_ALG_HS384,
-	JWT_ALG_HS512
+	JWT_ALG_HS512,
+	JWT_ALG_RS256,
+	JWT_ALG_RS384,
+	JWT_ALG_RS512
 } jwt_alg_t;
+
+#define IS_RSA_ALG(alg) ((alg) >= JWT_ALG_RS256)
 
 /**
  * @defgroup jwt_new JWT Object Creation
@@ -172,6 +177,23 @@ int jwt_del_grant(jwt_t *jwt, const char *grant);
  * @return Returns 0 on success, valid errno otherwise.
  */
 int jwt_add_grants_json(jwt_t *jwt, const char *json);
+
+/**
+ * callback function for jwt_process_grants.
+ */
+typedef int (*jwt_grant_callback_t) (const char *key, json_t *value);
+
+/**
+ * Process grants .
+ *
+ * Calls the specified function for each grant in the specified jwt
+ *
+ * @param jwt Pointer to a JWT object.
+ * @param callback function
+ * @return Returns 0 on success, valid errno otherwise.
+ */
+int jwt_process_grants (jwt_t *jwt, jwt_grant_callback_t callback);
+
 
 /** @} */
 

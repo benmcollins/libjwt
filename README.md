@@ -11,6 +11,3 @@
 
 [GitHub Pages](http://benmcollins.github.io/libjwt/)
 
-## Pre-build Ubuntu Packages (PPA)
-
-`sudo add-apt-repository ppa:ben-collins/libjwt`
