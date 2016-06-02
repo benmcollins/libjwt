@@ -718,6 +718,21 @@ int jwt_del_grant(jwt_t *jwt, const char *grant)
 	return 0;
 }
 
+int jwt_process_grants (jwt_t *jwt, jwt_grant_callback_t callback)
+{
+	int err;
+	const char *key;
+	json_t *value;
+
+	json_object_foreach (jwt->grants, key, value)
+	{
+		err = callback (key, value);
+		if (err != 0)
+			return err;
+	}
+	return 0;
+}
+
 static void jwt_write_bio_head(jwt_t *jwt, BIO *bio, int pretty)
 {
 	BIO_puts(bio, "{");

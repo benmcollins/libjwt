@@ -10,6 +10,7 @@
 
 #include <check.h>
 
+#include <jansson.h>
 #include <jwt.h>
 
 typedef struct {
@@ -116,6 +117,21 @@ ssize_t read_file (const char *fname, char *buf, size_t buflen)
 static unsigned int pass_cnt = 0;
 static unsigned int fail_cnt = 0;
 
+int process_grant (const char *key, json_t *value)
+{
+	printf ("Key is %s\n", key);
+	if (json_is_string (value))
+		printf ("Grant value is %s\n", json_string_value (value));
+	else
+		printf ("Json type is %d\n", json_typeof (value));
+	return 0;
+}
+
+int process_grants (jwt_t *jwt)
+{
+	return jwt_process_grants (jwt, process_grant);
+}
+
 START_TEST(test_jwt_decode)
 {
   const char *jwt_fname;
@@ -139,7 +155,7 @@ START_TEST(test_jwt_decode)
 	} else if (test_list[_i].is_key_in_file) {
 		key_len = read_file (key_str, pem_buf, sizeof(pem_buf));
 		if (key_len >= 0) {
-			key_str = pem_buf;
+			key_str = (const char *) pem_buf;
 		} else {
 			printf ("Error reading pem file\n");
 			ck_assert (0 == 1);
@@ -156,6 +172,9 @@ START_TEST(test_jwt_decode)
 	jwt_buf[jwt_bytes] = '\0';
 	result = jwt_decode (&jwt, (const char*) jwt_buf, key_str, key_len);
 	if (expected == (result==0)) {
+		if (result == 0) {
+			ck_assert (process_grants (jwt) == 0);
+		}
 		printf ("--- PASSED: %s\n", decode_test_name);
 		pass_cnt += 1;
 	} else {
