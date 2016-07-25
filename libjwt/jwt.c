@@ -29,7 +29,9 @@
 
 #include <jwt.h>
 
+#if !defined(USE_CMAKE)
 #include "config.h"
+#endif
 
 struct jwt {
 	jwt_alg_t alg;
