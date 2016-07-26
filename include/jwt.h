@@ -23,6 +23,8 @@
 #ifndef JWT_H
 #define JWT_H
 
+#include <jansson.h>	/* to get json_t */
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -138,6 +140,36 @@ jwt_t *jwt_dup(jwt_t *jwt);
 const char *jwt_get_grant(jwt_t *jwt, const char *grant);
 
 /**
+ * Return the value of a grant.
+ *
+ * Returns the json_t value for a grant (e.g. "iss"). If it does not exit,
+ * NULL will be returned.
+ *
+ * @param jwt Pointer to a JWT object.
+ * @param grant String containing the name of the grant to return a value
+ *     for.
+ * @return Returns a json_t object for the value, or NULL when not found.
+ */
+json_t *jwt_get_grant_obj(jwt_t *jwt, const char *grant);
+
+/**
+ * Return the value of a grant.
+ *
+ * Returns the string or integer value for a grant (e.g. "iss"). If it does not exit,
+ * NULL will be returned.
+ *
+ * @param jwt Pointer to a JWT object.
+ * @param grant String containing the name of the grant to return a value
+ *     for.
+ * @param strval string value, if it's a string
+ * @param intval integer value, if it's an integer  
+ * @return Returns 0 if the value exists, and it's a string or integer,
+ * 	else an error code.
+ */
+int jwt_get_grant_int_or_str (jwt_t *jwt, const char *grant,
+		const char **strval, int *intval);
+
+/**
  * Add a new grant to this JWT object.
  *
  * Creates a new grant for this object. The string for grant and val
@@ -181,7 +213,7 @@ int jwt_add_grants_json(jwt_t *jwt, const char *json);
 /**
  * callback function for jwt_process_grants.
  */
-typedef int (*jwt_grant_callback_t) (const char *key, json_t *value);
+typedef int (*jwt_grant_callback_t) (const char *key, json_t *value, void *context);
 
 /**
  * Process grants .
@@ -192,8 +224,15 @@ typedef int (*jwt_grant_callback_t) (const char *key, json_t *value);
  * @param callback function
  * @return Returns 0 on success, valid errno otherwise.
  */
-int jwt_process_grants (jwt_t *jwt, jwt_grant_callback_t callback);
+int jwt_process_grants (jwt_t *jwt, jwt_grant_callback_t callback, void *context);
 
+/**
+ * jwt_foreach_grant
+ *
+ * iterate over the grants
+ *
+ */
+#define jwt_foreach_grant(jwt,key,value) 
 
 /** @} */
 

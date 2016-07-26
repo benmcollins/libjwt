@@ -31,8 +31,7 @@
 #include <openssl/rsa.h>
 #include <openssl/pem.h>
 
-#include <jansson.h>
-
+ 
 #include <jwt.h>
 
 #include "config.h"
@@ -679,6 +678,49 @@ const char *jwt_get_grant(jwt_t *jwt, const char *grant)
 	return get_js_string(jwt->grants, grant);
 }
 
+json_t *jwt_get_grant_obj(jwt_t *jwt, const char *grant)
+{
+	if (!jwt || !grant || !strlen(grant)) {
+		errno = EINVAL;
+		return NULL;
+	}
+
+	errno = 0;
+
+	return json_object_get (jwt->grants, grant);
+}
+
+
+int jwt_get_grant_int_or_str (jwt_t *jwt, const char *grant,
+		const char **strval, int *intval)
+{
+	json_t *js_val;
+
+	if (NULL != strval)
+		*strval = NULL;
+	if (NULL != intval)
+		*intval = 0;
+	if (!jwt || !grant || !strlen(grant)) {
+		return EINVAL;
+	}
+	js_val = json_object_get(jwt->grants, grant);
+	if (!js_val)
+		return ENOENT;
+	if (json_is_string (js_val)) {
+		if (NULL == strval)
+			return EINVAL;
+		*strval = json_string_value (js_val);
+		return 0;
+	}
+	if (json_is_integer (js_val)) {
+		if (NULL == intval)
+			return EINVAL;
+		*intval = json_integer_value (js_val);
+		return 0;
+	}
+	return ENOENT;
+}
+
 int jwt_add_grant(jwt_t *jwt, const char *grant, const char *val)
 {
 	if (!jwt || !grant || !strlen(grant) || !val)
@@ -718,7 +760,7 @@ int jwt_del_grant(jwt_t *jwt, const char *grant)
 	return 0;
 }
 
-int jwt_process_grants (jwt_t *jwt, jwt_grant_callback_t callback)
+int jwt_process_grants (jwt_t *jwt, jwt_grant_callback_t callback, void *context)
 {
 	int err;
 	const char *key;
@@ -726,7 +768,7 @@ int jwt_process_grants (jwt_t *jwt, jwt_grant_callback_t callback)
 
 	json_object_foreach (jwt->grants, key, value)
 	{
-		err = callback (key, value);
+		err = callback (key, value, context);
 		if (err != 0)
 			return err;
 	}

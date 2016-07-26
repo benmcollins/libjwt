@@ -7,7 +7,9 @@
 
 #include <check.h>
 
+#include <jansson.h>
 #include <jwt.h>
+
 
 START_TEST(test_jwt_add_grant)
 {
@@ -109,8 +111,14 @@ START_TEST(test_jwt_grants_json)
 		",\"id\":\"FVvGYTr3FhiURCFebsBOpBqTbzHdX/DvImiA2yheXr8=\","
 		"\"iss\":\"localhost\",\"scopes\":\"storage\",\"sub\":"
 		"\"user0\"}";
+	const char *json2 = "{"
+		"\"id\":\"FVvGYTr3FhiURCFebsBOpBqTbzHdX/DvImiA2yheXr8=\","
+		"\"iss\":\"localhost\",\"scopes\":\"storage\",\"sub\":"
+		"\"user0\", \"nbf\":12345678, \"iat\":12346789}";
 	jwt_t *jwt = NULL;
+	json_t *js_val;
 	const char *val;
+	int intval;
 	int ret = 0;
 
 	ret = jwt_new(&jwt);
@@ -125,6 +133,23 @@ START_TEST(test_jwt_grants_json)
 	ck_assert_str_eq(val, "385d6518-fb73-45fc-b649-0527d8576130");
 
 	jwt_free(jwt);
+
+	ret = jwt_new(&jwt);
+	ck_assert_int_eq(ret, 0);
+	ck_assert(jwt != NULL);
+
+	ret = jwt_add_grants_json(jwt, json2);
+	ck_assert_int_eq(ret, 0);
+
+  js_val = jwt_get_grant_obj (jwt, "nbf");
+	ck_assert (js_val != NULL);
+	ck_assert (json_is_integer (js_val));
+	ck_assert (json_integer_value (js_val) == 12345678);
+
+	ret = jwt_get_grant_int_or_str (jwt, "nbf", &val, &intval);
+	ck_assert_int_eq(ret, 0);
+	ck_assert(val == NULL);
+	ck_assert (intval == 12345678);
 }
 END_TEST
 
