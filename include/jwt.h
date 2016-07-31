@@ -20,6 +20,8 @@
  * @brief JWT C Library
  */
 
+#include <jansson.h>
+
 #ifndef JWT_H
 #define JWT_H
 
@@ -161,7 +163,37 @@ int jwt_add_grant(jwt_t *jwt, const char *grant, const char *val);
 int jwt_del_grant(jwt_t *jwt, const char *grant);
 
 /**
- * Add grants from a JSON encoded object string.
+ * Return the value of a grant as a json_t.
+ *
+ * Returns the json_t value for a grant. If it does not exit, NULL
+ * will be returned. The returned json_t is only borrowed and will be
+ * freed when the JWT object is freed with jwt_free().
+ *
+ * @param jwt Pointer to a JWT object.
+ * @param grant String containing the name of the grant to return a value
+ *     for.
+ * @return Returns a json_t for the value, or NULL when not found.
+ */
+const json_t *jwt_get_grant_json(jwt_t *jwt, const char *grant);
+
+/**
+ * Add a new grant to this JWT object.
+ *
+ * Creates a new grant for this object. The json_t for grant and the
+ * string for val are copied internally, so do not require that the
+ * pointer or string remain valid for the lifetime of this object. It
+ * is an error if you try to add a grant that already exists.
+ *
+ * @param jwt Pointer to a JWT object.
+ * @param grant String containing the name of the grant to add.
+ * @param val json_t containing the value to be saved for
+ *     grant. Cannot be NULL.
+ * @return Returns 0 on success, valid errno otherwise.
+ */
+int jwt_add_grant_json(jwt_t *jwt, const char *grant, json_t *val);
+
+/**
+ * Replace grants from a JSON encoded object string.
  *
  * Loads grants from an existing JSON encoded object string (the body
  * portion). Overwrites any existing grants. Should be used on a jwt_new()
@@ -171,7 +203,7 @@ int jwt_del_grant(jwt_t *jwt, const char *grant);
  * @param json String containing a JSON encoded object of grants.
  * @return Returns 0 on success, valid errno otherwise.
  */
-int jwt_add_grants_json(jwt_t *jwt, const char *json);
+int jwt_replace_grants(jwt_t *jwt, const char *json);
 
 /** @} */
 
