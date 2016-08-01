@@ -4,8 +4,10 @@
 
 ## Build Requirements
 
-- https://github.com/akheron/jansson
-- OpenSSL
+- [Jansson](https://github.com/akheron/jansson)
+- [OpenSSL](https://github.com/openssl/openssl)
+- [Check](https://github.com/libcheck/check) (Tests)
+- [Google Benchmark](https://github.com/google/benchmark) (Benchmarks)
 
 ## Documentation
 
@@ -20,4 +22,10 @@
 - ``make jwt``: build shared library in lib/ dir.
 - ``make jwt_static``: build static library in lib/ dir.
 - ``make tests``: build all test in buid/ directory and run all tests.
+- ``make benchmark``: build benchmark in buid/ directory and run all benchmarks.
 - ``make clean``.
+
+## Benchmark functions
+
+![Benchmark](http://i.imgur.com/ObJbX9Y.png)
+

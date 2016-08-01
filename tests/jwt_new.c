@@ -172,8 +172,9 @@ START_TEST(test_jwt_decode_alg_none_with_key)
 			     "3ViIjoidXNlcjAifQ.";
 	jwt_t *jwt;
 	int ret;
+	const unsigned char key[] = "key";
 
-	ret = jwt_decode(&jwt, token, "key", 3);
+	ret = jwt_decode(&jwt, token, key, 3);
 	ck_assert_int_eq(ret, EINVAL);
 	ck_assert(jwt == NULL);
 
@@ -279,7 +280,7 @@ Suite *libjwt_suite(void)
 	return s;
 }
 
-int main(int argc, char *argv[])
+int main()
 {
 	int number_failed;
 	Suite *s;
