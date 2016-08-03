@@ -240,6 +240,19 @@ static const char *get_js_string(json_t *js, const char *key)
 	return val;
 }
 
+static char *get_js_object(json_t *js, const char *key)
+{
+	size_t flags = JSON_SORT_KEYS | JSON_COMPACT | JSON_ENCODE_ANY;
+	char *val = NULL;
+	json_t *js_val;
+
+	js_val = json_object_get(js, key);
+	if (js_val)
+		val = json_dumps(js_val, flags);
+
+	return val;
+}
+
 static json_t *jwt_b64_decode(char *src)
 {
 	BIO *b64, *bmem;
@@ -544,6 +557,16 @@ const char *jwt_get_grant(jwt_t *jwt, const char *grant)
 	errno = 0;
 
 	return get_js_string(jwt->grants, grant);
+}
+
+char *jwt_get_grant_json(jwt_t *jwt, const char *grant)
+{
+	if (!jwt || !grant || !strlen(grant)) {
+		errno = EINVAL;
+		return NULL;
+	}
+
+	return get_js_object(jwt->grants, grant);
 }
 
 int jwt_add_grant(jwt_t *jwt, const char *grant, const char *val)

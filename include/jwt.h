@@ -120,7 +120,7 @@ jwt_t *jwt_dup(jwt_t *jwt);
  */
 
 /**
- * Return the value of a grant.
+ * Return the value of a grant (must be a string).
  *
  * Returns the string value for a grant (e.g. "iss"). If it does not exit,
  * NULL will be returned.
@@ -131,6 +131,20 @@ jwt_t *jwt_dup(jwt_t *jwt);
  * @return Returns a string for the value, or NULL when not found.
  */
 const char *jwt_get_grant(jwt_t *jwt, const char *grant);
+
+/**
+ * Return the value of a grant (can be any object).
+ *
+ * Returns the plain text JSON representation of the value for a grant
+ * (e.g. "[ 42, 21, 48 ]"). If it does not exit, NULL will be
+ * returned. The returned string must be freed by the caller.
+ *
+ * @param jwt Pointer to a JWT object.
+ * @param grant String containing the name of the grant to return a value
+ *     for.
+ * @return Returns a string for the value, or NULL when not found.
+ */
+char *jwt_get_grant_json(jwt_t *jwt, const char *grant);
 
 /**
  * Add a new grant to this JWT object.
