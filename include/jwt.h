@@ -133,6 +133,18 @@ jwt_t *jwt_dup(jwt_t *jwt);
 const char *jwt_get_grant(jwt_t *jwt, const char *grant);
 
 /**
+ * Return the value of a grant
+ * Reutnrs the int value for a grant (e.g. "exp"). If it does not exist,
+ * 0 will be returned.
+ *
+ * @param jwt Pointer to a JWT object.
+ * @param grant String containing the name of the grant to return a value
+ *     for.
+ * @return Returns an int for the value, or 0 when not found.
+ */
+int jwt_get_grant_int(jwt_t *jwt, const char *grant);
+
+/**
  * Add a new grant to this JWT object.
  *
  * Creates a new grant for this object. The string for grant and val
