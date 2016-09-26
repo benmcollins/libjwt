@@ -289,7 +289,7 @@ Suite *libjwt_suite(void)
 	return s;
 }
 
-int main(int __unused argc, char __unused *argv[])
+int main(int argc, char *argv[])
 {
 	int number_failed;
 	Suite *s;
