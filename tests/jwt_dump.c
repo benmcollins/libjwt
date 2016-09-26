@@ -29,7 +29,7 @@ START_TEST(test_jwt_dump_fp)
 	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant_int(jwt, "iat", time(NULL));
+	ret = jwt_add_grant_int(jwt, "iat", (long)time(NULL));
 	ck_assert_int_eq(ret, 0);
 
 	out = fopen("/dev/null", "w");
@@ -66,7 +66,7 @@ START_TEST(test_jwt_dump_str)
 	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant_int(jwt, "iat", time(NULL));
+	ret = jwt_add_grant_int(jwt, "iat", (long)time(NULL));
 	ck_assert_int_eq(ret, 0);
 
 	out = jwt_dump_str(jwt, 1);

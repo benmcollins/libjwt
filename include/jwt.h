@@ -142,7 +142,7 @@ const char *jwt_get_grant(jwt_t *jwt, const char *grant);
  *     for.
  * @return Returns an int for the value, or 0 when not found.
  */
-int jwt_get_grant_int(jwt_t *jwt, const char *grant);
+long jwt_get_grant_int(jwt_t *jwt, const char *grant);
 
 /**
  * Add a new string grant to this JWT object.
@@ -173,7 +173,7 @@ int jwt_add_grant(jwt_t *jwt, const char *grant, const char *val);
  * @param val int containing the value to be saved for grant.
  * @return Returns 0 on success, valid errno otherwise.
  */
-int jwt_add_grant_int(jwt_t *jwt, const char *grant, int val);
+int jwt_add_grant_int(jwt_t *jwt, const char *grant, long val);
 
 /**
  * Delete a grant from this JWT object.

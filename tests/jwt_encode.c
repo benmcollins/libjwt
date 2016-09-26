@@ -29,7 +29,7 @@ START_TEST(test_jwt_encode_fp)
 	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant_int(jwt, "iat", time(NULL));
+	ret = jwt_add_grant_int(jwt, "iat", (long)time(NULL));
 	ck_assert_int_eq(ret, 0);
 
 	out = fopen("/dev/null", "w");
@@ -63,7 +63,7 @@ START_TEST(test_jwt_encode_str)
 	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant_int(jwt, "iat", time(NULL));
+	ret = jwt_add_grant_int(jwt, "iat", (long)time(NULL));
 	ck_assert_int_eq(ret, 0);
 
 	out = jwt_encode_str(jwt);
@@ -95,7 +95,7 @@ START_TEST(test_jwt_encode_hs256)
 	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant_int(jwt, "iat", time(NULL));
+	ret = jwt_add_grant_int(jwt, "iat", (long)time(NULL));
 	ck_assert_int_eq(ret, 0);
 
 	ret = jwt_set_alg(jwt, JWT_ALG_HS256, key256, sizeof(key256));
@@ -131,7 +131,7 @@ START_TEST(test_jwt_encode_hs384)
 	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant_int(jwt, "iat", time(NULL));
+	ret = jwt_add_grant_int(jwt, "iat", (long)time(NULL));
 	ck_assert_int_eq(ret, 0);
 
 	ret = jwt_set_alg(jwt, JWT_ALG_HS384, key384, sizeof(key384));
@@ -167,7 +167,7 @@ START_TEST(test_jwt_encode_hs512)
 	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant_int(jwt, "iat", time(NULL));
+	ret = jwt_add_grant_int(jwt, "iat", (long)time(NULL));
 	ck_assert_int_eq(ret, 0);
 
 	ret = jwt_set_alg(jwt, JWT_ALG_HS512, key512, sizeof(key512));
@@ -203,7 +203,7 @@ START_TEST(test_jwt_encode_change_alg)
 	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant_int(jwt, "iat", time(NULL));
+	ret = jwt_add_grant_int(jwt, "iat", (long)time(NULL));
 	ck_assert_int_eq(ret, 0);
 
 	ret = jwt_set_alg(jwt, JWT_ALG_HS512, key512, sizeof(key512));
@@ -241,7 +241,7 @@ START_TEST(test_jwt_encode_invalid)
 	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant_int(jwt, "iat", time(NULL));
+	ret = jwt_add_grant_int(jwt, "iat", (long)time(NULL));
 	ck_assert_int_eq(ret, 0);
 
 	ret = jwt_set_alg(jwt, JWT_ALG_HS512, key512, 32);

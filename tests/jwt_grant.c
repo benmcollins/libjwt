@@ -27,10 +27,10 @@ START_TEST(test_jwt_add_grant)
 	ck_assert_int_eq(ret, EEXIST);
 
 	/* No duplicates for int */
-	ret = jwt_add_grant_int(jwt, "iat", time(NULL));
+	ret = jwt_add_grant_int(jwt, "iat", (long)time(NULL));
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant_int(jwt, "iat", time(NULL));
+	ret = jwt_add_grant_int(jwt, "iat", (long)time(NULL));
 	ck_assert_int_eq(ret, EEXIST);
 
 	jwt_free(jwt);
@@ -91,7 +91,7 @@ START_TEST(test_jwt_grant_invalid)
 {
 	jwt_t *jwt = NULL;
 	const char *val;
-	int valint = 0;
+	long valint = 0;
 	int ret = 0;
 
 	ret = jwt_new(&jwt);
@@ -101,7 +101,7 @@ START_TEST(test_jwt_grant_invalid)
 	ret = jwt_add_grant(jwt, "iss", NULL);
 	ck_assert_int_eq(ret, EINVAL);
 
-	ret = jwt_add_grant_int(jwt, "iat", time(NULL));
+	ret = jwt_add_grant_int(jwt, "iat", (long)time(NULL));
 	ck_assert_int_eq(errno, EINVAL);
 	ck_assert(valint == 0);
 
