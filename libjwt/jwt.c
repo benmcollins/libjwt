@@ -250,7 +250,6 @@ static int get_js_int(json_t *js, const char *key)
 		val = (int)json_integer_value(js_val);
 
 	return val;
-	return 0;
 }
 
 static json_t *jwt_b64_decode(char *src)
@@ -590,7 +589,7 @@ int jwt_add_grant_int(jwt_t *jwt, const char *grant, int val)
 	if (!jwt || !grant || !strlen(grant))
 		return EINVAL;
 
-	if (get_js_string(jwt->grants, grant) != NULL)
+	if (get_js_int(jwt->grants, grant) != -1)
 		return EEXIST;
 
 	if (json_object_set_new(jwt->grants, grant, json_integer(val)))
