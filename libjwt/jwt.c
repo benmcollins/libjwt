@@ -585,6 +585,20 @@ int jwt_add_grant(jwt_t *jwt, const char *grant, const char *val)
 	return 0;
 }
 
+int jwt_add_grant_int(jwt_t *jwt, const char *grant, int val)
+{
+	if (!jwt || !grant || !strlen(grant))
+		return EINVAL;
+
+	if (get_js_string(jwt->grants, grant) != NULL)
+		return EEXIST;
+
+	if (json_object_set_new(jwt->grants, grant, json_integer(val)))
+		return EINVAL;
+
+	return 0;
+}
+
 int jwt_add_grants_json(jwt_t *jwt, const char *json)
 {
 	json_t *grants = json_loads(json, JSON_REJECT_DUPLICATES, NULL);

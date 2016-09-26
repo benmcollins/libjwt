@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <time.h>
 
 #include <check.h>
 
@@ -30,6 +31,8 @@ START_TEST(test_jwt_dup)
 	jwt_t *jwt = NULL, *new = NULL;
 	int ret = 0;
 	const char *val = NULL;
+	time_t now;
+	int valint;
 
 	new = jwt_dup(NULL);
 	ck_assert(new == NULL);
@@ -47,6 +50,13 @@ START_TEST(test_jwt_dup)
 	val = jwt_get_grant(new, "iss");
 	ck_assert(val != NULL);
 	ck_assert_str_eq(val, "test");
+
+	now = time(NULL);
+	ret = jwt_add_grant_int(jwt, "iat", now);
+	ck_assert_int_eq(ret, 0);
+
+	valint = jwt_get_grant_int(jwt, "iat");
+	ck_assert_int_eq(now, valint);
 
 	jwt_free(new);
 	jwt_free(jwt);
@@ -173,7 +183,7 @@ START_TEST(test_jwt_decode_alg_none_with_key)
 	jwt_t *jwt;
 	int ret;
 
-	ret = jwt_decode(&jwt, token, "key", 3);
+	ret = jwt_decode(&jwt, token, (const unsigned char *)"key", 3);
 	ck_assert_int_eq(ret, EINVAL);
 	ck_assert(jwt == NULL);
 
@@ -279,7 +289,7 @@ Suite *libjwt_suite(void)
 	return s;
 }
 
-int main(int argc, char *argv[])
+int main(int __unused argc, char __unused *argv[])
 {
 	int number_failed;
 	Suite *s;
