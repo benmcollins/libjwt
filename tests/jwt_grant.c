@@ -101,9 +101,8 @@ START_TEST(test_jwt_grant_invalid)
 	ret = jwt_add_grant(jwt, "iss", NULL);
 	ck_assert_int_eq(ret, EINVAL);
 
-	ret = jwt_add_grant_int(jwt, "iat", (long)time(NULL));
-	ck_assert_int_eq(errno, EINVAL);
-	ck_assert(valint == 0);
+	ret = jwt_add_grant_int(jwt, "", (long)time(NULL));
+	ck_assert_int_eq(ret, EINVAL);
 
 	ret = jwt_del_grant(jwt, "");
 	ck_assert_int_eq(ret, EINVAL);
