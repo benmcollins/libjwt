@@ -61,6 +61,8 @@ static const char *jwt_alg_str(jwt_alg_t alg)
 
 static int jwt_str_alg(jwt_t *jwt, const char *alg)
 {
+    if (!jwt || !alg) 
+        return EINVAL;
 	if (!strcasecmp(alg, "none"))
 		jwt->alg = JWT_ALG_NONE;
 	else if (!strcasecmp(alg, "HS256"))
@@ -224,6 +226,9 @@ static const char *get_js_string(json_t *js, const char *key)
 	js_val = json_object_get(js, key);
 	if (js_val)
 		val = json_string_value(js_val);
+
+    if (!val)
+        val = json_dumps(js_val, JSON_COMPACT | JSON_ENCODE_ANY);
 
 	return val;
 }
