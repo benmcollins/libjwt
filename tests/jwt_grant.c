@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <time.h>
 
 #include <check.h>
 
@@ -23,6 +24,13 @@ START_TEST(test_jwt_add_grant)
 
 	/* No duplicates */
 	ret = jwt_add_grant(jwt, "iss", "other");
+	ck_assert_int_eq(ret, EEXIST);
+
+	/* No duplicates for int */
+	ret = jwt_add_grant_int(jwt, "iat", (long)time(NULL));
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_add_grant_int(jwt, "iat", (long)time(NULL));
 	ck_assert_int_eq(ret, EEXIST);
 
 	jwt_free(jwt);
@@ -83,6 +91,7 @@ START_TEST(test_jwt_grant_invalid)
 {
 	jwt_t *jwt = NULL;
 	const char *val;
+	long valint = 0;
 	int ret = 0;
 
 	ret = jwt_new(&jwt);
@@ -92,12 +101,20 @@ START_TEST(test_jwt_grant_invalid)
 	ret = jwt_add_grant(jwt, "iss", NULL);
 	ck_assert_int_eq(ret, EINVAL);
 
+	ret = jwt_add_grant_int(jwt, "iat", (long)time(NULL));
+	ck_assert_int_eq(errno, EINVAL);
+	ck_assert(valint == 0);
+
 	ret = jwt_del_grant(jwt, "");
 	ck_assert_int_eq(ret, EINVAL);
 
 	val = jwt_get_grant(jwt, NULL);
 	ck_assert_int_eq(errno, EINVAL);
 	ck_assert(val == NULL);
+
+	valint = jwt_get_grant_int(jwt, NULL);
+	ck_assert_int_eq(errno, EINVAL);
+	ck_assert(valint == 0);
 
 	jwt_free(jwt);
 }
