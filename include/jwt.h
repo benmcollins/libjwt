@@ -134,7 +134,19 @@ jwt_t *jwt_dup(jwt_t *jwt);
 const char *jwt_get_grant(jwt_t *jwt, const char *grant);
 
 /**
- * Add a new grant to this JWT object.
+ * Return the value of a grant
+ * Reutnrs the int value for a grant (e.g. "exp"). If it does not exist,
+ * 0 will be returned.
+ *
+ * @param jwt Pointer to a JWT object.
+ * @param grant String containing the name of the grant to return a value
+ *     for.
+ * @return Returns an int for the value, or 0 when not found.
+ */
+long jwt_get_grant_int(jwt_t *jwt, const char *grant);
+
+/**
+ * Add a new string grant to this JWT object.
  *
  * Creates a new grant for this object. The string for grant and val
  * are copied internally, so do not require that the pointer or string
@@ -148,6 +160,21 @@ const char *jwt_get_grant(jwt_t *jwt, const char *grant);
  * @return Returns 0 on success, valid errno otherwise.
  */
 int jwt_add_grant(jwt_t *jwt, const char *grant, const char *val);
+
+/**
+ * Add a new integer grant to this JWT object.
+ *
+ * Creates a new grant for this object. The string for grant
+ * is copied internally, so do not require that the pointer or string
+ * remain valid for the lifetime of this object. It is an error if you
+ * try to add a grant that already exists.
+ *
+ * @param jwt Pointer to a JWT object.
+ * @param grant String containing the name of the grant to add.
+ * @param val int containing the value to be saved for grant.
+ * @return Returns 0 on success, valid errno otherwise.
+ */
+int jwt_add_grant_int(jwt_t *jwt, const char *grant, long val);
 
 /**
  * Delete a grant from this JWT object.

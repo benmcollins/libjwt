@@ -1,7 +1,7 @@
 project(libjwt C)
 cmake_minimum_required(VERSION 2.8)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror -Wall -std=gnu99 -O -Wextra -pedantic -fPIE")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Ofast -Wextra -pedantic -fPIE")
 
 set(LIBRARY_NAME jwt)
 

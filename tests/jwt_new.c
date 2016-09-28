@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <time.h>
 
 #include <check.h>
 
@@ -30,6 +31,8 @@ START_TEST(test_jwt_dup)
 	jwt_t *jwt = NULL, *new = NULL;
 	int ret = 0;
 	const char *val = NULL;
+	time_t now;
+	long valint;
 
 	new = jwt_dup(NULL);
 	ck_assert(new == NULL);
@@ -47,6 +50,13 @@ START_TEST(test_jwt_dup)
 	val = jwt_get_grant(new, "iss");
 	ck_assert(val != NULL);
 	ck_assert_str_eq(val, "test");
+
+	now = time(NULL);
+	ret = jwt_add_grant_int(jwt, "iat", (long)now);
+	ck_assert_int_eq(ret, 0);
+
+	valint = jwt_get_grant_int(jwt, "iat");
+	ck_assert(((long)now) == valint);
 
 	jwt_free(new);
 	jwt_free(jwt);
