@@ -851,7 +851,7 @@ static void jwt_write_bio_head(jwt_t *jwt, BIO *bio, int pretty)
 	 * -- draft-ietf-oauth-json-web-token-32 #6. */
 	if (jwt->alg != JWT_ALG_NONE) {
 		if (pretty)
-			BIO_puts(bio, "		 ");
+			BIO_puts(bio, "    ");
 
 		BIO_printf(bio, "\"typ\":%s\"JWT\",", pretty?" ":"");
 
@@ -860,7 +860,7 @@ static void jwt_write_bio_head(jwt_t *jwt, BIO *bio, int pretty)
 	}
 
 	if (pretty)
-		BIO_puts(bio, "		 ");
+		BIO_puts(bio, "    ");
 
 	BIO_printf(bio, "\"alg\":%s\"%s\"", pretty?" ":"",
 			 jwt_alg_str(jwt->alg));
