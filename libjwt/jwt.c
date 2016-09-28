@@ -1,19 +1,19 @@
 /* Copyright (C) 2015 Ben Collins <ben@cyphre.com>
-   This file is part of the JWT C Library
+	 This file is part of the JWT C Library
 
-   This library is free software; you can redistribute it and/or
-   modify it under the terms of the GNU Lesser General Public
-   License as published by the Free Software Foundation; either
-   version 2.1 of the License, or (at your option) any later version.
+	 This library is free software; you can redistribute it and/or
+	 modify it under the terms of the GNU Lesser General Public
+	 License as published by the Free Software Foundation; either
+	 version 2.1 of the License, or (at your option) any later version.
 
-   This library is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Lesser General Public License for more details.
+	 This library is distributed in the hope that it will be useful,
+	 but WITHOUT ANY WARRANTY; without even the implied warranty of
+	 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+	 Lesser General Public License for more details.
 
-   You should have received a copy of the GNU Lesser General Public
-   License along with the GNU C Library; if not, see
-   <http://www.gnu.org/licenses/>.	*/
+	 You should have received a copy of the GNU Lesser General Public
+	 License along with the GNU C Library; if not, see
+	 <http://www.gnu.org/licenses/>.	*/
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -61,8 +61,8 @@ static const char *jwt_alg_str(jwt_alg_t alg)
 
 static int jwt_str_alg(jwt_t *jwt, const char *alg)
 {
-    if (!jwt || !alg) 
-        return EINVAL;
+		if (!jwt || !alg) 
+				return EINVAL;
 	if (!strcasecmp(alg, "none"))
 		jwt->alg = JWT_ALG_NONE;
 	else if (!strcasecmp(alg, "HS256"))
@@ -227,8 +227,8 @@ static const char *get_js_string(json_t *js, const char *key)
 	if (js_val)
 		val = json_string_value(js_val);
 
-    if (!val)
-        val = json_dumps(js_val, JSON_COMPACT | JSON_ENCODE_ANY);
+		if (!val)
+				val = json_dumps(js_val, JSON_COMPACT | JSON_ENCODE_ANY);
 
 	return val;
 }
@@ -670,7 +670,7 @@ verify_head_done:
 }
 
 int jwt_decode(jwt_t **jwt, const char *token, const unsigned char *key,
-		   int key_len)
+			 int key_len)
 {
 	char *head = strdup(token);
 	jwt_t *new = NULL;
@@ -811,7 +811,7 @@ static void jwt_write_bio_head(jwt_t *jwt, BIO *bio, int pretty)
 	 * -- draft-ietf-oauth-json-web-token-32 #6. */
 	if (jwt->alg != JWT_ALG_NONE) {
 		if (pretty)
-			BIO_puts(bio, "    ");
+			BIO_puts(bio, "		 ");
 
 		BIO_printf(bio, "\"typ\":%s\"JWT\",", pretty?" ":"");
 
@@ -820,10 +820,10 @@ static void jwt_write_bio_head(jwt_t *jwt, BIO *bio, int pretty)
 	}
 
 	if (pretty)
-		BIO_puts(bio, "    ");
+		BIO_puts(bio, "		 ");
 
 	BIO_printf(bio, "\"alg\":%s\"%s\"", pretty?" ":"",
-		   jwt_alg_str(jwt->alg));
+			 jwt_alg_str(jwt->alg));
 
 	if (pretty)
 		BIO_puts(bio, "\n");
