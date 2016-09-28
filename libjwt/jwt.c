@@ -131,6 +131,8 @@ int jwt_set_alg(jwt_t *jwt, jwt_alg_t alg, unsigned char *key, int len)
 
 jwt_alg_t jwt_get_alg(jwt_t *jwt)
 {
+	if (!jwt)
+		return EINVAL;
 	return jwt->alg;
 }
 
