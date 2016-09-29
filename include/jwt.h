@@ -291,7 +291,7 @@ char *jwt_encode_str(jwt_t *jwt);
  * @param len The length of the key data.
  * @return Returns 0 on success, valid errno otherwise.
  */
-int jwt_set_alg(jwt_t *jwt, jwt_alg_t alg, unsigned char *key, int len);
+int jwt_set_alg(jwt_t *jwt, jwt_alg_t alg, const unsigned char *key, int len);
 
 /**
  * Get the jwt_alg_t set for this JWT object.

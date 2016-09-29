@@ -102,7 +102,7 @@ static void jwt_scrub_key(jwt_t *jwt)
 	jwt->alg = JWT_ALG_NONE;
 }
 
-int jwt_set_alg(jwt_t *jwt, jwt_alg_t alg, unsigned char *key, int len)
+int jwt_set_alg(jwt_t *jwt, jwt_alg_t alg, const unsigned char *key, int len)
 {
 	int key_len = jwt_alg_key_len(alg);
 
