@@ -244,19 +244,22 @@ START_TEST(test_jwt_encode_invalid)
 	ret = jwt_add_grant_int(jwt, "iat", (long)time(NULL));
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_set_alg(jwt, JWT_ALG_HS512, key512, 32);
+	ret = jwt_set_alg(jwt, JWT_ALG_HS512, NULL, 0);
 	ck_assert_int_eq(ret, EINVAL);
 
-	ret = jwt_set_alg(jwt, JWT_ALG_HS256, key512, 64);
+	ret = jwt_set_alg(jwt, JWT_ALG_HS512, NULL, sizeof(key512));
 	ck_assert_int_eq(ret, EINVAL);
 
-	ret = jwt_set_alg(jwt, JWT_ALG_HS384, key512, 16);
-	ck_assert_int_eq(ret, EINVAL);
-
-	ret = jwt_set_alg(jwt, JWT_ALG_HS512, NULL, 64);
+	ret = jwt_set_alg(jwt, JWT_ALG_HS512, key512, 0);
 	ck_assert_int_eq(ret, EINVAL);
 
 	ret = jwt_set_alg(jwt, JWT_ALG_NONE, key512, sizeof(key512));
+	ck_assert_int_eq(ret, EINVAL);
+
+	ret = jwt_set_alg(jwt, JWT_ALG_NONE, key512, 0);
+	ck_assert_int_eq(ret, EINVAL);
+
+	ret = jwt_set_alg(jwt, JWT_ALG_NONE, NULL, sizeof(key512));
 	ck_assert_int_eq(ret, EINVAL);
 
 	/* Set a value that will never happen. */

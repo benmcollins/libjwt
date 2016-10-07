@@ -75,8 +75,7 @@ int jwt_new(jwt_t **jwt);
  * @param token Pointer to a valid JWT string, nul terminated.
  * @param key Pointer to the key for validating the JWT signature or for
  *     decrypting the token or NULL if no validation is to be performed.
- * @param key_len The length of the above key. Must match the algorithm
- *     (e.g. 32 for HS256) and the length of the data in key.
+ * @param key_len The length of the above key.
  * @return 0 on success, valid errno otherwise.
  *
  * @remark If a key is supplied, the token must pass sig check or decrypt
