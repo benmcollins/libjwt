@@ -26,11 +26,11 @@ set_target_properties(${LIBRARY_NAME}_static PROPERTIES OUTPUT_NAME ${LIBRARY_NA
 target_link_libraries(${LIBRARY_NAME} ${LIBS})
 
 install(TARGETS ${LIBRARY_NAME} ${LIBRARY_NAME}_static
-        LIBRARY DESTINATION /usr/lib
-        ARCHIVE DESTINATION /usr/lib
+        LIBRARY DESTINATION "${CMAKE_INSTALL_PREFIX}/lib"
+        ARCHIVE DESTINATION "${CMAKE_INSTALL_PREFIX}/lib"
         OPTIONAL)
 
-install(FILES include/jwt.h DESTINATION "/usr/include/jwt")
+install(FILES include/jwt.h DESTINATION "${CMAKE_INSTALL_PREFIX}/include/jwt")
 
 if(LIBJWT_TESTS)
   enable_testing()
