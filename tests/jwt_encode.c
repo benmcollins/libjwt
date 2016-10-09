@@ -20,6 +20,11 @@
         ck_assert_ptr_ne(__jwt, NULL);	\
 } while(0)
 
+/* Older check doesn't have this. */
+#ifndef ck_assert_ptr_ne
+#define ck_assert_ptr_ne(X, Y) ck_assert(X != Y)
+#endif
+
 START_TEST(test_jwt_encode_fp)
 {
 	FILE *out;
