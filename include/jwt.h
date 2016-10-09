@@ -38,7 +38,11 @@ typedef enum jwt_alg {
 	JWT_ALG_HS512,
 	JWT_ALG_RS256,
 	JWT_ALG_RS384,
-	JWT_ALG_RS512
+	JWT_ALG_RS512,
+	JWT_ALG_ES256,
+	JWT_ALG_ES384,
+	JWT_ALG_ES512,
+	JWT_ALG_TERM
 } jwt_alg_t;
 
 /**

@@ -58,9 +58,15 @@ static const char *jwt_alg_str(jwt_alg_t alg)
 		return "RS384";
 	case JWT_ALG_RS512:
 		return "RS512";
+	case JWT_ALG_ES256:
+		return "ES256";
+	case JWT_ALG_ES384:
+		return "ES384";
+	case JWT_ALG_ES512:
+		return "ES512";
+	default:
+		return NULL; // LCOV_EXCL_LINE
 	}
-
-	return NULL; // LCOV_EXCL_LINE
 }
 
 static int jwt_str_alg(jwt_t *jwt, const char *alg)
@@ -82,6 +88,12 @@ static int jwt_str_alg(jwt_t *jwt, const char *alg)
 		jwt->alg = JWT_ALG_RS384;
 	else if (!strcasecmp(alg, "RS512"))
 		jwt->alg = JWT_ALG_RS512;
+	else if (!strcasecmp(alg, "ES256"))
+		jwt->alg = JWT_ALG_ES256;
+	else if (!strcasecmp(alg, "ES384"))
+		jwt->alg = JWT_ALG_ES384;
+	else if (!strcasecmp(alg, "ES512"))
+		jwt->alg = JWT_ALG_ES512;
 	else
 		return EINVAL;
 
@@ -107,31 +119,24 @@ int jwt_set_alg(jwt_t *jwt, jwt_alg_t alg, const unsigned char *key, int len)
 	/* No matter what happens here, we do this. */
 	jwt_scrub_key(jwt);
 
+	if (alg < JWT_ALG_NONE || alg >= JWT_ALG_TERM)
+		return EINVAL;
+
 	switch (alg) {
 	case JWT_ALG_NONE:
 		if (key || len)
 			return EINVAL;
 		break;
 
-	case JWT_ALG_HS256:
-	case JWT_ALG_HS384:
-	case JWT_ALG_HS512:
-	case JWT_ALG_RS256:
-	case JWT_ALG_RS384:
-	case JWT_ALG_RS512:
+	default:
 		if (!key || len <= 0)
 			return EINVAL;
 
 		jwt->key = malloc(len);
-		if (!jwt->key) {
+		if (!jwt->key)
 			return ENOMEM; // LCOV_EXCL_LINE
-		}
 
 		memcpy(jwt->key, key, len);
-		break;
-
-	default:
-		return EINVAL;
 	}
 
 	jwt->alg = alg;
@@ -330,7 +335,7 @@ static int jwt_sign_sha_hmac(jwt_t *jwt, BIO *out, const EVP_MD *alg,
 	return 0;
 }
 
-static int jwt_sign_sha_rsa(jwt_t *jwt, BIO *out, const EVP_MD *alg,
+static int jwt_sign_sha_pem(jwt_t *jwt, BIO *out, const EVP_MD *alg,
 			    const char *str)
 {
 	unsigned char *sig = NULL;
@@ -343,7 +348,7 @@ static int jwt_sign_sha_rsa(jwt_t *jwt, BIO *out, const EVP_MD *alg,
 	bufkey = BIO_new_mem_buf(jwt->key, jwt->key_len);
 	if (bufkey == NULL) {
 		ret = ENOMEM;
-		goto jwt_sign_sha_rsa_done;
+		goto jwt_sign_sha_pem_done;
 	}
 
 	/* This uses OpenSSL's default passphrase callback if needed. The
@@ -351,32 +356,32 @@ static int jwt_sign_sha_rsa(jwt_t *jwt, BIO *out, const EVP_MD *alg,
 	 * outside of the scope of LibJWT and this is documented in jwt.h. */
 	pkey = PEM_read_bio_PrivateKey(bufkey, NULL, NULL, NULL);
 	if (pkey == NULL)
-		goto jwt_sign_sha_rsa_done;
+		goto jwt_sign_sha_pem_done;
 
 	mdctx = EVP_MD_CTX_create();
 	if (mdctx == NULL) {
 		return ENOMEM;
-		goto jwt_sign_sha_rsa_done;
+		goto jwt_sign_sha_pem_done;
 	}
 
 	/* Initialize the DigestSign operation using alg */
 	if (EVP_DigestSignInit(mdctx, NULL, alg, NULL, pkey) != 1)
-		goto jwt_sign_sha_rsa_done;
+		goto jwt_sign_sha_pem_done;
 
 	/* Call update with the message */
 	if (EVP_DigestSignUpdate(mdctx, str, strlen(str)) != 1)
-		goto jwt_sign_sha_rsa_done;
+		goto jwt_sign_sha_pem_done;
 
 	/* First, call EVP_DigestSignFinal with a NULL sig parameter to get length
 	 * of sig. Length is returned in slen */
 	if (EVP_DigestSignFinal(mdctx, NULL, &slen) != 1)
-		goto jwt_sign_sha_rsa_done;
+		goto jwt_sign_sha_pem_done;
 
 	/* Allocate memory for signature based on returned size */
 	sig = OPENSSL_malloc(sizeof(unsigned char) * (slen));
 	if (sig == NULL) {
 		ret = ENOMEM;
-		goto jwt_sign_sha_rsa_done;
+		goto jwt_sign_sha_pem_done;
 	}
 
 	/* Get the signature */
@@ -387,7 +392,7 @@ static int jwt_sign_sha_rsa(jwt_t *jwt, BIO *out, const EVP_MD *alg,
 		ret = 0;
 	}
 
-jwt_sign_sha_rsa_done:
+jwt_sign_sha_pem_done:
 	if (bufkey)
 		BIO_free(bufkey);
 	if (pkey)
@@ -410,11 +415,14 @@ static int jwt_sign(jwt_t *jwt, BIO *out, const char *str)
 	case JWT_ALG_HS512:
 		return jwt_sign_sha_hmac(jwt, out, EVP_sha512(), str);
 	case JWT_ALG_RS256:
-		return jwt_sign_sha_rsa(jwt, out, EVP_sha256(), str);
+	case JWT_ALG_ES256:
+		return jwt_sign_sha_pem(jwt, out, EVP_sha256(), str);
 	case JWT_ALG_RS384:
-		return jwt_sign_sha_rsa(jwt, out, EVP_sha384(), str);
+	case JWT_ALG_ES384:
+		return jwt_sign_sha_pem(jwt, out, EVP_sha384(), str);
 	case JWT_ALG_RS512:
-		return jwt_sign_sha_rsa(jwt, out, EVP_sha512(), str);
+	case JWT_ALG_ES512:
+		return jwt_sign_sha_pem(jwt, out, EVP_sha512(), str);
 	default:
 		return EINVAL; // LCOV_EXCL_LINE
 	}
