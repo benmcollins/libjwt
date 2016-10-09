@@ -1,19 +1,34 @@
 project(libjwt C)
+
 cmake_minimum_required(VERSION 2.8)
-
-# Options
-option(LIBJWT_TESTS "Build and run tests" ON)
-
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Ofast -Wextra -pedantic -fPIE")
+set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 set(LIBRARY_NAME jwt)
+
+###############################################################################
+include(CheckCSourceCompiles)
+include(CheckCSourceRuns)
+include(CheckFunctionExists)
+include(CheckIncludeFile)
+include(CheckIncludeFiles)
+include(CheckLibraryExists)
+include(CheckSymbolExists)
+include(CheckTypeSize)
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib)# Static lib
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib)# Shared lib
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)# executables
 
+# Detect required packages
+INCLUDE( FindPkgConfig )
+
+find_package(OpenSSL REQUIRED)
+find_package(Check)
+
+PKG_SEARCH_MODULE( JANSSON jansson )
+
 #Library used
-set(LIBS ssl crypto jansson m pthread rt)
+set(LIBS ssl jansson crypto m pthread rt)
 
 add_definitions(-DUSE_CMAKE)
 
@@ -32,7 +47,7 @@ install(TARGETS ${LIBRARY_NAME} ${LIBRARY_NAME}_static
 
 install(FILES include/jwt.h DESTINATION "${CMAKE_INSTALL_PREFIX}/include/jwt")
 
-if(LIBJWT_TESTS)
+if (CHECK_FOUND)
   enable_testing()
   add_custom_target(tests COMMAND ${CMAKE_CTEST_COMMAND} OPTIONAL)
   set(LIBS ${LIBS} check subunit)
@@ -48,4 +63,4 @@ if(LIBJWT_TESTS)
   InitialiseTest(jwt_encode tests/jwt_encode.c)
   InitialiseTest(jwt_grant tests/jwt_grant.c)
   InitialiseTest(jwt_new tests/jwt_new.c)
-endif(LIBJWT_TESTS)
+endif (CHECK_FOUND)
