@@ -1,7 +1,6 @@
 project(libjwt C)
 
 cmake_minimum_required(VERSION 2.8)
-set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 set(LIBRARY_NAME jwt)
 
@@ -22,21 +21,20 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)# executables
 # Detect required packages
 INCLUDE( FindPkgConfig )
 
-find_package(OpenSSL REQUIRED)
-find_package(Check)
-
-PKG_SEARCH_MODULE( JANSSON REQUIRED jansson )
-
-#Library used
-set(LIBS ssl jansson crypto m pthread rt)
+PKG_SEARCH_MODULE (OPENSSL REQUIRED openssl)
+PKG_SEARCH_MODULE (JANSSON REQUIRED jansson)
+PKG_SEARCH_MODULE (CHECK check)
 
 add_definitions(-DUSE_CMAKE)
 
-include_directories(include)
+include_directories(include ${OPENSSL_INCLUDE_DIRS} ${JANSSON_INCLUDE_DIRS})
+link_directories(${OPENSSL_LIBRARY_DIRS} ${JANSSON_LIBRARY_DIRS})
 
 add_library(${LIBRARY_NAME} SHARED libjwt/jwt.c)
 add_library(${LIBRARY_NAME}_static STATIC libjwt/jwt.c)
 set_target_properties(${LIBRARY_NAME}_static PROPERTIES OUTPUT_NAME ${LIBRARY_NAME})
+
+set (LIBS ${OPENSSL_LIBRARIES} ${JANSSON_LIBRARIES})
 
 target_link_libraries(${LIBRARY_NAME} ${LIBS})
 
@@ -48,15 +46,19 @@ install(TARGETS ${LIBRARY_NAME} ${LIBRARY_NAME}_static
 install(FILES include/jwt.h DESTINATION "${CMAKE_INSTALL_PREFIX}/include/jwt")
 
 if (CHECK_FOUND)
+  include_directories(${CHECK_INCLUDE_DIRS})
+  link_directories(${CHECK_LIBRARY_DIRS})
+  add_compile_options(${CHECK_CFLAGS_OTHER})
+
   enable_testing()
-  add_custom_target(tests COMMAND ${CMAKE_CTEST_COMMAND} OPTIONAL)
-  set(LIBS ${LIBS} check subunit)
+  add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} OPTIONAL)
 
   function(InitialiseTest test_name file)
       add_executable(${test_name} ${file})
-      target_link_libraries(${test_name} ${LIBS} ${LIBRARY_NAME})
+      target_link_libraries(${test_name} ${LIBS} ${LIBRARY_NAME}
+		${CHECK_LIBRARIES} ${CHECK_LDFLAGS})
       add_test(NAME ${test_name} COMMAND ${test_name} OPTIONAL)
-      add_dependencies(tests ${test_name})
+      add_dependencies(check ${test_name})
   endfunction()
 
   InitialiseTest(jwt_dump tests/jwt_dump.c)
