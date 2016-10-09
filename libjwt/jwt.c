@@ -314,18 +314,15 @@ static int jwt_sign_sha_hmac(jwt_t *jwt, BIO *out, const EVP_MD *alg,
 static int jwt_sign(jwt_t *jwt, BIO *out, const char *str)
 {
 	switch (jwt->alg) {
-	case JWT_ALG_NONE:
-		return 0;
-
 	case JWT_ALG_HS256:
 		return jwt_sign_sha_hmac(jwt, out, EVP_sha256(), str);
 	case JWT_ALG_HS384:
 		return jwt_sign_sha_hmac(jwt, out, EVP_sha384(), str);
 	case JWT_ALG_HS512:
 		return jwt_sign_sha_hmac(jwt, out, EVP_sha512(), str);
+	default:
+		return EINVAL; // LCOV_EXCL_LINE
 	}
-
-	return EINVAL; // LCOV_EXCL_LINE
 }
 
 static int jwt_parse_body(jwt_t *jwt, char *body)
@@ -760,6 +757,9 @@ static int jwt_encode_bio(jwt_t *jwt, BIO *out)
 	BIO_puts(out, buf);
 	BIO_puts(out, ".");
 
+	if (jwt->alg == JWT_ALG_NONE)
+		goto encode_bio_success;
+
 	/* Now the signature. */
 	ret = jwt_sign(jwt, b64, buf);
 	if (ret)
@@ -784,6 +784,7 @@ static int jwt_encode_bio(jwt_t *jwt, BIO *out)
 
 	BIO_puts(out, buf);
 
+encode_bio_success:
 	BIO_flush(out);
 
 	ret = 0;
