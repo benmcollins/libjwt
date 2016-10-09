@@ -11,13 +11,19 @@
 
 [GitHub Pages](http://benmcollins.github.io/libjwt/)
 
-## Pre-build Ubuntu Packages (PPA)
+## Pre-built Ubuntu Packages (PPA)
 
 `sudo add-apt-repository ppa:ben-collins/libjwt`
 
 ## Build Instructions
+
+**With GNU Make:** Use ``autoreconf -i`` to create project files and run ``./configure``.
+- ``make all``: build library.
+- ``make check``: build and run test suite.
+- See INSTALL file for more details on GNU Auto tools and GNU Make.
+
 **With CMake:** use ``cmake .`` in root project path to build the Makefile.
 - ``make jwt``: build shared library in lib/ dir.
 - ``make jwt_static``: build static library in lib/ dir.
-- ``make tests``: build all test in buid/ directory and run all tests.
+- ``make check``: build and run test suite.
 - ``make clean``.
