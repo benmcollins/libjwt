@@ -58,6 +58,9 @@ static const char *jwt_alg_str(jwt_alg_t alg)
 
 static int jwt_str_alg(jwt_t *jwt, const char *alg)
 {
+	if (alg == NULL)
+		return EINVAL;
+
 	if (!strcasecmp(alg, "none"))
 		jwt->alg = JWT_ALG_NONE;
 	else if (!strcasecmp(alg, "HS256"))
