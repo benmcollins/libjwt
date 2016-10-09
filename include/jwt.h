@@ -35,7 +35,10 @@ typedef enum jwt_alg {
 	JWT_ALG_NONE = 0,
 	JWT_ALG_HS256,
 	JWT_ALG_HS384,
-	JWT_ALG_HS512
+	JWT_ALG_HS512,
+	JWT_ALG_RS256,
+	JWT_ALG_RS384,
+	JWT_ALG_RS512
 } jwt_alg_t;
 
 /**
@@ -45,6 +48,12 @@ typedef enum jwt_alg {
  * Generally, one would use the jwt_new() function to create an object
  * from scratch and jwt_decode() to create and verify and object from an
  * existing token.
+ *
+ * Note, when using RSA keys (e.g. with RS256), the key is expected to be
+ * a private key in PEM format. If the RSA private key requires a passphrase,
+ * the default is to request it on the command line from stdin. However,
+ * you can override this using OpenSSL's default_passwd routines. For
+ * example, using SSL_CTX_set_default_passwd_cb().
  * @{
  */
 
@@ -281,8 +290,8 @@ char *jwt_encode_str(jwt_t *jwt);
  *
  * Specifies an algorithm for a JWT object. If JWT_ALG_NONE is used, then
  * key must be NULL and len must be 0. All other algorithms must have a
- * valid pointer to key data of a length specific to the algorithm
- * requested (e.g., HS256 requires 32 Bytes of key data).
+ * valid pointer to key data, which may be specific to the algorithm (e.g
+ * RS256 expects a PEM formatted RSA key).
  *
  * @param jwt Pointer to a JWT object.
  * @param alg A valid jwt_alg_t specifier.
