@@ -336,7 +336,7 @@ static int jwt_sign_sha_hmac(jwt_t *jwt, BIO *out, const EVP_MD *alg,
 }
 
 static int jwt_sign_sha_pem(jwt_t *jwt, BIO *out, const EVP_MD *alg,
-			    const char *str)
+			    const char *str, int type)
 {
 	EVP_MD_CTX *mdctx = NULL;
 	BIO *bufkey = NULL;
@@ -356,6 +356,9 @@ static int jwt_sign_sha_pem(jwt_t *jwt, BIO *out, const EVP_MD *alg,
 	 * outside of the scope of LibJWT and this is documented in jwt.h. */
 	pkey = PEM_read_bio_PrivateKey(bufkey, NULL, NULL, NULL);
 	if (pkey == NULL)
+		goto jwt_sign_sha_pem_done;
+
+	if (pkey->type != type)
 		goto jwt_sign_sha_pem_done;
 
 	mdctx = EVP_MD_CTX_create();
@@ -406,21 +409,31 @@ jwt_sign_sha_pem_done:
 static int jwt_sign(jwt_t *jwt, BIO *out, const char *str)
 {
 	switch (jwt->alg) {
+	/* HMAC */
 	case JWT_ALG_HS256:
 		return jwt_sign_sha_hmac(jwt, out, EVP_sha256(), str);
 	case JWT_ALG_HS384:
 		return jwt_sign_sha_hmac(jwt, out, EVP_sha384(), str);
 	case JWT_ALG_HS512:
 		return jwt_sign_sha_hmac(jwt, out, EVP_sha512(), str);
+
+	/* RSA */
 	case JWT_ALG_RS256:
-	case JWT_ALG_ES256:
-		return jwt_sign_sha_pem(jwt, out, EVP_sha256(), str);
+		return jwt_sign_sha_pem(jwt, out, EVP_sha256(), str, EVP_PKEY_RSA);
 	case JWT_ALG_RS384:
-	case JWT_ALG_ES384:
-		return jwt_sign_sha_pem(jwt, out, EVP_sha384(), str);
+		return jwt_sign_sha_pem(jwt, out, EVP_sha384(), str, EVP_PKEY_RSA);
 	case JWT_ALG_RS512:
+		return jwt_sign_sha_pem(jwt, out, EVP_sha512(), str, EVP_PKEY_RSA);
+
+	/* ECC */
+	case JWT_ALG_ES256:
+		return jwt_sign_sha_pem(jwt, out, EVP_sha256(), str, EVP_PKEY_EC);
+	case JWT_ALG_ES384:
+		return jwt_sign_sha_pem(jwt, out, EVP_sha384(), str, EVP_PKEY_EC);
 	case JWT_ALG_ES512:
-		return jwt_sign_sha_pem(jwt, out, EVP_sha512(), str);
+		return jwt_sign_sha_pem(jwt, out, EVP_sha512(), str, EVP_PKEY_EC);
+
+	/* You wut, mate? */
 	default:
 		return EINVAL; // LCOV_EXCL_LINE
 	}
