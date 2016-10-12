@@ -16,8 +16,8 @@
 /* Macro to allocate a new JWT with checks. */
 #define ALLOC_JWT(__jwt) do {		\
 	int __ret = jwt_new(__jwt);	\
-        ck_assert_int_eq(__ret, 0);	\
-        ck_assert_ptr_ne(__jwt, NULL);	\
+	ck_assert_int_eq(__ret, 0);	\
+	ck_assert_ptr_ne(__jwt, NULL);	\
 } while(0)
 
 /* Older check doesn't have this. */
@@ -54,7 +54,7 @@ START_TEST(test_jwt_encode_fp)
 
 	fclose(out);
 
-        jwt_free(jwt);
+	jwt_free(jwt);
 }
 END_TEST
 
