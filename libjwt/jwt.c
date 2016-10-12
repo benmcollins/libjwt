@@ -305,7 +305,7 @@ static json_t *jwt_b64_decode(char *src)
 		return NULL;
 	}
 
-	buf = alloca(len);
+	buf = alloca(len + 1);
 	if (!buf) {
 		BIO_free_all(b64);
 		return NULL;
@@ -338,10 +338,10 @@ static int jwt_sign_sha_hmac(jwt_t *jwt, BIO *out, const EVP_MD *alg,
 static int jwt_sign_sha_pem(jwt_t *jwt, BIO *out, const EVP_MD *alg,
 			    const char *str)
 {
-	unsigned char *sig = NULL;
 	EVP_MD_CTX *mdctx = NULL;
 	BIO *bufkey = NULL;
 	EVP_PKEY *pkey = NULL;
+	unsigned char *sig;
 	int ret = EINVAL;
 	size_t slen;
 
@@ -378,7 +378,7 @@ static int jwt_sign_sha_pem(jwt_t *jwt, BIO *out, const EVP_MD *alg,
 		goto jwt_sign_sha_pem_done;
 
 	/* Allocate memory for signature based on returned size */
-	sig = OPENSSL_malloc(sizeof(unsigned char) * (slen));
+	sig = alloca(slen);
 	if (sig == NULL) {
 		ret = ENOMEM;
 		goto jwt_sign_sha_pem_done;
@@ -399,8 +399,6 @@ jwt_sign_sha_pem_done:
 		EVP_PKEY_free(pkey);
 	if (mdctx)
 		EVP_MD_CTX_destroy(mdctx);
-	if (sig)
-		OPENSSL_free(sig);
 
 	return ret;
 }
