@@ -50,49 +50,43 @@ static const char jwt_es512[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzUxMiJ9.eyJpYXQ"
 	"DBZigPhejTGyxjfYCZAtnmOmTPcyIfKe_3dSn7A1tP_hGJyOICMDTXqoq5EhveSSPfjI"
 	"01t6qmd8H9lyPfyiBXuBVEjmyLfePZDhCtS15EgcHuGExr0A";
 
-#define read_key(__x) __read_key(KEYDIR "/" __x)
-
-static int __read_key(const char *key_file)
+static void read_key(const char *key_file)
 {
 	FILE *fp = fopen(key_file, "r");
+	char *key_path;
 	int ret = 0;
 
-	if (fp == NULL)
-		return errno;
+	ret = asprintf(&key_path, KEYDIR "/%s", key_file);
+	ck_assert_int_gt(ret, 0);
+
+	fp = fopen(key_path, "r");
+	ck_assert_ptr_ne(fp, NULL);
 
 	key_len = fread(key, 1, sizeof(key), fp);
-	if (key_len == 0)
-		ret = EINVAL;
+	ck_assert_int_ne(key_len, 0);
 
-	if (ferror(fp))
-		ret = EIO;
+	ck_assert_int_eq(ferror(fp), 0);
 
 	fclose(fp);
 
 	key[key_len] = '\0';
-
-	return ret;
 }
 
-static int __verify_jwt(const char *jwt_str)
+static void __verify_jwt(const char *jwt_str)
 {
 	jwt_t *jwt = NULL;
 	int ret = 0;
 
-	ret = read_key("ec_key_secp384r1-pub.pem");
-	if (ret)
-		return ret;
+	read_key("ec_key_secp384r1-pub.pem");
 
 	ret = jwt_decode(&jwt, jwt_str, key, key_len);
-	if (jwt == NULL)
-		return EINVAL;
+	ck_assert_int_eq(ret, 0);
+	ck_assert_ptr_ne(jwt, NULL);
 
 	jwt_free(jwt);
-
-	return ret;
 }
 
-START_TEST(test_jwt_encode_es256)
+static void __test_alg_key(const char *key_file, const jwt_alg_t alg)
 {
 	jwt_t *jwt = NULL;
 	int ret = 0;
@@ -100,8 +94,7 @@ START_TEST(test_jwt_encode_es256)
 
 	ALLOC_JWT(&jwt);
 
-	ret = read_key("ec_key_secp384r1.pem");
-	ck_assert_int_eq(ret, 0);
+	read_key(key_file);
 
 	ret = jwt_add_grant(jwt, "iss", "files.cyphre.com");
 	ck_assert_int_eq(ret, 0);
@@ -115,115 +108,50 @@ START_TEST(test_jwt_encode_es256)
 	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_set_alg(jwt, JWT_ALG_ES256, key, key_len);
+	ret = jwt_set_alg(jwt, alg, key, key_len);
 	ck_assert_int_eq(ret, 0);
 
 	out = jwt_encode_str(jwt);
 	ck_assert_ptr_ne(out, NULL);
 
-	ret = __verify_jwt(out);
-	ck_assert_int_eq(ret, 0);
+	__verify_jwt(out);
 
 	free(out);
+}
 
-	jwt_free(jwt);
+START_TEST(test_jwt_encode_es256)
+{
+	__test_alg_key("ec_key_secp384r1.pem", JWT_ALG_ES256);
 }
 END_TEST
 
 START_TEST(test_jwt_verify_es256)
 {
-	int ret = __verify_jwt(jwt_es256);
-	ck_assert_int_eq(ret, 0);
+	__verify_jwt(jwt_es256);
 }
 END_TEST
 
 START_TEST(test_jwt_encode_es384)
 {
-	jwt_t *jwt = NULL;
-	int ret = 0;
-	char *out;
-
-	ALLOC_JWT(&jwt);
-
-	ret = read_key("ec_key_secp384r1.pem");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant(jwt, "iss", "files.cyphre.com");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant(jwt, "sub", "user0");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_set_alg(jwt, JWT_ALG_ES384, key, key_len);
-	ck_assert_int_eq(ret, 0);
-
-	out = jwt_encode_str(jwt);
-	ck_assert_ptr_ne(out, NULL);
-
-	ret = __verify_jwt(out);
-	ck_assert_int_eq(ret, 0);
-
-	free(out);
-
-	jwt_free(jwt);
+	__test_alg_key("ec_key_secp384r1.pem", JWT_ALG_ES384);
 }
 END_TEST
 
 START_TEST(test_jwt_verify_es384)
 {
-	int ret = __verify_jwt(jwt_es384);
-	ck_assert_int_eq(ret, 0);
+	__verify_jwt(jwt_es384);
 }
 END_TEST
 
 START_TEST(test_jwt_encode_es512)
 {
-	jwt_t *jwt = NULL;
-	int ret = 0;
-	char *out;
-
-	ALLOC_JWT(&jwt);
-
-	ret = read_key("ec_key_secp384r1.pem");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant(jwt, "iss", "files.cyphre.com");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant(jwt, "sub", "user0");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_set_alg(jwt, JWT_ALG_ES512, key, key_len);
-	ck_assert_int_eq(ret, 0);
-
-	out = jwt_encode_str(jwt);
-	ck_assert_ptr_ne(out, NULL);
-
-	ret = __verify_jwt(jwt_es256);
-	ck_assert_int_eq(ret, 0);
-
-	free(out);
-
-	jwt_free(jwt);
+	__test_alg_key("ec_key_secp384r1.pem", JWT_ALG_ES512);
 }
 END_TEST
 
 START_TEST(test_jwt_verify_es512)
 {
-	int ret = __verify_jwt(jwt_es512);
-	ck_assert_int_eq(ret, 0);
+	__verify_jwt(jwt_es512);
 }
 END_TEST
 
@@ -235,8 +163,7 @@ START_TEST(test_jwt_encode_ec_with_rsa)
 
 	ALLOC_JWT(&jwt);
 
-	ret = read_key("rsa_key_4096.pem");
-	ck_assert_int_eq(ret, 0);
+	read_key("rsa_key_4096.pem");
 
 	ret = jwt_add_grant(jwt, "iss", "files.cyphre.com");
 	ck_assert_int_eq(ret, 0);
