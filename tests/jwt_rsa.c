@@ -298,9 +298,9 @@ Suite *libjwt_suite(void)
 	Suite *s;
 	TCase *tc_core;
 
-	s = suite_create("LibJWT Encode RSA");
+	s = suite_create("LibJWT RSA Sign/Verify");
 
-	tc_core = tcase_create("jwt_encode_rsa");
+	tc_core = tcase_create("jwt_rsa");
 
 	tcase_add_test(tc_core, test_jwt_encode_rs256);
 	tcase_add_test(tc_core, test_jwt_verify_rs256);
