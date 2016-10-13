@@ -72,7 +72,7 @@ static const char *jwt_alg_str(jwt_alg_t alg)
 static int jwt_str_alg(jwt_t *jwt, const char *alg)
 {
 	if (alg == NULL)
-		return EINVAL;
+		return EINVAL; // LCOV_EXCL_LINE
 
 	if (!strcasecmp(alg, "none"))
 		jwt->alg = JWT_ALG_NONE;
@@ -219,11 +219,8 @@ jwt_t *jwt_dup(jwt_t *jwt)
 	}
 
 	new->grants = json_deep_copy(jwt->grants);
-	if (!new->grants) {
+	if (!new->grants)
 		errno = ENOMEM; // LCOV_EXCL_LINE
-	} else {
-		errno = 0;
-	}
 
 dup_fail:
 	if (errno) {
@@ -269,7 +266,7 @@ static void *jwt_b64_decode(const char *src, int *ret_len)
 	len = strlen(src);
 	new = alloca(len + 4);
 	if (!new)
-		return NULL;
+		return NULL; // LCOV_EXCL_LINE
 
 	for (i = 0; i < len; i++) {
 		switch (src[i]) {
@@ -293,23 +290,26 @@ static void *jwt_b64_decode(const char *src, int *ret_len)
 	/* Setup the OpenSSL base64 decoder. */
 	b64 = BIO_new(BIO_f_base64());
 	bmem = BIO_new_mem_buf(new, strlen(new));
-	if (!b64 || !bmem) {
+	if (!b64 || !bmem)
 		return NULL; // LCOV_EXCL_LINE
-	}
 
 	BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
 	BIO_push(b64, bmem);
 
 	len = BIO_pending(b64);
 	if (len <= 0) {
+		// LCOV_EXCL_START
 		BIO_free_all(b64);
 		return NULL;
+		// LCOV_EXCL_END
 	}
 
 	buf = malloc(len + 1);
 	if (!buf) {
+		// LCOV_EXCL_START
 		BIO_free_all(b64);
 		return NULL;
+		// LCOV_EXCL_END
 	}
 
 	*ret_len = BIO_read(b64, buf, len);
@@ -328,7 +328,7 @@ static json_t *jwt_b64_decode_json(char *src)
 	buf = jwt_b64_decode(src, &len);
 
 	if (buf == NULL)
-		return NULL;
+		return NULL; // LCOV_EXCL_LINE
 
 	buf[len] = '\0';
 
@@ -389,12 +389,14 @@ static int jwt_verify_sha_hmac(jwt_t *jwt, const EVP_MD *alg, const char *head,
 
 	b64 = BIO_new(BIO_f_base64());
 	if (b64 == NULL)
-		return ENOMEM;
+		return ENOMEM; // LCOV_EXCL_LINE
 
 	bmem = BIO_new(BIO_s_mem());
 	if (bmem == NULL) {
+		// LCOV_EXCL_START
 		BIO_free(b64);
 		return ENOMEM;
+		// LCOV_EXCL_END
 	}
 
 	BIO_push(b64, bmem);
@@ -409,7 +411,7 @@ static int jwt_verify_sha_hmac(jwt_t *jwt, const EVP_MD *alg, const char *head,
 
 	len = BIO_pending(bmem);
 	if (len < 0)
-		goto jwt_verify_hmac_done;
+		goto jwt_verify_hmac_done; // LCOV_EXCL_LINE
 
 	buf = alloca(len + 1);
 	if (!buf) {
@@ -445,8 +447,10 @@ static int jwt_sign_sha_pem(jwt_t *jwt, BIO *out, const EVP_MD *alg,
 
 	bufkey = BIO_new_mem_buf(jwt->key, jwt->key_len);
 	if (bufkey == NULL) {
+		// LCOV_EXCL_START
 		ret = ENOMEM;
 		goto jwt_sign_sha_pem_done;
+		// LCOV_EXCL_END
 	}
 
 	/* This uses OpenSSL's default passphrase callback if needed. The
@@ -454,24 +458,26 @@ static int jwt_sign_sha_pem(jwt_t *jwt, BIO *out, const EVP_MD *alg,
 	 * outside of the scope of LibJWT and this is documented in jwt.h. */
 	pkey = PEM_read_bio_PrivateKey(bufkey, NULL, NULL, NULL);
 	if (pkey == NULL)
-		goto jwt_sign_sha_pem_done;
+		goto jwt_sign_sha_pem_done; // LCOV_EXCL_LINE
 
 	if (pkey->type != type)
-		goto jwt_sign_sha_pem_done;
+		goto jwt_sign_sha_pem_done; // LCOV_EXCL_LINE
 
 	mdctx = EVP_MD_CTX_create();
 	if (mdctx == NULL) {
+		// LCOV_EXCL_START
 		return ENOMEM;
 		goto jwt_sign_sha_pem_done;
+		// LCOV_EXCL_END
 	}
 
 	/* Initialize the DigestSign operation using alg */
 	if (EVP_DigestSignInit(mdctx, NULL, alg, NULL, pkey) != 1)
-		goto jwt_sign_sha_pem_done;
+		goto jwt_sign_sha_pem_done; // LCOV_EXCL_LINE
 
 	/* Call update with the message */
 	if (EVP_DigestSignUpdate(mdctx, str, strlen(str)) != 1)
-		goto jwt_sign_sha_pem_done;
+		goto jwt_sign_sha_pem_done; // // LCOV_EXCL_LINE
 
 	/* First, call EVP_DigestSignFinal with a NULL sig parameter to get length
 	 * of sig. Length is returned in slen */
@@ -481,8 +487,10 @@ static int jwt_sign_sha_pem(jwt_t *jwt, BIO *out, const EVP_MD *alg,
 	/* Allocate memory for signature based on returned size */
 	sig = alloca(slen);
 	if (sig == NULL) {
+		// LCOV_EXCL_START
 		ret = ENOMEM;
 		goto jwt_sign_sha_pem_done;
+		// LCOV_EXCL_END
 	}
 
 	/* Get the signature */
@@ -516,12 +524,14 @@ static int jwt_verify_sha_pem(jwt_t *jwt, const EVP_MD *alg, int type,
 
 	sig = jwt_b64_decode(sig_b64, &slen);
 	if (sig == NULL)
-		return EINVAL;
+		return EINVAL; // LCOV_EXCL_LINE
 
 	bufkey = BIO_new_mem_buf(jwt->key, jwt->key_len);
 	if (bufkey == NULL) {
+		// LCOV_EXCL_START
 		ret = ENOMEM;
 		goto jwt_verify_sha_pem_done;
+		// LCOV_EXCL_END
 	}
 
 	/* This uses OpenSSL's default passphrase callback if needed. The
@@ -529,15 +539,17 @@ static int jwt_verify_sha_pem(jwt_t *jwt, const EVP_MD *alg, int type,
 	 * outside of the scope of LibJWT and this is documented in jwt.h. */
 	pkey = PEM_read_bio_PUBKEY(bufkey, NULL, NULL, NULL);
 	if (pkey == NULL)
-		goto jwt_verify_sha_pem_done;
+		goto jwt_verify_sha_pem_done; // LCOV_EXCL_LINE
 
 	if (pkey->type != type)
-		goto jwt_verify_sha_pem_done;
+		goto jwt_verify_sha_pem_done; // LCOV_EXCL_LINE
 
 	mdctx = EVP_MD_CTX_create();
 	if (mdctx == NULL) {
+		// LCOV_EXCL_START
 		return ENOMEM;
 		goto jwt_verify_sha_pem_done;
+		// LCOV_EXCL_END
 	}
 
 	/* Initialize the DigestSign operation using alg */
@@ -680,7 +692,7 @@ static int jwt_verify_head(jwt_t *jwt, char *head)
 
 		if (jwt->key) {
 			if (jwt->key_len <= 0)
-				ret = EINVAL;
+				ret = EINVAL; // LCOV_EXCL_LINE
 		} else {
 			jwt_scrub_key(jwt);
 		}
@@ -712,7 +724,7 @@ int jwt_decode(jwt_t **jwt, const char *token, const unsigned char *key,
 	*jwt = NULL;
 
 	if (!head)
-		return ENOMEM;
+		return ENOMEM; // LCOV_EXCL_LINE
 
 	/* Find the components. */
 	for (body = head; body[0] != '.'; body++) {
