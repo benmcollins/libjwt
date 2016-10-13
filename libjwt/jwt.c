@@ -258,10 +258,11 @@ static long get_js_int(json_t *js, const char *key)
 	return val;
 }
 
-static json_t *jwt_b64_decode(char *src)
+static void *jwt_b64_decode(const char *src, int *ret_len)
 {
 	BIO *b64, *bmem;
-	char *buf, *new;
+	void *buf;
+	char *new;
 	int len, i, z;
 
 	/* Decode based on RFC-4648 URI safe encoding. */
@@ -305,18 +306,60 @@ static json_t *jwt_b64_decode(char *src)
 		return NULL;
 	}
 
-	buf = alloca(len + 1);
+	buf = malloc(len + 1);
 	if (!buf) {
 		BIO_free_all(b64);
 		return NULL;
 	}
 
-	len = BIO_read(b64, buf, len);
+	*ret_len = BIO_read(b64, buf, len);
 	BIO_free_all(b64);
+
+	return buf;
+}
+
+
+static json_t *jwt_b64_decode_json(char *src)
+{
+	json_t *js;
+	char *buf;
+	int len;
+
+	buf = jwt_b64_decode(src, &len);
+
+	if (buf == NULL)
+		return NULL;
 
 	buf[len] = '\0';
 
-	return json_loads(buf, 0, NULL);
+	js = json_loads(buf, 0, NULL);
+
+	free(buf);
+
+	return js;
+}
+
+static void base64uri_encode(char *str)
+{
+	int len = strlen(str);
+	int i, t;
+
+	for (i = t = 0; i < len; i++) {
+		switch (str[i]) {
+		case '+':
+			str[t] = '-';
+			break;
+		case '/':
+			str[t] = '_';
+			break;
+		case '=':
+			continue;
+		}
+
+		t++;
+	}
+
+	str[t] = '\0';
 }
 
 static int jwt_sign_sha_hmac(jwt_t *jwt, BIO *out, const EVP_MD *alg,
@@ -333,6 +376,61 @@ static int jwt_sign_sha_hmac(jwt_t *jwt, BIO *out, const EVP_MD *alg,
 	BIO_flush(out);
 
 	return 0;
+}
+
+static int jwt_verify_sha_hmac(jwt_t *jwt, const EVP_MD *alg, const char *head,
+			       const char *sig)
+{
+	unsigned char res[EVP_MAX_MD_SIZE];
+	BIO *bmem = NULL, *b64 = NULL;
+	unsigned int res_len;
+	char *buf;
+	int len, ret = EINVAL;
+
+	b64 = BIO_new(BIO_f_base64());
+	if (b64 == NULL)
+		return ENOMEM;
+
+	bmem = BIO_new(BIO_s_mem());
+	if (bmem == NULL) {
+		BIO_free(b64);
+		return ENOMEM;
+	}
+
+	BIO_push(b64, bmem);
+	BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
+
+	HMAC(alg, jwt->key, jwt->key_len,
+	     (const unsigned char *)head, strlen(head), res, &res_len);
+
+	BIO_write(b64, res, res_len);
+
+	BIO_flush(b64);
+
+	len = BIO_pending(bmem);
+	if (len < 0)
+		goto jwt_verify_hmac_done;
+
+	buf = alloca(len + 1);
+	if (!buf) {
+		// LCOV_EXCL_START
+		ret = ENOMEM;
+		goto jwt_verify_hmac_done;
+		// LCOV_EXCL_STOP
+	}
+
+	len = BIO_read(bmem, buf, len);
+	buf[len] = '\0';
+
+	base64uri_encode(buf);
+
+	/* And now... */
+	ret = strcmp(buf, sig) ? EINVAL : 0;
+
+jwt_verify_hmac_done:
+	BIO_free_all(bmem);
+
+	return ret;
 }
 
 static int jwt_sign_sha_pem(jwt_t *jwt, BIO *out, const EVP_MD *alg,
@@ -406,6 +504,67 @@ jwt_sign_sha_pem_done:
 	return ret;
 }
 
+static int jwt_verify_sha_pem(jwt_t *jwt, const EVP_MD *alg, int type,
+			      const char *head, const char *sig_b64)
+{
+	EVP_MD_CTX *mdctx = NULL;
+	BIO *bufkey = NULL;
+	EVP_PKEY *pkey = NULL;
+	int ret = EINVAL;
+	unsigned char *sig;
+	int slen;
+
+	sig = jwt_b64_decode(sig_b64, &slen);
+	if (sig == NULL)
+		return EINVAL;
+
+	bufkey = BIO_new_mem_buf(jwt->key, jwt->key_len);
+	if (bufkey == NULL) {
+		ret = ENOMEM;
+		goto jwt_verify_sha_pem_done;
+	}
+
+	/* This uses OpenSSL's default passphrase callback if needed. The
+	 * library caller can override this in many ways, all of which are
+	 * outside of the scope of LibJWT and this is documented in jwt.h. */
+	pkey = PEM_read_bio_PUBKEY(bufkey, NULL, NULL, NULL);
+	if (pkey == NULL)
+		goto jwt_verify_sha_pem_done;
+
+	if (pkey->type != type)
+		goto jwt_verify_sha_pem_done;
+
+	mdctx = EVP_MD_CTX_create();
+	if (mdctx == NULL) {
+		return ENOMEM;
+		goto jwt_verify_sha_pem_done;
+	}
+
+	/* Initialize the DigestSign operation using alg */
+	if (EVP_DigestVerifyInit(mdctx, NULL, alg, NULL, pkey) != 1)
+		goto jwt_verify_sha_pem_done;
+
+	/* Call update with the message */
+	if (EVP_DigestVerifyUpdate(mdctx, head, strlen(head)) != 1)
+		goto jwt_verify_sha_pem_done;
+
+	/* Now check the sig for validity. */
+	if (EVP_DigestVerifyFinal(mdctx, sig, slen) != 1)
+		goto jwt_verify_sha_pem_done;
+
+	ret = 0;
+
+jwt_verify_sha_pem_done:
+	if (bufkey)
+		BIO_free(bufkey);
+	if (pkey)
+		EVP_PKEY_free(pkey);
+	if (mdctx)
+		EVP_MD_CTX_destroy(mdctx);
+
+	return ret;
+}
+
 static int jwt_sign(jwt_t *jwt, BIO *out, const char *str)
 {
 	switch (jwt->alg) {
@@ -419,19 +578,64 @@ static int jwt_sign(jwt_t *jwt, BIO *out, const char *str)
 
 	/* RSA */
 	case JWT_ALG_RS256:
-		return jwt_sign_sha_pem(jwt, out, EVP_sha256(), str, EVP_PKEY_RSA);
+		return jwt_sign_sha_pem(jwt, out, EVP_sha256(), str,
+					EVP_PKEY_RSA);
 	case JWT_ALG_RS384:
-		return jwt_sign_sha_pem(jwt, out, EVP_sha384(), str, EVP_PKEY_RSA);
+		return jwt_sign_sha_pem(jwt, out, EVP_sha384(), str,
+					EVP_PKEY_RSA);
 	case JWT_ALG_RS512:
-		return jwt_sign_sha_pem(jwt, out, EVP_sha512(), str, EVP_PKEY_RSA);
+		return jwt_sign_sha_pem(jwt, out, EVP_sha512(), str,
+					EVP_PKEY_RSA);
 
 	/* ECC */
 	case JWT_ALG_ES256:
-		return jwt_sign_sha_pem(jwt, out, EVP_sha256(), str, EVP_PKEY_EC);
+		return jwt_sign_sha_pem(jwt, out, EVP_sha256(), str,
+					EVP_PKEY_EC);
 	case JWT_ALG_ES384:
-		return jwt_sign_sha_pem(jwt, out, EVP_sha384(), str, EVP_PKEY_EC);
+		return jwt_sign_sha_pem(jwt, out, EVP_sha384(), str,
+					EVP_PKEY_EC);
 	case JWT_ALG_ES512:
-		return jwt_sign_sha_pem(jwt, out, EVP_sha512(), str, EVP_PKEY_EC);
+		return jwt_sign_sha_pem(jwt, out, EVP_sha512(), str,
+					EVP_PKEY_EC);
+
+	/* You wut, mate? */
+	default:
+		return EINVAL; // LCOV_EXCL_LINE
+	}
+}
+
+static int jwt_verify(jwt_t *jwt, const char *head, const char *sig)
+{
+	switch (jwt->alg) {
+	/* HMAC */
+	case JWT_ALG_HS256:
+		return jwt_verify_sha_hmac(jwt, EVP_sha256(), head, sig);
+	case JWT_ALG_HS384:
+		return jwt_verify_sha_hmac(jwt, EVP_sha384(), head, sig);
+	case JWT_ALG_HS512:
+		return jwt_verify_sha_hmac(jwt, EVP_sha512(), head, sig);
+
+	/* RSA */
+	case JWT_ALG_RS256:
+		return jwt_verify_sha_pem(jwt, EVP_sha256(), EVP_PKEY_RSA,
+					  head, sig);
+	case JWT_ALG_RS384:
+		return jwt_verify_sha_pem(jwt, EVP_sha384(), EVP_PKEY_RSA,
+					  head, sig);
+	case JWT_ALG_RS512:
+		return jwt_verify_sha_pem(jwt, EVP_sha512(), EVP_PKEY_RSA,
+					  head, sig);
+
+	/* ECC */
+	case JWT_ALG_ES256:
+		return jwt_verify_sha_pem(jwt, EVP_sha256(), EVP_PKEY_EC,
+					  head, sig);
+	case JWT_ALG_ES384:
+		return jwt_verify_sha_pem(jwt, EVP_sha384(), EVP_PKEY_EC,
+					  head, sig);
+	case JWT_ALG_ES512:
+		return jwt_verify_sha_pem(jwt, EVP_sha512(), EVP_PKEY_EC,
+					  head, sig);
 
 	/* You wut, mate? */
 	default:
@@ -446,7 +650,7 @@ static int jwt_parse_body(jwt_t *jwt, char *body)
 		jwt->grants = NULL;
 	}
 
-	jwt->grants = jwt_b64_decode(body);
+	jwt->grants = jwt_b64_decode_json(body);
 	if (!jwt->grants)
 		return EINVAL;
 
@@ -459,7 +663,7 @@ static int jwt_verify_head(jwt_t *jwt, char *head)
 	const char *val;
 	int ret;
 
-	js = jwt_b64_decode(head);
+	js = jwt_b64_decode_json(head);
 	if (!js)
 		return EINVAL;
 
@@ -492,29 +696,6 @@ verify_head_done:
 		json_decref(js);
 
 	return ret;
-}
-
-static void base64uri_encode(char *str)
-{
-	int len = strlen(str);
-	int i, t;
-
-	for (i = t = 0; i < len; i++) {
-		switch (str[i]) {
-		case '+':
-			str[t] = '-';
-			break;
-		case '/':
-			str[t] = '_';
-			break;
-		case '=':
-			continue;
-		}
-
-		t++;
-	}
-
-	str[t] = '\0';
 }
 
 int jwt_decode(jwt_t **jwt, const char *token, const unsigned char *key,
@@ -560,9 +741,8 @@ int jwt_decode(jwt_t **jwt, const char *token, const unsigned char *key,
 	/* Copy the key over for verify_head. */
 	if (key_len) {
 		new->key = malloc(key_len);
-		if (!new->key) {
+		if (new->key == NULL)
 			goto decode_done; // LCOV_EXCL_LINE
-		}
 		memcpy(new->key, key, key_len);
 		new->key_len = key_len;
 	}
@@ -575,52 +755,11 @@ int jwt_decode(jwt_t **jwt, const char *token, const unsigned char *key,
 	if (ret)
 		goto decode_done;
 
-	/* Back up a bit so check the sig if needed. */
+	/* Check the signature, if needed. */
 	if (new->alg != JWT_ALG_NONE) {
-		BIO *bmem, *b64;
-		char *buf;
-		int len;
-
-		b64 = BIO_new(BIO_f_base64());
-		bmem = BIO_new(BIO_s_mem());
-		if (!b64 || !bmem) {
-			// LCOV_EXCL_START
-			ret = ENOMEM;
-			goto decode_done;
-			// LCOV_EXCL_STOP
-		}
-
-		BIO_push(b64, bmem);
-		BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
-
+		/* Re-add this since it's part of the verified data. */
 		body[-1] = '.';
-		ret = jwt_sign(new, b64, head);
-		if (ret)
-			goto decode_done;
-
-		len = BIO_pending(bmem);
-		if (len < 0) {
-			ret = EINVAL;
-			goto decode_done;
-		}
-
-		buf = alloca(len + 1);
-		if (!buf) {
-			// LCOV_EXCL_START
-			ret = ENOMEM;
-			goto decode_done;
-			// LCOV_EXCL_STOP
-		}
-
-		len = BIO_read(bmem, buf, len);
-		BIO_free_all(b64);
-
-		buf[len] = '\0';
-
-		base64uri_encode(buf);
-
-		/* And now... */
-		ret = strcmp(buf, sig) ? EINVAL : 0;
+		ret = jwt_verify(new, head, sig);
 	} else {
 		ret = 0;
 	}
