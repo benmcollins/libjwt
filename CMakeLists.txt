@@ -48,7 +48,7 @@ install(FILES include/jwt.h DESTINATION "${CMAKE_INSTALL_PREFIX}/include/jwt")
 if (CHECK_FOUND)
   include_directories(${CHECK_INCLUDE_DIRS})
   link_directories(${CHECK_LIBRARY_DIRS})
-  add_compile_options(${CHECK_CFLAGS_OTHER} -DKEYDIR="\"${PROJECT_SOURCE_DIR}/tests/keys\"")
+  add_compile_options(${CHECK_CFLAGS_OTHER} -DKEYDIR="${PROJECT_SOURCE_DIR}/tests/keys")
 
   enable_testing()
   add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} OPTIONAL)
