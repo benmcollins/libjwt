@@ -132,7 +132,8 @@ static void __test_alg_key(const char *key_file, const char *jwt_str,
 	free(out);
 }
 
-static void __verify_alg_key(const char *key_file, const char *jwt_str)
+static void __verify_alg_key(const char *key_file, const char *jwt_str,
+			     const jwt_alg_t alg)
 {
 	jwt_t *jwt = NULL;
 	int ret = 0;
@@ -142,6 +143,8 @@ static void __verify_alg_key(const char *key_file, const char *jwt_str)
 	ret = jwt_decode(&jwt, jwt_str, key, key_len);
 	ck_assert_int_eq(ret, 0);
 	ck_assert(jwt != NULL);
+
+	ck_assert(jwt_get_alg(jwt) == alg);
 
 	jwt_free(jwt);
 }
@@ -154,7 +157,7 @@ END_TEST
 
 START_TEST(test_jwt_verify_rs256)
 {
-	__verify_alg_key("rsa_key_2048-pub.pem", jwt_rs256_2048);
+	__verify_alg_key("rsa_key_2048-pub.pem", jwt_rs256_2048, JWT_ALG_RS256);
 }
 END_TEST
 
@@ -166,7 +169,7 @@ END_TEST
 
 START_TEST(test_jwt_verify_rs384)
 {
-	__verify_alg_key("rsa_key_4096-pub.pem", jwt_rs384_4096);
+	__verify_alg_key("rsa_key_4096-pub.pem", jwt_rs384_4096, JWT_ALG_RS384);
 }
 END_TEST
 
@@ -178,7 +181,7 @@ END_TEST
 
 START_TEST(test_jwt_verify_rs512)
 {
-	__verify_alg_key("rsa_key_8192-pub.pem", jwt_rs512_8192);
+	__verify_alg_key("rsa_key_8192-pub.pem", jwt_rs512_8192, JWT_ALG_RS512);
 }
 END_TEST
 

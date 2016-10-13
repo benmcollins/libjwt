@@ -72,7 +72,7 @@ static void read_key(const char *key_file)
 	key[key_len] = '\0';
 }
 
-static void __verify_jwt(const char *jwt_str)
+static void __verify_jwt(const char *jwt_str, const jwt_alg_t alg)
 {
 	jwt_t *jwt = NULL;
 	int ret = 0;
@@ -83,10 +83,12 @@ static void __verify_jwt(const char *jwt_str)
 	ck_assert_int_eq(ret, 0);
 	ck_assert_ptr_ne(jwt, NULL);
 
+	ck_assert(jwt_get_alg(jwt) == alg);
+
 	jwt_free(jwt);
 }
 
-static void __test_alg_key(const char *key_file, const jwt_alg_t alg)
+static void __test_alg_key(const jwt_alg_t alg)
 {
 	jwt_t *jwt = NULL;
 	int ret = 0;
@@ -94,7 +96,7 @@ static void __test_alg_key(const char *key_file, const jwt_alg_t alg)
 
 	ALLOC_JWT(&jwt);
 
-	read_key(key_file);
+	read_key("ec_key_secp384r1.pem");
 
 	ret = jwt_add_grant(jwt, "iss", "files.cyphre.com");
 	ck_assert_int_eq(ret, 0);
@@ -114,44 +116,44 @@ static void __test_alg_key(const char *key_file, const jwt_alg_t alg)
 	out = jwt_encode_str(jwt);
 	ck_assert_ptr_ne(out, NULL);
 
-	__verify_jwt(out);
+	__verify_jwt(out, alg);
 
 	free(out);
 }
 
 START_TEST(test_jwt_encode_es256)
 {
-	__test_alg_key("ec_key_secp384r1.pem", JWT_ALG_ES256);
+	__test_alg_key(JWT_ALG_ES256);
 }
 END_TEST
 
 START_TEST(test_jwt_verify_es256)
 {
-	__verify_jwt(jwt_es256);
+	__verify_jwt(jwt_es256, JWT_ALG_ES256);
 }
 END_TEST
 
 START_TEST(test_jwt_encode_es384)
 {
-	__test_alg_key("ec_key_secp384r1.pem", JWT_ALG_ES384);
+	__test_alg_key(JWT_ALG_ES384);
 }
 END_TEST
 
 START_TEST(test_jwt_verify_es384)
 {
-	__verify_jwt(jwt_es384);
+	__verify_jwt(jwt_es384, JWT_ALG_ES384);
 }
 END_TEST
 
 START_TEST(test_jwt_encode_es512)
 {
-	__test_alg_key("ec_key_secp384r1.pem", JWT_ALG_ES512);
+	__test_alg_key(JWT_ALG_ES512);
 }
 END_TEST
 
 START_TEST(test_jwt_verify_es512)
 {
-	__verify_jwt(jwt_es512);
+	__verify_jwt(jwt_es512, JWT_ALG_ES512);
 }
 END_TEST
 
