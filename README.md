@@ -1,6 +1,7 @@
 # JWT C Library
 
 [![Build Status](https://travis-ci.org/benmcollins/libjwt.svg?branch=master)](https://travis-ci.org/benmcollins/libjwt) [![codecov.io](http://codecov.io/github/benmcollins/libjwt/coverage.svg?branch=master)](http://codecov.io/github/benmcollins/libjwt?branch=master)
+[![View on JWT.IO](https://jwt.io/assets/badge.svg)](https://jwt.io)
 
 ## Build Requirements
 
