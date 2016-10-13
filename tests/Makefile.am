@@ -3,7 +3,8 @@ TESTS =			\
 	jwt_grant	\
 	jwt_dump	\
 	jwt_encode	\
-	jwt_rsa
+	jwt_rsa		\
+	jwt_ec
 
 check_PROGRAMS = $(TESTS)
 

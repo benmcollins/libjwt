@@ -3,5 +3,6 @@ jwt_new
 jwt_dump
 jwt_encode
 jwt_rsa
+jwt_ec
 *.log
 *.trs
