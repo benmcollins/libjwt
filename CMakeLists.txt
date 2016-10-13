@@ -42,6 +42,13 @@ set_target_properties(${LIBRARY_NAME}_static PROPERTIES OUTPUT_NAME ${LIBRARY_NA
 set_target_properties(${LIBRARY_NAME} PROPERTIES VERSION ${LIBJWT_VERSION_STRING}
                       SOVERSION ${LIBJWT_VERSION_MAJOR})
 
+# Check if _GNU_SOURCE is available.
+CHECK_SYMBOL_EXISTS(__GNU_LIBRARY__ "features.h" _GNU_SOURCE)
+
+if (_GNU_SOURCE)
+  add_definitions(-D_GNU_SOURCE)
+endif()
+
 set (LIBS ${OPENSSL_LIBRARIES} ${JANSSON_LIBRARIES})
 
 target_link_libraries(${LIBRARY_NAME} ${LIBS})
