@@ -4,6 +4,7 @@ cmake_minimum_required(VERSION 2.8)
 
 set(LIBRARY_NAME jwt)
 
+# XXX Update this in libjwt/Makefile.am as well
 set(LIBJWT_VERSION_MAJOR 0)
 set(LIBJWT_VERSION_MINOR 2)
 set(LIBJWT_VERSION_PATCH 0)
