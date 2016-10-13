@@ -430,7 +430,7 @@ static int jwt_verify_sha_hmac(jwt_t *jwt, const EVP_MD *alg, const char *head,
 	ret = strcmp(buf, sig) ? EINVAL : 0;
 
 jwt_verify_hmac_done:
-	BIO_free_all(bmem);
+	BIO_free_all(b64);
 
 	return ret;
 }
