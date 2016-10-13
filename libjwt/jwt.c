@@ -1,19 +1,19 @@
 /* Copyright (C) 2015 Ben Collins <ben@cyphre.com>
-   This file is part of the JWT C Library
+	 This file is part of the JWT C Library
 
-   This library is free software; you can redistribute it and/or
-   modify it under the terms of the GNU Lesser General Public
-   License as published by the Free Software Foundation; either
-   version 2.1 of the License, or (at your option) any later version.
+	 This library is free software; you can redistribute it and/or
+	 modify it under the terms of the GNU Lesser General Public
+	 License as published by the Free Software Foundation; either
+	 version 2.1 of the License, or (at your option) any later version.
 
-   This library is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Lesser General Public License for more details.
+	 This library is distributed in the hope that it will be useful,
+	 but WITHOUT ANY WARRANTY; without even the implied warranty of
+	 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	See the GNU
+	 Lesser General Public License for more details.
 
-   You should have received a copy of the GNU Lesser General Public
-   License along with the GNU C Library; if not, see
-   <http://www.gnu.org/licenses/>.  */
+	 You should have received a copy of the GNU Lesser General Public
+	 License along with the GNU C Library; if not, see
+	 <http://www.gnu.org/licenses/>.	*/
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -148,6 +148,20 @@ int jwt_set_alg(jwt_t *jwt, jwt_alg_t alg, const unsigned char *key, int len)
 jwt_alg_t jwt_get_alg(jwt_t *jwt)
 {
 	return jwt->alg;
+}
+
+jwt_t *jwt_create()
+{
+	int errno;
+	jwt_t *new;
+
+	errno = jwt_new(&new);
+
+	if( errno == 0 ) {
+		return new;
+	} else {
+		return NULL;
+	}
 }
 
 int jwt_new(jwt_t **jwt)
@@ -363,13 +377,13 @@ static void base64uri_encode(char *str)
 }
 
 static int jwt_sign_sha_hmac(jwt_t *jwt, BIO *out, const EVP_MD *alg,
-			     const char *str)
+					 const char *str)
 {
 	unsigned char res[EVP_MAX_MD_SIZE];
 	unsigned int res_len;
 
 	HMAC(alg, jwt->key, jwt->key_len,
-	     (const unsigned char *)str, strlen(str), res, &res_len);
+			 (const unsigned char *)str, strlen(str), res, &res_len);
 
 	BIO_write(out, res, res_len);
 
@@ -699,7 +713,7 @@ verify_head_done:
 }
 
 int jwt_decode(jwt_t **jwt, const char *token, const unsigned char *key,
-	       int key_len)
+				 int key_len)
 {
 	char *head = strdup(token);
 	jwt_t *new = NULL;
@@ -863,7 +877,7 @@ static void jwt_write_bio_head(jwt_t *jwt, BIO *bio, int pretty)
 	 * -- draft-ietf-oauth-json-web-token-32 #6. */
 	if (jwt->alg != JWT_ALG_NONE) {
 		if (pretty)
-			BIO_puts(bio, "    ");
+			BIO_puts(bio, "		");
 
 		BIO_printf(bio, "\"typ\":%s\"JWT\",", pretty?" ":"");
 
@@ -872,10 +886,10 @@ static void jwt_write_bio_head(jwt_t *jwt, BIO *bio, int pretty)
 	}
 
 	if (pretty)
-		BIO_puts(bio, "    ");
+		BIO_puts(bio, "		");
 
 	BIO_printf(bio, "\"alg\":%s\"%s\"", pretty?" ":"",
-		   jwt_alg_str(jwt->alg));
+			 jwt_alg_str(jwt->alg));
 
 	if (pretty)
 		BIO_puts(bio, "\n");

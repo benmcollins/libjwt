@@ -62,6 +62,18 @@ typedef enum jwt_alg {
  */
 
 /**
+ * Allocate and return a new, empty, JWT object.
+ *
+ * This is used to create a new object for a JWT.
+ * Using jwt_new, returns new allocated jwt object.
+ * with the returned object, use jwt_free() to clean up the memory used by it.
+ *
+ * @return jwt Pointer to a JWT object pointer. Will be allocated on
+ *     success. Null on fail.
+ */
+jwt_t *jwt_create();
+
+/**
  * Allocate a new, empty, JWT object.
  *
  * This is used to create a new object for a JWT. After you have finished
