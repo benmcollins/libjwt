@@ -4,6 +4,11 @@ cmake_minimum_required(VERSION 2.8)
 
 set(LIBRARY_NAME jwt)
 
+set(LIBJWT_VERSION_MAJOR 1)
+set(LIBJWT_VERSION_MINOR 5)
+set(LIBJWT_VERSION_PATCH 0)
+set(LIBJWT_VERSION_STRING ${LIBJWT_VERSION_MAJOR}.${LIBJWT_VERSION_MINOR}.${LIBJWT_VERSION_PATCH})
+
 ###############################################################################
 include(CheckCSourceCompiles)
 include(CheckCSourceRuns)
@@ -33,6 +38,8 @@ link_directories(${OPENSSL_LIBRARY_DIRS} ${JANSSON_LIBRARY_DIRS})
 add_library(${LIBRARY_NAME} SHARED libjwt/jwt.c)
 add_library(${LIBRARY_NAME}_static STATIC libjwt/jwt.c)
 set_target_properties(${LIBRARY_NAME}_static PROPERTIES OUTPUT_NAME ${LIBRARY_NAME})
+set_target_properties(${LIBRARY_NAME} PROPERTIES VERSION ${LIBJWT_VERSION_STRING}
+                      SOVERSION 0)
 
 set (LIBS ${OPENSSL_LIBRARIES} ${JANSSON_LIBRARIES})
 
