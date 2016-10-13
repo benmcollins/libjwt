@@ -1,4 +1,4 @@
-/* Copyright (C) 2015 Ben Collins <ben@cyphre.com>
+/* Copyright (C) 2015-2016 Ben Collins <ben@cyphre.com>
    This file is part of the JWT C Library
 
    This library is free software; you can redistribute it and/or
