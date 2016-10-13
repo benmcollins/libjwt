@@ -26,6 +26,10 @@
 #define ck_assert_ptr_eq(X, Y) ck_assert(X == Y)
 #endif
 
+#ifndef ck_assert_int_gt
+#define ck_assert_int_gt(X, Y) ck_assert(X > Y)
+#endif
+
 static unsigned char key[BUFSIZ];
 static size_t key_len;
 
