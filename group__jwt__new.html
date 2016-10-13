@@ -4,7 +4,7 @@
 <meta http-equiv="Content-Type" content="text/xhtml;charset=UTF-8"/>
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
 <meta name="generator" content="Doxygen 1.8.11"/>
-<title>libjwt-1.4.0: JWT Object Creation</title>
+<title>libjwt-1.5.0: JWT Object Creation</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -25,7 +25,7 @@
  <tbody>
  <tr style="height: 56px;">
   <td id="projectalign" style="padding-left: 0.5em;">
-   <div id="projectname">libjwt-1.4.0
+   <div id="projectname">libjwt-1.5.0
    </div>
   </td>
  </tr>
@@ -84,7 +84,8 @@ Functions</h2></td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <p>Functions used to create and destroy JWT objects. </p>
-<p>Generally, one would use the <a class="el" href="group__jwt__new.html#ga9ce4e8fb6c2eb66e41b07a7a57d8a68a" title="Allocate a new, empty, JWT object. ">jwt_new()</a> function to create an object from scratch and <a class="el" href="group__jwt__new.html#ga4d498ffdcf1c95d67b81c224e2a447e5" title="Verify an existing JWT and allocate a new JWT object from it. ">jwt_decode()</a> to create and verify and object from an existing token. </p>
+<p>Generally, one would use the <a class="el" href="group__jwt__new.html#ga9ce4e8fb6c2eb66e41b07a7a57d8a68a" title="Allocate a new, empty, JWT object. ">jwt_new()</a> function to create an object from scratch and <a class="el" href="group__jwt__new.html#ga4d498ffdcf1c95d67b81c224e2a447e5" title="Verify an existing JWT and allocate a new JWT object from it. ">jwt_decode()</a> to create and verify and object from an existing token.</p>
+<p>Note, when using RSA keys (e.g. with RS256), the key is expected to be a private key in PEM format. If the RSA private key requires a passphrase, the default is to request it on the command line from stdin. However, you can override this using OpenSSL's default_passwd routines. For example, using SSL_CTX_set_default_passwd_cb(). </p>
 <h2 class="groupheader">Function Documentation</h2>
 <a class="anchor" id="ga4d498ffdcf1c95d67b81c224e2a447e5"></a>
 <div class="memitem">
@@ -220,7 +221,7 @@ Functions</h2></td></tr>
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="footer">Generated on Sat Oct 8 2016 23:25:50 for libjwt-1.4.0 by
+    <li class="footer">Generated on Wed Oct 12 2016 21:38:24 for libjwt-1.5.0 by
     <a href="http://www.doxygen.org/index.html">
     <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.8.11 </li>
   </ul>

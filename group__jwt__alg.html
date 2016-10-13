@@ -4,7 +4,7 @@
 <meta http-equiv="Content-Type" content="text/xhtml;charset=UTF-8"/>
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
 <meta name="generator" content="Doxygen 1.8.11"/>
-<title>libjwt-1.4.0: JWT Algorithm Functions</title>
+<title>libjwt-1.5.0: JWT Algorithm Functions</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -25,7 +25,7 @@
  <tbody>
  <tr style="height: 56px;">
   <td id="projectalign" style="padding-left: 0.5em;">
-   <div id="projectname">libjwt-1.4.0
+   <div id="projectname">libjwt-1.5.0
    </div>
   </td>
  </tr>
@@ -143,7 +143,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 
 <p>Set an algorithm from jwt_alg_t for this JWT object. </p>
-<p>Specifies an algorithm for a JWT object. If JWT_ALG_NONE is used, then key must be NULL and len must be 0. All other algorithms must have a valid pointer to key data of a length specific to the algorithm requested (e.g., HS256 requires 32 Bytes of key data).</p>
+<p>Specifies an algorithm for a JWT object. If JWT_ALG_NONE is used, then key must be NULL and len must be 0. All other algorithms must have a valid pointer to key data, which may be specific to the algorithm (e.g RS256 expects a PEM formatted RSA key).</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">jwt</td><td>Pointer to a JWT object. </td></tr>
@@ -162,7 +162,7 @@ Functions</h2></td></tr>
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="footer">Generated on Sat Oct 8 2016 23:25:50 for libjwt-1.4.0 by
+    <li class="footer">Generated on Wed Oct 12 2016 21:38:24 for libjwt-1.5.0 by
     <a href="http://www.doxygen.org/index.html">
     <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.8.11 </li>
   </ul>

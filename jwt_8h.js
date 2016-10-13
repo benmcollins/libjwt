@@ -6,7 +6,14 @@ var jwt_8h =
       [ "JWT_ALG_NONE", "jwt_8h.html#a3f05228338020adcde0d799e814e1851a3249a71140a0bb4b3cb196fe15114b89", null ],
       [ "JWT_ALG_HS256", "jwt_8h.html#a3f05228338020adcde0d799e814e1851aaa9217f4c8f5266d5401402f0ec98604", null ],
       [ "JWT_ALG_HS384", "jwt_8h.html#a3f05228338020adcde0d799e814e1851af0adc69b9caa89fbc2eeaf744d7cf4f2", null ],
-      [ "JWT_ALG_HS512", "jwt_8h.html#a3f05228338020adcde0d799e814e1851a596b0da85c01e17b43a6574f82159081", null ]
+      [ "JWT_ALG_HS512", "jwt_8h.html#a3f05228338020adcde0d799e814e1851a596b0da85c01e17b43a6574f82159081", null ],
+      [ "JWT_ALG_RS256", "jwt_8h.html#a3f05228338020adcde0d799e814e1851aa03ba981baa4b1cda3b9de1347ada853", null ],
+      [ "JWT_ALG_RS384", "jwt_8h.html#a3f05228338020adcde0d799e814e1851a520814a2695a6df472bb408ba6feb206", null ],
+      [ "JWT_ALG_RS512", "jwt_8h.html#a3f05228338020adcde0d799e814e1851ab4d732eef3f6bee21201d638dfd8ca44", null ],
+      [ "JWT_ALG_ES256", "jwt_8h.html#a3f05228338020adcde0d799e814e1851a84f9bf1cb93f6ae622a9de57d9c67472", null ],
+      [ "JWT_ALG_ES384", "jwt_8h.html#a3f05228338020adcde0d799e814e1851ae18e69e6b629aa0d3e6d16ec4a95c708", null ],
+      [ "JWT_ALG_ES512", "jwt_8h.html#a3f05228338020adcde0d799e814e1851a87205e19f1dde7c3cee012424482e106", null ],
+      [ "JWT_ALG_TERM", "jwt_8h.html#a3f05228338020adcde0d799e814e1851a8e90b1d1ed4944f97adabf2d38b1a949", null ]
     ] ],
     [ "jwt_add_grant", "group__jwt__grant.html#ga91d9bfe88d3e7b246ee67d2ed4609955", null ],
     [ "jwt_add_grant_int", "group__jwt__grant.html#gae4cdc69b259a0f2f98e3c07bf9038765", null ],
