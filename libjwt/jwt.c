@@ -301,7 +301,7 @@ static void *jwt_b64_decode(const char *src, int *ret_len)
 		// LCOV_EXCL_START
 		BIO_free_all(b64);
 		return NULL;
-		// LCOV_EXCL_END
+		// LCOV_EXCL_STOP
 	}
 
 	buf = malloc(len + 1);
@@ -309,7 +309,7 @@ static void *jwt_b64_decode(const char *src, int *ret_len)
 		// LCOV_EXCL_START
 		BIO_free_all(b64);
 		return NULL;
-		// LCOV_EXCL_END
+		// LCOV_EXCL_STOP
 	}
 
 	*ret_len = BIO_read(b64, buf, len);
@@ -396,7 +396,7 @@ static int jwt_verify_sha_hmac(jwt_t *jwt, const EVP_MD *alg, const char *head,
 		// LCOV_EXCL_START
 		BIO_free(b64);
 		return ENOMEM;
-		// LCOV_EXCL_END
+		// LCOV_EXCL_STOP
 	}
 
 	BIO_push(b64, bmem);
@@ -450,7 +450,7 @@ static int jwt_sign_sha_pem(jwt_t *jwt, BIO *out, const EVP_MD *alg,
 		// LCOV_EXCL_START
 		ret = ENOMEM;
 		goto jwt_sign_sha_pem_done;
-		// LCOV_EXCL_END
+		// LCOV_EXCL_STOP
 	}
 
 	/* This uses OpenSSL's default passphrase callback if needed. The
@@ -468,7 +468,7 @@ static int jwt_sign_sha_pem(jwt_t *jwt, BIO *out, const EVP_MD *alg,
 		// LCOV_EXCL_START
 		return ENOMEM;
 		goto jwt_sign_sha_pem_done;
-		// LCOV_EXCL_END
+		// LCOV_EXCL_STOP
 	}
 
 	/* Initialize the DigestSign operation using alg */
@@ -490,7 +490,7 @@ static int jwt_sign_sha_pem(jwt_t *jwt, BIO *out, const EVP_MD *alg,
 		// LCOV_EXCL_START
 		ret = ENOMEM;
 		goto jwt_sign_sha_pem_done;
-		// LCOV_EXCL_END
+		// LCOV_EXCL_STOP
 	}
 
 	/* Get the signature */
@@ -531,7 +531,7 @@ static int jwt_verify_sha_pem(jwt_t *jwt, const EVP_MD *alg, int type,
 		// LCOV_EXCL_START
 		ret = ENOMEM;
 		goto jwt_verify_sha_pem_done;
-		// LCOV_EXCL_END
+		// LCOV_EXCL_STOP
 	}
 
 	/* This uses OpenSSL's default passphrase callback if needed. The
@@ -549,7 +549,7 @@ static int jwt_verify_sha_pem(jwt_t *jwt, const EVP_MD *alg, int type,
 		// LCOV_EXCL_START
 		return ENOMEM;
 		goto jwt_verify_sha_pem_done;
-		// LCOV_EXCL_END
+		// LCOV_EXCL_STOP
 	}
 
 	/* Initialize the DigestSign operation using alg */
