@@ -347,16 +347,16 @@ static void base64uri_encode(char *str)
 	for (i = t = 0; i < len; i++) {
 		switch (str[i]) {
 		case '+':
-			str[t] = '-';
+			str[t++] = '-';
 			break;
 		case '/':
-			str[t] = '_';
+			str[t++] = '_';
 			break;
 		case '=':
-			continue;
+			break;
+		default:
+			str[t++] = str[i];
 		}
-
-		t++;
 	}
 
 	str[t] = '\0';
