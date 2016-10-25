@@ -60,9 +60,9 @@ END_TEST
 
 START_TEST(test_jwt_encode_str)
 {
-	const char res[] = "eyJhbGciOiJub25lIn0=.eyJpYXQiOjE0NzU5ODA1NDUsIm"
+	const char res[] = "eyJhbGciOiJub25lIn0.eyJpYXQiOjE0NzU5ODA1NDUsIm"
 		"lzcyI6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJYWFhYLVlZWVktWlpa"
-		"Wi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ.";
+		"Wi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.";
 	jwt_t *jwt = NULL;
 	int ret = 0;
 	char *out;
@@ -79,6 +79,39 @@ START_TEST(test_jwt_encode_str)
 	ck_assert_int_eq(ret, 0);
 
 	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
+	ck_assert_int_eq(ret, 0);
+
+	out = jwt_encode_str(jwt);
+	ck_assert_ptr_ne(out, NULL);
+
+	ck_assert_str_eq(out, res);
+
+	free(out);
+
+	jwt_free(jwt);
+}
+END_TEST
+
+START_TEST(test_jwt_encode_alg_none)
+{
+	const char res[] = "eyJhbGciOiJub25lIn0.eyJhdWQiOiJ3d3cucGx1Z2dlcnM"
+		"ubmwiLCJleHAiOjE0Nzc1MTQ4MTIsInN1YiI6IlBsdWdnZXJzIFNvZnR3YXJlIn0.";
+	jwt_t *jwt = NULL;
+	int ret = 0;
+	char *out;
+
+	ALLOC_JWT(&jwt);
+
+	ret = jwt_add_grant(jwt, "aud", "www.pluggers.nl");
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_add_grant_int(jwt, "exp", 1477514812);
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_add_grant(jwt, "sub", "Pluggers Software");
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_set_alg(jwt, JWT_ALG_NONE, NULL, 0);
 	ck_assert_int_eq(ret, 0);
 
 	out = jwt_encode_str(jwt);
@@ -215,9 +248,9 @@ END_TEST
 
 START_TEST(test_jwt_encode_change_alg)
 {
-	const char res[] = "eyJhbGciOiJub25lIn0=.eyJpYXQiOjE0NzU5ODA1NDUsIm"
+	const char res[] = "eyJhbGciOiJub25lIn0.eyJpYXQiOjE0NzU5ODA1NDUsIm"
 		"lzcyI6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJYWFhYLVlZWVktWlpa"
-		"Wi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ.";
+		"Wi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.";
 	unsigned char key512[64] = "012345678901234567890123456789XY"
 				   "012345678901234567890123456789XY";
 	jwt_t *jwt = NULL;
@@ -313,6 +346,7 @@ Suite *libjwt_suite(void)
 
 	tcase_add_test(tc_core, test_jwt_encode_fp);
 	tcase_add_test(tc_core, test_jwt_encode_str);
+	tcase_add_test(tc_core, test_jwt_encode_alg_none);
 	tcase_add_test(tc_core, test_jwt_encode_hs256);
 	tcase_add_test(tc_core, test_jwt_encode_hs384);
 	tcase_add_test(tc_core, test_jwt_encode_hs512);
