@@ -30,7 +30,7 @@
 #define ck_assert_int_gt(X, Y) ck_assert(X > Y)
 #endif
 
-static unsigned char key[BUFSIZ];
+static unsigned char key[16384];
 static size_t key_len;
 
 static const char jwt_rs256_2048[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.ey"
