@@ -573,6 +573,8 @@ jwt_verify_sha_pem_done:
 		EVP_PKEY_free(pkey);
 	if (mdctx)
 		EVP_MD_CTX_destroy(mdctx);
+	if (sig)
+		free(sig);
 
 	return ret;
 }
