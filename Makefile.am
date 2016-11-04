@@ -7,6 +7,9 @@ include $(top_srcdir)/doxygen.mk
 clean-local: clean-coverage
 	-rm -rf doxygen-doc
 
+check-valgrind: all
+	$(MAKE) $(AM_MAKEFLAGS) -C tests check-valgrind
+
 if HAVE_GCOV
 
 .PHONY: clean-gcda
