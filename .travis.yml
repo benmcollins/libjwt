@@ -7,8 +7,8 @@ before_install:
   - sudo pip install codecov
 install:
   - sudo apt-get update -qq
-  - sudo apt-get install -y -qq libjansson-dev check libssl-dev lcov curl
+  - sudo apt-get install -y -qq libjansson-dev check libssl-dev lcov curl valgrind
 script:
-  - autoreconf -i && ./configure --enable-gcov && make coverage
+  - autoreconf -i && ./configure --enable-gcov && make coverage && make check-valgrind
 after_success:
   - codecov
