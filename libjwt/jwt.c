@@ -519,7 +519,7 @@ static int jwt_verify_sha_pem(jwt_t *jwt, const EVP_MD *alg, int type,
 	BIO *bufkey = NULL;
 	EVP_PKEY *pkey = NULL;
 	int ret = EINVAL;
-	unsigned char *sig;
+	unsigned char *sig = NULL;
 	int slen;
 
 	sig = jwt_b64_decode(sig_b64, &slen);
