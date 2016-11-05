@@ -43,7 +43,7 @@ START_TEST(test_jwt_dump_fp)
 
 	fclose(out);
 
-        jwt_free(jwt);
+	jwt_free(jwt);
 }
 END_TEST
 
@@ -83,6 +83,47 @@ START_TEST(test_jwt_dump_str)
 }
 END_TEST
 
+START_TEST(test_jwt_dump_str_alg)
+{
+	jwt_t *jwt = NULL;
+	const char key[] = "My Passphrase";
+	int ret = 0;
+	char *out;
+
+	ret = jwt_new(&jwt);
+	ck_assert_int_eq(ret, 0);
+	ck_assert(jwt != NULL);
+
+	ret = jwt_add_grant(jwt, "iss", "files.cyphre.com");
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_add_grant(jwt, "sub", "user0");
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_add_grant_int(jwt, "iat", (long)time(NULL));
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_set_alg(jwt, JWT_ALG_HS256, (unsigned char *)key,
+			  strlen(key));
+	ck_assert_int_eq(ret, 0);
+
+	out = jwt_dump_str(jwt, 1);
+	ck_assert(out != NULL);
+
+	free(out);
+
+	out = jwt_dump_str(jwt, 0);
+	ck_assert(out != NULL);
+
+	free(out);
+
+	jwt_free(jwt);
+}
+END_TEST
+
 Suite *libjwt_suite(void)
 {
 	Suite *s;
@@ -94,6 +135,7 @@ Suite *libjwt_suite(void)
 
 	tcase_add_test(tc_core, test_jwt_dump_fp);
 	tcase_add_test(tc_core, test_jwt_dump_str);
+	tcase_add_test(tc_core, test_jwt_dump_str_alg);
 
 	suite_add_tcase(s, tc_core);
 
