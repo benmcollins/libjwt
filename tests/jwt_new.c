@@ -51,6 +51,8 @@ START_TEST(test_jwt_dup)
 	ck_assert(val != NULL);
 	ck_assert_str_eq(val, "test");
 
+	ck_assert_int_eq(jwt_get_alg(new), JWT_ALG_NONE);
+
 	now = time(NULL);
 	ret = jwt_add_grant_int(jwt, "iat", (long)now);
 	ck_assert_int_eq(ret, 0);
@@ -86,6 +88,8 @@ START_TEST(test_jwt_dup_signed)
 	val = jwt_get_grant(new, "iss");
 	ck_assert(val != NULL);
 	ck_assert_str_eq(val, "test");
+
+	ck_assert_int_eq(jwt_get_alg(new), JWT_ALG_HS256);
 
 	jwt_free(new);
 	jwt_free(jwt);
