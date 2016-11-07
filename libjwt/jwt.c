@@ -207,6 +207,7 @@ jwt_t *jwt_dup(jwt_t *jwt)
 	memset(new, 0, sizeof(jwt_t));
 
 	if (jwt->key_len) {
+    new->alg = jwt->alg;
 		new->key = malloc(jwt->key_len);
 		if (!new->key) {
 			// LCOV_EXCL_START
