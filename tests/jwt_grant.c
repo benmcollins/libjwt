@@ -144,6 +144,33 @@ START_TEST(test_jwt_grants_json)
 }
 END_TEST
 
+START_TEST(test_jwt_grants_json_object)
+{
+	json_t *json = json_loads("{\"ref\":\"385d6518-fb73-45fc-b649-0527d8576130\""
+		",\"id\":\"FVvGYTr3FhiURCFebsBOpBqTbzHdX/DvImiA2yheXr8=\","
+		"\"iss\":\"localhost\",\"scopes\":\"storage\",\"sub\":"
+		"\"user0\"}", JSON_ENCODE_ANY);
+	jwt_t *jwt = NULL;
+	const char *val;
+	int ret = 0;
+
+	ret = jwt_new(&jwt);
+	ck_assert_int_eq(ret, 0);
+	ck_assert(jwt != NULL);
+
+	ret = jwt_add_grants_json_object(jwt, json);
+	ck_assert_int_eq(ret, 0);
+  
+  json_decref(json);
+
+	val = jwt_get_grant(jwt, "ref");
+	ck_assert(val != NULL);
+	ck_assert_str_eq(val, "385d6518-fb73-45fc-b649-0527d8576130");
+
+	jwt_free(jwt);
+}
+END_TEST
+
 Suite *libjwt_suite(void)
 {
 	Suite *s;
@@ -158,6 +185,7 @@ Suite *libjwt_suite(void)
 	tcase_add_test(tc_core, test_jwt_del_grant);
 	tcase_add_test(tc_core, test_jwt_grant_invalid);
 	tcase_add_test(tc_core,test_jwt_grants_json);
+	tcase_add_test(tc_core,test_jwt_grants_json_object);
 
 	suite_add_tcase(s, tc_core);
 
