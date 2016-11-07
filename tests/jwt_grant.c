@@ -144,7 +144,7 @@ START_TEST(test_jwt_grants_json)
 }
 END_TEST
 
-Suite *libjwt_suite(void)
+static Suite *libjwt_suite(void)
 {
 	Suite *s;
 	TCase *tc_core;
@@ -158,6 +158,8 @@ Suite *libjwt_suite(void)
 	tcase_add_test(tc_core, test_jwt_del_grant);
 	tcase_add_test(tc_core, test_jwt_grant_invalid);
 	tcase_add_test(tc_core,test_jwt_grants_json);
+
+	tcase_set_timeout(tc_core, 30);
 
 	suite_add_tcase(s, tc_core);
 

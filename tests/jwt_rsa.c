@@ -225,7 +225,7 @@ START_TEST(test_jwt_encode_rsa_with_ec)
 }
 END_TEST
 
-Suite *libjwt_suite(void)
+static Suite *libjwt_suite(void)
 {
 	Suite *s;
 	TCase *tc_core;
@@ -241,6 +241,8 @@ Suite *libjwt_suite(void)
 	tcase_add_test(tc_core, test_jwt_encode_rs512);
 	tcase_add_test(tc_core, test_jwt_verify_rs512);
 	tcase_add_test(tc_core, test_jwt_encode_rsa_with_ec);
+
+	tcase_set_timeout(tc_core, 30);
 
 	suite_add_tcase(s, tc_core);
 

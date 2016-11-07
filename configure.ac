@@ -12,7 +12,6 @@ PKG_CHECK_MODULES([OPENSSL], [openssl >= 0.9.8])
 PKG_CHECK_MODULES([JANSSON], [jansson >= 2.0])
 PKG_CHECK_MODULES([CHECK], [check >= 0.9.4], [true], [true])
 
-AX_VALGRIND_DFLT([sgcheck], [off])
 AX_VALGRIND_CHECK
 
 AX_CODE_COVERAGE
