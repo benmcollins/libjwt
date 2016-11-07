@@ -212,6 +212,19 @@ int jwt_del_grant(jwt_t *jwt, const char *grant);
  */
 int jwt_add_grants_json(jwt_t *jwt, const char *json);
 
+/**
+ * Add grants from a JSON object.
+ *
+ * Loads grants from an existing JSON object (the body
+ * portion). Overwrites any existing grants. Should be used on a jwt_new()
+ * created JWT object.
+ *
+ * @param jwt Pointer to a JWT object.
+ * @param json String containing a JSON encoded object of grants.
+ * @return Returns 0 on success, valid errno otherwise.
+ */
+int jwt_add_grants_json_object(jwt_t *jwt, json_t * grants);
+
 /** @} */
 
 /**
@@ -250,6 +263,18 @@ int jwt_dump_fp(jwt_t *jwt, FILE *fp, int pretty);
  *     set appropriately.
  */
 char *jwt_dump_str(jwt_t *jwt, int pretty);
+
+/**
+ * Return json representation.
+ *
+ * Similar to jwt_dump_fp() except that a json_t * object is returned. The json_t *
+ * must be freed by the caller.
+ *
+ * @param jwt Pointer to a JWT object.
+ * @return A json_t * object on success, NULL on error with errno
+ *     set appropriately.
+ */
+json_t *jwt_dump_json(jwt_t *jwt);
 
 /**
  * Fully encode a JWT object and write it to FILE.
