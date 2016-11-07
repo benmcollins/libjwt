@@ -856,6 +856,18 @@ int jwt_add_grants_json(jwt_t *jwt, const char *json)
 	return ret ? EINVAL : 0;
 }
 
+int jwt_add_grants_json_object(jwt_t *jwt, json_t * grants)
+{
+	int ret;
+
+	if (grants == NULL)
+		return EINVAL;
+
+	ret = json_object_update(jwt->grants, grants);
+
+	return ret ? EINVAL : 0;
+}
+
 int jwt_del_grant(jwt_t *jwt, const char *grant)
 {
 	if (!jwt || !grant || !strlen(grant))
@@ -979,6 +991,43 @@ char *jwt_dump_str(jwt_t *jwt, int pretty)
 
 	BIO_free_all(bmem);
 	errno = 0;
+
+	return out;
+}
+
+json_t *jwt_dump_json(jwt_t *jwt)
+{
+	BIO *bmem = BIO_new(BIO_s_mem());
+	char *dump;
+	json_t * out;
+	int len;
+
+	if (!bmem) {
+		// LCOV_EXCL_START
+		errno = ENOMEM;
+		return NULL;
+		// LCOV_EXCL_STOP
+	}
+
+	jwt_dump_bio(jwt, bmem, 0);
+
+	len = BIO_pending(bmem);
+	dump = malloc(len + 1);
+	if (!dump) {
+		// LCOV_EXCL_START
+		BIO_free_all(bmem);
+		errno = ENOMEM;
+		return NULL;
+		// LCOV_EXCL_STOP
+	}
+
+	len = BIO_read(bmem, dump, len);
+	dump[len] = '\0';
+
+	BIO_free_all(bmem);
+	errno = 0;
+	out = json_loads(dump, JSON_ENCODE_ANY, NULL);
+	free(dump);
 
 	return out;
 }
