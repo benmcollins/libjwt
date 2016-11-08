@@ -4,7 +4,7 @@
 <meta http-equiv="Content-Type" content="text/xhtml;charset=UTF-8"/>
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
 <meta name="generator" content="Doxygen 1.8.11"/>
-<title>libjwt-1.5.0: jwt.h File Reference</title>
+<title>libjwt-1.7.0: jwt.h File Reference</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -25,7 +25,7 @@
  <tbody>
  <tr style="height: 56px;">
   <td id="projectalign" style="padding-left: 0.5em;">
-   <div id="projectname">libjwt-1.5.0
+   <div id="projectname">libjwt-1.7.0
    </div>
   </td>
  </tr>
@@ -122,23 +122,28 @@ Functions</h2></td></tr>
 <tr class="memdesc:gab69bff3779be7d0b92bd86456af80991"><td class="mdescLeft">&#160;</td><td class="mdescRight">Duplicate an existing JWT object.  <a href="group__jwt__new.html#gab69bff3779be7d0b92bd86456af80991">More...</a><br /></td></tr>
 <tr class="separator:gab69bff3779be7d0b92bd86456af80991"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:gab8bafff3b4cbca17c5f04fd6d4cbe59a"><td class="memItemLeft" align="right" valign="top">const char *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__jwt__grant.html#gab8bafff3b4cbca17c5f04fd6d4cbe59a">jwt_get_grant</a> (<a class="el" href="jwt_8h.html#abf0acfb990d245214216af589c1d0947">jwt_t</a> *jwt, const char *grant)</td></tr>
-<tr class="memdesc:gab8bafff3b4cbca17c5f04fd6d4cbe59a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return the value of a grant.  <a href="group__jwt__grant.html#gab8bafff3b4cbca17c5f04fd6d4cbe59a">More...</a><br /></td></tr>
+<tr class="memdesc:gab8bafff3b4cbca17c5f04fd6d4cbe59a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return the value of a string grant.  <a href="group__jwt__grant.html#gab8bafff3b4cbca17c5f04fd6d4cbe59a">More...</a><br /></td></tr>
 <tr class="separator:gab8bafff3b4cbca17c5f04fd6d4cbe59a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:gae48541a059b47945181102d6478bd2bb"><td class="memItemLeft" align="right" valign="top">long&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__jwt__grant.html#gae48541a059b47945181102d6478bd2bb">jwt_get_grant_int</a> (<a class="el" href="jwt_8h.html#abf0acfb990d245214216af589c1d0947">jwt_t</a> *jwt, const char *grant)</td></tr>
-<tr class="memdesc:gae48541a059b47945181102d6478bd2bb"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return the value of a grant Reutnrs the int value for a grant (e.g.  <a href="group__jwt__grant.html#gae48541a059b47945181102d6478bd2bb">More...</a><br /></td></tr>
+<tr class="memdesc:gae48541a059b47945181102d6478bd2bb"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return the value of an integer grant.  <a href="group__jwt__grant.html#gae48541a059b47945181102d6478bd2bb">More...</a><br /></td></tr>
 <tr class="separator:gae48541a059b47945181102d6478bd2bb"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga422cc9955eefaba9471cba96d24d5a24"><td class="memItemLeft" align="right" valign="top">char *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__jwt__grant.html#ga422cc9955eefaba9471cba96d24d5a24">jwt_get_grants_json</a> (<a class="el" href="jwt_8h.html#abf0acfb990d245214216af589c1d0947">jwt_t</a> *jwt, const char *grant)</td></tr>
+<tr class="memdesc:ga422cc9955eefaba9471cba96d24d5a24"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return the value of a grant as JSON encoded object string.  <a href="group__jwt__grant.html#ga422cc9955eefaba9471cba96d24d5a24">More...</a><br /></td></tr>
+<tr class="separator:ga422cc9955eefaba9471cba96d24d5a24"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ga91d9bfe88d3e7b246ee67d2ed4609955"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__jwt__grant.html#ga91d9bfe88d3e7b246ee67d2ed4609955">jwt_add_grant</a> (<a class="el" href="jwt_8h.html#abf0acfb990d245214216af589c1d0947">jwt_t</a> *jwt, const char *grant, const char *val)</td></tr>
 <tr class="memdesc:ga91d9bfe88d3e7b246ee67d2ed4609955"><td class="mdescLeft">&#160;</td><td class="mdescRight">Add a new string grant to this JWT object.  <a href="group__jwt__grant.html#ga91d9bfe88d3e7b246ee67d2ed4609955">More...</a><br /></td></tr>
 <tr class="separator:ga91d9bfe88d3e7b246ee67d2ed4609955"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:gae4cdc69b259a0f2f98e3c07bf9038765"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__jwt__grant.html#gae4cdc69b259a0f2f98e3c07bf9038765">jwt_add_grant_int</a> (<a class="el" href="jwt_8h.html#abf0acfb990d245214216af589c1d0947">jwt_t</a> *jwt, const char *grant, long val)</td></tr>
 <tr class="memdesc:gae4cdc69b259a0f2f98e3c07bf9038765"><td class="mdescLeft">&#160;</td><td class="mdescRight">Add a new integer grant to this JWT object.  <a href="group__jwt__grant.html#gae4cdc69b259a0f2f98e3c07bf9038765">More...</a><br /></td></tr>
 <tr class="separator:gae4cdc69b259a0f2f98e3c07bf9038765"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ga4c5ff4001da586297266bf4d3816bcfc"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__jwt__grant.html#ga4c5ff4001da586297266bf4d3816bcfc">jwt_del_grant</a> (<a class="el" href="jwt_8h.html#abf0acfb990d245214216af589c1d0947">jwt_t</a> *jwt, const char *grant)</td></tr>
-<tr class="memdesc:ga4c5ff4001da586297266bf4d3816bcfc"><td class="mdescLeft">&#160;</td><td class="mdescRight">Delete a grant from this JWT object.  <a href="group__jwt__grant.html#ga4c5ff4001da586297266bf4d3816bcfc">More...</a><br /></td></tr>
-<tr class="separator:ga4c5ff4001da586297266bf4d3816bcfc"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ga0509c745c45eebb41c278cebb0617a55"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__jwt__grant.html#ga0509c745c45eebb41c278cebb0617a55">jwt_add_grants_json</a> (<a class="el" href="jwt_8h.html#abf0acfb990d245214216af589c1d0947">jwt_t</a> *jwt, const char *json)</td></tr>
 <tr class="memdesc:ga0509c745c45eebb41c278cebb0617a55"><td class="mdescLeft">&#160;</td><td class="mdescRight">Add grants from a JSON encoded object string.  <a href="group__jwt__grant.html#ga0509c745c45eebb41c278cebb0617a55">More...</a><br /></td></tr>
 <tr class="separator:ga0509c745c45eebb41c278cebb0617a55"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga0d8da61021d73817fb71bf8ffb7791b7"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__jwt__grant.html#ga0d8da61021d73817fb71bf8ffb7791b7">jwt_del_grants</a> (<a class="el" href="jwt_8h.html#abf0acfb990d245214216af589c1d0947">jwt_t</a> *jwt, const char *grant)</td></tr>
+<tr class="memdesc:ga0d8da61021d73817fb71bf8ffb7791b7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Delete a grant from this JWT object.  <a href="group__jwt__grant.html#ga0d8da61021d73817fb71bf8ffb7791b7">More...</a><br /></td></tr>
+<tr class="separator:ga0d8da61021d73817fb71bf8ffb7791b7"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga7737207aef8fddb8d7f42336a0a2b0ae"><td class="memItemLeft" align="right" valign="top">static int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__jwt__grant.html#ga7737207aef8fddb8d7f42336a0a2b0ae">jwt_del_grant</a> (<a class="el" href="jwt_8h.html#abf0acfb990d245214216af589c1d0947">jwt_t</a> *jwt, const char *grant) __attribute__((deprecated))</td></tr>
+<tr class="separator:ga7737207aef8fddb8d7f42336a0a2b0ae"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:gacc77ae9e2214c9b07352a400758f1f4d"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__jwt__encode.html#gacc77ae9e2214c9b07352a400758f1f4d">jwt_dump_fp</a> (<a class="el" href="jwt_8h.html#abf0acfb990d245214216af589c1d0947">jwt_t</a> *jwt, FILE *fp, int pretty)</td></tr>
 <tr class="memdesc:gacc77ae9e2214c9b07352a400758f1f4d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Output plain text representation to a FILE pointer.  <a href="group__jwt__encode.html#gacc77ae9e2214c9b07352a400758f1f4d">More...</a><br /></td></tr>
 <tr class="separator:gacc77ae9e2214c9b07352a400758f1f4d"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -240,7 +245,7 @@ Functions</h2></td></tr>
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
     <li class="navelem"><a class="el" href="jwt_8h.html">jwt.h</a></li>
-    <li class="footer">Generated on Wed Oct 12 2016 21:38:24 for libjwt-1.5.0 by
+    <li class="footer">Generated on Tue Nov 8 2016 14:15:35 for libjwt-1.7.0 by
     <a href="http://www.doxygen.org/index.html">
     <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.8.11 </li>
   </ul>
