@@ -6,8 +6,8 @@ set(LIBRARY_NAME jwt)
 
 # XXX Update this in libjwt/Makefile.am as well
 set(LIBJWT_VERSION_MAJOR 0)
-set(LIBJWT_VERSION_MINOR 2)
-set(LIBJWT_VERSION_PATCH 1)
+set(LIBJWT_VERSION_MINOR 3)
+set(LIBJWT_VERSION_PATCH 0)
 set(LIBJWT_VERSION_STRING ${LIBJWT_VERSION_MAJOR}.${LIBJWT_VERSION_MINOR}.${LIBJWT_VERSION_PATCH})
 
 ###############################################################################
