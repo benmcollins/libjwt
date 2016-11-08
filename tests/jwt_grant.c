@@ -59,7 +59,7 @@ START_TEST(test_jwt_get_grant)
 }
 END_TEST
 
-START_TEST(test_jwt_del_grant)
+START_TEST(test_jwt_del_grants)
 {
 	jwt_t *jwt = NULL;
 	const char *val;
@@ -73,15 +73,25 @@ START_TEST(test_jwt_del_grant)
 	ret = jwt_add_grant(jwt, "iss", testval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_del_grant(jwt, "iss");
+	ret = jwt_add_grant(jwt, "other", testval);
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_del_grants(jwt, "iss");
 	ck_assert_int_eq(ret, 0);
 
 	val = jwt_get_grant(jwt, "iss");
 	ck_assert(val == NULL);
 
 	/* Delete non existent. */
-	ret = jwt_del_grant(jwt, "iss");
+	ret = jwt_del_grants(jwt, "iss");
 	ck_assert_int_eq(ret, 0);
+
+	/* Delete all grants. */
+	ret = jwt_del_grants(jwt, NULL);
+	ck_assert_int_eq(ret, 0);
+
+	val = jwt_get_grant(jwt, "other");
+	ck_assert(val == NULL);
 
 	jwt_free(jwt);
 }
@@ -104,9 +114,6 @@ START_TEST(test_jwt_grant_invalid)
 	ret = jwt_add_grant_int(jwt, "", (long)time(NULL));
 	ck_assert_int_eq(ret, EINVAL);
 
-	ret = jwt_del_grant(jwt, "");
-	ck_assert_int_eq(ret, EINVAL);
-
 	val = jwt_get_grant(jwt, NULL);
 	ck_assert_int_eq(errno, EINVAL);
 	ck_assert(val == NULL);
@@ -121,12 +128,13 @@ END_TEST
 
 START_TEST(test_jwt_grants_json)
 {
-	const char *json = "{\"ref\":\"385d6518-fb73-45fc-b649-0527d8576130\""
-		",\"id\":\"FVvGYTr3FhiURCFebsBOpBqTbzHdX/DvImiA2yheXr8=\","
-		"\"iss\":\"localhost\",\"scopes\":\"storage\",\"sub\":"
-		"\"user0\"}";
+	const char *json = "{\"id\":\"FVvGYTr3FhiURCFebsBOpBqTbzHdX/DvImiA2yheXr8=\","
+		"\"iss\":\"localhost\",\"other\":[\"foo\",\"bar\"],"
+		"\"ref\":\"385d6518-fb73-45fc-b649-0527d8576130\","
+		"\"scopes\":\"storage\",\"sub\":\"user0\"}";
 	jwt_t *jwt = NULL;
 	const char *val;
+	char *json_val;
 	int ret = 0;
 
 	ret = jwt_new(&jwt);
@@ -139,6 +147,22 @@ START_TEST(test_jwt_grants_json)
 	val = jwt_get_grant(jwt, "ref");
 	ck_assert(val != NULL);
 	ck_assert_str_eq(val, "385d6518-fb73-45fc-b649-0527d8576130");
+
+	json_val = jwt_get_grants_json(NULL, "other");
+	ck_assert(json_val == NULL);
+	ck_assert_int_eq(errno, EINVAL);
+
+	json_val = jwt_get_grants_json(jwt, "other");
+	ck_assert(json_val != NULL);
+	ck_assert_str_eq(json_val, "[\"foo\",\"bar\"]");
+
+	free(json_val);
+
+	json_val = jwt_get_grants_json(jwt, NULL);
+	ck_assert(json_val != NULL);
+	ck_assert_str_eq(json_val, json);
+
+	free(json_val);
 
 	jwt_free(jwt);
 }
@@ -155,9 +179,9 @@ static Suite *libjwt_suite(void)
 
 	tcase_add_test(tc_core, test_jwt_add_grant);
 	tcase_add_test(tc_core, test_jwt_get_grant);
-	tcase_add_test(tc_core, test_jwt_del_grant);
+	tcase_add_test(tc_core, test_jwt_del_grants);
 	tcase_add_test(tc_core, test_jwt_grant_invalid);
-	tcase_add_test(tc_core,test_jwt_grants_json);
+	tcase_add_test(tc_core, test_jwt_grants_json);
 
 	tcase_set_timeout(tc_core, 30);
 

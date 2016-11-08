@@ -132,29 +132,54 @@ jwt_t *jwt_dup(jwt_t *jwt);
  */
 
 /**
- * Return the value of a grant.
+ * Return the value of a string grant.
  *
- * Returns the string value for a grant (e.g. "iss"). If it does not exit,
+ * Returns the string value for a grant (e.g. "iss"). If it does not exist,
  * NULL will be returned.
  *
  * @param jwt Pointer to a JWT object.
  * @param grant String containing the name of the grant to return a value
  *     for.
  * @return Returns a string for the value, or NULL when not found.
+ *
+ * Note, this will only return grants with JSON string values. Use
+ * jwt_get_grant_json() to get the JSON representation of more complex
+ * values (e.g. arrays) or use jwt_get_grant_int() to get simple integer
+ * values.
  */
 const char *jwt_get_grant(jwt_t *jwt, const char *grant);
 
 /**
- * Return the value of a grant
- * Reutnrs the int value for a grant (e.g. "exp"). If it does not exist,
+ * Return the value of an integer grant.
+ *
+ * Returns the int value for a grant (e.g. "exp"). If it does not exist,
  * 0 will be returned.
  *
  * @param jwt Pointer to a JWT object.
  * @param grant String containing the name of the grant to return a value
  *     for.
  * @return Returns an int for the value, or 0 when not found.
+ *
+ * Note, this will only return grants with JSON integer values. Use
+ * jwt_get_grant_json() to get the JSON representation of more complex
+ * values (e.g. arrays) or use jwt_get_grant() to get string values.
  */
 long jwt_get_grant_int(jwt_t *jwt, const char *grant);
+
+/**
+ * Return the value of a grant as JSON encoded object string.
+ *
+ * Returns the JSON encoded string value for a grant (e.g. "iss"). If it
+ * does not exist, NULL will be returned.
+ *
+ * @param jwt Pointer to a JWT object.
+ * @param grant String containing the name of the grant to return a value
+ *     for. If this is NULL, all grants will be returned as a JSON encoded
+ *     hash.
+ * @return Returns a string for the value, or NULL when not found. The
+ *     returned string must be freed by the caller.
+ */
+char *jwt_get_grants_json(jwt_t *jwt, const char *grant);
 
 /**
  * Add a new string grant to this JWT object.
@@ -169,6 +194,10 @@ long jwt_get_grant_int(jwt_t *jwt, const char *grant);
  * @param val String containing the value to be saved for grant. Can be
  *     an empty string, but cannot be NULL.
  * @return Returns 0 on success, valid errno otherwise.
+ *
+ * Note, this only allows for string based grants. If you wish to add
+ * integer grants, then use jwt_add_grant_int(). If you wish to add more
+ * complex grants (e.g. an array), then use jwt_add_grants_json().
  */
 int jwt_add_grant(jwt_t *jwt, const char *grant, const char *val);
 
@@ -184,33 +213,48 @@ int jwt_add_grant(jwt_t *jwt, const char *grant, const char *val);
  * @param grant String containing the name of the grant to add.
  * @param val int containing the value to be saved for grant.
  * @return Returns 0 on success, valid errno otherwise.
+ *
+ * Note, this only allows for integer based grants. If you wish to add
+ * string grants, then use jwt_add_grant(). If you wish to add more
+ * complex grants (e.g. an array), then use jwt_add_grants_json().
  */
 int jwt_add_grant_int(jwt_t *jwt, const char *grant, long val);
 
 /**
- * Delete a grant from this JWT object.
- *
- * Deletes the named grant from this object. It is not an error if there
- * is no grant matching the passed name.
- *
- * @param jwt Pointer to a JWT object.
- * @param grant String containing the name of the grant to delete.
- * @return Returns 0 on success, valid errno otherwise.
- */
-int jwt_del_grant(jwt_t *jwt, const char *grant);
-
-/**
  * Add grants from a JSON encoded object string.
  *
- * Loads grants from an existing JSON encoded object string (the body
- * portion). Overwrites any existing grants. Should be used on a jwt_new()
- * created JWT object.
+ * Loads a grant from an existing JSON encoded object string. Overwrites
+ * existing grant. If grant is NULL, then the JSON encoded string is
+ * assumed to be a JSON hash of all grants being added and will be merged
+ * into the grant listing.
  *
  * @param jwt Pointer to a JWT object.
  * @param json String containing a JSON encoded object of grants.
  * @return Returns 0 on success, valid errno otherwise.
  */
 int jwt_add_grants_json(jwt_t *jwt, const char *json);
+
+/**
+ * Delete a grant from this JWT object.
+ *
+ * Deletes the named grant from this object. It is not an error if there
+ * is no grant matching the passed name. If grant is NULL, then all grants
+ * are deleted from this JWT.
+ *
+ * @param jwt Pointer to a JWT object.
+ * @param grant String containing the name of the grant to delete. If this
+ *    is NULL, then all grants are deleted.
+ * @return Returns 0 on success, valid errno otherwise.
+ */
+int jwt_del_grants(jwt_t *jwt, const char *grant);
+
+static inline int jwt_del_grant(jwt_t *jwt, const char *grant)
+	__attribute__ ((deprecated));
+
+static inline int jwt_del_grant(jwt_t *jwt, const char *grant)
+{
+	return jwt_del_grants(jwt, grant);
+}
 
 /** @} */
 

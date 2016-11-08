@@ -814,6 +814,28 @@ long jwt_get_grant_int(jwt_t *jwt, const char *grant)
 	return get_js_int(jwt->grants, grant);
 }
 
+char *jwt_get_grants_json(jwt_t *jwt, const char *grant)
+{
+	json_t *js_val = NULL;
+
+	errno = EINVAL;
+
+	if (!jwt)
+		return NULL;
+
+	if (grant && strlen(grant))
+		js_val = json_object_get(jwt->grants, grant);
+	else
+		js_val = jwt->grants;
+
+	if (js_val == NULL)
+		return NULL; // LCOV_EXCL_LINE
+
+	errno = 0;
+
+	return json_dumps(js_val, JSON_SORT_KEYS | JSON_COMPACT | JSON_ENCODE_ANY);
+}
+
 int jwt_add_grant(jwt_t *jwt, const char *grant, const char *val)
 {
 	if (!jwt || !grant || !strlen(grant) || !val)
@@ -844,25 +866,31 @@ int jwt_add_grant_int(jwt_t *jwt, const char *grant, long val)
 
 int jwt_add_grants_json(jwt_t *jwt, const char *json)
 {
-	json_t *grants = json_loads(json, JSON_REJECT_DUPLICATES, NULL);
-	int ret;
+	json_t *js_val;
+	int ret = -1;
 
-	if (grants == NULL)
+	if (!jwt)
 		return EINVAL;
 
-	ret = json_object_update(jwt->grants, grants);
+	js_val = json_loads(json, JSON_REJECT_DUPLICATES, NULL);
 
-	json_decref(grants);
+	if (json_is_object(js_val))
+		ret = json_object_update(jwt->grants, js_val);
+
+	json_decref(js_val);
 
 	return ret ? EINVAL : 0;
 }
 
-int jwt_del_grant(jwt_t *jwt, const char *grant)
+int jwt_del_grants(jwt_t *jwt, const char *grant)
 {
-	if (!jwt || !grant || !strlen(grant))
+	if (!jwt)
 		return EINVAL;
 
-	json_object_del(jwt->grants, grant);
+	if (grant == NULL || !strlen(grant))
+		json_object_clear(jwt->grants);
+	else
+		json_object_del(jwt->grants, grant);
 
 	return 0;
 }
