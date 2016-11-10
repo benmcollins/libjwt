@@ -895,6 +895,9 @@ int jwt_del_grants(jwt_t *jwt, const char *grant)
 	return 0;
 }
 
+int jwt_del_grant(jwt_t *jwt, const char *grant)
+	__attribute__ ((weak, alias ("jwt_del_grants")));
+
 static void jwt_write_bio_head(jwt_t *jwt, BIO *bio, int pretty)
 {
 	BIO_puts(bio, "{");

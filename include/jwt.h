@@ -248,13 +248,8 @@ int jwt_add_grants_json(jwt_t *jwt, const char *json);
  */
 int jwt_del_grants(jwt_t *jwt, const char *grant);
 
-static inline int jwt_del_grant(jwt_t *jwt, const char *grant)
+int jwt_del_grant(jwt_t *jwt, const char *grant)
 	__attribute__ ((deprecated));
-
-static inline int jwt_del_grant(jwt_t *jwt, const char *grant)
-{
-	return jwt_del_grants(jwt, grant);
-}
 
 /** @} */
 
