@@ -895,8 +895,13 @@ int jwt_del_grants(jwt_t *jwt, const char *grant)
 	return 0;
 }
 
-int jwt_del_grant(jwt_t *jwt, const char *grant)
-	__attribute__ ((weak, alias ("jwt_del_grants")));
+#ifdef NO_WEAK_ALIASES
+#define FUNC_ALIAS(sym)
+#else
+#define FUNC_ALIAS(sym) __attribute__ ((weak, alias (#sym)))
+#endif
+
+int jwt_del_grant(jwt_t *jwt, const char *grant) FUNC_ALIAS(jwt_del_grants);
 
 static void jwt_write_bio_head(jwt_t *jwt, BIO *bio, int pretty)
 {
