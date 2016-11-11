@@ -248,6 +248,17 @@ int jwt_add_grants_json(jwt_t *jwt, const char *json);
  */
 int jwt_del_grants(jwt_t *jwt, const char *grant);
 
+/**
+ * @deprecated
+ * Delete a grant from this JWT object.
+ *
+ * Deletes the named grant from this object. It is not an error if there
+ * is no grant matching the passed name.
+ *
+ * @param jwt Pointer to a JWT object.
+ * @param grant String containing the name of the grant to delete.
+ * @return Returns 0 on success, valid errno otherwise.
+ */
 int jwt_del_grant(jwt_t *jwt, const char *grant)
 	__attribute__ ((deprecated));
 
