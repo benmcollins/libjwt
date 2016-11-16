@@ -65,14 +65,14 @@ static const char *jwt_alg_str(jwt_alg_t alg)
 	case JWT_ALG_ES512:
 		return "ES512";
 	default:
-		return NULL; // LCOV_EXCL_LINE
+		return NULL;
 	}
 }
 
 static int jwt_str_alg(jwt_t *jwt, const char *alg)
 {
 	if (alg == NULL)
-		return EINVAL; // LCOV_EXCL_LINE
+		return EINVAL;
 
 	if (!strcasecmp(alg, "none"))
 		jwt->alg = JWT_ALG_NONE;
@@ -134,7 +134,7 @@ int jwt_set_alg(jwt_t *jwt, jwt_alg_t alg, const unsigned char *key, int len)
 
 		jwt->key = malloc(len);
 		if (!jwt->key)
-			return ENOMEM; // LCOV_EXCL_LINE
+			return ENOMEM;
 
 		memcpy(jwt->key, key, len);
 	}
@@ -157,17 +157,15 @@ int jwt_new(jwt_t **jwt)
 
 	*jwt = malloc(sizeof(jwt_t));
 	if (!*jwt)
-		return ENOMEM; // LCOV_EXCL_LINE
+		return ENOMEM;
 
 	memset(*jwt, 0, sizeof(jwt_t));
 
 	(*jwt)->grants = json_object();
 	if (!(*jwt)->grants) {
-		// LCOV_EXCL_START
 		free(*jwt);
 		*jwt = NULL;
 		return ENOMEM;
-		// LCOV_EXCL_STOP
 	}
 
 	return 0;
@@ -198,10 +196,8 @@ jwt_t *jwt_dup(jwt_t *jwt)
 
 	new = malloc(sizeof(jwt_t));
 	if (!new) {
-		// LCOV_EXCL_START
 		errno = ENOMEM;
 		return NULL;
-		// LCOV_EXCL_STOP
 	}
 
 	memset(new, 0, sizeof(jwt_t));
@@ -210,10 +206,8 @@ jwt_t *jwt_dup(jwt_t *jwt)
 		new->alg = jwt->alg;
 		new->key = malloc(jwt->key_len);
 		if (!new->key) {
-			// LCOV_EXCL_START
 			errno = ENOMEM;
 			goto dup_fail;
-			// LCOV_EXCL_STOP
 		}
 		memcpy(new->key, jwt->key, jwt->key_len);
 		new->key_len = jwt->key_len;
@@ -221,7 +215,7 @@ jwt_t *jwt_dup(jwt_t *jwt)
 
 	new->grants = json_deep_copy(jwt->grants);
 	if (!new->grants)
-		errno = ENOMEM; // LCOV_EXCL_LINE
+		errno = ENOMEM;
 
 dup_fail:
 	if (errno) {
@@ -267,7 +261,7 @@ static void *jwt_b64_decode(const char *src, int *ret_len)
 	len = strlen(src);
 	new = alloca(len + 4);
 	if (!new)
-		return NULL; // LCOV_EXCL_LINE
+		return NULL;
 
 	for (i = 0; i < len; i++) {
 		switch (src[i]) {
@@ -292,25 +286,21 @@ static void *jwt_b64_decode(const char *src, int *ret_len)
 	b64 = BIO_new(BIO_f_base64());
 	bmem = BIO_new_mem_buf(new, strlen(new));
 	if (!b64 || !bmem)
-		return NULL; // LCOV_EXCL_LINE
+		return NULL;
 
 	BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
 	BIO_push(b64, bmem);
 
 	len = BIO_pending(b64);
 	if (len <= 0) {
-		// LCOV_EXCL_START
 		BIO_free_all(b64);
 		return NULL;
-		// LCOV_EXCL_STOP
 	}
 
 	buf = malloc(len + 1);
 	if (!buf) {
-		// LCOV_EXCL_START
 		BIO_free_all(b64);
 		return NULL;
-		// LCOV_EXCL_STOP
 	}
 
 	*ret_len = BIO_read(b64, buf, len);
@@ -329,7 +319,7 @@ static json_t *jwt_b64_decode_json(char *src)
 	buf = jwt_b64_decode(src, &len);
 
 	if (buf == NULL)
-		return NULL; // LCOV_EXCL_LINE
+		return NULL;
 
 	buf[len] = '\0';
 
@@ -390,14 +380,12 @@ static int jwt_verify_sha_hmac(jwt_t *jwt, const EVP_MD *alg, const char *head,
 
 	b64 = BIO_new(BIO_f_base64());
 	if (b64 == NULL)
-		return ENOMEM; // LCOV_EXCL_LINE
+		return ENOMEM;
 
 	bmem = BIO_new(BIO_s_mem());
 	if (bmem == NULL) {
-		// LCOV_EXCL_START
 		BIO_free(b64);
 		return ENOMEM;
-		// LCOV_EXCL_STOP
 	}
 
 	BIO_push(b64, bmem);
@@ -412,14 +400,12 @@ static int jwt_verify_sha_hmac(jwt_t *jwt, const EVP_MD *alg, const char *head,
 
 	len = BIO_pending(bmem);
 	if (len < 0)
-		goto jwt_verify_hmac_done; // LCOV_EXCL_LINE
+		goto jwt_verify_hmac_done;
 
 	buf = alloca(len + 1);
 	if (!buf) {
-		// LCOV_EXCL_START
 		ret = ENOMEM;
 		goto jwt_verify_hmac_done;
-		// LCOV_EXCL_STOP
 	}
 
 	len = BIO_read(bmem, buf, len);
@@ -448,10 +434,8 @@ static int jwt_sign_sha_pem(jwt_t *jwt, BIO *out, const EVP_MD *alg,
 
 	bufkey = BIO_new_mem_buf(jwt->key, jwt->key_len);
 	if (bufkey == NULL) {
-		// LCOV_EXCL_START
 		ret = ENOMEM;
 		goto jwt_sign_sha_pem_done;
-		// LCOV_EXCL_STOP
 	}
 
 	/* This uses OpenSSL's default passphrase callback if needed. The
@@ -459,26 +443,24 @@ static int jwt_sign_sha_pem(jwt_t *jwt, BIO *out, const EVP_MD *alg,
 	 * outside of the scope of LibJWT and this is documented in jwt.h. */
 	pkey = PEM_read_bio_PrivateKey(bufkey, NULL, NULL, NULL);
 	if (pkey == NULL)
-		goto jwt_sign_sha_pem_done; // LCOV_EXCL_LINE
+		goto jwt_sign_sha_pem_done;
 
 	if (pkey->type != type)
-		goto jwt_sign_sha_pem_done; // LCOV_EXCL_LINE
+		goto jwt_sign_sha_pem_done;
 
 	mdctx = EVP_MD_CTX_create();
 	if (mdctx == NULL) {
-		// LCOV_EXCL_START
 		return ENOMEM;
 		goto jwt_sign_sha_pem_done;
-		// LCOV_EXCL_STOP
 	}
 
 	/* Initialize the DigestSign operation using alg */
 	if (EVP_DigestSignInit(mdctx, NULL, alg, NULL, pkey) != 1)
-		goto jwt_sign_sha_pem_done; // LCOV_EXCL_LINE
+		goto jwt_sign_sha_pem_done;
 
 	/* Call update with the message */
 	if (EVP_DigestSignUpdate(mdctx, str, strlen(str)) != 1)
-		goto jwt_sign_sha_pem_done; // // LCOV_EXCL_LINE
+		goto jwt_sign_sha_pem_done; //
 
 	/* First, call EVP_DigestSignFinal with a NULL sig parameter to get length
 	 * of sig. Length is returned in slen */
@@ -488,10 +470,8 @@ static int jwt_sign_sha_pem(jwt_t *jwt, BIO *out, const EVP_MD *alg,
 	/* Allocate memory for signature based on returned size */
 	sig = alloca(slen);
 	if (sig == NULL) {
-		// LCOV_EXCL_START
 		ret = ENOMEM;
 		goto jwt_sign_sha_pem_done;
-		// LCOV_EXCL_STOP
 	}
 
 	/* Get the signature */
@@ -525,14 +505,12 @@ static int jwt_verify_sha_pem(jwt_t *jwt, const EVP_MD *alg, int type,
 
 	sig = jwt_b64_decode(sig_b64, &slen);
 	if (sig == NULL)
-		return EINVAL; // LCOV_EXCL_LINE
+		return EINVAL;
 
 	bufkey = BIO_new_mem_buf(jwt->key, jwt->key_len);
 	if (bufkey == NULL) {
-		// LCOV_EXCL_START
 		ret = ENOMEM;
 		goto jwt_verify_sha_pem_done;
-		// LCOV_EXCL_STOP
 	}
 
 	/* This uses OpenSSL's default passphrase callback if needed. The
@@ -540,17 +518,15 @@ static int jwt_verify_sha_pem(jwt_t *jwt, const EVP_MD *alg, int type,
 	 * outside of the scope of LibJWT and this is documented in jwt.h. */
 	pkey = PEM_read_bio_PUBKEY(bufkey, NULL, NULL, NULL);
 	if (pkey == NULL)
-		goto jwt_verify_sha_pem_done; // LCOV_EXCL_LINE
+		goto jwt_verify_sha_pem_done;
 
 	if (pkey->type != type)
-		goto jwt_verify_sha_pem_done; // LCOV_EXCL_LINE
+		goto jwt_verify_sha_pem_done;
 
 	mdctx = EVP_MD_CTX_create();
 	if (mdctx == NULL) {
-		// LCOV_EXCL_START
 		return ENOMEM;
 		goto jwt_verify_sha_pem_done;
-		// LCOV_EXCL_STOP
 	}
 
 	/* Initialize the DigestSign operation using alg */
@@ -615,7 +591,7 @@ static int jwt_sign(jwt_t *jwt, BIO *out, const char *str)
 
 	/* You wut, mate? */
 	default:
-		return EINVAL; // LCOV_EXCL_LINE
+		return EINVAL;
 	}
 }
 
@@ -654,7 +630,7 @@ static int jwt_verify(jwt_t *jwt, const char *head, const char *sig)
 
 	/* You wut, mate? */
 	default:
-		return EINVAL; // LCOV_EXCL_LINE
+		return EINVAL;
 	}
 }
 
@@ -695,7 +671,7 @@ static int jwt_verify_head(jwt_t *jwt, char *head)
 
 		if (jwt->key) {
 			if (jwt->key_len <= 0)
-				ret = EINVAL; // LCOV_EXCL_LINE
+				ret = EINVAL;
 		} else {
 			jwt_scrub_key(jwt);
 		}
@@ -727,7 +703,7 @@ int jwt_decode(jwt_t **jwt, const char *token, const unsigned char *key,
 	*jwt = NULL;
 
 	if (!head)
-		return ENOMEM; // LCOV_EXCL_LINE
+		return ENOMEM;
 
 	/* Find the components. */
 	for (body = head; body[0] != '.'; body++) {
@@ -750,14 +726,14 @@ int jwt_decode(jwt_t **jwt, const char *token, const unsigned char *key,
 	 * header. */
 	ret = jwt_new(&new);
 	if (ret) {
-		goto decode_done; // LCOV_EXCL_LINE
+		goto decode_done;
 	}
 
 	/* Copy the key over for verify_head. */
 	if (key_len) {
 		new->key = malloc(key_len);
 		if (new->key == NULL)
-			goto decode_done; // LCOV_EXCL_LINE
+			goto decode_done;
 		memcpy(new->key, key, key_len);
 		new->key_len = key_len;
 	}
@@ -829,7 +805,7 @@ char *jwt_get_grants_json(jwt_t *jwt, const char *grant)
 		js_val = jwt->grants;
 
 	if (js_val == NULL)
-		return NULL; // LCOV_EXCL_LINE
+		return NULL;
 
 	errno = 0;
 
@@ -995,10 +971,8 @@ char *jwt_dump_str(jwt_t *jwt, int pretty)
 	int len;
 
 	if (!bmem) {
-		// LCOV_EXCL_START
 		errno = ENOMEM;
 		return NULL;
-		// LCOV_EXCL_STOP
 	}
 
 	jwt_dump_bio(jwt, bmem, pretty);
@@ -1006,11 +980,9 @@ char *jwt_dump_str(jwt_t *jwt, int pretty)
 	len = BIO_pending(bmem);
 	out = malloc(len + 1);
 	if (!out) {
-		// LCOV_EXCL_START
 		BIO_free_all(bmem);
 		errno = ENOMEM;
 		return NULL;
-		// LCOV_EXCL_STOP
 	}
 
 	len = BIO_read(bmem, out, len);
@@ -1031,9 +1003,8 @@ static int jwt_encode_bio(jwt_t *jwt, BIO *out)
 	/* Setup the OpenSSL base64 encoder. */
 	b64 = BIO_new(BIO_f_base64());
 	bmem = BIO_new(BIO_s_mem());
-	if (!b64 || !bmem) {
-		return ENOMEM; // LCOV_EXCL_LINE
-	}
+	if (!b64 || !bmem)
+		return ENOMEM;
 
 	BIO_push(b64, bmem);
 	BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
@@ -1049,10 +1020,8 @@ static int jwt_encode_bio(jwt_t *jwt, BIO *out)
 	len = BIO_pending(bmem);
 	buf = alloca(len + 1);
 	if (!buf) {
-		// LCOV_EXCL_START
 		BIO_free_all(b64);
 		return ENOMEM;
-		// LCOV_EXCL_STOP
 	}
 
 	len = BIO_read(bmem, buf, len);
@@ -1123,10 +1092,8 @@ char *jwt_encode_str(jwt_t *jwt)
 	int len;
 
 	if (!bmem) {
-		// LCOV_EXCL_START
 		errno = ENOMEM;
 		return NULL;
-		// LCOV_EXCL_STOP
 	}
 
 	errno = jwt_encode_bio(jwt, bmem);
@@ -1136,10 +1103,8 @@ char *jwt_encode_str(jwt_t *jwt)
 	len = BIO_pending(bmem);
 	str = malloc(len + 1);
 	if (!str) {
-		// LCOV_EXCL_START
 		errno = ENOMEM;
 		goto encode_str_done;
-		// LCOV_EXCL_STOP
 	}
 
 	len = BIO_read(bmem, str, len);
