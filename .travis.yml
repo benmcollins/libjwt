@@ -1,13 +1,13 @@
 dist: trusty
 language: c
-cache: ccache
 compiler:
   - gcc
+  - clang
 before_install:
   - sudo pip install codecov
 install:
   - sudo apt-get update -qq
-  - sudo apt-get install -y -qq libjansson-dev check libssl-dev lcov curl
+  - sudo apt-get install -y -qq libjansson-dev check libssl-dev lcov
 script:
   - autoreconf -i && ./configure --enable-code-coverage && make check-code-coverage
 after_success:
