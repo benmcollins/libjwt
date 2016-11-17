@@ -422,6 +422,8 @@ jwt_verify_hmac_done:
 	return ret;
 }
 
+#define SIGN_ERROR(__err) ({ ret = __err; goto jwt_sign_sha_pem_done; })
+
 static int jwt_sign_sha_pem(jwt_t *jwt, BIO *out, const EVP_MD *alg,
 			    const char *str, int type)
 {
@@ -430,54 +432,48 @@ static int jwt_sign_sha_pem(jwt_t *jwt, BIO *out, const EVP_MD *alg,
 	BIO *bufkey = NULL;
 	EVP_PKEY *pkey = NULL;
 	unsigned char *sig;
-	int ret = EINVAL;
+	int ret = 0;
 	size_t slen;
 
 	bufkey = BIO_new_mem_buf(jwt->key, jwt->key_len);
-	if (bufkey == NULL) {
-		ret = ENOMEM;
-		goto jwt_sign_sha_pem_done;
-	}
+	if (bufkey == NULL)
+		SIGN_ERROR(ENOMEM);
 
 	/* This uses OpenSSL's default passphrase callback if needed. The
 	 * library caller can override this in many ways, all of which are
 	 * outside of the scope of LibJWT and this is documented in jwt.h. */
 	pkey = PEM_read_bio_PrivateKey(bufkey, NULL, NULL, NULL);
 	if (pkey == NULL)
-		goto jwt_sign_sha_pem_done;
+		SIGN_ERROR(EINVAL);
 
 	if (pkey->type != type)
-		goto jwt_sign_sha_pem_done;
+		SIGN_ERROR(EINVAL);
 
 	mdctx = EVP_MD_CTX_create();
-	if (mdctx == NULL) {
-		return ENOMEM;
-		goto jwt_sign_sha_pem_done;
-	}
+	if (mdctx == NULL)
+		SIGN_ERROR(ENOMEM);
 
 	/* Initialize the DigestSign operation using alg */
 	if (EVP_DigestSignInit(mdctx, NULL, alg, NULL, pkey) != 1)
-		goto jwt_sign_sha_pem_done;
+		SIGN_ERROR(EINVAL);
 
 	/* Call update with the message */
 	if (EVP_DigestSignUpdate(mdctx, str, strlen(str)) != 1)
-		goto jwt_sign_sha_pem_done; //
+		SIGN_ERROR(EINVAL);
 
 	/* First, call EVP_DigestSignFinal with a NULL sig parameter to get length
 	 * of sig. Length is returned in slen */
 	if (EVP_DigestSignFinal(mdctx, NULL, &slen) != 1)
-		goto jwt_sign_sha_pem_done;
+		SIGN_ERROR(EINVAL);
 
 	/* Allocate memory for signature based on returned size */
 	sig = alloca(slen);
-	if (sig == NULL) {
-		ret = ENOMEM;
-		goto jwt_sign_sha_pem_done;
-	}
+	if (sig == NULL)
+		SIGN_ERROR(ENOMEM);
 
 	/* Get the signature */
 	if (EVP_DigestSignFinal(mdctx, sig, &slen) != 1)
-		goto jwt_sign_sha_pem_done;
+		SIGN_ERROR(EINVAL);
 
 	if (pkey->type != EVP_PKEY_EC) {
 		BIO_write(out, sig, slen);
@@ -491,10 +487,8 @@ static int jwt_sign_sha_pem(jwt_t *jwt, BIO *out, const EVP_MD *alg,
 
 		/* Get the actual ec_key */
 		ec_key = EVP_PKEY_get1_EC_KEY(pkey);
-		if (ec_key == NULL) {
-			ret = ENOMEM;
-			goto jwt_sign_sha_pem_done;
-		}
+		if (ec_key == NULL)
+			SIGN_ERROR(ENOMEM);
 
 		degree = EC_GROUP_get_degree(EC_KEY_get0_group(ec_key));
 
@@ -502,23 +496,19 @@ static int jwt_sign_sha_pem(jwt_t *jwt, BIO *out, const EVP_MD *alg,
 
 		/* Get the sig from the DER encoded version. */
 		ec_sig = d2i_ECDSA_SIG(NULL, (const unsigned char **)&sig, slen);
-		if (ec_sig == NULL) {
-			ret = ENOMEM;
-			goto jwt_sign_sha_pem_done;
-		}
+		if (ec_sig == NULL)
+			SIGN_ERROR(ENOMEM);
 
 		r_len = BN_num_bytes(ec_sig->r);
 		s_len = BN_num_bytes(ec_sig->s);
 		bn_len = (degree + 7) / 8;
 		if ((r_len > bn_len) || (s_len > bn_len))
-			goto jwt_sign_sha_pem_done;
+			SIGN_ERROR(EINVAL);
 
 		buf_len = 2 * bn_len;
 		raw_buf = alloca(buf_len);
-		if (raw_buf == NULL) {
-			ret = ENOMEM;
-			goto jwt_sign_sha_pem_done;
-		}
+		if (raw_buf == NULL)
+			SIGN_ERROR(ENOMEM);
 
 		/* Pad the bignums with leading zeroes. */
 		memset(raw_buf, 0, buf_len);
@@ -528,8 +518,6 @@ static int jwt_sign_sha_pem(jwt_t *jwt, BIO *out, const EVP_MD *alg,
 		BIO_write(out, raw_buf, buf_len);
 		BIO_flush(out);
 	}
-
-	ret = 0;
 
 jwt_sign_sha_pem_done:
 	if (bufkey)
@@ -544,36 +532,36 @@ jwt_sign_sha_pem_done:
 	return ret;
 }
 
+#define VERIFY_ERROR(__err) ({ ret = __err; goto jwt_verify_sha_pem_done; })
+
 static int jwt_verify_sha_pem(jwt_t *jwt, const EVP_MD *alg, int type,
 			      const char *head, const char *sig_b64)
 {
+	unsigned char *sig = NULL;
 	EVP_MD_CTX *mdctx = NULL;
 	ECDSA_SIG *ec_sig = NULL;
-	BIO *bufkey = NULL;
 	EVP_PKEY *pkey = NULL;
-	int ret = EINVAL;
-	unsigned char *sig = NULL;
+	BIO *bufkey = NULL;
+	int ret = 0;
 	int slen;
 
 	sig = jwt_b64_decode(sig_b64, &slen);
 	if (sig == NULL)
-		return EINVAL;
+		VERIFY_ERROR(EINVAL);
 
 	bufkey = BIO_new_mem_buf(jwt->key, jwt->key_len);
-	if (bufkey == NULL) {
-		ret = ENOMEM;
-		goto jwt_verify_sha_pem_done;
-	}
+	if (bufkey == NULL)
+		VERIFY_ERROR(ENOMEM);
 
 	/* This uses OpenSSL's default passphrase callback if needed. The
 	 * library caller can override this in many ways, all of which are
 	 * outside of the scope of LibJWT and this is documented in jwt.h. */
 	pkey = PEM_read_bio_PUBKEY(bufkey, NULL, NULL, NULL);
 	if (pkey == NULL)
-		goto jwt_verify_sha_pem_done;
+		VERIFY_ERROR(EINVAL);
 
 	if (pkey->type != type)
-		goto jwt_verify_sha_pem_done;
+		VERIFY_ERROR(EINVAL);
 
 	/* Convert EC sigs back to ASN1. */
 	if (pkey->type == EVP_PKEY_EC) {
@@ -582,17 +570,13 @@ static int jwt_verify_sha_pem(jwt_t *jwt, const EVP_MD *alg, int type,
 		EC_KEY *ec_key;
 
 		ec_sig = ECDSA_SIG_new();
-		if (ec_sig == NULL) {
-			ret = ENOMEM;
-			goto jwt_verify_sha_pem_done;
-		}
+		if (ec_sig == NULL)
+			VERIFY_ERROR(ENOMEM);
 
 		/* Get the actual ec_key */
 		ec_key = EVP_PKEY_get1_EC_KEY(pkey);
-		if (ec_key == NULL) {
-			ret = ENOMEM;
-			goto jwt_verify_sha_pem_done;
-		}
+		if (ec_key == NULL)
+			VERIFY_ERROR(ENOMEM);
 
 		degree = EC_GROUP_get_degree(EC_KEY_get0_group(ec_key));
 
@@ -600,46 +584,41 @@ static int jwt_verify_sha_pem(jwt_t *jwt, const EVP_MD *alg, int type,
 
 		bn_len = (degree + 7) / 8;
 		if ((bn_len * 2) != slen)
-			goto jwt_verify_sha_pem_done;
+			VERIFY_ERROR(EINVAL);
 
 		if ((BN_bin2bn(sig, bn_len, ec_sig->r) == NULL) ||
 		    (BN_bin2bn(sig + bn_len, bn_len, ec_sig->s) == NULL))
-			goto jwt_verify_sha_pem_done;
+			VERIFY_ERROR(EINVAL);
 
 		free(sig);
 
 		slen = i2d_ECDSA_SIG(ec_sig, NULL);
 		sig = malloc(slen);
-		if (sig == NULL) {
-			ret = ENOMEM;
-			goto jwt_verify_sha_pem_done;
-		}
+		if (sig == NULL)
+			VERIFY_ERROR(ENOMEM);
+
 		p = sig;
 		slen = i2d_ECDSA_SIG(ec_sig, &p);
 
 		if (slen == 0)
-			goto jwt_verify_sha_pem_done;
+			VERIFY_ERROR(EINVAL);
 	}
 
 	mdctx = EVP_MD_CTX_create();
-	if (mdctx == NULL) {
-		return ENOMEM;
-		goto jwt_verify_sha_pem_done;
-	}
+	if (mdctx == NULL)
+		VERIFY_ERROR(ENOMEM);
 
 	/* Initialize the DigestVerify operation using alg */
 	if (EVP_DigestVerifyInit(mdctx, NULL, alg, NULL, pkey) != 1)
-		goto jwt_verify_sha_pem_done;
+		VERIFY_ERROR(EINVAL);
 
 	/* Call update with the message */
 	if (EVP_DigestVerifyUpdate(mdctx, head, strlen(head)) != 1)
-		goto jwt_verify_sha_pem_done;
+		VERIFY_ERROR(EINVAL);
 
 	/* Now check the sig for validity. */
 	if (EVP_DigestVerifyFinal(mdctx, sig, slen) != 1)
-		goto jwt_verify_sha_pem_done;
-
-	ret = 0;
+		VERIFY_ERROR(EINVAL);
 
 jwt_verify_sha_pem_done:
 	if (bufkey)
