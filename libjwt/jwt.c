@@ -426,6 +426,7 @@ static int jwt_sign_sha_pem(jwt_t *jwt, BIO *out, const EVP_MD *alg,
 			    const char *str, int type)
 {
 	EVP_MD_CTX *mdctx = NULL;
+	ECDSA_SIG *ec_sig = NULL;
 	BIO *bufkey = NULL;
 	EVP_PKEY *pkey = NULL;
 	unsigned char *sig;
@@ -475,12 +476,60 @@ static int jwt_sign_sha_pem(jwt_t *jwt, BIO *out, const EVP_MD *alg,
 	}
 
 	/* Get the signature */
-	if (EVP_DigestSignFinal(mdctx, sig, &slen) == 1) {
+	if (EVP_DigestSignFinal(mdctx, sig, &slen) != 1)
+		goto jwt_sign_sha_pem_done;
+
+	if (pkey->type != EVP_PKEY_EC) {
 		BIO_write(out, sig, slen);
 		BIO_flush(out);
+	} else {
+		unsigned int degree, bn_len, r_len, s_len, buf_len;
+		unsigned char *raw_buf;
+		EC_KEY *ec_key;
 
-		ret = 0;
+		/* For EC we need to convert to a raw format of R/S. */
+
+		/* Get the actual ec_key */
+		ec_key = EVP_PKEY_get1_EC_KEY(pkey);
+		if (ec_key == NULL) {
+			ret = ENOMEM;
+			goto jwt_sign_sha_pem_done;
+		}
+
+		degree = EC_GROUP_get_degree(EC_KEY_get0_group(ec_key));
+
+		EC_KEY_free(ec_key);
+
+		/* Get the sig from the DER encoded version. */
+		ec_sig = d2i_ECDSA_SIG(NULL, (const unsigned char **)&sig, slen);
+		if (ec_sig == NULL) {
+			ret = ENOMEM;
+			goto jwt_sign_sha_pem_done;
+		}
+
+		r_len = BN_num_bytes(ec_sig->r);
+		s_len = BN_num_bytes(ec_sig->s);
+		bn_len = (degree + 7) / 8;
+		if ((r_len > bn_len) || (s_len > bn_len))
+			goto jwt_sign_sha_pem_done;
+
+		buf_len = 2 * bn_len;
+		raw_buf = alloca(buf_len);
+		if (raw_buf == NULL) {
+			ret = ENOMEM;
+			goto jwt_sign_sha_pem_done;
+		}
+
+		/* Pad the bignums with leading zeroes. */
+		memset(raw_buf, 0, buf_len);
+		BN_bn2bin(ec_sig->r, raw_buf + bn_len - r_len);
+		BN_bn2bin(ec_sig->s, raw_buf + buf_len - s_len);
+
+		BIO_write(out, raw_buf, buf_len);
+		BIO_flush(out);
 	}
+
+	ret = 0;
 
 jwt_sign_sha_pem_done:
 	if (bufkey)
@@ -489,6 +538,8 @@ jwt_sign_sha_pem_done:
 		EVP_PKEY_free(pkey);
 	if (mdctx)
 		EVP_MD_CTX_destroy(mdctx);
+	if (ec_sig)
+		ECDSA_SIG_free(ec_sig);
 
 	return ret;
 }
@@ -497,6 +548,7 @@ static int jwt_verify_sha_pem(jwt_t *jwt, const EVP_MD *alg, int type,
 			      const char *head, const char *sig_b64)
 {
 	EVP_MD_CTX *mdctx = NULL;
+	ECDSA_SIG *ec_sig = NULL;
 	BIO *bufkey = NULL;
 	EVP_PKEY *pkey = NULL;
 	int ret = EINVAL;
@@ -523,13 +575,59 @@ static int jwt_verify_sha_pem(jwt_t *jwt, const EVP_MD *alg, int type,
 	if (pkey->type != type)
 		goto jwt_verify_sha_pem_done;
 
+	/* Convert EC sigs back to ASN1. */
+	if (pkey->type == EVP_PKEY_EC) {
+		unsigned int degree, bn_len;
+		unsigned char *p;
+		EC_KEY *ec_key;
+
+		ec_sig = ECDSA_SIG_new();
+		if (ec_sig == NULL) {
+			ret = ENOMEM;
+			goto jwt_verify_sha_pem_done;
+		}
+
+		/* Get the actual ec_key */
+		ec_key = EVP_PKEY_get1_EC_KEY(pkey);
+		if (ec_key == NULL) {
+			ret = ENOMEM;
+			goto jwt_verify_sha_pem_done;
+		}
+
+		degree = EC_GROUP_get_degree(EC_KEY_get0_group(ec_key));
+
+		EC_KEY_free(ec_key);
+
+		bn_len = (degree + 7) / 8;
+		if ((bn_len * 2) != slen)
+			goto jwt_verify_sha_pem_done;
+
+		if ((BN_bin2bn(sig, bn_len, ec_sig->r) == NULL) ||
+		    (BN_bin2bn(sig + bn_len, bn_len, ec_sig->s) == NULL))
+			goto jwt_verify_sha_pem_done;
+
+		free(sig);
+
+		slen = i2d_ECDSA_SIG(ec_sig, NULL);
+		sig = malloc(slen);
+		if (sig == NULL) {
+			ret = ENOMEM;
+			goto jwt_verify_sha_pem_done;
+		}
+		p = sig;
+		slen = i2d_ECDSA_SIG(ec_sig, &p);
+
+		if (slen == 0)
+			goto jwt_verify_sha_pem_done;
+	}
+
 	mdctx = EVP_MD_CTX_create();
 	if (mdctx == NULL) {
 		return ENOMEM;
 		goto jwt_verify_sha_pem_done;
 	}
 
-	/* Initialize the DigestSign operation using alg */
+	/* Initialize the DigestVerify operation using alg */
 	if (EVP_DigestVerifyInit(mdctx, NULL, alg, NULL, pkey) != 1)
 		goto jwt_verify_sha_pem_done;
 
@@ -552,6 +650,8 @@ jwt_verify_sha_pem_done:
 		EVP_MD_CTX_destroy(mdctx);
 	if (sig)
 		free(sig);
+	if (ec_sig)
+		ECDSA_SIG_free(ec_sig);
 
 	return ret;
 }

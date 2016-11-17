@@ -38,21 +38,21 @@ static size_t key_len;
 
 static const char jwt_es256[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJpYXQ"
 	"iOjE0NzU5ODA1NDUsImlzcyI6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJYWFhYLVl"
-	"ZWVktWlpaWi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.MGUCMDcTinTzaUqN6jJbuM"
-	"UhblNtKxh52Uvizp-ZthLxNBsFSyg89tNaWzIFfynD2viXLAIxALFqdIR-fsKQJ8y06r"
-	"OSj1yxcw2twqduswpa8VnHB2Qcn4kBkxBaCnbaSo3yy4I1nA";
+	"ZWVktWlpaWi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.3AA32Mn5dMuJXxe03mxJcT"
+	"fmif1eiv_doUCSVuMgny4DLKIZ3956SIGjeJpj3BSx2Lul7Zwy-PPuxyBwnL1jiWp7iw"
+	"PN9G9tV75ylfWvcwkF20bQA9m1vDbUIl8PIK8Q";
 
 static const char jwt_es384[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzM4NCJ9.eyJpYXQ"
 	"iOjE0NzU5ODA1NDUsImlzcyI6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJYWFhYLVl"
-	"ZWVktWlpaWi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.MGQCMFdCggQWGPQZLuAGW-"
-	"cuJbAegd0Bo-lJS9cfHe8PF9cpKgh4DrX6D-pjfhf2qxN58gIwbV-0tsgbF9Ljpsu2xl"
-	"xRNsrZO7Mm1BGH4l3gjL1tc7aiQ5oIGi1FdEtNX0KqrtZf";
+	"ZWVktWlpaWi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.p6McjolhuIqel0DWaI2OrD"
+	"oRYcxgSMnGFirdKT5jXpe9L801HBkouKBJSae8F7LLFUKiE2VVX_514WzkuExLQs2eB1"
+	"L2Qahid5VFOK3hc7HcBL-rcCXa8d2tf_MudyrM";
 
 static const char jwt_es512[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzUxMiJ9.eyJpYXQ"
 	"iOjE0NzU5ODA1NDUsImlzcyI6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJYWFhYLVl"
-	"ZWVktWlpaWi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.MGUCMQCX1zxKAi7Ijmrb8G"
-	"DBZigPhejTGyxjfYCZAtnmOmTPcyIfKe_3dSn7A1tP_hGJyOICMDTXqoq5EhveSSPfjI"
-	"01t6qmd8H9lyPfyiBXuBVEjmyLfePZDhCtS15EgcHuGExr0A";
+	"ZWVktWlpaWi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9._i6CCfwqgk9IEFbKjNL8Ki"
+	"tPT9NEnXn2-qCSq0UgqkZ3sY-R0cnzD-WzpsEA8QWC882Y-SWwN7qVxK9e45pHUy4jye"
+	"YKXJj3agq9tZ61V3TM-BjcnMkERsV37nDQcfom";
 
 static void read_key(const char *key_file)
 {
