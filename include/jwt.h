@@ -23,6 +23,8 @@
 #ifndef JWT_H
 #define JWT_H
 
+#include <stdio.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
