@@ -167,6 +167,24 @@ const char *jwt_get_grant(jwt_t *jwt, const char *grant);
 long jwt_get_grant_int(jwt_t *jwt, const char *grant);
 
 /**
+ * Return the value of a boolean grant.
+ *
+ * Returns the boolean value for a grant as an int (e.g. "flag"). 0 is returned
+ * for 'false' and 1 is returned for 'true'. If it does not exist, -1 will be
+ * returned.
+ *
+ * @param jwt Pointer to a JWT object.
+ * @param grant String containing the name of the grant to return a value
+ *     for.
+ * @return Returns an int for the value (0 or 1), or -1 when not found.
+ *
+ * Note, this will only return grants with JSON boolean values. Use
+ * jwt_get_grant_json() to get the JSON representation of more complex
+ * values (e.g. arrays) or use jwt_get_grant() to get string values.
+ */
+int jwt_get_grant_bool(jwt_t *jwt, const char *grant);
+
+/**
  * Return the value of a grant as JSON encoded object string.
  *
  * Returns the JSON encoded string value for a grant (e.g. "iss"). If it
@@ -219,6 +237,26 @@ int jwt_add_grant(jwt_t *jwt, const char *grant, const char *val);
  * complex grants (e.g. an array), then use jwt_add_grants_json().
  */
 int jwt_add_grant_int(jwt_t *jwt, const char *grant, long val);
+
+/**
+ * Add a new boolean grant to this JWT object.
+ *
+ * Creates a new grant for this object. The string for grant
+ * is copied internally, so do not require that the pointer or string
+ * remain valid for the lifetime of this object. It is an error if you
+ * try to add a grant that already exists.
+ *
+ * @param jwt Pointer to a JWT object.
+ * @param grant String containing the name of the grant to add.
+ * @param val int containing the boolean value to be saved for grant. If this
+ * is non-zero, true will be set and for zero, false will be set.
+ * @return Returns 0 on success, valid errno otherwise.
+ *
+ * Note, this only allows for integer based grants. If you wish to add
+ * string grants, then use jwt_add_grant(). If you wish to add more
+ * complex grants (e.g. an array), then use jwt_add_grants_json().
+ */
+int jwt_add_grant_bool(jwt_t *jwt, const char *grant, int val);
 
 /**
  * Add grants from a JSON encoded object string.
