@@ -6,7 +6,7 @@
 
 ## Build Requirements
 
-- https://github.com/akheron/jansson
+- json (or json-c)
 - OpenSSL
 
 ## Documentation

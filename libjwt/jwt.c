@@ -25,7 +25,8 @@
 #include <openssl/buffer.h>
 #include <openssl/pem.h>
 
-#include <jansson.h>
+#include <json-c/json.h>
+#include <json-c/json_object.h>
 
 #include <jwt.h>
 
@@ -37,7 +38,7 @@ struct jwt {
 	jwt_alg_t alg;
 	unsigned char *key;
 	int key_len;
-	json_t *grants;
+	struct json_object *grants;
 };
 
 static const char *jwt_alg_str(jwt_alg_t alg)
@@ -160,7 +161,7 @@ int jwt_new(jwt_t **jwt)
 
 	memset(*jwt, 0, sizeof(jwt_t));
 
-	(*jwt)->grants = json_object();
+	(*jwt)->grants = json_object_new_object();
 	if (!(*jwt)->grants) {
 		free(*jwt);
 		*jwt = NULL;
@@ -177,7 +178,7 @@ void jwt_free(jwt_t *jwt)
 
 	jwt_scrub_key(jwt);
 
-	json_decref(jwt->grants);
+	json_object_put(jwt->grants);
 
 	free(jwt);
 }
@@ -212,7 +213,7 @@ jwt_t *jwt_dup(jwt_t *jwt)
 		new->key_len = jwt->key_len;
 	}
 
-	new->grants = json_deep_copy(jwt->grants);
+	new->grants = json_tokener_parse(json_object_to_json_string(jwt->grants));
 	if (!new->grants)
 		errno = ENOMEM;
 
@@ -225,26 +226,27 @@ dup_fail:
 	return new;
 }
 
-static const char *get_js_string(json_t *js, const char *key)
+static const char *get_js_string(struct json_object *js, const char *key)
 {
-	const char *val = NULL;
-	json_t *js_val;
+	char *val = NULL;
+	struct json_object *js_val;
 
-	js_val = json_object_get(js, key);
+	json_object_object_get_ex(js, key, &js_val);
+
 	if (js_val)
-		val = json_string_value(js_val);
+		val = json_object_get_string(js_val);
 
 	return val;
 }
 
-static long get_js_int(json_t *js, const char *key)
+static long get_js_int(struct json_object *js, const char *key)
 {
 	long val = -1;
-	json_t *js_val;
+	struct json_object *js_val;
 
-	js_val = json_object_get(js, key);
+	json_object_object_get_ex(js, key, &js_val);
 	if (js_val)
-		val = (long)json_integer_value(js_val);
+		val = (long)json_object_get_int64(js_val);
 
 	return val;
 }
@@ -309,9 +311,9 @@ static void *jwt_b64_decode(const char *src, int *ret_len)
 }
 
 
-static json_t *jwt_b64_decode_json(char *src)
+static struct json_object *jwt_b64_decode_json(char *src)
 {
-	json_t *js;
+	struct json_object *js;
 	char *buf;
 	int len;
 
@@ -322,7 +324,7 @@ static json_t *jwt_b64_decode_json(char *src)
 
 	buf[len] = '\0';
 
-	js = json_loads(buf, 0, NULL);
+	js = json_tokener_parse(buf);
 
 	free(buf);
 
@@ -715,7 +717,7 @@ static int jwt_verify(jwt_t *jwt, const char *head, const char *sig)
 static int jwt_parse_body(jwt_t *jwt, char *body)
 {
 	if (jwt->grants) {
-		json_decref(jwt->grants);
+		json_object_put(jwt->grants);
 		jwt->grants = NULL;
 	}
 
@@ -728,7 +730,7 @@ static int jwt_parse_body(jwt_t *jwt, char *body)
 
 static int jwt_verify_head(jwt_t *jwt, char *head)
 {
-	json_t *js = NULL;
+	struct json_object *js = NULL;
 	const char *val;
 	int ret;
 
@@ -762,7 +764,7 @@ static int jwt_verify_head(jwt_t *jwt, char *head)
 
 verify_head_done:
 	if (js)
-		json_decref(js);
+		json_object_put(js);
 
 	return ret;
 }
@@ -870,7 +872,7 @@ long jwt_get_grant_int(jwt_t *jwt, const char *grant)
 
 char *jwt_get_grants_json(jwt_t *jwt, const char *grant)
 {
-	json_t *js_val = NULL;
+	struct json_object *js_val = NULL;
 
 	errno = EINVAL;
 
@@ -878,7 +880,7 @@ char *jwt_get_grants_json(jwt_t *jwt, const char *grant)
 		return NULL;
 
 	if (grant && strlen(grant))
-		js_val = json_object_get(jwt->grants, grant);
+		json_object_object_get_ex(jwt->grants, grant, &js_val);
 	else
 		js_val = jwt->grants;
 
@@ -887,7 +889,7 @@ char *jwt_get_grants_json(jwt_t *jwt, const char *grant)
 
 	errno = 0;
 
-	return json_dumps(js_val, JSON_SORT_KEYS | JSON_COMPACT | JSON_ENCODE_ANY);
+	return json_object_to_json_string_ext(js_val, JSON_C_TO_STRING_PRETTY);
 }
 
 int jwt_add_grant(jwt_t *jwt, const char *grant, const char *val)
@@ -898,8 +900,9 @@ int jwt_add_grant(jwt_t *jwt, const char *grant, const char *val)
 	if (get_js_string(jwt->grants, grant) != NULL)
 		return EEXIST;
 
-	if (json_object_set_new(jwt->grants, grant, json_string(val)))
-		return EINVAL;
+	struct json_object *value = json_object_new_string(val);
+
+	json_object_object_add(jwt->grants, grant, value);
 
 	return 0;
 }
@@ -912,29 +915,37 @@ int jwt_add_grant_int(jwt_t *jwt, const char *grant, long val)
 	if (get_js_int(jwt->grants, grant) != -1)
 		return EEXIST;
 
-	if (json_object_set_new(jwt->grants, grant, json_integer((json_int_t)val)))
-		return EINVAL;
+	struct json_object *value = json_object_new_int64(val);
+	json_object_object_add(jwt->grants, grant, value);
 
 	return 0;
 }
 
-int jwt_add_grants_json(jwt_t *jwt, const char *json)
+/*int jwt_add_grants_json(jwt_t *jwt, const char *json)
 {
-	json_t *js_val;
-	int ret = -1;
-
 	if (!jwt)
 		return EINVAL;
 
-	js_val = json_loads(json, JSON_REJECT_DUPLICATES, NULL);
+	struct json_object_iterator it;
+	struct json_object_iterator itEnd;
+	struct json_object *obj;
 
-	if (json_is_object(js_val))
-		ret = json_object_update(jwt->grants, js_val);
+	obj = json_tokener_parse(json);
 
-	json_decref(js_val);
+	it = json_object_iter_begin(obj);
+	itEnd = json_object_iter_end(obj);
 
-	return ret ? EINVAL : 0;
-}
+	while (!json_object_iter_equal(&it, &itEnd)) {
+
+		json_object_object_add(jwt->grants, json_object_iter_peek_name(&it), json_object_iter_peek_value(&it));
+
+	    json_object_iter_next(&it);
+	}
+
+	json_object_put(obj);
+
+	return 0;
+}*/
 
 int jwt_del_grants(jwt_t *jwt, const char *grant)
 {
@@ -942,9 +953,9 @@ int jwt_del_grants(jwt_t *jwt, const char *grant)
 		return EINVAL;
 
 	if (grant == NULL || !strlen(grant))
-		json_object_clear(jwt->grants);
+		json_object_put(jwt->grants);
 	else
-		json_object_del(jwt->grants, grant);
+		json_object_object_del(jwt->grants, grant);
 
 	return 0;
 }
@@ -998,21 +1009,19 @@ static void jwt_write_bio_head(jwt_t *jwt, BIO *bio, int pretty)
 static void jwt_write_bio_body(jwt_t *jwt, BIO *bio, int pretty)
 {
 	/* Sort keys for repeatability */
-	size_t flags = JSON_SORT_KEYS;
-	char *serial;
+	size_t flags = JSON_C_TO_STRING_PLAIN;
+	const char *serial;
 
 	if (pretty) {
 		BIO_puts(bio, "\n");
-		flags |= JSON_INDENT(4);
+		flags |= JSON_C_TO_STRING_PRETTY;
 	} else {
-		flags |= JSON_COMPACT;
+		flags |= JSON_C_TO_STRING_PLAIN;
 	}
 
-	serial = json_dumps(jwt->grants, flags);
+	serial = json_object_to_json_string_ext(jwt->grants, flags);
 
 	BIO_puts(bio, serial);
-
-	free(serial);
 
 	if (pretty)
 		BIO_puts(bio, "\n");

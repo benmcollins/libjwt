@@ -234,7 +234,7 @@ int jwt_add_grant_int(jwt_t *jwt, const char *grant, long val);
  * @param json String containing a JSON encoded object of grants.
  * @return Returns 0 on success, valid errno otherwise.
  */
-int jwt_add_grants_json(jwt_t *jwt, const char *json);
+//int jwt_add_grants_json(jwt_t *jwt, const char *json);
 
 /**
  * Delete a grant from this JWT object.
