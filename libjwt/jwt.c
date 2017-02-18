@@ -741,10 +741,10 @@ static int jwt_verify_head(jwt_t *jwt, char *head)
 	if (ret)
 		goto verify_head_done;
 
-	/* If alg is not NONE, there should be a typ. */
 	if (jwt->alg != JWT_ALG_NONE) {
+		/* If alg is not NONE, there may be a typ. */
 		val = get_js_string(js, "typ");
-		if (!val || strcasecmp(val, "JWT"))
+		if (val && strcasecmp(val, "JWT"))
 			ret = EINVAL;
 
 		if (jwt->key) {
