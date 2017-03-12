@@ -528,9 +528,8 @@ static int jwt_sign_sha_pem(jwt_t *jwt, BIO *out, const EVP_MD *alg,
 		ec_sig = d2i_ECDSA_SIG(NULL, (const unsigned char **)&sig, slen);
 		if (ec_sig == NULL)
 			SIGN_ERROR(ENOMEM);
-		else
-			ECDSA_SIG_get0(ec_sig, &ec_sig_r, &ec_sig_s);
 
+		ECDSA_SIG_get0(ec_sig, &ec_sig_r, &ec_sig_s);
 		r_len = BN_num_bytes(ec_sig_r);
 		s_len = BN_num_bytes(ec_sig_s);
 		bn_len = (degree + 7) / 8;
@@ -594,9 +593,8 @@ static int jwt_verify_sha_pem(jwt_t *jwt, const EVP_MD *alg, int type,
 	pkey = PEM_read_bio_PUBKEY(bufkey, NULL, NULL, NULL);
 	if (pkey == NULL)
 		VERIFY_ERROR(EINVAL);
-	else
-		pkey_type = EVP_PKEY_id(pkey);
 
+	pkey_type = EVP_PKEY_id(pkey);
 	if (pkey_type != type)
 		VERIFY_ERROR(EINVAL);
 
@@ -627,9 +625,8 @@ static int jwt_verify_sha_pem(jwt_t *jwt, const EVP_MD *alg, int type,
 		ec_sig_s = BN_bin2bn(sig + bn_len, bn_len, NULL);
 		if (ec_sig_r  == NULL || ec_sig_s == NULL)
 			VERIFY_ERROR(EINVAL);
-		else
-			ECDSA_SIG_set0(ec_sig, ec_sig_r, ec_sig_s);
 
+		ECDSA_SIG_set0(ec_sig, ec_sig_r, ec_sig_s);
 		free(sig);
 
 		slen = i2d_ECDSA_SIG(ec_sig, NULL);
