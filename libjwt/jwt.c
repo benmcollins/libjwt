@@ -33,6 +33,32 @@
 #include "config.h"
 #endif
 
+/* functions to make libjwt backward compatible with OpenSSL version < 1.1.0
+ * See https://wiki.openssl.org/index.php/1.1_API_Changes
+ */
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+
+static void ECDSA_SIG_get0(const ECDSA_SIG *sig, const BIGNUM **pr, const BIGNUM **ps)
+{
+   if (pr != NULL)
+       *pr = sig->r;
+   if (ps != NULL)
+       *ps = sig->s;
+}
+
+static int ECDSA_SIG_set0(ECDSA_SIG *sig, BIGNUM *r, BIGNUM *s)
+{
+   if (r == NULL || s == NULL)
+       return 0;
+   BN_clear_free(sig->r);
+   BN_clear_free(sig->s);
+   sig->r = r;
+   sig->s = s;
+   return 1;
+}
+
+#endif
+
 struct jwt {
 	jwt_alg_t alg;
 	unsigned char *key;
@@ -428,8 +454,11 @@ static int jwt_sign_sha_pem(jwt_t *jwt, BIO *out, const EVP_MD *alg,
 {
 	EVP_MD_CTX *mdctx = NULL;
 	ECDSA_SIG *ec_sig = NULL;
+	const BIGNUM *ec_sig_r = NULL;
+	const BIGNUM *ec_sig_s = NULL;
 	BIO *bufkey = NULL;
 	EVP_PKEY *pkey = NULL;
+	int pkey_type;
 	unsigned char *sig;
 	int ret = 0;
 	size_t slen;
@@ -445,7 +474,8 @@ static int jwt_sign_sha_pem(jwt_t *jwt, BIO *out, const EVP_MD *alg,
 	if (pkey == NULL)
 		SIGN_ERROR(EINVAL);
 
-	if (pkey->type != type)
+	pkey_type = EVP_PKEY_id(pkey);
+	if (pkey_type != type)
 		SIGN_ERROR(EINVAL);
 
 	mdctx = EVP_MD_CTX_create();
@@ -474,7 +504,7 @@ static int jwt_sign_sha_pem(jwt_t *jwt, BIO *out, const EVP_MD *alg,
 	if (EVP_DigestSignFinal(mdctx, sig, &slen) != 1)
 		SIGN_ERROR(EINVAL);
 
-	if (pkey->type != EVP_PKEY_EC) {
+	if (pkey_type != EVP_PKEY_EC) {
 		BIO_write(out, sig, slen);
 		BIO_flush(out);
 	} else {
@@ -498,8 +528,9 @@ static int jwt_sign_sha_pem(jwt_t *jwt, BIO *out, const EVP_MD *alg,
 		if (ec_sig == NULL)
 			SIGN_ERROR(ENOMEM);
 
-		r_len = BN_num_bytes(ec_sig->r);
-		s_len = BN_num_bytes(ec_sig->s);
+		ECDSA_SIG_get0(ec_sig, &ec_sig_r, &ec_sig_s);
+		r_len = BN_num_bytes(ec_sig_r);
+		s_len = BN_num_bytes(ec_sig_s);
 		bn_len = (degree + 7) / 8;
 		if ((r_len > bn_len) || (s_len > bn_len))
 			SIGN_ERROR(EINVAL);
@@ -511,8 +542,8 @@ static int jwt_sign_sha_pem(jwt_t *jwt, BIO *out, const EVP_MD *alg,
 
 		/* Pad the bignums with leading zeroes. */
 		memset(raw_buf, 0, buf_len);
-		BN_bn2bin(ec_sig->r, raw_buf + bn_len - r_len);
-		BN_bn2bin(ec_sig->s, raw_buf + buf_len - s_len);
+		BN_bn2bin(ec_sig_r, raw_buf + bn_len - r_len);
+		BN_bn2bin(ec_sig_s, raw_buf + buf_len - s_len);
 
 		BIO_write(out, raw_buf, buf_len);
 		BIO_flush(out);
@@ -539,7 +570,10 @@ static int jwt_verify_sha_pem(jwt_t *jwt, const EVP_MD *alg, int type,
 	unsigned char *sig = NULL;
 	EVP_MD_CTX *mdctx = NULL;
 	ECDSA_SIG *ec_sig = NULL;
+	BIGNUM *ec_sig_r = NULL;
+	BIGNUM *ec_sig_s = NULL;
 	EVP_PKEY *pkey = NULL;
+	int pkey_type;
 	BIO *bufkey = NULL;
 	int ret = 0;
 	int slen;
@@ -559,11 +593,12 @@ static int jwt_verify_sha_pem(jwt_t *jwt, const EVP_MD *alg, int type,
 	if (pkey == NULL)
 		VERIFY_ERROR(EINVAL);
 
-	if (pkey->type != type)
+	pkey_type = EVP_PKEY_id(pkey);
+	if (pkey_type != type)
 		VERIFY_ERROR(EINVAL);
 
 	/* Convert EC sigs back to ASN1. */
-	if (pkey->type == EVP_PKEY_EC) {
+	if (pkey_type == EVP_PKEY_EC) {
 		unsigned int degree, bn_len;
 		unsigned char *p;
 		EC_KEY *ec_key;
@@ -585,10 +620,12 @@ static int jwt_verify_sha_pem(jwt_t *jwt, const EVP_MD *alg, int type,
 		if ((bn_len * 2) != slen)
 			VERIFY_ERROR(EINVAL);
 
-		if ((BN_bin2bn(sig, bn_len, ec_sig->r) == NULL) ||
-		    (BN_bin2bn(sig + bn_len, bn_len, ec_sig->s) == NULL))
+		ec_sig_r = BN_bin2bn(sig, bn_len, NULL);
+		ec_sig_s = BN_bin2bn(sig + bn_len, bn_len, NULL);
+		if (ec_sig_r  == NULL || ec_sig_s == NULL)
 			VERIFY_ERROR(EINVAL);
 
+		ECDSA_SIG_set0(ec_sig, ec_sig_r, ec_sig_s);
 		free(sig);
 
 		slen = i2d_ECDSA_SIG(ec_sig, NULL);
