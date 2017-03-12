@@ -473,9 +473,8 @@ static int jwt_sign_sha_pem(jwt_t *jwt, BIO *out, const EVP_MD *alg,
 	pkey = PEM_read_bio_PrivateKey(bufkey, NULL, NULL, NULL);
 	if (pkey == NULL)
 		SIGN_ERROR(EINVAL);
-	else
-		pkey_type = EVP_PKEY_id(pkey);
 
+	pkey_type = EVP_PKEY_id(pkey);
 	if (pkey_type != type)
 		SIGN_ERROR(EINVAL);
 
