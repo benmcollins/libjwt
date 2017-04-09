@@ -1,6 +1,7 @@
 # Generic ignores for libtool project
 Makefile.in
 Makefile
+/INSTALL
 /autom4te.cache
 /aclocal.m4
 /compile
