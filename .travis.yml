@@ -6,7 +6,7 @@ compiler:
 addons:
   apt:
     packages:
-    - libjansson-dev
+    - libjson-c-dev
     - check
     - libssl-dev
     - lcov

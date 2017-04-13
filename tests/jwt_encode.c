@@ -25,6 +25,24 @@
 #define ck_assert_ptr_ne(X, Y) ck_assert(X != Y)
 #endif
 
+static int addGrants(jwt_t *jwt) {
+	int ret = 0;
+
+	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_add_grant(jwt, "iss", "files.cyphre.com");
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_add_grant(jwt, "sub", "user0");
+	ck_assert_int_eq(ret, 0);
+
+	return ret;
+}
+
 START_TEST(test_jwt_encode_fp)
 {
 	FILE *out;
@@ -33,17 +51,7 @@ START_TEST(test_jwt_encode_fp)
 
 	ALLOC_JWT(&jwt);
 
-	ret = jwt_add_grant(jwt, "iss", "files.cyphre.com");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant(jwt, "sub", "user0");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
-	ck_assert_int_eq(ret, 0);
+	addGrants(jwt);
 
 	/* TODO Write to actual file and read back to validate output. */
 	out = fopen("/dev/null", "w");
@@ -69,17 +77,7 @@ START_TEST(test_jwt_encode_str)
 
 	ALLOC_JWT(&jwt);
 
-	ret = jwt_add_grant(jwt, "iss", "files.cyphre.com");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant(jwt, "sub", "user0");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
-	ck_assert_int_eq(ret, 0);
+	addGrants(jwt);
 
 	out = jwt_encode_str(jwt);
 	ck_assert_ptr_ne(out, NULL);
@@ -94,22 +92,15 @@ END_TEST
 
 START_TEST(test_jwt_encode_alg_none)
 {
-	const char res[] = "eyJhbGciOiJub25lIn0.eyJhdWQiOiJ3d3cucGx1Z2dlcnM"
-		"ubmwiLCJleHAiOjE0Nzc1MTQ4MTIsInN1YiI6IlBsdWdnZXJzIFNvZnR3YXJlIn0.";
+	const char res[] = "eyJhbGciOiJub25lIn0.eyJpYXQiOjE0NzU5ODA1NDUsImlzcyI6Im"
+			"ZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJYWFhYLVlZWVktWlpaWi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.";
 	jwt_t *jwt = NULL;
 	int ret = 0;
 	char *out;
 
 	ALLOC_JWT(&jwt);
 
-	ret = jwt_add_grant(jwt, "aud", "www.pluggers.nl");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant_int(jwt, "exp", 1477514812);
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant(jwt, "sub", "Pluggers Software");
-	ck_assert_int_eq(ret, 0);
+	addGrants(jwt);
 
 	ret = jwt_set_alg(jwt, JWT_ALG_NONE, NULL, 0);
 	ck_assert_int_eq(ret, 0);
@@ -138,17 +129,7 @@ START_TEST(test_jwt_encode_hs256)
 
 	ALLOC_JWT(&jwt);
 
-	ret = jwt_add_grant(jwt, "iss", "files.cyphre.com");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant(jwt, "sub", "user0");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
-	ck_assert_int_eq(ret, 0);
+	addGrants(jwt);
 
 	ret = jwt_set_alg(jwt, JWT_ALG_HS256, key256, sizeof(key256));
 	ck_assert_int_eq(ret, 0);
@@ -179,17 +160,7 @@ START_TEST(test_jwt_encode_hs384)
 
 	ALLOC_JWT(&jwt);
 
-	ret = jwt_add_grant(jwt, "iss", "files.cyphre.com");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant(jwt, "sub", "user0");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
-	ck_assert_int_eq(ret, 0);
+	addGrants(jwt);
 
 	ret = jwt_set_alg(jwt, JWT_ALG_HS384, key384, sizeof(key384));
 	ck_assert_int_eq(ret, 0);
@@ -220,17 +191,7 @@ START_TEST(test_jwt_encode_hs512)
 
 	ALLOC_JWT(&jwt);
 
-	ret = jwt_add_grant(jwt, "iss", "files.cyphre.com");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant(jwt, "sub", "user0");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
-	ck_assert_int_eq(ret, 0);
+	addGrants(jwt);
 
 	ret = jwt_set_alg(jwt, JWT_ALG_HS512, key512, sizeof(key512));
 	ck_assert_int_eq(ret, 0);
@@ -259,17 +220,7 @@ START_TEST(test_jwt_encode_change_alg)
 
 	ALLOC_JWT(&jwt);
 
-	ret = jwt_add_grant(jwt, "iss", "files.cyphre.com");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant(jwt, "sub", "user0");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
-	ck_assert_int_eq(ret, 0);
+	addGrants(jwt);
 
 	ret = jwt_set_alg(jwt, JWT_ALG_HS512, key512, sizeof(key512));
 	ck_assert_int_eq(ret, 0);
@@ -297,17 +248,7 @@ START_TEST(test_jwt_encode_invalid)
 
 	ALLOC_JWT(&jwt);
 
-	ret = jwt_add_grant(jwt, "iss", "files.cyphre.com");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant(jwt, "sub", "user0");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
-	ck_assert_int_eq(ret, 0);
+	addGrants(jwt);
 
 	ret = jwt_set_alg(jwt, JWT_ALG_HS512, NULL, 0);
 	ck_assert_int_eq(ret, EINVAL);

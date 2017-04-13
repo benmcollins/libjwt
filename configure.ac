@@ -9,7 +9,12 @@ AC_CONFIG_HEADERS([libjwt/config.h])
 AC_SUBST([AM_CFLAGS], [-Wall])
 
 PKG_CHECK_MODULES([OPENSSL], [openssl >= 0.9.8])
-PKG_CHECK_MODULES([JANSSON], [jansson >= 2.0])
+PKG_CHECK_MODULES([json], [json],,
+    [
+        AC_MSG_NOTICE([try json-c lib...])
+        PKG_CHECK_MODULES([json], [json-c])
+    ]
+    )
 PKG_CHECK_MODULES([CHECK], [check >= 0.9.4], [true], [true])
 
 AX_VALGRIND_CHECK

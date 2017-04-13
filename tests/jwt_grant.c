@@ -126,7 +126,7 @@ START_TEST(test_jwt_grant_invalid)
 }
 END_TEST
 
-START_TEST(test_jwt_grants_json)
+/*START_TEST(test_jwt_grants_json)
 {
 	const char *json = "{\"id\":\"FVvGYTr3FhiURCFebsBOpBqTbzHdX/DvImiA2yheXr8=\","
 		"\"iss\":\"localhost\",\"other\":[\"foo\",\"bar\"],"
@@ -166,7 +166,7 @@ START_TEST(test_jwt_grants_json)
 
 	jwt_free(jwt);
 }
-END_TEST
+END_TEST*/
 
 static Suite *libjwt_suite(void)
 {
@@ -181,7 +181,7 @@ static Suite *libjwt_suite(void)
 	tcase_add_test(tc_core, test_jwt_get_grant);
 	tcase_add_test(tc_core, test_jwt_del_grants);
 	tcase_add_test(tc_core, test_jwt_grant_invalid);
-	tcase_add_test(tc_core, test_jwt_grants_json);
+//	tcase_add_test(tc_core, test_jwt_grants_json);
 
 	tcase_set_timeout(tc_core, 30);
 

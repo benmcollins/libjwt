@@ -28,13 +28,13 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)# executables
 INCLUDE( FindPkgConfig )
 
 PKG_SEARCH_MODULE (OPENSSL REQUIRED openssl)
-PKG_SEARCH_MODULE (JANSSON REQUIRED jansson)
+PKG_SEARCH_MODULE (JSON REQUIRED JSON)
 PKG_SEARCH_MODULE (CHECK check)
 
 add_definitions(-DUSE_CMAKE)
 
-include_directories(include ${OPENSSL_INCLUDE_DIRS} ${JANSSON_INCLUDE_DIRS})
-link_directories(${OPENSSL_LIBRARY_DIRS} ${JANSSON_LIBRARY_DIRS})
+include_directories(include ${OPENSSL_INCLUDE_DIRS} ${JSON_INCLUDE_DIRS})
+link_directories(${OPENSSL_LIBRARY_DIRS} ${JSON_LIBRARY_DIRS})
 
 add_library(${LIBRARY_NAME} SHARED libjwt/jwt.c)
 add_library(${LIBRARY_NAME}_static STATIC libjwt/jwt.c)
@@ -49,7 +49,7 @@ if (_GNU_SOURCE)
   add_definitions(-D_GNU_SOURCE)
 endif()
 
-set (LIBS ${OPENSSL_LIBRARIES} ${JANSSON_LIBRARIES})
+set (LIBS ${OPENSSL_LIBRARIES} ${JSON_LIBRARIES})
 
 target_link_libraries(${LIBRARY_NAME} ${LIBS})
 

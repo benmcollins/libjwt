@@ -104,6 +104,24 @@ static void read_key(const char *key_file)
 	key[key_len] = '\0';
 }
 
+static int addGrants(jwt_t *jwt) {
+	int ret = 0;
+
+	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_add_grant(jwt, "iss", "files.cyphre.com");
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_add_grant(jwt, "sub", "user0");
+	ck_assert_int_eq(ret, 0);
+
+	return ret;
+}
+
 static void __test_alg_key(const char *key_file, const char *jwt_str,
 			   const jwt_alg_t alg)
 {
@@ -115,17 +133,7 @@ static void __test_alg_key(const char *key_file, const char *jwt_str,
 
 	read_key(key_file);
 
-	ret = jwt_add_grant(jwt, "iss", "files.cyphre.com");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant(jwt, "sub", "user0");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
-	ck_assert_int_eq(ret, 0);
+	addGrants(jwt);
 
 	ret = jwt_set_alg(jwt, alg, key, key_len);
 	ck_assert_int_eq(ret, 0);
@@ -223,17 +231,7 @@ START_TEST(test_jwt_encode_rsa_with_ec)
 
 	read_key("ec_key_secp384r1.pem");
 
-	ret = jwt_add_grant(jwt, "iss", "files.cyphre.com");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant(jwt, "sub", "user0");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
-	ck_assert_int_eq(ret, 0);
+	addGrants(jwt);
 
 	ret = jwt_set_alg(jwt, JWT_ALG_RS384, key, key_len);
 	ck_assert_int_eq(ret, 0);
