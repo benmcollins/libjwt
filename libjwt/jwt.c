@@ -29,6 +29,8 @@
 
 #include <jwt.h>
 
+#include "b64.h"
+
 #if !defined(USE_CMAKE)
 #include "config.h"
 #endif
@@ -279,7 +281,7 @@ static long get_js_int(json_t *js, const char *key)
 
 static void *jwt_b64_decode(const char *src, int *ret_len)
 {
-	BIO *b64, *bmem;
+	base64_decodestate state;
 	void *buf;
 	char *new;
 	int len, i, z;
@@ -309,29 +311,12 @@ static void *jwt_b64_decode(const char *src, int *ret_len)
 	}
 	new[i] = '\0';
 
-	/* Setup the OpenSSL base64 decoder. */
-	b64 = BIO_new(BIO_f_base64());
-	bmem = BIO_new_mem_buf(new, strlen(new));
-	if (!b64 || !bmem)
+	buf = malloc(i);
+	if (buf == NULL)
 		return NULL;
 
-	BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
-	BIO_push(b64, bmem);
-
-	len = BIO_pending(b64);
-	if (len <= 0) {
-		BIO_free_all(b64);
-		return NULL;
-	}
-
-	buf = malloc(len + 1);
-	if (!buf) {
-		BIO_free_all(b64);
-		return NULL;
-	}
-
-	*ret_len = BIO_read(b64, buf, len);
-	BIO_free_all(b64);
+	jwt_base64_init_decodestate(&state);
+	*ret_len = jwt_base64_decode_block(new, i, buf, &state);
 
 	return buf;
 }
@@ -380,18 +365,16 @@ static void base64uri_encode(char *str)
 	str[t] = '\0';
 }
 
-static int jwt_sign_sha_hmac(jwt_t *jwt, BIO *out, const EVP_MD *alg,
-			     const char *str)
+static int jwt_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
+			     const EVP_MD *alg, const char *str)
 {
-	unsigned char res[EVP_MAX_MD_SIZE];
-	unsigned int res_len;
+	*out = malloc(EVP_MAX_MD_SIZE);
+	if (*out == NULL)
+		return ENOMEM;
 
 	HMAC(alg, jwt->key, jwt->key_len,
-	     (const unsigned char *)str, strlen(str), res, &res_len);
-
-	BIO_write(out, res, res_len);
-
-	BIO_flush(out);
+	     (const unsigned char *)str, strlen(str), (unsigned char *)*out,
+	     len);
 
 	return 0;
 }
@@ -451,8 +434,8 @@ jwt_verify_hmac_done:
 
 #define SIGN_ERROR(__err) ({ ret = __err; goto jwt_sign_sha_pem_done; })
 
-static int jwt_sign_sha_pem(jwt_t *jwt, BIO *out, const EVP_MD *alg,
-			    const char *str, int type)
+static int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
+			    const EVP_MD *alg, const char *str, int type)
 {
 	EVP_MD_CTX *mdctx = NULL;
 	ECDSA_SIG *ec_sig = NULL;
@@ -507,8 +490,11 @@ static int jwt_sign_sha_pem(jwt_t *jwt, BIO *out, const EVP_MD *alg,
 		SIGN_ERROR(EINVAL);
 
 	if (pkey_type != EVP_PKEY_EC) {
-		BIO_write(out, sig, slen);
-		BIO_flush(out);
+		*out = malloc(slen);
+		if (*out == NULL)
+			SIGN_ERROR(ENOMEM);
+		memcpy(*out, sig, slen);
+		*len = slen;
 	} else {
 		unsigned int degree, bn_len, r_len, s_len, buf_len;
 		unsigned char *raw_buf;
@@ -547,8 +533,11 @@ static int jwt_sign_sha_pem(jwt_t *jwt, BIO *out, const EVP_MD *alg,
 		BN_bn2bin(ec_sig_r, raw_buf + bn_len - r_len);
 		BN_bn2bin(ec_sig_s, raw_buf + buf_len - s_len);
 
-		BIO_write(out, raw_buf, buf_len);
-		BIO_flush(out);
+		*out = malloc(buf_len);
+		if (*out == NULL)
+			SIGN_ERROR(ENOMEM);
+		memcpy(*out, raw_buf, buf_len);
+		*len = buf_len;
 	}
 
 jwt_sign_sha_pem_done:
@@ -673,37 +662,37 @@ jwt_verify_sha_pem_done:
 	return ret;
 }
 
-static int jwt_sign(jwt_t *jwt, BIO *out, const char *str)
+static int jwt_sign(jwt_t *jwt, char **out, unsigned int *len, const char *str)
 {
 	switch (jwt->alg) {
 	/* HMAC */
 	case JWT_ALG_HS256:
-		return jwt_sign_sha_hmac(jwt, out, EVP_sha256(), str);
+		return jwt_sign_sha_hmac(jwt, out, len, EVP_sha256(), str);
 	case JWT_ALG_HS384:
-		return jwt_sign_sha_hmac(jwt, out, EVP_sha384(), str);
+		return jwt_sign_sha_hmac(jwt, out, len, EVP_sha384(), str);
 	case JWT_ALG_HS512:
-		return jwt_sign_sha_hmac(jwt, out, EVP_sha512(), str);
+		return jwt_sign_sha_hmac(jwt, out, len, EVP_sha512(), str);
 
 	/* RSA */
 	case JWT_ALG_RS256:
-		return jwt_sign_sha_pem(jwt, out, EVP_sha256(), str,
+		return jwt_sign_sha_pem(jwt, out, len, EVP_sha256(), str,
 					EVP_PKEY_RSA);
 	case JWT_ALG_RS384:
-		return jwt_sign_sha_pem(jwt, out, EVP_sha384(), str,
+		return jwt_sign_sha_pem(jwt, out, len, EVP_sha384(), str,
 					EVP_PKEY_RSA);
 	case JWT_ALG_RS512:
-		return jwt_sign_sha_pem(jwt, out, EVP_sha512(), str,
+		return jwt_sign_sha_pem(jwt, out, len, EVP_sha512(), str,
 					EVP_PKEY_RSA);
 
 	/* ECC */
 	case JWT_ALG_ES256:
-		return jwt_sign_sha_pem(jwt, out, EVP_sha256(), str,
+		return jwt_sign_sha_pem(jwt, out, len, EVP_sha256(), str,
 					EVP_PKEY_EC);
 	case JWT_ALG_ES384:
-		return jwt_sign_sha_pem(jwt, out, EVP_sha384(), str,
+		return jwt_sign_sha_pem(jwt, out, len, EVP_sha384(), str,
 					EVP_PKEY_EC);
 	case JWT_ALG_ES512:
-		return jwt_sign_sha_pem(jwt, out, EVP_sha512(), str,
+		return jwt_sign_sha_pem(jwt, out, len, EVP_sha512(), str,
 					EVP_PKEY_EC);
 
 	/* You wut, mate? */
@@ -1002,25 +991,24 @@ static int __append_str(FILE *fp, char **buf, const char *str)
 {
 	if (fp != NULL) {
 		if (fputs(str, fp) == EOF)
-			return 1;
+			return EOF;
 	} else {
 		*buf = realloc(*buf, strlen(*buf) + strlen(str) + 1);
-		if (*buf == NULL) {
-			errno = ENOMEM;
-			return 1;
-		}
+		if (*buf == NULL)
+			return ENOMEM;
 		strcat(*buf, str);
 	}
 
 	return 0;
 }
 
-#define APPEND_STR(__fp, __buf, __str) do {	\
-	if (__append_str(__fp, __buf, __str))	\
-		return 1;			\
+#define APPEND_STR(__fp, __buf, __str) do {		\
+	int ret = __append_str(__fp, __buf, __str);	\
+	if (ret)					\
+		return ret;				\
 } while(0)
 
-static int jwt_write_bio_head(jwt_t *jwt, FILE *fp, char **buf, int pretty)
+static int jwt_write_head(jwt_t *jwt, FILE *fp, char **buf, int pretty)
 {
 	APPEND_STR(fp, buf, "{");
 
@@ -1063,7 +1051,7 @@ static int jwt_write_bio_head(jwt_t *jwt, FILE *fp, char **buf, int pretty)
 	return 0;
 }
 
-static int jwt_write_bio_body(jwt_t *jwt, FILE *fp, char **buf, int pretty)
+static int jwt_write_body(jwt_t *jwt, FILE *fp, char **buf, int pretty)
 {
 	/* Sort keys for repeatability */
 	size_t flags = JSON_SORT_KEYS;
@@ -1090,10 +1078,10 @@ static int jwt_write_bio_body(jwt_t *jwt, FILE *fp, char **buf, int pretty)
 
 static int jwt_dump(jwt_t *jwt, FILE *fp, char **buf, int pretty)
 {
-	if (jwt_write_bio_head(jwt, fp, buf, pretty))
+	if (jwt_write_head(jwt, fp, buf, pretty))
 		return 1;
 	APPEND_STR(fp, buf, ".");
-	if (jwt_write_bio_body(jwt, fp, buf, pretty))
+	if (jwt_write_body(jwt, fp, buf, pretty))
 		return 1;
 
 	return 0;
@@ -1129,144 +1117,108 @@ char *jwt_dump_str(jwt_t *jwt, int pretty)
 	return out;
 }
 
-static int jwt_encode_bio(jwt_t *jwt, BIO *out)
+static int jwt_encode(jwt_t *jwt, FILE *fp, char **out)
 {
-	BIO *b64, *bmem;
-	char *buf;
-	int len, len2, ret;
-
-	/* Setup the OpenSSL base64 encoder. */
-	b64 = BIO_new(BIO_f_base64());
-	if (!b64)
-		return ENOMEM;
-	bmem = BIO_new(BIO_s_mem());
-	if (!bmem) {
-		BIO_free(b64);
-		return ENOMEM;
-	}
+	char *buf, *head, *body, *sig;
+	int ret, buf_len, head_len, body_len;
+	unsigned int sig_len;
+	base64_encodestate state;
 
 	buf = malloc(1);
-	if (!buf) {
-		BIO_free(b64);
-		BIO_free(bmem);
+	if (!buf)
 		return ENOMEM;
-	}
-
-	BIO_push(b64, bmem);
-	BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
 
 	/* First the header. */
 	buf[0] = '\0';
-	jwt_write_bio_head(jwt, NULL, &buf, 0);
-	BIO_puts(b64, buf);
-	BIO_flush(b64);
-
-	/* Sep */
-	BIO_puts(bmem, ".");
+	jwt_write_head(jwt, NULL, &buf, 0);
+	head = alloca(strlen(buf) * 2);
+	if (head == NULL) {
+		free(buf);
+		return ENOMEM;
+	}
+	jwt_base64_init_encodestate(&state);
+	head_len = jwt_base64_encode_block(buf, strlen(buf), head, &state);
+	head_len += jwt_base64_encode_blockend(head + head_len, &state);
+	head[head_len] = '\0';
 
 	/* Now the body. */
 	buf[0] = '\0';
-	jwt_write_bio_body(jwt, NULL, &buf, 0);
-	BIO_puts(b64, buf);
-	BIO_flush(b64);
-
+	jwt_write_body(jwt, NULL, &buf, 0);
+	body = alloca(strlen(buf) * 2);
+	if (body == NULL) {
+		free(buf);
+		return ENOMEM;
+	}
+	jwt_base64_init_encodestate(&state);
+	body_len = jwt_base64_encode_block(buf, strlen(buf), body, &state);
+	body_len += jwt_base64_encode_blockend(body + body_len, &state);
+	body[body_len] = '\0';
 	free(buf);
 
-	len = BIO_pending(bmem);
-	buf = alloca(len + 1);
-	if (!buf) {
-		BIO_free_all(b64);
+	base64uri_encode(head);
+	base64uri_encode(body);
+
+	/* Allocate enough to reuse as b64 buffer. */
+	buf = malloc(head_len + body_len + 3);
+	if (buf == NULL)
+		return ENOMEM;
+	strcpy(buf, head);
+	strcat(buf, ".");
+	strcat(buf, body);
+
+	APPEND_STR(fp, out, buf);
+	APPEND_STR(fp, out, ".");
+
+	if (jwt->alg == JWT_ALG_NONE) {
+		free(buf);
+		return 0;
+	}
+
+	/* Now the signature. */
+	ret = jwt_sign(jwt, &sig, &sig_len, buf);
+	if (ret)
+		return ret;
+
+	free(buf);
+	buf = malloc(sig_len * 2);
+	if (buf == NULL) {
+		free(sig);
 		return ENOMEM;
 	}
 
-	len = BIO_read(bmem, buf, len);
-	buf[len] = '\0';
+	jwt_base64_init_encodestate(&state);
+	buf_len = jwt_base64_encode_block(sig, sig_len, buf, &state);
+	buf_len += jwt_base64_encode_blockend(buf + buf_len, &state);
+	buf[buf_len] = '\0';
+	free(sig);
 
 	base64uri_encode(buf);
-
-	BIO_puts(out, buf);
-	BIO_puts(out, ".");
-
-	if (jwt->alg == JWT_ALG_NONE)
-		goto encode_bio_success;
-
-	/* Now the signature. */
-	ret = jwt_sign(jwt, b64, buf);
-	if (ret)
-		goto encode_bio_done;
-
-	len2 = BIO_pending(bmem);
-	if (len2 > len) {
-		buf = alloca(len2 + 1);
-		if (!buf) {
-			ret = ENOMEM;
-			goto encode_bio_done;
-		}
-	} else if (len2 < 0) {
-		ret = EINVAL;
-		goto encode_bio_done;
-	}
-
-	len2 = BIO_read(bmem, buf, len2);
-	buf[len2] = '\0';
-
-	base64uri_encode(buf);
-
-	BIO_puts(out, buf);
-
-encode_bio_success:
-	BIO_flush(out);
-
-	ret = 0;
-
-encode_bio_done:
-	/* All done. */
-	BIO_free_all(b64);
+	APPEND_STR(fp, out, buf);
+	free(buf);
 
 	return ret;
 }
 
 int jwt_encode_fp(jwt_t *jwt, FILE *fp)
 {
-	BIO *bfp = BIO_new_fp(fp, BIO_NOCLOSE);
-	int ret;
-
-	if (!bfp)
-		return ENOMEM;
-
-	ret = jwt_encode_bio(jwt, bfp);
-	BIO_free_all(bfp);
-
-	return ret;
+	return jwt_encode(jwt, fp, NULL);
 }
 
 char *jwt_encode_str(jwt_t *jwt)
 {
-	BIO *bmem = BIO_new(BIO_s_mem());
-	char *str = NULL;
-	int len;
+	char *str = malloc(1);
 
-	if (!bmem) {
+	if (str == NULL) {
 		errno = ENOMEM;
 		return NULL;
 	}
+	str[0] = '\0';
 
-	errno = jwt_encode_bio(jwt, bmem);
-	if (errno)
-		goto encode_str_done;
-
-	len = BIO_pending(bmem);
-	str = malloc(len + 1);
-	if (!str) {
-		errno = ENOMEM;
-		goto encode_str_done;
+	errno = jwt_encode(jwt, NULL, &str);
+	if (errno) {
+		free(str);
+		str = NULL;
 	}
-
-	len = BIO_read(bmem, str, len);
-	str[len] = '\0';
-
-encode_str_done:
-	BIO_free_all(bmem);
 
 	return str;
 }
