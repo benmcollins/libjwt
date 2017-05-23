@@ -1,5 +1,5 @@
 lib_LTLIBRARIES = libjwt.la
-libjwt_la_SOURCES = jwt.c
+libjwt_la_SOURCES = jwt.c b64_dec.c b64_enc.c
 # http://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html
 # XXX Update this in CMakeLists.txt as well
 libjwt_la_LDFLAGS = -version-info 3:0:3 $(OPENSSL_LDFLAGS) $(JANSSON_LDFLAGS)
