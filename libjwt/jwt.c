@@ -1,4 +1,4 @@
-/* Copyright (C) 2015-2016 Ben Collins <ben@cyphre.com>
+/* Copyright (C) 2015-2017 Ben Collins <ben@cyphre.com>
    This file is part of the JWT C Library
 
    This library is free software; you can redistribute it and/or
@@ -998,50 +998,79 @@ int jwt_del_grant(jwt_t *jwt, const char *grant)
 	__attribute__ ((weak, alias ("jwt_del_grants")));
 #endif
 
-static void jwt_write_bio_head(jwt_t *jwt, BIO *bio, int pretty)
+static int __append_str(FILE *fp, char **buf, const char *str)
 {
-	BIO_puts(bio, "{");
+	if (fp != NULL) {
+		if (fputs(str, fp) == EOF)
+			return 1;
+	} else {
+		*buf = realloc(*buf, strlen(*buf) + strlen(str) + 1);
+		if (*buf == NULL) {
+			errno = ENOMEM;
+			return 1;
+		}
+		strcat(*buf, str);
+	}
+
+	return 0;
+}
+
+#define APPEND_STR(__fp, __buf, __str) do {	\
+	if (__append_str(__fp, __buf, __str))	\
+		return 1;			\
+} while(0)
+
+static int jwt_write_bio_head(jwt_t *jwt, FILE *fp, char **buf, int pretty)
+{
+	APPEND_STR(fp, buf, "{");
 
 	if (pretty)
-		BIO_puts(bio, "\n");
+		APPEND_STR(fp, buf, "\n");
 
 	/* An unsecured JWT is a JWS and provides no "typ".
 	 * -- draft-ietf-oauth-json-web-token-32 #6. */
 	if (jwt->alg != JWT_ALG_NONE) {
 		if (pretty)
-			BIO_puts(bio, "    ");
+			APPEND_STR(fp, buf, "    ");
 
-		BIO_printf(bio, "\"typ\":%s\"JWT\",", pretty?" ":"");
+		APPEND_STR(fp, buf, "\"typ\":");
+		if (pretty)
+			APPEND_STR(fp, buf, " ");
+		APPEND_STR(fp, buf, "\"JWT\",");
 
 		if (pretty)
-			BIO_puts(bio, "\n");
+			APPEND_STR(fp, buf, "\n");
 	}
 
 	if (pretty)
-		BIO_puts(bio, "    ");
+		APPEND_STR(fp, buf, "    ");
 
-	BIO_printf(bio, "\"alg\":%s\"%s\"", pretty?" ":"",
-		   jwt_alg_str(jwt->alg));
+	APPEND_STR(fp, buf, "\"alg\":");
+	if (pretty)
+		APPEND_STR(fp, buf, " ");
+	APPEND_STR(fp, buf, "\"");
+	APPEND_STR(fp, buf, jwt_alg_str(jwt->alg));
+	APPEND_STR(fp, buf, "\"");
 
 	if (pretty)
-		BIO_puts(bio, "\n");
+		APPEND_STR(fp, buf, "\n");
 
-	BIO_puts(bio, "}");
+	APPEND_STR(fp, buf, "}");
 
 	if (pretty)
-		BIO_puts(bio, "\n");
+		APPEND_STR(fp, buf, "\n");
 
-	BIO_flush(bio);
+	return 0;
 }
 
-static void jwt_write_bio_body(jwt_t *jwt, BIO *bio, int pretty)
+static int jwt_write_bio_body(jwt_t *jwt, FILE *fp, char **buf, int pretty)
 {
 	/* Sort keys for repeatability */
 	size_t flags = JSON_SORT_KEYS;
 	char *serial;
 
 	if (pretty) {
-		BIO_puts(bio, "\n");
+		APPEND_STR(fp, buf, "\n");
 		flags |= JSON_INDENT(4);
 	} else {
 		flags |= JSON_COMPACT;
@@ -1049,64 +1078,53 @@ static void jwt_write_bio_body(jwt_t *jwt, BIO *bio, int pretty)
 
 	serial = json_dumps(jwt->grants, flags);
 
-	BIO_puts(bio, serial);
+	APPEND_STR(fp, buf, serial);
 
 	free(serial);
 
 	if (pretty)
-		BIO_puts(bio, "\n");
+		APPEND_STR(fp, buf, "\n");
 
-	BIO_flush(bio);
+	return 0;
 }
 
-static void jwt_dump_bio(jwt_t *jwt, BIO *out, int pretty)
+static int jwt_dump(jwt_t *jwt, FILE *fp, char **buf, int pretty)
 {
-	jwt_write_bio_head(jwt, out, pretty);
-	BIO_puts(out, ".");
-	jwt_write_bio_body(jwt, out, pretty);
+	if (jwt_write_bio_head(jwt, fp, buf, pretty))
+		return 1;
+	APPEND_STR(fp, buf, ".");
+	if (jwt_write_bio_body(jwt, fp, buf, pretty))
+		return 1;
+
+	return 0;
 }
 
 int jwt_dump_fp(jwt_t *jwt, FILE *fp, int pretty)
 {
-	BIO *bio;
-
-	bio = BIO_new_fp(fp, BIO_NOCLOSE);
-	if (!bio)
-		return ENOMEM;
-
-	jwt_dump_bio(jwt, bio, pretty);
-
-	BIO_free_all(bio);
+	if (jwt_dump(jwt, fp, NULL, pretty))
+		return errno ?: EINVAL;
 
 	return 0;
 }
 
 char *jwt_dump_str(jwt_t *jwt, int pretty)
 {
-	BIO *bmem = BIO_new(BIO_s_mem());
-	char *out;
-	int len;
+	char *out = malloc(1);
 
-	if (!bmem) {
+	if (out == NULL) {
 		errno = ENOMEM;
 		return NULL;
 	}
 
-	jwt_dump_bio(jwt, bmem, pretty);
+	out[0] = '\0';
 
-	len = BIO_pending(bmem);
-	out = malloc(len + 1);
-	if (!out) {
-		BIO_free_all(bmem);
+	if (jwt_dump(jwt, NULL, &out, pretty)) {
 		errno = ENOMEM;
-		return NULL;
+		free(out);
+		out = NULL;
+	} else {
+		errno = 0;
 	}
-
-	len = BIO_read(bmem, out, len);
-	out[len] = '\0';
-
-	BIO_free_all(bmem);
-	errno = 0;
 
 	return out;
 }
@@ -1119,20 +1137,40 @@ static int jwt_encode_bio(jwt_t *jwt, BIO *out)
 
 	/* Setup the OpenSSL base64 encoder. */
 	b64 = BIO_new(BIO_f_base64());
-	bmem = BIO_new(BIO_s_mem());
-	if (!b64 || !bmem)
+	if (!b64)
 		return ENOMEM;
+	bmem = BIO_new(BIO_s_mem());
+	if (!bmem) {
+		BIO_free(b64);
+		return ENOMEM;
+	}
+
+	buf = malloc(1);
+	if (!buf) {
+		BIO_free(b64);
+		BIO_free(bmem);
+		return ENOMEM;
+	}
 
 	BIO_push(b64, bmem);
 	BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
 
 	/* First the header. */
-	jwt_write_bio_head(jwt, b64, 0);
+	buf[0] = '\0';
+	jwt_write_bio_head(jwt, NULL, &buf, 0);
+	BIO_puts(b64, buf);
+	BIO_flush(b64);
 
+	/* Sep */
 	BIO_puts(bmem, ".");
 
 	/* Now the body. */
-	jwt_write_bio_body(jwt, b64, 0);
+	buf[0] = '\0';
+	jwt_write_bio_body(jwt, NULL, &buf, 0);
+	BIO_puts(b64, buf);
+	BIO_flush(b64);
+
+	free(buf);
 
 	len = BIO_pending(bmem);
 	buf = alloca(len + 1);
