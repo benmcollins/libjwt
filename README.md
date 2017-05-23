@@ -29,3 +29,7 @@
 - ``make jwt_static``: build static library in lib/ dir.
 - ``make check``: build and run test suite.
 - ``make clean``.
+
+## Bindings
+
+- [nim-libjwt](https://github.com/nimscale/nim-libjwt) Nim bindings by `nimscale`
