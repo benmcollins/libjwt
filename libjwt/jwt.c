@@ -987,78 +987,83 @@ int jwt_del_grant(jwt_t *jwt, const char *grant)
 	__attribute__ ((weak, alias ("jwt_del_grants")));
 #endif
 
-static int __append_str(FILE *fp, char **buf, const char *str)
+static int __append_str(char **buf, const char *str)
 {
-	if (fp != NULL) {
-		if (fputs(str, fp) == EOF)
-			return EOF;
+	char *new;
+
+	if (*buf == NULL) {
+		new = calloc(1, strlen(str) + 1);
 	} else {
-		*buf = realloc(*buf, strlen(*buf) + strlen(str) + 1);
-		if (*buf == NULL)
-			return ENOMEM;
-		strcat(*buf, str);
+		new = realloc(*buf, strlen(*buf) + strlen(str) + 1);
 	}
+
+	if (new == NULL)
+		return ENOMEM;
+
+	strcat(new, str);
+
+	*buf = new;
 
 	return 0;
 }
 
-#define APPEND_STR(__fp, __buf, __str) do {		\
-	int ret = __append_str(__fp, __buf, __str);	\
-	if (ret)					\
-		return ret;				\
+#define APPEND_STR(__buf, __str) do {		\
+	int ret = __append_str(__buf, __str);	\
+	if (ret)				\
+		return ret;			\
 } while(0)
 
-static int jwt_write_head(jwt_t *jwt, FILE *fp, char **buf, int pretty)
+static int jwt_write_head(jwt_t *jwt, char **buf, int pretty)
 {
-	APPEND_STR(fp, buf, "{");
+	APPEND_STR(buf, "{");
 
 	if (pretty)
-		APPEND_STR(fp, buf, "\n");
+		APPEND_STR(buf, "\n");
 
 	/* An unsecured JWT is a JWS and provides no "typ".
 	 * -- draft-ietf-oauth-json-web-token-32 #6. */
 	if (jwt->alg != JWT_ALG_NONE) {
 		if (pretty)
-			APPEND_STR(fp, buf, "    ");
+			APPEND_STR(buf, "    ");
 
-		APPEND_STR(fp, buf, "\"typ\":");
+		APPEND_STR(buf, "\"typ\":");
 		if (pretty)
-			APPEND_STR(fp, buf, " ");
-		APPEND_STR(fp, buf, "\"JWT\",");
+			APPEND_STR(buf, " ");
+		APPEND_STR(buf, "\"JWT\",");
 
 		if (pretty)
-			APPEND_STR(fp, buf, "\n");
+			APPEND_STR(buf, "\n");
 	}
 
 	if (pretty)
-		APPEND_STR(fp, buf, "    ");
+		APPEND_STR(buf, "    ");
 
-	APPEND_STR(fp, buf, "\"alg\":");
+	APPEND_STR(buf, "\"alg\":");
 	if (pretty)
-		APPEND_STR(fp, buf, " ");
-	APPEND_STR(fp, buf, "\"");
-	APPEND_STR(fp, buf, jwt_alg_str(jwt->alg));
-	APPEND_STR(fp, buf, "\"");
-
-	if (pretty)
-		APPEND_STR(fp, buf, "\n");
-
-	APPEND_STR(fp, buf, "}");
+		APPEND_STR(buf, " ");
+	APPEND_STR(buf, "\"");
+	APPEND_STR(buf, jwt_alg_str(jwt->alg));
+	APPEND_STR(buf, "\"");
 
 	if (pretty)
-		APPEND_STR(fp, buf, "\n");
+		APPEND_STR(buf, "\n");
+
+	APPEND_STR(buf, "}");
+
+	if (pretty)
+		APPEND_STR(buf, "\n");
 
 	return 0;
 }
 
-static int jwt_write_body(jwt_t *jwt, FILE *fp, char **buf, int pretty)
+static int jwt_write_body(jwt_t *jwt, char **buf, int pretty)
 {
 	/* Sort keys for repeatability */
 	size_t flags = JSON_SORT_KEYS;
 	char *serial;
 
 	if (pretty) {
-		APPEND_STR(fp, buf, "\n");
+		APPEND_STR(buf, "\n");
 		flags |= JSON_INDENT(4);
 	} else {
 		flags |= JSON_COMPACT;
@@ -1066,49 +1071,58 @@ static int jwt_write_body(jwt_t *jwt, FILE *fp, char **buf, int pretty)
 
 	serial = json_dumps(jwt->grants, flags);
 
-	APPEND_STR(fp, buf, serial);
+	APPEND_STR(buf, serial);
 
 	free(serial);
 
 	if (pretty)
-		APPEND_STR(fp, buf, "\n");
+		APPEND_STR(buf, "\n");
 
 	return 0;
 }
 
-static int jwt_dump(jwt_t *jwt, FILE *fp, char **buf, int pretty)
+static int jwt_dump(jwt_t *jwt, char **buf, int pretty)
 {
-	if (jwt_write_head(jwt, fp, buf, pretty))
-		return 1;
-	APPEND_STR(fp, buf, ".");
-	if (jwt_write_body(jwt, fp, buf, pretty))
-		return 1;
+	int ret;
 
-	return 0;
+	ret = jwt_write_head(jwt, buf, pretty);
+
+	if (ret == 0)
+		ret = __append_str(buf, ".");
+
+	if (ret == 0)
+		ret = jwt_write_body(jwt, buf, pretty);
+
+	return ret;
 }
 
 int jwt_dump_fp(jwt_t *jwt, FILE *fp, int pretty)
 {
-	if (jwt_dump(jwt, fp, NULL, pretty))
-		return errno ?: EINVAL;
+	char *out = NULL;
+	int ret = 0;
 
-	return 0;
+	ret = jwt_dump(jwt, &out, pretty);
+
+	if (ret == 0)
+		fputs(out, fp);
+
+	if (out)
+		free(out);
+
+	return ret;
 }
 
 char *jwt_dump_str(jwt_t *jwt, int pretty)
 {
-	char *out = malloc(1);
+	char *out = NULL;
+	int err;
 
-	if (out == NULL) {
-		errno = ENOMEM;
-		return NULL;
-	}
+	err = jwt_dump(jwt, &out, pretty);
 
-	out[0] = '\0';
-
-	if (jwt_dump(jwt, NULL, &out, pretty)) {
-		errno = ENOMEM;
-		free(out);
+	if (err) {
+		errno = err;
+		if (out)
+			free(out);
 		out = NULL;
 	} else {
 		errno = 0;
@@ -1117,20 +1131,21 @@ char *jwt_dump_str(jwt_t *jwt, int pretty)
 	return out;
 }
 
-static int jwt_encode(jwt_t *jwt, FILE *fp, char **out)
+static int jwt_encode(jwt_t *jwt, char **out)
 {
-	char *buf, *head, *body, *sig;
+	char *buf = NULL, *head, *body, *sig;
 	int ret, buf_len, head_len, body_len;
 	unsigned int sig_len;
 	base64_encodestate state;
 
-	buf = malloc(1);
-	if (!buf)
-		return ENOMEM;
-
 	/* First the header. */
-	buf[0] = '\0';
-	jwt_write_head(jwt, NULL, &buf, 0);
+	ret = jwt_write_head(jwt, &buf, 0);
+	if (ret) {
+		if (buf)
+			free(buf);
+		return ret;
+	}
+
 	head = alloca(strlen(buf) * 2);
 	if (head == NULL) {
 		free(buf);
@@ -1141,9 +1156,17 @@ static int jwt_encode(jwt_t *jwt, FILE *fp, char **out)
 	head_len += jwt_base64_encode_blockend(head + head_len, &state);
 	head[head_len] = '\0';
 
+	free(buf);
+	buf = NULL;
+
 	/* Now the body. */
-	buf[0] = '\0';
-	jwt_write_body(jwt, NULL, &buf, 0);
+	ret = jwt_write_body(jwt, &buf, 0);
+	if (ret) {
+		if (buf)
+			free(buf);
+		return ret;
+	}
+
 	body = alloca(strlen(buf) * 2);
 	if (body == NULL) {
 		free(buf);
@@ -1159,15 +1182,21 @@ static int jwt_encode(jwt_t *jwt, FILE *fp, char **out)
 	base64uri_encode(body);
 
 	/* Allocate enough to reuse as b64 buffer. */
-	buf = malloc(head_len + body_len + 3);
+	buf = malloc(head_len + body_len + 2);
 	if (buf == NULL)
 		return ENOMEM;
 	strcpy(buf, head);
 	strcat(buf, ".");
 	strcat(buf, body);
 
-	APPEND_STR(fp, out, buf);
-	APPEND_STR(fp, out, ".");
+	ret = __append_str(out, buf);
+	if (ret == 0)
+		ret = __append_str(out, ".");
+	if (ret) {
+		if (buf)
+			free(buf);
+		return ret;
+	}
 
 	if (jwt->alg == JWT_ALG_NONE) {
 		free(buf);
@@ -1176,10 +1205,11 @@ static int jwt_encode(jwt_t *jwt, FILE *fp, char **out)
 
 	/* Now the signature. */
 	ret = jwt_sign(jwt, &sig, &sig_len, buf);
+	free(buf);
+
 	if (ret)
 		return ret;
 
-	free(buf);
 	buf = malloc(sig_len * 2);
 	if (buf == NULL) {
 		free(sig);
@@ -1193,7 +1223,7 @@ static int jwt_encode(jwt_t *jwt, FILE *fp, char **out)
 	free(sig);
 
 	base64uri_encode(buf);
-	APPEND_STR(fp, out, buf);
+	ret = __append_str(out, buf);
 	free(buf);
 
 	return ret;
@@ -1201,22 +1231,30 @@ static int jwt_encode(jwt_t *jwt, FILE *fp, char **out)
 
 int jwt_encode_fp(jwt_t *jwt, FILE *fp)
 {
-	return jwt_encode(jwt, fp, NULL);
+	char *str = NULL;
+	int ret;
+
+	ret = jwt_encode(jwt, &str);
+	if (ret) {
+		if (str)
+			free(str);
+		return ret;
+	}
+
+	fputs(str, fp);
+	free(str);
+
+	return 0;
 }
 
 char *jwt_encode_str(jwt_t *jwt)
 {
-	char *str = malloc(1);
+	char *str = NULL;
 
-	if (str == NULL) {
-		errno = ENOMEM;
-		return NULL;
-	}
-	str[0] = '\0';
-
-	errno = jwt_encode(jwt, NULL, &str);
+	errno = jwt_encode(jwt, &str);
 	if (errno) {
-		free(str);
+		if (str)
+			free(str);
 		str = NULL;
 	}
 
