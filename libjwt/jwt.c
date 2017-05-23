@@ -376,14 +376,28 @@ static int jwt_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 	return 0;
 }
 
-static int jwt_verify_sha_hmac(jwt_t *jwt, const EVP_MD *alg, const char *head,
-			       const char *sig)
+static int jwt_verify_sha_hmac(jwt_t *jwt, const char *head, const char *sig)
 {
 	unsigned char res[EVP_MAX_MD_SIZE];
 	BIO *bmem = NULL, *b64 = NULL;
 	unsigned int res_len;
+	const EVP_MD *alg;
 	char *buf;
 	int len, ret = EINVAL;
+
+	switch (jwt->alg) {
+	case JWT_ALG_HS256:
+		alg = EVP_sha256();
+		break;
+	case JWT_ALG_HS384:
+		alg = EVP_sha384();
+		break;
+	case JWT_ALG_HS512:
+		alg = EVP_sha512();
+		break;
+	default:
+		return EINVAL;
+	}
 
 	b64 = BIO_new(BIO_f_base64());
 	if (b64 == NULL)
@@ -552,8 +566,7 @@ jwt_sign_sha_pem_done:
 
 #define VERIFY_ERROR(__err) ({ ret = __err; goto jwt_verify_sha_pem_done; })
 
-static int jwt_verify_sha_pem(jwt_t *jwt, const EVP_MD *alg, int type,
-			      const char *head, const char *sig_b64)
+static int jwt_verify_sha_pem(jwt_t *jwt, const char *head, const char *sig_b64)
 {
 	unsigned char *sig = NULL;
 	EVP_MD_CTX *mdctx = NULL;
@@ -561,10 +574,45 @@ static int jwt_verify_sha_pem(jwt_t *jwt, const EVP_MD *alg, int type,
 	BIGNUM *ec_sig_r = NULL;
 	BIGNUM *ec_sig_s = NULL;
 	EVP_PKEY *pkey = NULL;
+	const EVP_MD *alg;
+	int type;
 	int pkey_type;
 	BIO *bufkey = NULL;
 	int ret = 0;
 	int slen;
+
+	switch (jwt->alg) {
+	/* RSA */
+	case JWT_ALG_RS256:
+		alg = EVP_sha256();
+		type = EVP_PKEY_RSA;
+		break;
+	case JWT_ALG_RS384:
+		alg = EVP_sha384();
+		type = EVP_PKEY_RSA;
+		break;
+	case JWT_ALG_RS512:
+		alg = EVP_sha512();
+		type = EVP_PKEY_RSA;
+		break;
+
+	/* ECC */
+	case JWT_ALG_ES256:
+		alg = EVP_sha256();
+		type = EVP_PKEY_EC;
+		break;
+	case JWT_ALG_ES384:
+		alg = EVP_sha384();
+		type = EVP_PKEY_EC;
+		break;
+	case JWT_ALG_ES512:
+		alg = EVP_sha512();
+		type = EVP_PKEY_EC;
+		break;
+
+	default:
+		return EINVAL;
+	}
 
 	sig = jwt_b64_decode(sig_b64, &slen);
 	if (sig == NULL)
@@ -703,33 +751,20 @@ static int jwt_verify(jwt_t *jwt, const char *head, const char *sig)
 	switch (jwt->alg) {
 	/* HMAC */
 	case JWT_ALG_HS256:
-		return jwt_verify_sha_hmac(jwt, EVP_sha256(), head, sig);
 	case JWT_ALG_HS384:
-		return jwt_verify_sha_hmac(jwt, EVP_sha384(), head, sig);
 	case JWT_ALG_HS512:
-		return jwt_verify_sha_hmac(jwt, EVP_sha512(), head, sig);
+		return jwt_verify_sha_hmac(jwt, head, sig);
 
 	/* RSA */
 	case JWT_ALG_RS256:
-		return jwt_verify_sha_pem(jwt, EVP_sha256(), EVP_PKEY_RSA,
-					  head, sig);
 	case JWT_ALG_RS384:
-		return jwt_verify_sha_pem(jwt, EVP_sha384(), EVP_PKEY_RSA,
-					  head, sig);
 	case JWT_ALG_RS512:
-		return jwt_verify_sha_pem(jwt, EVP_sha512(), EVP_PKEY_RSA,
-					  head, sig);
 
 	/* ECC */
 	case JWT_ALG_ES256:
-		return jwt_verify_sha_pem(jwt, EVP_sha256(), EVP_PKEY_EC,
-					  head, sig);
 	case JWT_ALG_ES384:
-		return jwt_verify_sha_pem(jwt, EVP_sha384(), EVP_PKEY_EC,
-					  head, sig);
 	case JWT_ALG_ES512:
-		return jwt_verify_sha_pem(jwt, EVP_sha512(), EVP_PKEY_EC,
-					  head, sig);
+		return jwt_verify_sha_pem(jwt, head, sig);
 
 	/* You wut, mate? */
 	default:
