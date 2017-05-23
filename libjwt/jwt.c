@@ -363,8 +363,25 @@ static void base64uri_encode(char *str)
 }
 
 static int jwt_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
-			     const EVP_MD *alg, const char *str)
+			     const char *str)
 {
+	const EVP_MD *alg;
+
+	switch (jwt->alg) {
+        /* HMAC */
+	case JWT_ALG_HS256:
+		alg = EVP_sha256();
+		break;
+	case JWT_ALG_HS384:
+		alg = EVP_sha384();
+		break;
+	case JWT_ALG_HS512:
+		alg = EVP_sha512();
+		break;
+	default:
+		return EINVAL;
+	}
+
 	*out = malloc(EVP_MAX_MD_SIZE);
 	if (*out == NULL)
 		return ENOMEM;
@@ -446,18 +463,53 @@ jwt_verify_hmac_done:
 #define SIGN_ERROR(__err) ({ ret = __err; goto jwt_sign_sha_pem_done; })
 
 static int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
-			    const EVP_MD *alg, const char *str, int type)
+			    const char *str)
 {
 	EVP_MD_CTX *mdctx = NULL;
 	ECDSA_SIG *ec_sig = NULL;
 	const BIGNUM *ec_sig_r = NULL;
 	const BIGNUM *ec_sig_s = NULL;
 	BIO *bufkey = NULL;
+	const EVP_MD *alg;
+	int type;
 	EVP_PKEY *pkey = NULL;
 	int pkey_type;
 	unsigned char *sig;
 	int ret = 0;
 	size_t slen;
+
+	switch (jwt->alg) {
+	/* RSA */
+	case JWT_ALG_RS256:
+		alg = EVP_sha256();
+		type = EVP_PKEY_RSA;
+		break;
+	case JWT_ALG_RS384:
+		alg = EVP_sha384();
+		type = EVP_PKEY_RSA;
+		break;
+	case JWT_ALG_RS512:
+		alg = EVP_sha512();
+		type = EVP_PKEY_RSA;
+		break;
+
+	/* ECC */
+	case JWT_ALG_ES256:
+		alg = EVP_sha256();
+		type = EVP_PKEY_EC;
+		break;
+	case JWT_ALG_ES384:
+		alg = EVP_sha384();
+		type = EVP_PKEY_EC;
+		break;
+	case JWT_ALG_ES512:
+		alg = EVP_sha512();
+		type = EVP_PKEY_EC;
+		break;
+
+	default:
+		return EINVAL;
+	}
 
 	bufkey = BIO_new_mem_buf(jwt->key, jwt->key_len);
 	if (bufkey == NULL)
@@ -712,33 +764,20 @@ static int jwt_sign(jwt_t *jwt, char **out, unsigned int *len, const char *str)
 	switch (jwt->alg) {
 	/* HMAC */
 	case JWT_ALG_HS256:
-		return jwt_sign_sha_hmac(jwt, out, len, EVP_sha256(), str);
 	case JWT_ALG_HS384:
-		return jwt_sign_sha_hmac(jwt, out, len, EVP_sha384(), str);
 	case JWT_ALG_HS512:
-		return jwt_sign_sha_hmac(jwt, out, len, EVP_sha512(), str);
+		return jwt_sign_sha_hmac(jwt, out, len, str);
 
 	/* RSA */
 	case JWT_ALG_RS256:
-		return jwt_sign_sha_pem(jwt, out, len, EVP_sha256(), str,
-					EVP_PKEY_RSA);
 	case JWT_ALG_RS384:
-		return jwt_sign_sha_pem(jwt, out, len, EVP_sha384(), str,
-					EVP_PKEY_RSA);
 	case JWT_ALG_RS512:
-		return jwt_sign_sha_pem(jwt, out, len, EVP_sha512(), str,
-					EVP_PKEY_RSA);
 
 	/* ECC */
 	case JWT_ALG_ES256:
-		return jwt_sign_sha_pem(jwt, out, len, EVP_sha256(), str,
-					EVP_PKEY_EC);
 	case JWT_ALG_ES384:
-		return jwt_sign_sha_pem(jwt, out, len, EVP_sha384(), str,
-					EVP_PKEY_EC);
 	case JWT_ALG_ES512:
-		return jwt_sign_sha_pem(jwt, out, len, EVP_sha512(), str,
-					EVP_PKEY_EC);
+		return jwt_sign_sha_pem(jwt, out, len, str);
 
 	/* You wut, mate? */
 	default:
