@@ -30,10 +30,7 @@
 #include <jwt.h>
 
 #include "b64.h"
-
-#if !defined(USE_CMAKE)
 #include "config.h"
-#endif
 
 /* functions to make libjwt backward compatible with OpenSSL version < 1.1.0
  * See https://wiki.openssl.org/index.php/1.1_API_Changes

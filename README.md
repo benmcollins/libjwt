@@ -23,9 +23,3 @@
 - ``make all``: build library.
 - ``make check``: build and run test suite.
 - See INSTALL file for more details on GNU Auto tools and GNU Make.
-
-**With CMake:** use ``cmake .`` in root project path to build the Makefile.
-- ``make jwt``: build shared library in lib/ dir.
-- ``make jwt_static``: build static library in lib/ dir.
-- ``make check``: build and run test suite.
-- ``make clean``.
