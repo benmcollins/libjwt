@@ -140,7 +140,7 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len, const char *str)
 		goto CLEAN_PRIVKEY;
 	}
 	
-	if (pk_alg == gnutls_privkey_get_pk_algorithm(privkey, NULL)) {
+	if (pk_alg != gnutls_privkey_get_pk_algorithm(privkey, NULL)) {
 		res = EINVAL;
 		goto CLEAN_PRIVKEY;
 	}
