@@ -1,19 +1,19 @@
 /* Copyright (C) 2017 Nicolas Mora <mail@babelouest.org>
-	 This file is part of the JWT C Library
+   This file is part of the JWT C Library
 
-	 This library is free software; you can redistribute it and/or
-	 modify it under the terms of the GNU Lesser General Public
-	 License as published by the Free Software Foundation; either
-	 version 2.1 of the License, or (at your option) any later version.
+   This library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public
+   License as published by the Free Software Foundation; either
+   version 2.1 of the License, or (at your option) any later version.
 
-	 This library is distributed in the hope that it will be useful,
-	 but WITHOUT ANY WARRANTY; without even the implied warranty of
-	 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	See the GNU
-	 Lesser General Public License for more details.
+   This library is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   Lesser General Public License for more details.
 
-	 You should have received a copy of the GNU Lesser General Public
-	 License along with the JWT Library; if not, see
-	 <http://www.gnu.org/licenses/>.	*/
+   You should have received a copy of the GNU Lesser General Public
+   License along with the JWT Library; if not, see
+   <http://www.gnu.org/licenses/>.  */
 
 #include <stdlib.h>
 #include <string.h>
@@ -39,18 +39,17 @@ int jwt_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len, const char *str
 	int alg;
 	
 	switch (jwt->alg) {
-  case JWT_ALG_HS256:
-    alg = GNUTLS_DIG_SHA256;
-    break;
-  case JWT_ALG_HS384:
-    alg = GNUTLS_DIG_SHA384;
-    break;
-  case JWT_ALG_HS512:
-    alg = GNUTLS_DIG_SHA512;
-    break;
-  default:
-    return EINVAL;
-    break;
+	case JWT_ALG_HS256:
+		alg = GNUTLS_DIG_SHA256;
+		break;
+	case JWT_ALG_HS384:
+		alg = GNUTLS_DIG_SHA384;
+		break;
+	case JWT_ALG_HS512:
+		alg = GNUTLS_DIG_SHA512;
+		break;
+	default:
+		return EINVAL;
 	}
 	
 	*len = gnutls_hmac_get_len(alg);
@@ -92,33 +91,32 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len, const char *str)
 	int alg;
 	
 	switch (jwt->alg) {
-  case JWT_ALG_RS256:
-    alg = GNUTLS_DIG_SHA256;
-    pk_alg = GNUTLS_PK_RSA;
-    break;
-  case JWT_ALG_RS384:
-    alg = GNUTLS_DIG_SHA384;
-    pk_alg = GNUTLS_PK_RSA;
-    break;
-  case JWT_ALG_RS512:
-    alg = GNUTLS_DIG_SHA512;
-    pk_alg = GNUTLS_PK_RSA;
-    break;
-  case JWT_ALG_ES256:
-    alg = GNUTLS_DIG_SHA256;
-    pk_alg = GNUTLS_PK_EC;
-    break;
-  case JWT_ALG_ES384:
-    alg = GNUTLS_DIG_SHA384;
-    pk_alg = GNUTLS_PK_EC;
-    break;
-  case JWT_ALG_ES512:
-    alg = GNUTLS_DIG_SHA512;
-    pk_alg = GNUTLS_PK_EC;
-    break;
-  default:
-    return EINVAL;
-    break;
+	case JWT_ALG_RS256:
+		alg = GNUTLS_DIG_SHA256;
+		pk_alg = GNUTLS_PK_RSA;
+		break;
+	case JWT_ALG_RS384:
+		alg = GNUTLS_DIG_SHA384;
+		pk_alg = GNUTLS_PK_RSA;
+		break;
+	case JWT_ALG_RS512:
+		alg = GNUTLS_DIG_SHA512;
+		pk_alg = GNUTLS_PK_RSA;
+		break;
+	case JWT_ALG_ES256:
+		alg = GNUTLS_DIG_SHA256;
+		pk_alg = GNUTLS_PK_EC;
+		break;
+	case JWT_ALG_ES384:
+		alg = GNUTLS_DIG_SHA384;
+		pk_alg = GNUTLS_PK_EC;
+		break;
+	case JWT_ALG_ES512:
+		alg = GNUTLS_DIG_SHA512;
+		pk_alg = GNUTLS_PK_EC;
+		break;
+	default:
+		return EINVAL;
 	}
 	
 	/* Initialize signature process data */
@@ -156,6 +154,7 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len, const char *str)
 	(*out) = malloc(sig_dat.size);
 	if (*out == NULL) {
 		res = ENOMEM;
+		goto CLEAN_PRIVKEY;
 	}
 	
 	/* copy signature to out */
@@ -184,27 +183,26 @@ int jwt_verify_sha_pem(jwt_t *jwt, const char *head, const char *sig_b64) {
 	int res;
 	
 	switch (jwt->alg) {
-  case JWT_ALG_RS256:
-    alg = GNUTLS_DIG_SHA256;
-    break;
-  case JWT_ALG_RS384:
-    alg = GNUTLS_DIG_SHA384;
-    break;
-  case JWT_ALG_RS512:
-    alg = GNUTLS_DIG_SHA512;
-    break;
-  case JWT_ALG_ES256:
-    alg = GNUTLS_DIG_SHA256;
-    break;
-  case JWT_ALG_ES384:
-    alg = GNUTLS_DIG_SHA384;
-    break;
-  case JWT_ALG_ES512:
-    alg = GNUTLS_DIG_SHA512;
-    break;
-  default:
-    return EINVAL;
-    break;
+	case JWT_ALG_RS256:
+		alg = GNUTLS_DIG_SHA256;
+		break;
+	case JWT_ALG_RS384:
+		alg = GNUTLS_DIG_SHA384;
+		break;
+	case JWT_ALG_RS512:
+		alg = GNUTLS_DIG_SHA512;
+		break;
+	case JWT_ALG_ES256:
+		alg = GNUTLS_DIG_SHA256;
+		break;
+	case JWT_ALG_ES384:
+		alg = GNUTLS_DIG_SHA384;
+		break;
+	case JWT_ALG_ES512:
+		alg = GNUTLS_DIG_SHA512;
+		break;
+	default:
+		return EINVAL;
 	}
 	
 	if (gnutls_pubkey_init(&pubkey)) {
