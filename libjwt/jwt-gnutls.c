@@ -32,6 +32,9 @@
 #include "b64.h"
 #include "config.h"
 
+int _gnutls_encode_ber_rs_raw(gnutls_datum_t * sig_value, const gnutls_datum_t * r, const gnutls_datum_t * s);
+int _gnutls_decode_ber_rs_raw(const gnutls_datum_t * sig_value, gnutls_datum_t * r, gnutls_datum_t * s);
+
 /**
  * libjwt encryption/decryption function definitions
  */
@@ -151,15 +154,68 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len, const char *str)
 		goto CLEAN_PRIVKEY;
 	}
 	
-	(*out) = malloc(sig_dat.size);
-	if (*out == NULL) {
-		res = ENOMEM;
-		goto CLEAN_PRIVKEY;
-	}
-	
-	/* copy signature to out */
-	memcpy((*out), sig_dat.data, sig_dat.size);
-	*len = sig_dat.size;
+  if (pk_alg == GNUTLS_PK_RSA) {
+    (*out) = malloc(sig_dat.size);
+    if (*out == NULL) {
+      res = ENOMEM;
+      goto CLEAN_PRIVKEY;
+    }
+    
+    /* copy signature to out */
+    memcpy((*out), sig_dat.data, sig_dat.size);
+    *len = sig_dat.size;
+  } else {
+    gnutls_datum_t r, s;
+    int r_padding = 0, s_padding = 0;
+		size_t out_size;
+		
+    if ((res = _gnutls_decode_ber_rs_raw(&sig_dat, &r, &s))) {
+      res = EINVAL;
+      goto CLEAN_PRIVKEY;
+    }
+    
+    // Check r and s size
+    if (jwt->alg == JWT_ALG_ES256) {
+			if (r.size > 32) {
+				r_padding = r.size - 32;
+			}
+			if (s.size > 32) {
+				s_padding = s.size - 32;
+			}
+			out_size = 64;
+    }
+    if (jwt->alg == JWT_ALG_ES384) {
+			if (r.size > 48) {
+				r_padding = r.size - 48;
+			}
+			if (s.size > 48) {
+				s_padding = s.size - 48;
+			}
+			out_size = 96;
+    }
+    if (jwt->alg == JWT_ALG_ES512) {
+			if (r.size > 66) {
+				r_padding = r.size - 66;
+			}
+			if (s.size > 66) {
+				s_padding = s.size - 66;
+			}
+			out_size = 132;
+    }
+    
+    (*out) = malloc(out_size);
+    if (*out == NULL) {
+      res = ENOMEM;
+      goto CLEAN_PRIVKEY;
+    }
+		memset(*out, 0, out_size);
+    
+    memcpy((*out), r.data + r_padding, (r.size - r_padding));
+    memcpy((*out) + (r.size - r_padding), s.data + s_padding, (s.size - s_padding));
+    *len = (r.size - r_padding) + (s.size - s_padding);
+    gnutls_free(r.data);
+    gnutls_free(s.data);
+  }
 
 	/* Clean and exit */
 	gnutls_free(sig_dat.data);
@@ -175,12 +231,10 @@ CLEAN_NONE:
 }
 
 int jwt_verify_sha_pem(jwt_t *jwt, const char *head, const char *sig_b64) {
-	int sig_len;
-	char * sig = jwt_b64_decode(sig_b64, &sig_len);
-	gnutls_datum_t sig_dat = {(void*)sig, sig_len}, cert_dat = {(void*)jwt->key, jwt->key_len}, data = {(void*)head, strlen(head)};
+	char * sig;
+	gnutls_datum_t sig_dat, cert_dat = {(void*)jwt->key, jwt->key_len}, data = {(void*)head, strlen(head)}, r, s;
 	gnutls_pubkey_t pubkey;
-	int alg;
-	int res;
+	int alg, res, sig_len;
 	
 	switch (jwt->alg) {
 	case JWT_ALG_RS256:
@@ -204,18 +258,72 @@ int jwt_verify_sha_pem(jwt_t *jwt, const char *head, const char *sig_b64) {
 	default:
 		return EINVAL;
 	}
+  
+  sig = jwt_b64_decode(sig_b64, &sig_len);
+
+  if (sig == NULL) {
+		return EINVAL;
+  }
+  
+  sig_dat.size = sig_len;
+  sig_dat.data = (void*)sig;
 	
 	if (gnutls_pubkey_init(&pubkey)) {
-		return EINVAL;
+		res = EINVAL;
+    goto CLEAN_SIG;
 	}
-	
 	if (!gnutls_pubkey_import(pubkey, &cert_dat, GNUTLS_X509_FMT_PEM)) {
-		res = !gnutls_pubkey_verify_data2(pubkey, alg, 0, &data, &sig_dat)?0:EINVAL;
+    // Rebuild signature using r and s extracted from sig when jwt->alg is ESxxx
+    if (jwt->alg == JWT_ALG_ES256 && sig_len == 64) {
+      r.size = 32;
+      r.data = sig_dat.data;
+      s.size = 32;
+      s.data = sig_dat.data + 32;
+      
+      if (_gnutls_encode_ber_rs_raw(&sig_dat, &r, &s)) {
+        res = EINVAL;
+        gnutls_free(sig_dat.data);
+        goto CLEAN_PUBKEY;
+      }
+      res = !gnutls_pubkey_verify_data2(pubkey, alg, 0, &data, &sig_dat)?0:EINVAL;
+      gnutls_free(sig_dat.data);
+    } else if (jwt->alg == JWT_ALG_ES384 && sig_len == 96) {
+      r.size = 48;
+      r.data = sig_dat.data;
+      s.size = 48;
+      s.data = sig_dat.data + 48;
+      
+      if (_gnutls_encode_ber_rs_raw(&sig_dat, &r, &s)) {
+        res = EINVAL;
+        gnutls_free(sig_dat.data);
+        goto CLEAN_PUBKEY;
+      }
+      res = !gnutls_pubkey_verify_data2(pubkey, alg, 0, &data, &sig_dat)?0:EINVAL;
+      gnutls_free(sig_dat.data);
+    } else if (jwt->alg == JWT_ALG_ES512 && sig_len == 132) {
+      r.size = 66;
+      r.data = sig_dat.data;
+      s.size = 66;
+      s.data = sig_dat.data + 66;
+      
+      if (_gnutls_encode_ber_rs_raw(&sig_dat, &r, &s)) {
+        res = EINVAL;
+        gnutls_free(sig_dat.data);
+        goto CLEAN_PUBKEY;
+      }
+      res = !gnutls_pubkey_verify_data2(pubkey, alg, 0, &data, &sig_dat)?0:EINVAL;
+      gnutls_free(sig_dat.data);
+    } else {
+      // Use good old RSA signature verification
+      res = !gnutls_pubkey_verify_data2(pubkey, alg, 0, &data, &sig_dat)?0:EINVAL;
+    }
 	} else {
 		res = EINVAL;
 	}
+CLEAN_PUBKEY:
 	gnutls_pubkey_deinit(pubkey);
 	
+CLEAN_SIG:
 	free(sig);
 	return res;
 }
