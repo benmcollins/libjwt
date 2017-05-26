@@ -83,7 +83,6 @@ static void __verify_jwt(const char *jwt_str, const jwt_alg_t alg)
 	jwt_t *jwt = NULL;
 	int ret = 0;
 
-	//read_key("ec_key_secp384r1-pub.pem");
   if (alg == JWT_ALG_ES256) {
     read_key("ec256-cert.pem");
   } else if (alg == JWT_ALG_ES384) {
@@ -109,7 +108,6 @@ static void __test_alg_key(const jwt_alg_t alg)
 
 	ALLOC_JWT(&jwt);
 
-	//read_key("ec_key_secp384r1.pem");
   if (alg == JWT_ALG_ES256) {
     read_key("ec256-key.pem");
   } else if (alg == JWT_ALG_ES384) {
