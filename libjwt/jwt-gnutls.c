@@ -32,8 +32,19 @@
 #include "b64.h"
 #include "config.h"
 
-int _gnutls_encode_ber_rs_raw(gnutls_datum_t * sig_value, const gnutls_datum_t * r, const gnutls_datum_t * s);
-int _gnutls_decode_ber_rs_raw(const gnutls_datum_t * sig_value, gnutls_datum_t * r, gnutls_datum_t * s);
+// Workaround to use GnuTLS 3.5 EC signature encode/decode functions that are not public yet
+#if GNUTLS_VERSION_MAJOR == 3 && GNUTLS_VERSION_MINOR == 5
+extern int _gnutls_encode_ber_rs_raw(gnutls_datum_t * sig_value, const gnutls_datum_t * r, const gnutls_datum_t * s);
+extern int _gnutls_decode_ber_rs_raw(const gnutls_datum_t * sig_value, gnutls_datum_t * r, gnutls_datum_t * s);
+
+static int gnutls_encode_rs_value(gnutls_datum_t * sig_value, const gnutls_datum_t * r, const gnutls_datum_t * s) {
+	return _gnutls_encode_ber_rs_raw(sig_value, r, s);
+}
+
+static int gnutls_decode_rs_value(const gnutls_datum_t * sig_value, gnutls_datum_t *r, gnutls_datum_t *s) {
+	return _gnutls_decode_ber_rs_raw(sig_value, r, s);
+}
+#endif
 
 /**
  * libjwt encryption/decryption function definitions
@@ -166,10 +177,10 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len, const char *str)
     *len = sig_dat.size;
   } else {
     gnutls_datum_t r, s;
-    int r_padding = 0, s_padding = 0;
+    int r_padding = 0, s_padding = 0, r_out_padding = 0, s_out_padding = 0;
 		size_t out_size;
 		
-    if ((res = _gnutls_decode_ber_rs_raw(&sig_dat, &r, &s))) {
+    if ((res = gnutls_decode_rs_value(&sig_dat, &r, &s))) {
       res = EINVAL;
       goto CLEAN_PRIVKEY;
     }
@@ -178,27 +189,39 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len, const char *str)
     if (jwt->alg == JWT_ALG_ES256) {
 			if (r.size > 32) {
 				r_padding = r.size - 32;
+			} else if (r.size < 32) {
+				r_out_padding = 32 - r.size;
 			}
 			if (s.size > 32) {
 				s_padding = s.size - 32;
+			} else if (s.size < 32) {
+				s_out_padding = 32 - s.size;
 			}
 			out_size = 64;
     }
     if (jwt->alg == JWT_ALG_ES384) {
 			if (r.size > 48) {
 				r_padding = r.size - 48;
+			} else if (r.size < 48) {
+				r_out_padding = 48 - r.size;
 			}
 			if (s.size > 48) {
 				s_padding = s.size - 48;
+			} else if (s.size < 48) {
+				s_out_padding = 48 - s.size;
 			}
 			out_size = 96;
     }
     if (jwt->alg == JWT_ALG_ES512) {
 			if (r.size > 66) {
 				r_padding = r.size - 66;
+			} else if (r.size < 66) {
+				r_out_padding = 66 - r.size;
 			}
 			if (s.size > 66) {
 				s_padding = s.size - 66;
+			} else if (s.size < 66) {
+				s_out_padding = 66 - s.size;
 			}
 			out_size = 132;
     }
@@ -210,9 +233,9 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len, const char *str)
     }
 		memset(*out, 0, out_size);
     
-    memcpy((*out), r.data + r_padding, (r.size - r_padding));
-    memcpy((*out) + (r.size - r_padding), s.data + s_padding, (s.size - s_padding));
-    *len = (r.size - r_padding) + (s.size - s_padding);
+    memcpy((*out) + r_out_padding, r.data + r_padding, (r.size - r_padding));
+    memcpy((*out) + (r.size - r_padding + r_out_padding) + s_out_padding, s.data + s_padding, (s.size - s_padding));
+    *len = (r.size - r_padding + r_out_padding) + (s.size - s_padding + s_out_padding);
     gnutls_free(r.data);
     gnutls_free(s.data);
   }
@@ -280,7 +303,7 @@ int jwt_verify_sha_pem(jwt_t *jwt, const char *head, const char *sig_b64) {
       s.size = 32;
       s.data = sig_dat.data + 32;
       
-      if (_gnutls_encode_ber_rs_raw(&sig_dat, &r, &s)) {
+      if (gnutls_encode_rs_value(&sig_dat, &r, &s)) {
         res = EINVAL;
         gnutls_free(sig_dat.data);
         goto CLEAN_PUBKEY;
@@ -293,7 +316,7 @@ int jwt_verify_sha_pem(jwt_t *jwt, const char *head, const char *sig_b64) {
       s.size = 48;
       s.data = sig_dat.data + 48;
       
-      if (_gnutls_encode_ber_rs_raw(&sig_dat, &r, &s)) {
+      if (gnutls_encode_rs_value(&sig_dat, &r, &s)) {
         res = EINVAL;
         gnutls_free(sig_dat.data);
         goto CLEAN_PUBKEY;
@@ -306,7 +329,7 @@ int jwt_verify_sha_pem(jwt_t *jwt, const char *head, const char *sig_b64) {
       s.size = 66;
       s.data = sig_dat.data + 66;
       
-      if (_gnutls_encode_ber_rs_raw(&sig_dat, &r, &s)) {
+      if (gnutls_encode_rs_value(&sig_dat, &r, &s)) {
         res = EINVAL;
         gnutls_free(sig_dat.data);
         goto CLEAN_PUBKEY;
