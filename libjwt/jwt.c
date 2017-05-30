@@ -276,7 +276,7 @@ void *jwt_b64_decode(const char *src, int *ret_len)
 	if (buf == NULL)
 		return NULL;
 
-	*ret_len = jwt_base64_decode_binary(buf, new);
+	*ret_len = jwt_Base64decode(buf, new);
 
 	return buf;
 }
@@ -787,7 +787,7 @@ static int jwt_encode(jwt_t *jwt, char **out)
 		free(buf);
 		return ENOMEM;
 	}
-	jwt_base64_encode_binary(head, (unsigned char *)buf, strlen(buf));
+	jwt_Base64encode(head, buf, strlen(buf));
 	head_len = strlen(head);
 
 	free(buf);
@@ -806,7 +806,7 @@ static int jwt_encode(jwt_t *jwt, char **out)
 		free(buf);
 		return ENOMEM;
 	}
-	jwt_base64_encode_binary(body, (unsigned char *)buf, strlen(buf));
+	jwt_Base64encode(body, buf, strlen(buf));
 	body_len = strlen(body);
 
 	free(buf);
@@ -850,7 +850,7 @@ static int jwt_encode(jwt_t *jwt, char **out)
 		return ENOMEM;
 	}
 
-	jwt_base64_encode_binary(buf, (unsigned char *)sig, sig_len);
+	jwt_Base64encode(buf, sig, sig_len);
 
 	free(sig);
 
