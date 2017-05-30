@@ -264,7 +264,7 @@ static Suite *libjwt_suite(void)
 	tcase_add_test(tc_core, test_jwt_verify_rsa_i37);
 	tcase_add_test(tc_core, test_jwt_encode_rsa_with_ec);
 
-	tcase_set_timeout(tc_core, 30);
+	tcase_set_timeout(tc_core, 60);
 
 	suite_add_tcase(s, tc_core);
 
