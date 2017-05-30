@@ -38,21 +38,21 @@ static size_t key_len;
 
 static const char jwt_es256[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJpYXQ"
 	"iOjE0NzU5ODA1NDUsImlzcyI6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJYWFhYLVl"
-	"ZWVktWlpaWi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.3AA32Mn5dMuJXxe03mxJcT"
-	"fmif1eiv_doUCSVuMgny4DLKIZ3956SIGjeJpj3BSx2Lul7Zwy-PPuxyBwnL1jiWp7iw"
-	"PN9G9tV75ylfWvcwkF20bQA9m1vDbUIl8PIK8Q";
+	"ZWVktWlpaWi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.E5xXehQ_eBRchp8kY7MUL3"
+	"HEt3g_xr-Tyxr-Q3syibMBjvRKkaHS3ohf8SS_AhuQNzyFX7aqxVI2xLlq-A5blQ";
 
 static const char jwt_es384[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzM4NCJ9.eyJpYXQ"
-	"iOjE0NzU5ODA1NDUsImlzcyI6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJYWFhYLVl"
-	"ZWVktWlpaWi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.p6McjolhuIqel0DWaI2OrD"
-	"oRYcxgSMnGFirdKT5jXpe9L801HBkouKBJSae8F7LLFUKiE2VVX_514WzkuExLQs2eB1"
-	"L2Qahid5VFOK3hc7HcBL-rcCXa8d2tf_MudyrM";
+	"iOjE0NzU5ODA1NDUsImlzcyI6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJYWFhYLVlZ"
+	"WVktWlpaWi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.oaKw5czQOHQqeGOvbk1FRFap"
+	"p5acqQ8bo3gs8-R0SLEJOZTfyTOPTm4sGB2groNoYBktwaGdq4NK6_oT-yZh1_mghr3SE"
+	"gKWZRHfFDSkRX_aOwrGY4pTq_Yjq2wxO-HA";
 
 static const char jwt_es512[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzUxMiJ9.eyJpYXQ"
-	"iOjE0NzU5ODA1NDUsImlzcyI6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJYWFhYLVl"
-	"ZWVktWlpaWi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9._i6CCfwqgk9IEFbKjNL8Ki"
-	"tPT9NEnXn2-qCSq0UgqkZ3sY-R0cnzD-WzpsEA8QWC882Y-SWwN7qVxK9e45pHUy4jye"
-	"YKXJj3agq9tZ61V3TM-BjcnMkERsV37nDQcfom";
+	"iOjE0NzU5ODA1NDUsImlzcyI6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJYWFhYLVlZ"
+	"WVktWlpaWi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.ATmBwYyxiK_zY7AnEDK6P_BK"
+	"5fie-zuayCuWwFDzETkVLc9BulOKJMM-NPB6g-bWevzIwv2Kw9PkXszjgVMWhLJ1AIKwl"
+	"1cIke5hGC1YfWpucM6tjNKu7gYXSABaPswLatswR5uX3K0drXX0hzYUOieOvsLQYrCAE_"
+	"F0cGL3u1lqRHXJ";
 
 static void read_key(const char *key_file)
 {
@@ -83,7 +83,13 @@ static void __verify_jwt(const char *jwt_str, const jwt_alg_t alg)
 	jwt_t *jwt = NULL;
 	int ret = 0;
 
-	read_key("ec_key_secp384r1-pub.pem");
+  if (alg == JWT_ALG_ES256) {
+    read_key("ec256-cert.pem");
+  } else if (alg == JWT_ALG_ES384) {
+    read_key("ec384-cert.pem");
+  } else if (alg == JWT_ALG_ES512) {
+    read_key("ec512-cert.pem");
+  }
 
 	ret = jwt_decode(&jwt, jwt_str, key, key_len);
 	ck_assert_int_eq(ret, 0);
@@ -102,7 +108,13 @@ static void __test_alg_key(const jwt_alg_t alg)
 
 	ALLOC_JWT(&jwt);
 
-	read_key("ec_key_secp384r1.pem");
+  if (alg == JWT_ALG_ES256) {
+    read_key("ec256-key.pem");
+  } else if (alg == JWT_ALG_ES384) {
+    read_key("ec384-key.pem");
+  } else if (alg == JWT_ALG_ES512) {
+    read_key("ec512-key.pem");
+  }
 
 	ret = jwt_add_grant(jwt, "iss", "files.cyphre.com");
 	ck_assert_int_eq(ret, 0);
