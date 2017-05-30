@@ -28,7 +28,7 @@
 #include <jwt.h>
 
 #include "jwt-private.h"
-#include "b64.h"
+#include "base64.h"
 #include "config.h"
 
 
@@ -243,7 +243,6 @@ static long get_js_int(json_t *js, const char *key)
 
 void *jwt_b64_decode(const char *src, int *ret_len)
 {
-	base64_decodestate state;
 	void *buf;
 	char *new;
 	int len, i, z;
@@ -277,8 +276,7 @@ void *jwt_b64_decode(const char *src, int *ret_len)
 	if (buf == NULL)
 		return NULL;
 
-	jwt_base64_init_decodestate(&state);
-	*ret_len = jwt_base64_decode_block(new, i, buf, &state);
+	*ret_len = jwt_base64_decode_binary(buf, new);
 
 	return buf;
 }
@@ -296,7 +294,7 @@ static json_t *jwt_b64_decode_json(char *src)
 		return NULL;
 
 	buf[len] = '\0';
-
+fprintf(stderr, "%s:%d => [%s][%d]\n", __func__, __LINE__, buf, len);
 	js = json_loads(buf, 0, NULL);
 
 	free(buf);
@@ -773,9 +771,8 @@ char *jwt_dump_str(jwt_t *jwt, int pretty)
 static int jwt_encode(jwt_t *jwt, char **out)
 {
 	char *buf = NULL, *head, *body, *sig;
-	int ret, buf_len, head_len, body_len;
+	int ret, head_len, body_len;
 	unsigned int sig_len;
-	base64_encodestate state;
 
 	/* First the header. */
 	ret = jwt_write_head(jwt, &buf, 0);
@@ -790,10 +787,8 @@ static int jwt_encode(jwt_t *jwt, char **out)
 		free(buf);
 		return ENOMEM;
 	}
-	jwt_base64_init_encodestate(&state);
-	head_len = jwt_base64_encode_block(buf, strlen(buf), head, &state);
-	head_len += jwt_base64_encode_blockend(head + head_len, &state);
-	head[head_len] = '\0';
+	jwt_base64_encode_binary(head, (unsigned char *)buf, strlen(buf));
+	head_len = strlen(head);
 
 	free(buf);
 	buf = NULL;
@@ -811,11 +806,11 @@ static int jwt_encode(jwt_t *jwt, char **out)
 		free(buf);
 		return ENOMEM;
 	}
-	jwt_base64_init_encodestate(&state);
-	body_len = jwt_base64_encode_block(buf, strlen(buf), body, &state);
-	body_len += jwt_base64_encode_blockend(body + body_len, &state);
-	body[body_len] = '\0';
+	jwt_base64_encode_binary(body, (unsigned char *)buf, strlen(buf));
+	body_len = strlen(body);
+
 	free(buf);
+	buf = NULL;
 
 	jwt_base64uri_encode(head);
 	jwt_base64uri_encode(body);
@@ -855,10 +850,8 @@ static int jwt_encode(jwt_t *jwt, char **out)
 		return ENOMEM;
 	}
 
-	jwt_base64_init_encodestate(&state);
-	buf_len = jwt_base64_encode_block(sig, sig_len, buf, &state);
-	buf_len += jwt_base64_encode_blockend(buf + buf_len, &state);
-	buf[buf_len] = '\0';
+	jwt_base64_encode_binary(buf, (unsigned char *)sig, sig_len);
+
 	free(sig);
 
 	jwt_base64uri_encode(buf);
