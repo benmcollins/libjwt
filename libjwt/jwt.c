@@ -294,7 +294,7 @@ static json_t *jwt_b64_decode_json(char *src)
 		return NULL;
 
 	buf[len] = '\0';
-fprintf(stderr, "%s:%d => [%s][%d]\n", __func__, __LINE__, buf, len);
+
 	js = json_loads(buf, 0, NULL);
 
 	free(buf);
