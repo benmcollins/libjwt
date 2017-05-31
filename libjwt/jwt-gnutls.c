@@ -129,6 +129,9 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len, const char *str)
 	int ret = 0, pk_alg;
 	int alg, adj;
 
+	/* Initialiaze for checking later. */
+	*out = NULL;
+
 	switch (jwt->alg) {
 	case JWT_ALG_RS256:
 		alg = GNUTLS_DIG_SHA256;
