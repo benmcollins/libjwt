@@ -8,7 +8,18 @@ AC_CONFIG_HEADERS([libjwt/config.h])
 
 AC_SUBST([AM_CFLAGS], [-Wall])
 
-PKG_CHECK_MODULES([OPENSSL], [openssl >= 0.9.8])
+dnl Prefer OpenSSL unless asked to ignore it
+AC_ARG_WITH([openssl],
+	AS_HELP_STRING([--without-openssl], [Ignore presence of OpenSSL libraries and use GnuTLS]))
+
+AS_IF([test "x$with_openssl" != "xno"], [
+	PKG_CHECK_MODULES([OPENSSL], [openssl >= 0.9.8])
+	AM_CONDITIONAL([HAVE_OPENSSL], [true])
+], [
+	PKG_CHECK_MODULES([GNUTLS], [gnutls >= 3.5.8])
+	AM_CONDITIONAL([HAVE_OPENSSL], [false])
+])
+
 PKG_CHECK_MODULES([JANSSON], [jansson >= 2.0])
 PKG_CHECK_MODULES([CHECK], [check >= 0.9.4], [true], [true])
 
