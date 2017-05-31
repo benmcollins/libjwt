@@ -23,3 +23,4 @@
 - ``make all``: build library.
 - ``make check``: build and run test suite.
 - See INSTALL file for more details on GNU Auto tools and GNU Make.
+- Use the ``--without-openssl`` with ``./configure`` to use GnuTLS.
