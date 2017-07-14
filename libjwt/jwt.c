@@ -19,12 +19,6 @@
 #include <string.h>
 #include <errno.h>
 
-#include <openssl/bio.h>
-#include <openssl/evp.h>
-#include <openssl/hmac.h>
-#include <openssl/buffer.h>
-#include <openssl/pem.h>
-
 #include <jwt.h>
 
 #include "jwt-private.h"
