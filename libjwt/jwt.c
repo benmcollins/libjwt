@@ -248,7 +248,7 @@ static int get_js_bool(json_t *js, const char *key)
 
 	js_val = json_object_get(js, key);
 	if (js_val) {
-		val = (int)json_boolean_value(js_val);
+		val = (int)json_is_true(js_val);
 	} else {
 		errno = ENOENT;
 	}
