@@ -146,9 +146,11 @@ AC_DEFUN([AX_CODE_COVERAGE],[
 		dnl macOS does not have libgcov.a
 		case $host_os in
 			darwin*)
+				CODE_COVERAGE_LDFLAGS=""
 				;;
 			*)
-				CODE_COVERAGE_LDFLAGS="-lgcov";;
+				CODE_COVERAGE_LDFLAGS="-lgcov"
+				;;
 		esac
 
 		AC_SUBST([CODE_COVERAGE_CPPFLAGS])
