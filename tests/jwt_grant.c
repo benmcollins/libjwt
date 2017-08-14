@@ -69,13 +69,13 @@ START_TEST(test_jwt_add_grant_int)
 	ck_assert_int_eq(ret, 0);
 	ck_assert(jwt != NULL);
 
-	ret = jwt_add_grant_bool(jwt, "int", 1);
+	ret = jwt_add_grant_int(jwt, "int", 1);
 	ck_assert_int_eq(ret, 0);
 
-	val = jwt_get_grant_bool(jwt, "int");
+	val = jwt_get_grant_int(jwt, "int");
 	ck_assert(val);
 
-	val = jwt_get_grant_bool(jwt, "not found");
+	val = jwt_get_grant_int(jwt, "not found");
 	ck_assert_int_eq(errno, ENOENT);
 
 	jwt_free(jwt);
@@ -154,6 +154,7 @@ START_TEST(test_jwt_grant_invalid)
 	jwt_t *jwt = NULL;
 	const char *val;
 	long valint = 0;
+	int valbool = 0;
 	int ret = 0;
 
 	ret = jwt_new(&jwt);
@@ -173,6 +174,10 @@ START_TEST(test_jwt_grant_invalid)
 	valint = jwt_get_grant_int(jwt, NULL);
 	ck_assert_int_eq(errno, EINVAL);
 	ck_assert(valint == 0);
+
+	valbool = jwt_get_grant_bool(jwt, NULL);
+	ck_assert_int_eq(errno, EINVAL);
+	ck_assert(valbool == 0);
 
 	jwt_free(jwt);
 }
