@@ -132,7 +132,7 @@ int jwt_verify_sha_hmac(jwt_t *jwt, const char *head, const char *sig)
 
 	BIO_write(b64, res, res_len);
 
-	BIO_flush(b64);
+	(void)BIO_flush(b64);
 
 	len = BIO_pending(bmem);
 	if (len < 0)
