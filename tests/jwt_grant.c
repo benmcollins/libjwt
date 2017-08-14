@@ -59,6 +59,29 @@ START_TEST(test_jwt_get_grant)
 }
 END_TEST
 
+START_TEST(test_jwt_add_grant_int)
+{
+	jwt_t *jwt = NULL;
+	long val;
+	int ret = 0;
+
+	ret = jwt_new(&jwt);
+	ck_assert_int_eq(ret, 0);
+	ck_assert(jwt != NULL);
+
+	ret = jwt_add_grant_bool(jwt, "int", 1);
+	ck_assert_int_eq(ret, 0);
+
+	val = jwt_get_grant_bool(jwt, "int");
+	ck_assert(val);
+
+	val = jwt_get_grant_bool(jwt, "not found");
+	ck_assert_int_eq(errno, ENOENT);
+
+	jwt_free(jwt);
+}
+END_TEST
+
 START_TEST(test_jwt_add_grant_bool)
 {
 	jwt_t *jwt = NULL;
@@ -82,7 +105,7 @@ START_TEST(test_jwt_add_grant_bool)
 	ck_assert(!val);
 
 	val = jwt_get_grant_bool(jwt, "not found");
-	ck_assert_int_eq(val, -1);
+	ck_assert_int_eq(errno, ENOENT);
 
 	jwt_free(jwt);
 }
@@ -207,6 +230,7 @@ static Suite *libjwt_suite(void)
 	tc_core = tcase_create("jwt_grant");
 
 	tcase_add_test(tc_core, test_jwt_add_grant);
+	tcase_add_test(tc_core, test_jwt_add_grant_int);
 	tcase_add_test(tc_core, test_jwt_add_grant_bool);
 	tcase_add_test(tc_core, test_jwt_get_grant);
 	tcase_add_test(tc_core, test_jwt_del_grants);

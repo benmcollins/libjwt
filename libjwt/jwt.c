@@ -217,8 +217,11 @@ static const char *get_js_string(json_t *js, const char *key)
 	json_t *js_val;
 
 	js_val = json_object_get(js, key);
-	if (js_val)
+	if (js_val) {
 		val = json_string_value(js_val);
+	} else {
+		errno = ENOENT;
+	}
 
 	return val;
 }
@@ -229,8 +232,11 @@ static long get_js_int(json_t *js, const char *key)
 	json_t *js_val;
 
 	js_val = json_object_get(js, key);
-	if (js_val)
+	if (js_val) {
 		val = (long)json_integer_value(js_val);
+	} else {
+		errno = ENOENT;
+	}
 
 	return val;
 }
@@ -241,9 +247,11 @@ static int get_js_bool(json_t *js, const char *key)
 	json_t *js_val;
 
 	js_val = json_object_get(js, key);
-	if (js_val)
+	if (js_val) {
 		val = (int)json_boolean_value(js_val);
-
+	} else {
+		errno = ENOENT;
+	}
 	return val;
 }
 
