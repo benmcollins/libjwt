@@ -160,8 +160,8 @@ const char *jwt_get_grant(jwt_t *jwt, const char *grant);
  * @param jwt Pointer to a JWT object.
  * @param grant String containing the name of the grant to return a value
  *     for.
- * @return Returns an int for the value, with errno set ENOENT when
- * not found.
+ * @return Returns an int for the value. Sets errno to ENOENT when not
+ * found.
  *
  * Note, this will only return grants with JSON integer values. Use
  * jwt_get_grant_json() to get the JSON representation of more complex
@@ -178,8 +178,8 @@ long jwt_get_grant_int(jwt_t *jwt, const char *grant);
  * @param jwt Pointer to a JWT object.
  * @param grant String containing the name of the grant to return a value
  *     for.
- * @return Returns booean for the value, with errno set ENOENT when
- * not found.
+ * @return Returns a booean for the value. Sets errno to ENOENT when not
+ * found.
  *
  * Note, this will only return grants with JSON boolean values. Use
  * jwt_get_grant_json() to get the JSON representation of more complex
