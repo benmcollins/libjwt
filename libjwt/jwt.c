@@ -235,6 +235,18 @@ static long get_js_int(json_t *js, const char *key)
 	return val;
 }
 
+static int get_js_bool(json_t *js, const char *key)
+{
+	int val = -1;
+	json_t *js_val;
+
+	js_val = json_object_get(js, key);
+	if (js_val)
+		val = (int)json_boolean_value(js_val);
+
+	return val;
+}
+
 void *jwt_b64_decode(const char *src, int *ret_len)
 {
 	void *buf;
@@ -527,6 +539,18 @@ long jwt_get_grant_int(jwt_t *jwt, const char *grant)
 	return get_js_int(jwt->grants, grant);
 }
 
+int jwt_get_grant_bool(jwt_t *jwt, const char *grant)
+{
+	if (!jwt || !grant || !strlen(grant)) {
+		errno = EINVAL;
+		return 0;
+	}
+
+	errno = 0;
+
+	return get_js_bool(jwt->grants, grant);
+}
+
 char *jwt_get_grants_json(jwt_t *jwt, const char *grant)
 {
 	json_t *js_val = NULL;
@@ -572,6 +596,20 @@ int jwt_add_grant_int(jwt_t *jwt, const char *grant, long val)
 		return EEXIST;
 
 	if (json_object_set_new(jwt->grants, grant, json_integer((json_int_t)val)))
+		return EINVAL;
+
+	return 0;
+}
+
+int jwt_add_grant_bool(jwt_t *jwt, const char *grant, int val)
+{
+	if (!jwt || !grant || !strlen(grant))
+		return EINVAL;
+
+	if (get_js_int(jwt->grants, grant) != -1)
+		return EEXIST;
+
+	if (json_object_set_new(jwt->grants, grant, json_boolean(val)))
 		return EINVAL;
 
 	return 0;
