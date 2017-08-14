@@ -143,9 +143,8 @@ AC_DEFUN([AX_CODE_COVERAGE],[
 		CODE_COVERAGE_CPPFLAGS="-DNDEBUG"
 		CODE_COVERAGE_CFLAGS="-O0 -g -fprofile-arcs -ftest-coverage"
 		CODE_COVERAGE_CXXFLAGS="-O0 -g -fprofile-arcs -ftest-coverage"
-		dnl Some platforms do not need to explicitly link to libgcov
-		AC_SEARCH_LIBS([gcov_clear], [gcov], [CODE_COVERAGE_LDFLAGS="-lgcov"].
-			       [CODE_COVERAGE_LDFLAGS=""])
+		dnl Using -lgcov explicitly seems to be unneeded -- BenC : Aug 13, 2017
+		CODE_COVERAGE_LDFLAGS=""
 
 		AC_SUBST([CODE_COVERAGE_CPPFLAGS])
 		AC_SUBST([CODE_COVERAGE_CFLAGS])
