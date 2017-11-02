@@ -1,0 +1,40 @@
+Source: libjwt
+Version: LIBJWT_VERSION
+Architecture: DEBIAN_ARCHITECTURE
+Section: devel
+Priority: optional
+Maintainer: Ed Okerson <ed.okerson@inscape.tv>
+Build-Depends: debhelper (>= 8.1.3),
+               libjansson-dev,
+               libssl-dev
+Standards-Version: 3.9.6
+Homepage: https://github.com/CognitiveNetworks/libjwt/
+Vcs-Browser: https://github.com/CognitiveNetworks/libjwt/
+Vcs-Git: https://github.com/CognitiveNetworks/libjwt.git
+
+Package: libjwt
+Section: libs
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Multi-Arch: same
+Description: C Library for JSON Web Tokens
+ This package includes the libjwt shared object library, needed to run
+ applications compiled against libjwt.
+
+Package: libjwt-dev
+Section: libdevel
+Architecture: any
+Depends: libjwt (= ${binary:Version}), ${misc:Depends}, libc6-dev
+Multi-Arch: same
+Description: C Library for JSON Web Tokens
+ This package includes the libjwt shared object library, needed to run
+ applications compiled against libjwt.
+
+Package: libjwt-dbg
+Section: debug
+Architecture: any
+Depends: libjwt (= ${binary:Version}), ${shlibs:Depends}, ${misc:Depends}
+Multi-Arch: same
+Description: C Library for JSON Web Tokens
+ This package includes the libjwt shared object library, needed to run
+ applications compiled against libjwt.
