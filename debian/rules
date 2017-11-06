@@ -6,9 +6,9 @@
 override_dh_auto_test:
 	echo
 
-override_dh_auto_install:
-	dh_install libjwt/.libs/libjwt.so.* /usr/lib/${DEB_HOST_MULTIARCH}/
-	dh_install libjwt/.libs/libjwt.a /usr/lib/${DEB_HOST_MULTIARCH}/
+# override_dh_auto_install:
+# 	dh_install libjwt/.libs/libjwt.so.* /usr/lib/${DEB_HOST_MULTIARCH}/
+# 	dh_install libjwt/.libs/libjwt.a /usr/lib/${DEB_HOST_MULTIARCH}/
 
 override_dh_strip:
 	dh_strip --dbg-package=libjwt-dbg
