@@ -1,2 +1,2 @@
-# include/jwt.h /usr/include
-# libjwt.so /usr/lib/x86_64-linux-gnu
+include/jwt.h /usr/include
+libjwt/.libs/libjwt.so /usr/lib/x86_64-linux-gnu

@@ -1,6 +1,4 @@
-Source: libjwt
-# Version: LIBJWT_VERSION
-# Architecture: DEBIAN_ARCHITECTURE
+Source: libjwt0
 Section: devel
 Priority: optional
 Maintainer: Ed Okerson <ed.okerson@inscape.tv>
@@ -12,7 +10,7 @@ Homepage: https://github.com/CognitiveNetworks/libjwt/
 Vcs-Browser: https://github.com/CognitiveNetworks/libjwt/
 Vcs-Git: https://github.com/CognitiveNetworks/libjwt.git
 
-Package: libjwt
+Package: libjwt0
 Section: libs
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
@@ -32,6 +30,7 @@ Description: C Library for JSON Web Tokens
 
 Package: libjwt-dbg
 Section: debug
+Priority: extra
 Architecture: any
 Depends: libjwt (= ${binary:Version}), ${shlibs:Depends}, ${misc:Depends}
 Multi-Arch: same
