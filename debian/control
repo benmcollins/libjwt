@@ -1,6 +1,6 @@
 Source: libjwt
-Version: LIBJWT_VERSION
-Architecture: DEBIAN_ARCHITECTURE
+# Version: LIBJWT_VERSION
+# Architecture: DEBIAN_ARCHITECTURE
 Section: devel
 Priority: optional
 Maintainer: Ed Okerson <ed.okerson@inscape.tv>
