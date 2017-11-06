@@ -1,4 +1,4 @@
-libjwt0 (1.8.0-13) trusty; urgency=low
+libjwt0 (1.8.0-BUILD_NUMBER) trusty; urgency=low
 
   * Initial build
  -- CIS Build <ops@cognitivenetworks.com>  Mon, 06 Nov 2017 11:05:53 +0000
