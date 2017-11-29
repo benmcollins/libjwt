@@ -29,6 +29,21 @@
 extern "C" {
 #endif
 
+// under GNU compiler collection we have __attribute__, otherwise we don't
+#ifdef __GNUC__
+    #define JWT_DEPRECATED __attribute__ ((deprecated))
+#else
+    #define JWT_DEPRECATED
+#endif
+
+// on windows we need to redefine alloca and strcasecmp, because they're not exist there
+#ifdef _MSC_VER
+    #include <memory.h>
+
+    #define alloca _malloca
+    #define strcasecmp _stricmp
+#endif
+
 /** Opaque JWT object. */
 typedef struct jwt jwt_t;
 
@@ -299,8 +314,8 @@ int jwt_del_grants(jwt_t *jwt, const char *grant);
  * @param grant String containing the name of the grant to delete.
  * @return Returns 0 on success, valid errno otherwise.
  */
-int jwt_del_grant(jwt_t *jwt, const char *grant)
-	__attribute__ ((deprecated));
+JWT_DEPRECATED
+int jwt_del_grant(jwt_t *jwt, const char *grant);
 
 /** @} */
 

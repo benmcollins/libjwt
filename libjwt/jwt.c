@@ -23,7 +23,6 @@
 
 #include "jwt-private.h"
 #include "base64.h"
-#include "config.h"
 
 
 static const char *jwt_alg_str(jwt_alg_t alg)
@@ -654,15 +653,10 @@ int jwt_del_grants(jwt_t *jwt, const char *grant)
 	return 0;
 }
 
-#ifdef NO_WEAK_ALIASES
 int jwt_del_grant(jwt_t *jwt, const char *grant)
 {
 	return jwt_del_grants(jwt, grant);
 }
-#else
-int jwt_del_grant(jwt_t *jwt, const char *grant)
-	__attribute__ ((weak, alias ("jwt_del_grants")));
-#endif
 
 static int __append_str(char **buf, const char *str)
 {

@@ -28,7 +28,6 @@
 #include <jwt.h>
 
 #include "jwt-private.h"
-#include "config.h"
 
 /* Routines to support crypto in LibJWT using OpenSSL. */
 
@@ -158,7 +157,7 @@ jwt_verify_hmac_done:
 	return ret;
 }
 
-#define SIGN_ERROR(__err) ({ ret = __err; goto jwt_sign_sha_pem_done; })
+#define SIGN_ERROR(__err) { ret = __err; goto jwt_sign_sha_pem_done; }
 
 int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		     const char *str)
@@ -314,7 +313,7 @@ jwt_sign_sha_pem_done:
 	return ret;
 }
 
-#define VERIFY_ERROR(__err) ({ ret = __err; goto jwt_verify_sha_pem_done; })
+#define VERIFY_ERROR(__err) { ret = __err; goto jwt_verify_sha_pem_done; }
 
 int jwt_verify_sha_pem(jwt_t *jwt, const char *head, const char *sig_b64)
 {
