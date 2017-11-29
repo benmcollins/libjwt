@@ -29,6 +29,12 @@
 extern "C" {
 #endif
 
+#ifdef __GNUC__
+    #define JWT_DEPRECATED __attribute__ ((deprecated))
+#else
+    #define JWT_DEPRECATED
+#endif
+
 /** Opaque JWT object. */
 typedef struct jwt jwt_t;
 
@@ -299,8 +305,8 @@ int jwt_del_grants(jwt_t *jwt, const char *grant);
  * @param grant String containing the name of the grant to delete.
  * @return Returns 0 on success, valid errno otherwise.
  */
-int jwt_del_grant(jwt_t *jwt, const char *grant)
-	__attribute__ ((deprecated));
+JWT_DEPRECATED
+int jwt_del_grant(jwt_t *jwt, const char *grant);
 
 /** @} */
 
