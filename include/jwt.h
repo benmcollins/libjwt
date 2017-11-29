@@ -29,10 +29,19 @@
 extern "C" {
 #endif
 
+// under GNU compiler collection we have __attribute__, otherwise we don't
 #ifdef __GNUC__
     #define JWT_DEPRECATED __attribute__ ((deprecated))
 #else
     #define JWT_DEPRECATED
+#endif
+
+// on windows we need to redefine alloca and strcasecmp, because they're not exist there
+#ifdef _MSC_VER
+    #include <memory.h>
+
+    #define alloca _malloca
+    #define strcasecmp _stricmp
 #endif
 
 /** Opaque JWT object. */
