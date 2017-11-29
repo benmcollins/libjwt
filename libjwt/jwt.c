@@ -654,6 +654,13 @@ int jwt_del_grants(jwt_t *jwt, const char *grant)
 	return 0;
 }
 
+#ifdef _MSC_VER
+
+int jwt_del_grant(jwt_t *jwt, const char *grant);
+#pragma comment(linker, "/alternatename:jwt_del_grant=jwt_del_grants")
+
+#else
+
 #ifdef NO_WEAK_ALIASES
 int jwt_del_grant(jwt_t *jwt, const char *grant)
 {
@@ -663,6 +670,8 @@ int jwt_del_grant(jwt_t *jwt, const char *grant)
 int jwt_del_grant(jwt_t *jwt, const char *grant)
 	__attribute__ ((weak, alias ("jwt_del_grants")));
 #endif
+
+#endif /* _MSC_VER */
 
 static int __append_str(char **buf, const char *str)
 {
