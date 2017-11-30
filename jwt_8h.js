@@ -1,5 +1,7 @@
 var jwt_8h =
 [
+    [ "DEPRECATED", "jwt_8h.html#aaf225a2b96038de3a42d61a1fa63654b", null ],
+    [ "JWT_EXPORT", "jwt_8h.html#a2b5e67463c9576aa2e7bcceb9f5e6ac1", null ],
     [ "jwt_alg_t", "jwt_8h.html#af798055c91128486537a739cfa20f1fb", null ],
     [ "jwt_t", "jwt_8h.html#abf0acfb990d245214216af589c1d0947", null ],
     [ "jwt_alg", "jwt_8h.html#a3f05228338020adcde0d799e814e1851", [
@@ -16,10 +18,11 @@ var jwt_8h =
       [ "JWT_ALG_TERM", "jwt_8h.html#a3f05228338020adcde0d799e814e1851a8e90b1d1ed4944f97adabf2d38b1a949", null ]
     ] ],
     [ "jwt_add_grant", "group__jwt__grant.html#ga91d9bfe88d3e7b246ee67d2ed4609955", null ],
+    [ "jwt_add_grant_bool", "group__jwt__grant.html#gad528aabec09be8d051485a45c49781c3", null ],
     [ "jwt_add_grant_int", "group__jwt__grant.html#gae4cdc69b259a0f2f98e3c07bf9038765", null ],
     [ "jwt_add_grants_json", "group__jwt__grant.html#ga0509c745c45eebb41c278cebb0617a55", null ],
     [ "jwt_decode", "group__jwt__new.html#ga4d498ffdcf1c95d67b81c224e2a447e5", null ],
-    [ "jwt_del_grant", "group__jwt__grant.html#ga7737207aef8fddb8d7f42336a0a2b0ae", null ],
+    [ "jwt_del_grant", "group__jwt__grant.html#ga4c5ff4001da586297266bf4d3816bcfc", null ],
     [ "jwt_del_grants", "group__jwt__grant.html#ga0d8da61021d73817fb71bf8ffb7791b7", null ],
     [ "jwt_dump_fp", "group__jwt__encode.html#gacc77ae9e2214c9b07352a400758f1f4d", null ],
     [ "jwt_dump_str", "group__jwt__encode.html#ga879135911589a45137afedf456cf28e9", null ],
@@ -29,6 +32,7 @@ var jwt_8h =
     [ "jwt_free", "group__jwt__new.html#gafd51b076050815be44081439d1cb33fc", null ],
     [ "jwt_get_alg", "group__jwt__alg.html#ga5c5bece149deeb9546bf155646cf9797", null ],
     [ "jwt_get_grant", "group__jwt__grant.html#gab8bafff3b4cbca17c5f04fd6d4cbe59a", null ],
+    [ "jwt_get_grant_bool", "group__jwt__grant.html#ga439c70c683ebf8b44eb6cdcc7a88ae2f", null ],
     [ "jwt_get_grant_int", "group__jwt__grant.html#gae48541a059b47945181102d6478bd2bb", null ],
     [ "jwt_get_grants_json", "group__jwt__grant.html#ga422cc9955eefaba9471cba96d24d5a24", null ],
     [ "jwt_new", "group__jwt__new.html#ga9ce4e8fb6c2eb66e41b07a7a57d8a68a", null ],

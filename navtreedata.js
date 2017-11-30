@@ -1,6 +1,7 @@
 var NAVTREE =
 [
-  [ "libjwt-1.7.0", "index.html", [
+  [ "libjwt-1.8.0", "index.html", [
+    [ "Deprecated List", "deprecated.html", null ],
     [ "Modules", "modules.html", "modules" ],
     [ "Files", null, [
       [ "File List", "files.html", "files" ],
@@ -9,7 +10,8 @@ var NAVTREE =
         [ "Functions", "globals_func.html", null ],
         [ "Typedefs", "globals_type.html", null ],
         [ "Enumerations", "globals_enum.html", null ],
-        [ "Enumerator", "globals_eval.html", null ]
+        [ "Enumerator", "globals_eval.html", null ],
+        [ "Macros", "globals_defs.html", null ]
       ] ]
     ] ]
   ] ]
@@ -17,7 +19,7 @@ var NAVTREE =
 
 var NAVTREEINDEX =
 [
-"files.html"
+"deprecated.html"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';
