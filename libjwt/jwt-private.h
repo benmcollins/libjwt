@@ -24,7 +24,7 @@ struct jwt {
 	jwt_alg_t alg;
 	unsigned char *key;
 	int key_len;
-    char *kid;
+	char *kid;
 	json_t *grants;
 };
 
