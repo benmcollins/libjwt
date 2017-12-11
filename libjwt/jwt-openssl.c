@@ -521,7 +521,7 @@ EVP_PKEY *jwt_create_key_from_jwk(json_t *jwk)
 	if (strcmp(kty,"RSA")==0)
 		return jwt_create_rsa_from_jwk(jwk);
 	else if( strcmp(kty,"EC")==0)
-		return jwt_create_ec_from_jwk(jwk);
+		// To be implemented
 	else
 		return NULL;
 }
@@ -598,10 +598,3 @@ BIGNUM *jwt_create_big_num( json_t *jwk, const char *property )
 	
 	return bigNum;
 }
-
-EVP_PKEY *jwt_create_ec_from_jwk(json_t *jwk)
-{
-	// To be implemented
-	return NULL;
-}
-
