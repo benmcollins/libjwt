@@ -30,6 +30,12 @@
 #include "jwt-private.h"
 #include "config.h"
 
+EVP_PKEY *jwt_create_key_from_jwk(json_t *jwk);
+EVP_PKEY *jwt_create_rsa_from_jwk(json_t *jwk);
+EVP_PKEY *jwt_create_ec_from_jwk(json_t *jwk);
+json_t *jwt_find_jwk( jwt_t *jwt, const char *sig_jwks);
+BIGNUM *jwt_create_big_num( json_t *jwk, const char *property );
+
 /* Routines to support crypto in LibJWT using OpenSSL. */
 
 /* Functions to make libjwt backward compatible with OpenSSL version < 1.1.0
@@ -319,6 +325,7 @@ jwt_sign_sha_pem_done:
 int jwt_verify_sha_pem(jwt_t *jwt, const char *head, const char *sig_b64)
 {
 	unsigned char *sig = NULL;
+    json_t *jwk = NULL;
 	EVP_MD_CTX *mdctx = NULL;
 	ECDSA_SIG *ec_sig = NULL;
 	BIGNUM *ec_sig_r = NULL;
@@ -364,18 +371,27 @@ int jwt_verify_sha_pem(jwt_t *jwt, const char *head, const char *sig_b64)
 		return EINVAL;
 	}
 
-	sig = jwt_b64_decode(sig_b64, &slen);
-	if (sig == NULL)
-		VERIFY_ERROR(EINVAL);
+    sig = jwt_b64_decode(sig_b64, &slen);
+    if (sig == NULL)
+        VERIFY_ERROR(EINVAL);
+    
+    if (strncmp(jwt->key, "{", 1) == 0) {
+        // Extract the JWK to use
+        jwk = jwt_find_jwk( jwt, jwt->key );
+        if (json_is_object(jwk))
+            pkey = jwt_create_key_from_jwk(jwk);
 
-	bufkey = BIO_new_mem_buf(jwt->key, jwt->key_len);
-	if (bufkey == NULL)
-		VERIFY_ERROR(ENOMEM);
-
-	/* This uses OpenSSL's default passphrase callback if needed. The
-	 * library caller can override this in many ways, all of which are
-	 * outside of the scope of LibJWT and this is documented in jwt.h. */
-	pkey = PEM_read_bio_PUBKEY(bufkey, NULL, NULL, NULL);
+    } else {
+        bufkey = BIO_new_mem_buf(jwt->key, jwt->key_len);
+        if (bufkey == NULL)
+            VERIFY_ERROR(ENOMEM);
+        
+        /* This uses OpenSSL's default passphrase callback if needed. The
+         * library caller can override this in many ways, all of which are
+         * outside of the scope of LibJWT and this is documented in jwt.h. */
+        pkey = PEM_read_bio_PUBKEY(bufkey, NULL, NULL, NULL);
+    }
+    
 	if (pkey == NULL)
 		VERIFY_ERROR(EINVAL);
 
@@ -456,3 +472,136 @@ jwt_verify_sha_pem_done:
 
 	return ret;
 }
+
+json_t *jwt_find_jwk( jwt_t *jwt, const char *sig_jwks)
+{
+    json_t *js = NULL;
+    json_t *jwk = NULL;
+    json_t *jwks = NULL;
+    const char* kid = NULL;
+    size_t index = 0;
+    json_t *value = NULL;
+
+    js = json_loads(sig_jwks, 0, NULL);
+    
+    if (json_is_object(js))
+    {
+        jwk = json_object_get(js, "key");
+        jwks = json_object_get(js, "keys");
+        
+        if (json_is_array(jwks) && jwt->kid) {
+            // Find the jwk that matches the given key id (kid)
+            json_array_foreach(jwks, index, value) {
+                jwk = json_array_get( jwks, index );
+                kid = json_string_value(json_object_get(value, "kid"));
+                if(strcmp(kid, jwt->kid)==0) {
+                    jwk = value;
+                    break;
+                }
+            }
+        }
+        
+        if (json_is_object(jwk)) {
+            // Retain the found JWK
+            json_incref(jwk);
+        }
+        
+        // Release the parsed JSON
+        json_decref(js);
+    }
+    
+    return jwk;
+}
+
+EVP_PKEY *jwt_create_key_from_jwk(json_t *jwk)
+{
+    const char *kty = NULL;
+    kty = json_string_value(json_object_get(jwk, "kty"));
+    
+    if (strcmp(kty,"RSA")==0)
+        return jwt_create_rsa_from_jwk(jwk);
+    else if( strcmp(kty,"EC")==0)
+        return jwt_create_ec_from_jwk(jwk);
+    else
+        return NULL;
+}
+
+EVP_PKEY *jwt_create_rsa_from_jwk(json_t *jwk)
+{
+    RSA *rsa = NULL;
+    BIGNUM *n = NULL;
+    BIGNUM *e = NULL;
+    BIGNUM *p = NULL;
+    BIGNUM *q = NULL;
+    BIGNUM *dp = NULL;
+    BIGNUM *dq = NULL;
+    BIGNUM *qi = NULL;
+    EVP_PKEY *pkey = NULL;
+    
+    n = jwt_create_big_num(jwk, "n");
+    e = jwt_create_big_num(jwk, "e");
+    p = jwt_create_big_num(jwk, "p");
+    q = jwt_create_big_num(jwk, "q");
+    dp = jwt_create_big_num(jwk, "dp");
+    dq = jwt_create_big_num(jwk, "dq");
+    qi = jwt_create_big_num(jwk, "qi");
+    
+    rsa = RSA_new();
+    
+    if (n && e) {
+        rsa->n = n;
+        rsa->e = e;
+        rsa->d = NULL;
+    }
+    
+    if (p && q ) {
+        rsa->p = p;
+        rsa->q = q;
+    }
+    
+    if (dp && dq && qi ) {
+        rsa->dmp1 = dp;
+        rsa->dmq1 = dq;
+        rsa->dmq1 = qi;
+    }
+    
+    RSA_up_ref(rsa);
+    
+    pkey = EVP_PKEY_new();
+    if (EVP_PKEY_set1_RSA(pkey, rsa)==0) {
+        EVP_PKEY_free(pkey);
+        pkey = NULL;
+    }
+    
+    return pkey;
+}
+
+BIGNUM *jwt_create_big_num( json_t *jwk, const char *property )
+{
+    const char *b64 = NULL;
+    void *data = NULL;
+    int size = 0;
+    BIGNUM *bigNum = NULL;
+    
+    // Read the base64 encoded string from the jwk
+    b64 = json_string_value(json_object_get(jwk, property));
+    
+    // Decode the base64 encoded string into binary form
+    if (b64)
+        data = jwt_b64_decode( b64, &size );
+    
+    // Create a BIGNUM from the binary data
+    if (data) {
+        bigNum = BN_bin2bn(data,size,NULL);
+        free(data);
+    }
+    
+    return bigNum;
+}
+
+EVP_PKEY *jwt_create_ec_from_jwk(json_t *jwk)
+{
+    // To be implemented
+    return NULL;
+}
+

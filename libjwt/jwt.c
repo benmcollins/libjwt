@@ -162,6 +162,9 @@ void jwt_free(jwt_t *jwt)
 		return;
 
 	jwt_scrub_key(jwt);
+    
+    if (jwt->kid)
+        free(jwt->kid);
 
 	json_decref(jwt->grants);
 
@@ -197,6 +200,9 @@ jwt_t *jwt_dup(jwt_t *jwt)
 		memcpy(new->key, jwt->key, jwt->key_len);
 		new->key_len = jwt->key_len;
 	}
+    
+    if (jwt->kid)
+        new->kid = strdup(jwt->kid);
 
 	new->grants = json_deep_copy(jwt->grants);
 	if (!new->grants)
@@ -425,6 +431,10 @@ static int jwt_verify_head(jwt_t *jwt, char *head)
 		val = get_js_string(js, "typ");
 		if (val && strcasecmp(val, "JWT"))
 			ret = EINVAL;
+        
+        val = get_js_string(js, "kid");
+        if (val)
+            jwt->kid = strdup(val);
 
 		if (jwt->key) {
 			if (jwt->key_len <= 0)
