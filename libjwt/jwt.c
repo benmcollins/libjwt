@@ -26,7 +26,7 @@
 #include "config.h"
 
 
-static const char *jwt_alg_str(jwt_alg_t alg)
+const char *jwt_alg_str(jwt_alg_t alg)
 {
 	switch (alg) {
 	case JWT_ALG_NONE:
@@ -54,35 +54,33 @@ static const char *jwt_alg_str(jwt_alg_t alg)
 	}
 }
 
-static int jwt_str_alg(jwt_t *jwt, const char *alg)
+jwt_alg_t jwt_str_alg(const char *alg)
 {
 	if (alg == NULL)
-		return EINVAL;
+		return JWT_ALG_INVAL;
 
 	if (!strcasecmp(alg, "none"))
-		jwt->alg = JWT_ALG_NONE;
+		return JWT_ALG_NONE;
 	else if (!strcasecmp(alg, "HS256"))
-		jwt->alg = JWT_ALG_HS256;
+		return JWT_ALG_HS256;
 	else if (!strcasecmp(alg, "HS384"))
-		jwt->alg = JWT_ALG_HS384;
+		return JWT_ALG_HS384;
 	else if (!strcasecmp(alg, "HS512"))
-		jwt->alg = JWT_ALG_HS512;
+		return JWT_ALG_HS512;
 	else if (!strcasecmp(alg, "RS256"))
-		jwt->alg = JWT_ALG_RS256;
+		return JWT_ALG_RS256;
 	else if (!strcasecmp(alg, "RS384"))
-		jwt->alg = JWT_ALG_RS384;
+		return JWT_ALG_RS384;
 	else if (!strcasecmp(alg, "RS512"))
-		jwt->alg = JWT_ALG_RS512;
+		return JWT_ALG_RS512;
 	else if (!strcasecmp(alg, "ES256"))
-		jwt->alg = JWT_ALG_ES256;
+		return JWT_ALG_ES256;
 	else if (!strcasecmp(alg, "ES384"))
-		jwt->alg = JWT_ALG_ES384;
+		return JWT_ALG_ES384;
 	else if (!strcasecmp(alg, "ES512"))
-		jwt->alg = JWT_ALG_ES512;
-	else
-		return EINVAL;
+		return JWT_ALG_ES512;
 
-	return 0;
+	return JWT_ALG_INVAL;
 }
 
 static void jwt_scrub_key(jwt_t *jwt)
@@ -104,7 +102,7 @@ int jwt_set_alg(jwt_t *jwt, jwt_alg_t alg, const unsigned char *key, int len)
 	/* No matter what happens here, we do this. */
 	jwt_scrub_key(jwt);
 
-	if (alg < JWT_ALG_NONE || alg >= JWT_ALG_TERM)
+	if (alg < JWT_ALG_NONE || alg >= JWT_ALG_INVAL)
 		return EINVAL;
 
 	switch (alg) {
@@ -409,16 +407,18 @@ static int jwt_verify_head(jwt_t *jwt, char *head)
 {
 	json_t *js = NULL;
 	const char *val;
-	int ret;
+	int ret = 0;
 
 	js = jwt_b64_decode_json(head);
 	if (!js)
 		return EINVAL;
 
 	val = get_js_string(js, "alg");
-	ret = jwt_str_alg(jwt, val);
-	if (ret)
+	jwt->alg = jwt_str_alg(val);
+	if (jwt->alg == JWT_ALG_INVAL) {
+		ret = EINVAL;
 		goto verify_head_done;
+	}
 
 	if (jwt->alg != JWT_ALG_NONE) {
 		/* If alg is not NONE, there may be a typ. */
