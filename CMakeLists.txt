@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.9)
+cmake_minimum_required (VERSION 3.7)
 
 if (MSVC)
 	set (CMAKE_SYSTEM_VERSION 8.1 CACHE TYPE INTERNAL FORCE)
