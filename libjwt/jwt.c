@@ -332,18 +332,38 @@ static int jwt_sign(jwt_t *jwt, char **out, unsigned int *len, const char *str)
 	switch (jwt->alg) {
 	/* HMAC */
 	case JWT_ALG_HS256:
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+		return jwt_sign_sha_hmac(jwt, out, len, str);
+#endif
 	case JWT_ALG_HS384:
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+		return jwt_sign_sha_hmac(jwt, out, len, str);
+#endif
 	case JWT_ALG_HS512:
 		return jwt_sign_sha_hmac(jwt, out, len, str);
 
 	/* RSA */
 	case JWT_ALG_RS256:
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+		return jwt_sign_sha_pem(jwt, out, len, str);
+#endif
 	case JWT_ALG_RS384:
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+		return jwt_sign_sha_pem(jwt, out, len, str);
+#endif
 	case JWT_ALG_RS512:
-
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+		return jwt_sign_sha_pem(jwt, out, len, str);
+#endif
 	/* ECC */
 	case JWT_ALG_ES256:
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+		return jwt_sign_sha_pem(jwt, out, len, str);
+#endif
 	case JWT_ALG_ES384:
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+		return jwt_sign_sha_pem(jwt, out, len, str);
+#endif
 	case JWT_ALG_ES512:
 		return jwt_sign_sha_pem(jwt, out, len, str);
 
@@ -358,18 +378,38 @@ static int jwt_verify(jwt_t *jwt, const char *head, const char *sig)
 	switch (jwt->alg) {
 	/* HMAC */
 	case JWT_ALG_HS256:
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+		return jwt_verify_sha_hmac(jwt, head, sig);
+#endif
 	case JWT_ALG_HS384:
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+		return jwt_verify_sha_hmac(jwt, head, sig);
+#endif
 	case JWT_ALG_HS512:
 		return jwt_verify_sha_hmac(jwt, head, sig);
 
 	/* RSA */
 	case JWT_ALG_RS256:
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+		return jwt_verify_sha_pem(jwt, head, sig);
+#endif
 	case JWT_ALG_RS384:
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+		return jwt_verify_sha_pem(jwt, head, sig);
+#endif
 	case JWT_ALG_RS512:
-
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+		return jwt_verify_sha_pem(jwt, head, sig);
+#endif
 	/* ECC */
 	case JWT_ALG_ES256:
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+		return jwt_verify_sha_pem(jwt, head, sig);
+#endif
 	case JWT_ALG_ES384:
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+		return jwt_verify_sha_pem(jwt, head, sig);
+#endif
 	case JWT_ALG_ES512:
 		return jwt_verify_sha_pem(jwt, head, sig);
 
