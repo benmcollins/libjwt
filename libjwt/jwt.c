@@ -141,6 +141,14 @@ int jwt_new(jwt_t **jwt)
 		return ENOMEM;
 	}
 
+	(*jwt)->headers = json_object();
+	if (!(*jwt)->headers) {
+		json_decref((*jwt)->grants);
+		free(*jwt);
+		*jwt = NULL;
+		return ENOMEM;
+	}
+
 	return 0;
 }
 
@@ -152,6 +160,7 @@ void jwt_free(jwt_t *jwt)
 	jwt_scrub_key(jwt);
 
 	json_decref(jwt->grants);
+	json_decref(jwt->headers);
 
 	free(jwt);
 }
@@ -188,6 +197,10 @@ jwt_t *jwt_dup(jwt_t *jwt)
 
 	new->grants = json_deep_copy(jwt->grants);
 	if (!new->grants)
+		errno = ENOMEM;
+
+	new->headers = json_deep_copy(jwt->headers);
+	if (!new->headers)
 		errno = ENOMEM;
 
 dup_fail:
@@ -393,17 +406,30 @@ static int jwt_parse_body(jwt_t *jwt, char *body)
 	return 0;
 }
 
-static int jwt_verify_head(jwt_t *jwt, char *head)
+static int jwt_parse_head(jwt_t *jwt, char *head)
 {
-	json_t *js = NULL;
-	const char *val;
-	int ret = 0;
+	if (jwt->headers) {
+		json_decref(jwt->headers);
+		jwt->headers = NULL;
+	}
 
-	js = jwt_b64_decode_json(head);
-	if (!js)
+	jwt->headers = jwt_b64_decode_json(head);
+	if (!jwt->headers)
 		return EINVAL;
 
-	val = get_js_string(js, "alg");
+	return 0;
+}
+
+static int jwt_verify_head(jwt_t *jwt, char *head)
+{
+	int ret = 0;
+	if ((ret = jwt_parse_head(jwt, head))) {
+		return ret;
+	}
+
+	const char *val;
+
+	val = get_js_string(jwt->headers, "alg");
 	jwt->alg = jwt_str_alg(val);
 	if (jwt->alg == JWT_ALG_INVAL) {
 		ret = EINVAL;
@@ -412,7 +438,7 @@ static int jwt_verify_head(jwt_t *jwt, char *head)
 
 	if (jwt->alg != JWT_ALG_NONE) {
 		/* If alg is not NONE, there may be a typ. */
-		val = get_js_string(js, "typ");
+		val = get_js_string(jwt->headers, "typ");
 		if (val && strcasecmp(val, "JWT"))
 			ret = EINVAL;
 
@@ -430,8 +456,6 @@ static int jwt_verify_head(jwt_t *jwt, char *head)
 	}
 
 verify_head_done:
-	if (js)
-		json_decref(js);
 
 	return ret;
 }
@@ -663,6 +687,156 @@ int jwt_del_grant(jwt_t *jwt, const char *grant)
 
 #endif /* _MSC_VER */
 
+const char *jwt_get_header(jwt_t *jwt, const char *header)
+{
+	if (!jwt || !header || !strlen(header)) {
+		errno = EINVAL;
+		return NULL;
+	}
+
+	errno = 0;
+
+	return get_js_string(jwt->headers, header);
+}
+
+long jwt_get_header_int(jwt_t *jwt, const char *header)
+{
+	if (!jwt || !header || !strlen(header)) {
+		errno = EINVAL;
+		return 0;
+	}
+
+	errno = 0;
+
+	return get_js_int(jwt->headers, header);
+}
+
+int jwt_get_header_bool(jwt_t *jwt, const char *header)
+{
+	if (!jwt || !header || !strlen(header)) {
+		errno = EINVAL;
+		return 0;
+	}
+
+	errno = 0;
+
+	return get_js_bool(jwt->headers, header);
+}
+
+char *jwt_get_headers_json(jwt_t *jwt, const char *header)
+{
+	json_t *js_val = NULL;
+
+	errno = EINVAL;
+
+	if (!jwt)
+		return NULL;
+
+	if (header && strlen(header))
+		js_val = json_object_get(jwt->headers, header);
+	else
+		js_val = jwt->headers;
+
+	if (js_val == NULL)
+		return NULL;
+
+	errno = 0;
+
+	return json_dumps(js_val, JSON_SORT_KEYS | JSON_COMPACT | JSON_ENCODE_ANY);
+}
+
+int jwt_add_header(jwt_t *jwt, const char *header, const char *val)
+{
+	if (!jwt || !header || !strlen(header) || !val)
+		return EINVAL;
+
+	if (get_js_string(jwt->headers, header) != NULL)
+		return EEXIST;
+
+	if (json_object_set_new(jwt->headers, header, json_string(val)))
+		return EINVAL;
+
+	return 0;
+}
+
+int jwt_add_header_int(jwt_t *jwt, const char *header, long val)
+{
+	if (!jwt || !header || !strlen(header))
+		return EINVAL;
+
+	if (get_js_int(jwt->headers, header) != -1)
+		return EEXIST;
+
+	if (json_object_set_new(jwt->headers, header, json_integer((json_int_t)val)))
+		return EINVAL;
+
+	return 0;
+}
+
+int jwt_add_header_bool(jwt_t *jwt, const char *header, int val)
+{
+	if (!jwt || !header || !strlen(header))
+		return EINVAL;
+
+	if (get_js_int(jwt->headers, header) != -1)
+		return EEXIST;
+
+	if (json_object_set_new(jwt->headers, header, json_boolean(val)))
+		return EINVAL;
+
+	return 0;
+}
+
+int jwt_add_headers_json(jwt_t *jwt, const char *json)
+{
+	json_t *js_val;
+	int ret = -1;
+
+	if (!jwt)
+		return EINVAL;
+
+	js_val = json_loads(json, JSON_REJECT_DUPLICATES, NULL);
+
+	if (json_is_object(js_val))
+		ret = json_object_update(jwt->headers, js_val);
+
+	json_decref(js_val);
+
+	return ret ? EINVAL : 0;
+}
+
+int jwt_del_headers(jwt_t *jwt, const char *header)
+{
+	if (!jwt)
+		return EINVAL;
+
+	if (header == NULL || !strlen(header))
+		json_object_clear(jwt->headers);
+	else
+		json_object_del(jwt->headers, header);
+
+	return 0;
+}
+
+#ifdef _MSC_VER
+
+int jwt_del_header(jwt_t *jwt, const char *header);
+#pragma comment(linker, "/alternatename:jwt_del_header=jwt_del_headers")
+
+#else
+
+#ifdef NO_WEAK_ALIASES
+int jwt_del_header(jwt_t *jwt, const char *header)
+{
+	return jwt_del_headers(jwt, header);
+}
+#else
+int jwt_del_header(jwt_t *jwt, const char *header)
+	__attribute__ ((weak, alias ("jwt_del_headers")));
+#endif
+
+#endif /* _MSC_VER */
+
 static int __append_str(char **buf, const char *str)
 {
 	char *new;
@@ -689,49 +863,6 @@ static int __append_str(char **buf, const char *str)
 		return ret;			\
 } while(0)
 
-static int jwt_write_head(jwt_t *jwt, char **buf, int pretty)
-{
-	APPEND_STR(buf, "{");
-
-	if (pretty)
-		APPEND_STR(buf, "\n");
-
-	/* An unsecured JWT is a JWS and provides no "typ".
-	 * -- draft-ietf-oauth-json-web-token-32 #6. */
-	if (jwt->alg != JWT_ALG_NONE) {
-		if (pretty)
-			APPEND_STR(buf, "    ");
-
-		APPEND_STR(buf, "\"typ\":");
-		if (pretty)
-			APPEND_STR(buf, " ");
-		APPEND_STR(buf, "\"JWT\",");
-
-		if (pretty)
-			APPEND_STR(buf, "\n");
-	}
-
-	if (pretty)
-		APPEND_STR(buf, "    ");
-
-	APPEND_STR(buf, "\"alg\":");
-	if (pretty)
-		APPEND_STR(buf, " ");
-	APPEND_STR(buf, "\"");
-	APPEND_STR(buf, jwt_alg_str(jwt->alg));
-	APPEND_STR(buf, "\"");
-
-	if (pretty)
-		APPEND_STR(buf, "\n");
-
-	APPEND_STR(buf, "}");
-
-	if (pretty)
-		APPEND_STR(buf, "\n");
-
-	return 0;
-}
-
 static int jwt_write_body(jwt_t *jwt, char **buf, int pretty)
 {
 	/* Sort keys for repeatability */
@@ -755,6 +886,25 @@ static int jwt_write_body(jwt_t *jwt, char **buf, int pretty)
 		APPEND_STR(buf, "\n");
 
 	return 0;
+}
+
+static int jwt_write_head(jwt_t *jwt, char **buf, int pretty)
+{
+	int ret = 0;
+
+	if ((ret = jwt_del_headers(jwt, "typ")))
+		return ret;
+
+	if ((ret = jwt_del_headers(jwt, "alg")))
+		return ret;
+
+	if ((ret = jwt_add_header(jwt, "typ", "JWT")))
+		return ret;
+
+	if ((ret = jwt_add_header(jwt, "alg", jwt_alg_str(jwt->alg))))
+		return ret;
+
+	return jwt_write_body(jwt, buf, pretty);
 }
 
 static int jwt_dump(jwt_t *jwt, char **buf, int pretty)
