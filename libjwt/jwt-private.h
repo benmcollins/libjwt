@@ -15,6 +15,7 @@ struct jwt {
 	unsigned char *key;
 	int key_len;
 	json_t *grants;
+	json_t *headers;
 };
 
 /* Helper routines. */

@@ -321,6 +321,183 @@ DEPRECATED(JWT_EXPORT int jwt_del_grant(jwt_t *jwt, const char *grant));
 /** @} */
 
 /**
+ * @defgroup jwt_header JWT Header Manipulation
+ * These functions allow you to add, remove and retrieve headers from a JWT
+ * object.
+ * @{
+ */
+
+/**
+ * Return the value of a string header.
+ *
+ * Returns the string value for a header (e.g. ""). If it does not exist,
+ * NULL will be returned.
+ *
+ * @param jwt Pointer to a JWT object.
+ * @param header String containing the name of the header to return a value
+ *     for.
+ * @return Returns a string for the value, or NULL when not found.
+ *
+ * Note, this will only return headers with JSON string values. Use
+ * jwt_get_header_json() to get the JSON representation of more complex
+ * values (e.g. arrays) or use jwt_get_header_int() to get simple integer
+ * values.
+ */
+JWT_EXPORT const char *jwt_get_header(jwt_t *jwt, const char *header);
+
+/**
+ * Return the value of an integer header.
+ *
+ * Returns the int value for a header (e.g. ""). If it does not exist,
+ * 0 will be returned.
+ *
+ * @param jwt Pointer to a JWT object.
+ * @param header String containing the name of the header to return a value
+ *     for.
+ * @return Returns an int for the value. Sets errno to ENOENT when not
+ * found.
+ *
+ * Note, this will only return headers with JSON integer values. Use
+ * jwt_get_header_json() to get the JSON representation of more complex
+ * values (e.g. arrays) or use jwt_get_header() to get string values.
+ */
+JWT_EXPORT long jwt_get_header_int(jwt_t *jwt, const char *header);
+
+/**
+ * Return the value of an boolean header.
+ *
+ * Returns the int value for a header (e.g. ""). If it does not exist,
+ * 0 will be returned.
+ *
+ * @param jwt Pointer to a JWT object.
+ * @param header String containing the name of the header to return a value
+ *     for.
+ * @return Returns a boolean for the value. Sets errno to ENOENT when not
+ * found.
+ *
+ * Note, this will only return headers with JSON boolean values. Use
+ * jwt_get_header_json() to get the JSON representation of more complex
+ * values (e.g. arrays) or use jwt_get_header() to get string values.
+ */
+JWT_EXPORT int jwt_get_header_bool(jwt_t *jwt, const char *header);
+
+/**
+ * Return the value of a header as JSON encoded object string.
+ *
+ * Returns the JSON encoded string value for a header (e.g. ""). If it
+ * does not exist, NULL will be returned.
+ *
+ * @param jwt Pointer to a JWT object.
+ * @param header String containing the name of the header to return a value
+ *     for. If this is NULL, all headers will be returned as a JSON encoded
+ *     hash.
+ * @return Returns a string for the value, or NULL when not found. The
+ *     returned string must be freed by the caller.
+ */
+JWT_EXPORT char *jwt_get_headers_json(jwt_t *jwt, const char *header);
+
+/**
+ * Add a new string header to this JWT object.
+ *
+ * Creates a new header for this object. The string for header and val
+ * are copied internally, so do not require that the pointer or string
+ * remain valid for the lifetime of this object. It is an error if you
+ * try to add a header that already exists.
+ *
+ * @param jwt Pointer to a JWT object.
+ * @param header String containing the name of the header to add.
+ * @param val String containing the value to be saved for header. Can be
+ *     an empty string, but cannot be NULL.
+ * @return Returns 0 on success, valid errno otherwise.
+ *
+ * Note, this only allows for string based headers. If you wish to add
+ * integer headers, then use jwt_add_header_int(). If you wish to add more
+ * complex headers (e.g. an array), then use jwt_add_headers_json().
+ */
+JWT_EXPORT int jwt_add_header(jwt_t *jwt, const char *header, const char *val);
+
+/**
+ * Add a new integer header to this JWT object.
+ *
+ * Creates a new header for this object. The string for header
+ * is copied internally, so do not require that the pointer or string
+ * remain valid for the lifetime of this object. It is an error if you
+ * try to add a header that already exists.
+ *
+ * @param jwt Pointer to a JWT object.
+ * @param header String containing the name of the header to add.
+ * @param val int containing the value to be saved for header.
+ * @return Returns 0 on success, valid errno otherwise.
+ *
+ * Note, this only allows for integer based headers. If you wish to add
+ * string headers, then use jwt_add_header(). If you wish to add more
+ * complex headers (e.g. an array), then use jwt_add_headers_json().
+ */
+JWT_EXPORT int jwt_add_header_int(jwt_t *jwt, const char *header, long val);
+
+/**
+ * Add a new boolean header to this JWT object.
+ *
+ * Creates a new header for this object. The string for header
+ * is copied internally, so do not require that the pointer or string
+ * remain valid for the lifetime of this object. It is an error if you
+ * try to add a header that already exists.
+ *
+ * @param jwt Pointer to a JWT object.
+ * @param header String containing the name of the header to add.
+ * @param val boolean containing the value to be saved for header.
+ * @return Returns 0 on success, valid errno otherwise.
+ *
+ * Note, this only allows for boolean based headers. If you wish to add
+ * string headers, then use jwt_add_header(). If you wish to add more
+ * complex headers (e.g. an array), then use jwt_add_headers_json().
+ */
+JWT_EXPORT int jwt_add_header_bool(jwt_t *jwt, const char *header, int val);
+
+/**
+ * Add headers from a JSON encoded object string.
+ *
+ * Loads a header from an existing JSON encoded object string. Overwrites
+ * existing header. If header is NULL, then the JSON encoded string is
+ * assumed to be a JSON hash of all headers being added and will be merged
+ * into the header listing.
+ *
+ * @param jwt Pointer to a JWT object.
+ * @param json String containing a JSON encoded object of headers.
+ * @return Returns 0 on success, valid errno otherwise.
+ */
+JWT_EXPORT int jwt_add_headers_json(jwt_t *jwt, const char *json);
+
+/**
+ * Delete a header from this JWT object.
+ *
+ * Deletes the named header from this object. It is not an error if there
+ * is no header matching the passed name. If header is NULL, then all headers
+ * are deleted from this JWT.
+ *
+ * @param jwt Pointer to a JWT object.
+ * @param header String containing the name of the header to delete. If this
+ *    is NULL, then all headers are deleted.
+ * @return Returns 0 on success, valid errno otherwise.
+ */
+JWT_EXPORT int jwt_del_headers(jwt_t *jwt, const char *header);
+
+/**
+ * @deprecated
+ * Delete a header from this JWT object.
+ *
+ * Deletes the named header from this object. It is not an error if there
+ * is no header matching the passed name.
+ *
+ * @param jwt Pointer to a JWT object.
+ * @param header String containing the name of the header to delete.
+ * @return Returns 0 on success, valid errno otherwise.
+ */
+DEPRECATED(JWT_EXPORT int jwt_del_header(jwt_t *jwt, const char *header));
+
+/** @} */
+
+/**
  * @defgroup jwt_encode JWT Output Functions
  * Functions that enable seeing the plain text or fully encoded version of
  * a JWT object.
