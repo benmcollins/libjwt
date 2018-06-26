@@ -10,13 +10,11 @@
 
 #include <jansson.h>
 
-struct jwt
-{
-    jwt_alg_t alg;
-    unsigned char *key;
-    int key_len;
-    json_t *grants;
-    json_t *headers;
+struct jwt {
+	jwt_alg_t alg;
+	unsigned char *key;
+	int key_len;
+	json_t *grants;
 };
 
 /* Helper routines. */
@@ -25,12 +23,12 @@ void *jwt_b64_decode(const char *src, int *ret_len);
 
 /* These routines are implemented by the crypto backend. */
 int jwt_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
-                      const char *str);
+		      const char *str);
 
 int jwt_verify_sha_hmac(jwt_t *jwt, const char *head, const char *sig);
 
 int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
-                     const char *str);
+		     const char *str);
 
 int jwt_verify_sha_pem(jwt_t *jwt, const char *head, const char *sig_b64);
 

@@ -17,56 +17,54 @@
 
 #ifdef _MSC_VER
 
-#define DEPRECATED(func) __declspec(deprecated) func
+	#define DEPRECATED(func) __declspec(deprecated) func
 
-#define alloca _alloca
-#define strcasecmp _stricmp
-#define strdup _strdup
+	#define alloca _alloca
+	#define strcasecmp _stricmp
+	#define strdup _strdup
 
-#ifdef JWT_DLL_CONFIG
-#ifdef JWT_BUILD_SHARED_LIBRARY
-#define JWT_EXPORT __declspec(dllexport)
+	#ifdef JWT_DLL_CONFIG
+		#ifdef JWT_BUILD_SHARED_LIBRARY
+			#define JWT_EXPORT __declspec(dllexport)
+		#else
+			#define JWT_EXPORT __declspec(dllimport)
+		#endif
+	#else
+		#define JWT_EXPORT
+	#endif
+
 #else
-#define JWT_EXPORT __declspec(dllimport)
-#endif
-#else
-#define JWT_EXPORT
-#endif
 
-#else
-
-#define DEPRECATED(func) func __attribute__((deprecated))
-#define JWT_EXPORT
+	#define DEPRECATED(func) func __attribute__ ((deprecated))
+	#define JWT_EXPORT
 
 #endif
 
 #ifdef __cplusplus
-extern "C"
-{
+extern "C" {
 #endif
 
-    /** Opaque JWT object. */
-    typedef struct jwt jwt_t;
+/** Opaque JWT object. */
+typedef struct jwt jwt_t;
 
-    /** JWT algorithm types. */
-    typedef enum jwt_alg
-    {
-        JWT_ALG_NONE = 0,
-        JWT_ALG_HS256,
-        JWT_ALG_HS384,
-        JWT_ALG_HS512,
-        JWT_ALG_RS256,
-        JWT_ALG_RS384,
-        JWT_ALG_RS512,
-        JWT_ALG_ES256,
-        JWT_ALG_ES384,
-        JWT_ALG_ES512,
-        JWT_ALG_TERM
-    } jwt_alg_t;
+/** JWT algorithm types. */
+typedef enum jwt_alg {
+	JWT_ALG_NONE = 0,
+	JWT_ALG_HS256,
+	JWT_ALG_HS384,
+	JWT_ALG_HS512,
+	JWT_ALG_RS256,
+	JWT_ALG_RS384,
+	JWT_ALG_RS512,
+	JWT_ALG_ES256,
+	JWT_ALG_ES384,
+	JWT_ALG_ES512,
+	JWT_ALG_TERM
+} jwt_alg_t;
 
 #define JWT_ALG_INVAL JWT_ALG_TERM
 
-    /**
+/**
  * @defgroup jwt_new JWT Object Creation
  * Functions used to create and destroy JWT objects.
  *
@@ -82,7 +80,7 @@ extern "C"
  * @{
  */
 
-    /**
+/**
  * Allocate a new, empty, JWT object.
  *
  * This is used to create a new object for a JWT. After you have finished
@@ -92,9 +90,9 @@ extern "C"
  *     success.
  * @return 0 on success, valid errno otherwise.
  */
-    JWT_EXPORT int jwt_new(jwt_t **jwt);
+JWT_EXPORT int jwt_new(jwt_t **jwt);
 
-    /**
+/**
  * Verify an existing JWT and allocate a new JWT object from it.
  *
  * Decodes a JWT string and verifies the signature (if one is supplied).
@@ -118,10 +116,10 @@ extern "C"
  *     signature, however, standard validation of the token is still
  *     performed.
  */
-    JWT_EXPORT int jwt_decode(jwt_t **jwt, const char *token,
-                              const unsigned char *key, int key_len);
+JWT_EXPORT int jwt_decode(jwt_t **jwt, const char *token,
+	                 const unsigned char *key, int key_len);
 
-    /**
+/**
  * Free a JWT object and any other resources it is using.
  *
  * After calling, the JWT object referenced will no longer be valid and
@@ -130,9 +128,9 @@ extern "C"
  * @param jwt Pointer to a JWT object previously created with jwt_new()
  *            or jwt_decode().
  */
-    JWT_EXPORT void jwt_free(jwt_t *jwt);
+JWT_EXPORT void jwt_free(jwt_t *jwt);
 
-    /**
+/**
  * Duplicate an existing JWT object.
  *
  * Copies all grants and algorithm specific bits to a new JWT object.
@@ -141,18 +139,18 @@ extern "C"
  * @return A new object on success, NULL on error with errno set
  *     appropriately.
  */
-    JWT_EXPORT jwt_t *jwt_dup(jwt_t *jwt);
+JWT_EXPORT jwt_t *jwt_dup(jwt_t *jwt);
 
-    /** @} */
+/** @} */
 
-    /**
+/**
  * @defgroup jwt_grant JWT Grant Manipulation
  * These functions allow you to add, remove and retrieve grants from a JWT
  * object.
  * @{
  */
 
-    /**
+/**
  * Return the value of a string grant.
  *
  * Returns the string value for a grant (e.g. "iss"). If it does not exist,
@@ -168,9 +166,9 @@ extern "C"
  * values (e.g. arrays) or use jwt_get_grant_int() to get simple integer
  * values.
  */
-    JWT_EXPORT const char *jwt_get_grant(jwt_t *jwt, const char *grant);
+JWT_EXPORT const char *jwt_get_grant(jwt_t *jwt, const char *grant);
 
-    /**
+/**
  * Return the value of an integer grant.
  *
  * Returns the int value for a grant (e.g. "exp"). If it does not exist,
@@ -186,9 +184,9 @@ extern "C"
  * jwt_get_grant_json() to get the JSON representation of more complex
  * values (e.g. arrays) or use jwt_get_grant() to get string values.
  */
-    JWT_EXPORT long jwt_get_grant_int(jwt_t *jwt, const char *grant);
+JWT_EXPORT long jwt_get_grant_int(jwt_t *jwt, const char *grant);
 
-    /**
+/**
  * Return the value of an boolean grant.
  *
  * Returns the int value for a grant (e.g. "exp"). If it does not exist,
@@ -204,9 +202,9 @@ extern "C"
  * jwt_get_grant_json() to get the JSON representation of more complex
  * values (e.g. arrays) or use jwt_get_grant() to get string values.
  */
-    JWT_EXPORT int jwt_get_grant_bool(jwt_t *jwt, const char *grant);
+JWT_EXPORT int jwt_get_grant_bool(jwt_t *jwt, const char *grant);
 
-    /**
+/**
  * Return the value of a grant as JSON encoded object string.
  *
  * Returns the JSON encoded string value for a grant (e.g. "iss"). If it
@@ -219,9 +217,9 @@ extern "C"
  * @return Returns a string for the value, or NULL when not found. The
  *     returned string must be freed by the caller.
  */
-    JWT_EXPORT char *jwt_get_grants_json(jwt_t *jwt, const char *grant);
+JWT_EXPORT char *jwt_get_grants_json(jwt_t *jwt, const char *grant);
 
-    /**
+/**
  * Add a new string grant to this JWT object.
  *
  * Creates a new grant for this object. The string for grant and val
@@ -239,9 +237,9 @@ extern "C"
  * integer grants, then use jwt_add_grant_int(). If you wish to add more
  * complex grants (e.g. an array), then use jwt_add_grants_json().
  */
-    JWT_EXPORT int jwt_add_grant(jwt_t *jwt, const char *grant, const char *val);
+JWT_EXPORT int jwt_add_grant(jwt_t *jwt, const char *grant, const char *val);
 
-    /**
+/**
  * Add a new integer grant to this JWT object.
  *
  * Creates a new grant for this object. The string for grant
@@ -258,9 +256,9 @@ extern "C"
  * string grants, then use jwt_add_grant(). If you wish to add more
  * complex grants (e.g. an array), then use jwt_add_grants_json().
  */
-    JWT_EXPORT int jwt_add_grant_int(jwt_t *jwt, const char *grant, long val);
+JWT_EXPORT int jwt_add_grant_int(jwt_t *jwt, const char *grant, long val);
 
-    /**
+/**
  * Add a new boolean grant to this JWT object.
  *
  * Creates a new grant for this object. The string for grant
@@ -277,9 +275,9 @@ extern "C"
  * string grants, then use jwt_add_grant(). If you wish to add more
  * complex grants (e.g. an array), then use jwt_add_grants_json().
  */
-    JWT_EXPORT int jwt_add_grant_bool(jwt_t *jwt, const char *grant, int val);
+JWT_EXPORT int jwt_add_grant_bool(jwt_t *jwt, const char *grant, int val);
 
-    /**
+/**
  * Add grants from a JSON encoded object string.
  *
  * Loads a grant from an existing JSON encoded object string. Overwrites
@@ -291,9 +289,9 @@ extern "C"
  * @param json String containing a JSON encoded object of grants.
  * @return Returns 0 on success, valid errno otherwise.
  */
-    JWT_EXPORT int jwt_add_grants_json(jwt_t *jwt, const char *json);
+JWT_EXPORT int jwt_add_grants_json(jwt_t *jwt, const char *json);
 
-    /**
+/**
  * Delete a grant from this JWT object.
  *
  * Deletes the named grant from this object. It is not an error if there
@@ -305,9 +303,9 @@ extern "C"
  *    is NULL, then all grants are deleted.
  * @return Returns 0 on success, valid errno otherwise.
  */
-    JWT_EXPORT int jwt_del_grants(jwt_t *jwt, const char *grant);
+JWT_EXPORT int jwt_del_grants(jwt_t *jwt, const char *grant);
 
-    /**
+/**
  * @deprecated
  * Delete a grant from this JWT object.
  *
@@ -318,195 +316,18 @@ extern "C"
  * @param grant String containing the name of the grant to delete.
  * @return Returns 0 on success, valid errno otherwise.
  */
-    DEPRECATED(JWT_EXPORT int jwt_del_grant(jwt_t *jwt, const char *grant));
+DEPRECATED(JWT_EXPORT int jwt_del_grant(jwt_t *jwt, const char *grant));
 
-    /** @} */
+/** @} */
 
-    /**
- * @defgroup jwt_header JWT Header Manipulation
- * These functions allow you to add, remove and retrieve headers from a JWT
- * object.
- * @{
- */
-
-    /**
- * Return the value of a string header.
- *
- * Returns the string value for a header (e.g. "iss"). If it does not exist,
- * NULL will be returned.
- *
- * @param jwt Pointer to a JWT object.
- * @param header String containing the name of the header to return a value
- *     for.
- * @return Returns a string for the value, or NULL when not found.
- *
- * Note, this will only return headers with JSON string values. Use
- * jwt_get_header_json() to get the JSON representation of more complex
- * values (e.g. arrays) or use jwt_get_header_int() to get simple integer
- * values.
- */
-    JWT_EXPORT const char *jwt_get_header(jwt_t *jwt, const char *header);
-
-    /**
- * Return the value of an integer header.
- *
- * Returns the int value for a header (e.g. "exp"). If it does not exist,
- * 0 will be returned.
- *
- * @param jwt Pointer to a JWT object.
- * @param header String containing the name of the header to return a value
- *     for.
- * @return Returns an int for the value. Sets errno to ENOENT when not
- * found.
- *
- * Note, this will only return headers with JSON integer values. Use
- * jwt_get_header_json() to get the JSON representation of more complex
- * values (e.g. arrays) or use jwt_get_header() to get string values.
- */
-    JWT_EXPORT long jwt_get_header_int(jwt_t *jwt, const char *header);
-
-    /**
- * Return the value of an boolean header.
- *
- * Returns the int value for a header (e.g. "exp"). If it does not exist,
- * 0 will be returned.
- *
- * @param jwt Pointer to a JWT object.
- * @param header String containing the name of the header to return a value
- *     for.
- * @return Returns a boolean for the value. Sets errno to ENOENT when not
- * found.
- *
- * Note, this will only return headers with JSON boolean values. Use
- * jwt_get_header_json() to get the JSON representation of more complex
- * values (e.g. arrays) or use jwt_get_header() to get string values.
- */
-    JWT_EXPORT int jwt_get_header_bool(jwt_t *jwt, const char *header);
-
-    /**
- * Return the value of a header as JSON encoded object string.
- *
- * Returns the JSON encoded string value for a header (e.g. "iss"). If it
- * does not exist, NULL will be returned.
- *
- * @param jwt Pointer to a JWT object.
- * @param header String containing the name of the header to return a value
- *     for. If this is NULL, all headers will be returned as a JSON encoded
- *     hash.
- * @return Returns a string for the value, or NULL when not found. The
- *     returned string must be freed by the caller.
- */
-    JWT_EXPORT char *jwt_get_headers_json(jwt_t *jwt, const char *header);
-
-    /**
- * Add a new string header to this JWT object.
- *
- * Creates a new header for this object. The string for header and val
- * are copied internally, so do not require that the pointer or string
- * remain valid for the lifetime of this object. It is an error if you
- * try to add a header that already exists.
- *
- * @param jwt Pointer to a JWT object.
- * @param header String containing the name of the header to add.
- * @param val String containing the value to be saved for header. Can be
- *     an empty string, but cannot be NULL.
- * @return Returns 0 on success, valid errno otherwise.
- *
- * Note, this only allows for string based headers. If you wish to add
- * integer headers, then use jwt_add_header_int(). If you wish to add more
- * complex headers (e.g. an array), then use jwt_add_headers_json().
- */
-    JWT_EXPORT int jwt_add_header(jwt_t *jwt, const char *header, const char *val);
-
-    /**
- * Add a new integer header to this JWT object.
- *
- * Creates a new header for this object. The string for header
- * is copied internally, so do not require that the pointer or string
- * remain valid for the lifetime of this object. It is an error if you
- * try to add a header that already exists.
- *
- * @param jwt Pointer to a JWT object.
- * @param header String containing the name of the header to add.
- * @param val int containing the value to be saved for header.
- * @return Returns 0 on success, valid errno otherwise.
- *
- * Note, this only allows for integer based headers. If you wish to add
- * string headers, then use jwt_add_header(). If you wish to add more
- * complex headers (e.g. an array), then use jwt_add_headers_json().
- */
-    JWT_EXPORT int jwt_add_header_int(jwt_t *jwt, const char *header, long val);
-
-    /**
- * Add a new boolean header to this JWT object.
- *
- * Creates a new header for this object. The string for header
- * is copied internally, so do not require that the pointer or string
- * remain valid for the lifetime of this object. It is an error if you
- * try to add a header that already exists.
- *
- * @param jwt Pointer to a JWT object.
- * @param header String containing the name of the header to add.
- * @param val boolean containing the value to be saved for header.
- * @return Returns 0 on success, valid errno otherwise.
- *
- * Note, this only allows for boolean based headers. If you wish to add
- * string headers, then use jwt_add_header(). If you wish to add more
- * complex headers (e.g. an array), then use jwt_add_headers_json().
- */
-    JWT_EXPORT int jwt_add_header_bool(jwt_t *jwt, const char *header, int val);
-
-    /**
- * Add headers from a JSON encoded object string.
- *
- * Loads a header from an existing JSON encoded object string. Overwrites
- * existing header. If header is NULL, then the JSON encoded string is
- * assumed to be a JSON hash of all headers being added and will be merged
- * into the header listing.
- *
- * @param jwt Pointer to a JWT object.
- * @param json String containing a JSON encoded object of headers.
- * @return Returns 0 on success, valid errno otherwise.
- */
-    JWT_EXPORT int jwt_add_headers_json(jwt_t *jwt, const char *json);
-
-    /**
- * Delete a header from this JWT object.
- *
- * Deletes the named header from this object. It is not an error if there
- * is no header matching the passed name. If header is NULL, then all headers
- * are deleted from this JWT.
- *
- * @param jwt Pointer to a JWT object.
- * @param header String containing the name of the header to delete. If this
- *    is NULL, then all headers are deleted.
- * @return Returns 0 on success, valid errno otherwise.
- */
-    JWT_EXPORT int jwt_del_headers(jwt_t *jwt, const char *header);
-
-    /**
- * @deprecated
- * Delete a header from this JWT object.
- *
- * Deletes the named header from this object. It is not an error if there
- * is no header matching the passed name.
- *
- * @param jwt Pointer to a JWT object.
- * @param header String containing the name of the header to delete.
- * @return Returns 0 on success, valid errno otherwise.
- */
-    DEPRECATED(JWT_EXPORT int jwt_del_header(jwt_t *jwt, const char *header));
-
-    /** @} */
-
-    /**
+/**
  * @defgroup jwt_encode JWT Output Functions
  * Functions that enable seeing the plain text or fully encoded version of
  * a JWT object.
  * @{
  */
 
-    /**
+/**
  * Output plain text representation to a FILE pointer.
  *
  * This function will write a plain text representation of this JWT object
@@ -520,9 +341,9 @@ extern "C"
  *     used for debugging.
  * @return Returns 0 on success, valid errno otherwise.
  */
-    JWT_EXPORT int jwt_dump_fp(jwt_t *jwt, FILE *fp, int pretty);
+JWT_EXPORT int jwt_dump_fp(jwt_t *jwt, FILE *fp, int pretty);
 
-    /**
+/**
  * Return plain text representation as a string.
  *
  * Similar to jwt_dump_fp() except that a string is returned. The string
@@ -534,9 +355,9 @@ extern "C"
  * @return A nul terminated string on success, NULL on error with errno
  *     set appropriately.
  */
-    JWT_EXPORT char *jwt_dump_str(jwt_t *jwt, int pretty);
+JWT_EXPORT char *jwt_dump_str(jwt_t *jwt, int pretty);
 
-    /**
+/**
  * Fully encode a JWT object and write it to FILE.
  *
  * This will create and write the complete JWT object to FILE. All parts
@@ -547,9 +368,9 @@ extern "C"
  * @param fp Valid FILE pointer to write data to.
  * @return Returns 0 on success, valid errno otherwise.
  */
-    JWT_EXPORT int jwt_encode_fp(jwt_t *jwt, FILE *fp);
+JWT_EXPORT int jwt_encode_fp(jwt_t *jwt, FILE *fp);
 
-    /**
+/**
  * Fully encode a JWT object and return as a string.
  *
  * Similar to jwt_encode_fp() except that a string is returned. The string
@@ -559,11 +380,11 @@ extern "C"
  * @return A nul terminated string on success, NULL on error with errno
  *     set appropriately.
  */
-    JWT_EXPORT char *jwt_encode_str(jwt_t *jwt);
+JWT_EXPORT char *jwt_encode_str(jwt_t *jwt);
 
-    /** @} */
+/** @} */
 
-    /**
+/**
  * @defgroup jwt_alg JWT Algorithm Functions
  * Set and check algorithms and algorithm specific values.
  *
@@ -574,7 +395,7 @@ extern "C"
  * @{
  */
 
-    /**
+/**
  * Set an algorithm from jwt_alg_t for this JWT object.
  *
  * Specifies an algorithm for a JWT object. If JWT_ALG_NONE is used, then
@@ -588,9 +409,9 @@ extern "C"
  * @param len The length of the key data.
  * @return Returns 0 on success, valid errno otherwise.
  */
-    JWT_EXPORT int jwt_set_alg(jwt_t *jwt, jwt_alg_t alg, const unsigned char *key, int len);
+JWT_EXPORT int jwt_set_alg(jwt_t *jwt, jwt_alg_t alg, const unsigned char *key, int len);
 
-    /**
+/**
  * Get the jwt_alg_t set for this JWT object.
  *
  * Returns the jwt_alg_t type for this JWT object.
@@ -598,9 +419,9 @@ extern "C"
  * @param jwt Pointer to a JWT object.
  * @returns Returns a jwt_alg_t type for this object.
  */
-    JWT_EXPORT jwt_alg_t jwt_get_alg(jwt_t *jwt);
+JWT_EXPORT jwt_alg_t jwt_get_alg(jwt_t *jwt);
 
-    /**
+/**
  * Convert alg type to it's string representation.
  *
  * Returns a string that matches the alg type provided.
@@ -609,9 +430,9 @@ extern "C"
  * @returns Returns a string (e.g. "RS256") matching the alg or NULL for
  *     invalid alg.
  */
-    JWT_EXPORT const char *jwt_alg_str(jwt_alg_t alg);
+JWT_EXPORT const char *jwt_alg_str(jwt_alg_t alg);
 
-    /**
+/**
  * Convert alg string to type.
  *
  * Returns an alg type based on the string representation.
@@ -622,9 +443,9 @@ extern "C"
  *
  * Note, this only works for algorithms that LibJWT supports or knows about.
  */
-    JWT_EXPORT jwt_alg_t jwt_str_alg(const char *alg);
+JWT_EXPORT jwt_alg_t jwt_str_alg(const char *alg);
 
-    /** @} */
+/** @} */
 
 #ifdef __cplusplus
 }
