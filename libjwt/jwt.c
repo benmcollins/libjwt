@@ -844,7 +844,7 @@ static int __append_str(char **buf, const char *str)
 		return ret;			\
 } while(0)
 
-static int write_js(const json_t *js, char **buf, int pretty, int sort=1)
+static int write_js(const json_t *js, char **buf, int pretty, int sort)
 {
 	/* Sort keys for repeatability */
 	size_t flags = JSON_SORT_KEYS;
@@ -894,7 +894,7 @@ static int jwt_write_head(jwt_t *jwt, char **buf, int pretty)
 
 static int jwt_write_body(jwt_t *jwt, char **buf, int pretty)
 {
-	return write_js(jwt->grants, buf, pretty);
+	return write_js(jwt->grants, buf, pretty, 1);
 }
 
 static int jwt_dump(jwt_t *jwt, char **buf, int pretty)
