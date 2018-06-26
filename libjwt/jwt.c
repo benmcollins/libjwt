@@ -867,13 +867,15 @@ static int jwt_write_head(jwt_t *jwt, char **buf, int pretty)
 {
 	int ret = 0;
 
-	if ((ret = jwt_del_headers(jwt, "typ")))
-		return ret;
+	if (jwt->alg != JWT_ALG_NONE) {
+		if ((ret = jwt_del_headers(jwt, "typ")))
+			return ret;
+
+		if ((ret = jwt_add_header(jwt, "typ", "JWT")))
+			return ret;
+	}
 
 	if ((ret = jwt_del_headers(jwt, "alg")))
-		return ret;
-
-	if ((ret = jwt_add_header(jwt, "typ", "JWT")))
 		return ret;
 
 	if ((ret = jwt_add_header(jwt, "alg", jwt_alg_str(jwt->alg))))
