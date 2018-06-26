@@ -818,25 +818,6 @@ int jwt_del_headers(jwt_t *jwt, const char *header)
 	return 0;
 }
 
-#ifdef _MSC_VER
-
-int jwt_del_header(jwt_t *jwt, const char *header);
-#pragma comment(linker, "/alternatename:jwt_del_header=jwt_del_headers")
-
-#else
-
-#ifdef NO_WEAK_ALIASES
-int jwt_del_header(jwt_t *jwt, const char *header)
-{
-	return jwt_del_headers(jwt, header);
-}
-#else
-int jwt_del_header(jwt_t *jwt, const char *header)
-	__attribute__ ((weak, alias ("jwt_del_headers")));
-#endif
-
-#endif /* _MSC_VER */
-
 static int __append_str(char **buf, const char *str)
 {
 	char *new;
@@ -863,10 +844,12 @@ static int __append_str(char **buf, const char *str)
 		return ret;			\
 } while(0)
 
-static int write_js(const json_t *js, char **buf, int pretty)
+static int write_js(const json_t *js, char **buf, int pretty, int sort=1)
 {
 	/* Sort keys for repeatability */
 	size_t flags = JSON_SORT_KEYS;
+	if (!sort)
+		flags = 0;
 	char *serial;
 
 	if (pretty) {
@@ -906,7 +889,7 @@ static int jwt_write_head(jwt_t *jwt, char **buf, int pretty)
 	if ((ret = jwt_add_header(jwt, "alg", jwt_alg_str(jwt->alg))))
 		return ret;
 
-	return write_js(jwt->headers, buf, pretty);
+	return write_js(jwt->headers, buf, pretty, 0);
 }
 
 static int jwt_write_body(jwt_t *jwt, char **buf, int pretty)
