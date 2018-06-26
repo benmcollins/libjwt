@@ -1,6 +1,7 @@
 TESTS =			\
 	jwt_new		\
 	jwt_grant	\
+	jwt_header	\
 	jwt_dump	\
 	jwt_encode	\
 	jwt_rsa		\

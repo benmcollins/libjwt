@@ -2,7 +2,7 @@ find_package (Check REQUIRED)
 
 enable_testing ()
 
-set (TARGET_NAMES jwt_dump jwt_ec jwt_encode jwt_grant jwt_new jwt_rsa)
+set (TARGET_NAMES jwt_dump jwt_ec jwt_encode jwt_grant jwt_header jwt_new jwt_rsa)
 
 if (UNIX)
 	set (PLATFORM_LIBRARIES pthread)
