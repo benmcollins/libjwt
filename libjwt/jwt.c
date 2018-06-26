@@ -863,6 +863,31 @@ static int __append_str(char **buf, const char *str)
 		return ret;			\
 } while(0)
 
+static int write_js(const json_t *js, char **buf, int pretty)
+{
+	/* Sort keys for repeatability */
+	size_t flags = JSON_SORT_KEYS;
+	char *serial;
+
+	if (pretty) {
+		APPEND_STR(buf, "\n");
+		flags |= JSON_INDENT(4);
+	} else {
+		flags |= JSON_COMPACT;
+	}
+
+	serial = json_dumps(js, flags);
+
+	APPEND_STR(buf, serial);
+
+	free(serial);
+
+	if (pretty)
+		APPEND_STR(buf, "\n");
+
+	return 0;
+}
+
 static int jwt_write_head(jwt_t *jwt, char **buf, int pretty)
 {
 	int ret = 0;
@@ -881,52 +906,12 @@ static int jwt_write_head(jwt_t *jwt, char **buf, int pretty)
 	if ((ret = jwt_add_header(jwt, "alg", jwt_alg_str(jwt->alg))))
 		return ret;
 
-	/* Sort keys for repeatability */
-	size_t flags = JSON_SORT_KEYS;
-	char *serial;
-
-	if (pretty) {
-		APPEND_STR(buf, "\n");
-		flags |= JSON_INDENT(4);
-	} else {
-		flags |= JSON_COMPACT;
-	}
-
-	serial = json_dumps(jwt->headers, flags);
-
-	APPEND_STR(buf, serial);
-
-	free(serial);
-
-	if (pretty)
-		APPEND_STR(buf, "\n");
-
-	return 0;
+	return write_js(jwt->headers, buf, pretty);
 }
 
 static int jwt_write_body(jwt_t *jwt, char **buf, int pretty)
 {
-	/* Sort keys for repeatability */
-	size_t flags = JSON_SORT_KEYS;
-	char *serial;
-
-	if (pretty) {
-		APPEND_STR(buf, "\n");
-		flags |= JSON_INDENT(4);
-	} else {
-		flags |= JSON_COMPACT;
-	}
-
-	serial = json_dumps(jwt->grants, flags);
-
-	APPEND_STR(buf, serial);
-
-	free(serial);
-
-	if (pretty)
-		APPEND_STR(buf, "\n");
-
-	return 0;
+	return write_js(jwt->grants, buf, pretty);
 }
 
 static int jwt_dump(jwt_t *jwt, char **buf, int pretty)
