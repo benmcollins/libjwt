@@ -482,19 +482,6 @@ JWT_EXPORT int jwt_add_headers_json(jwt_t *jwt, const char *json);
  */
 JWT_EXPORT int jwt_del_headers(jwt_t *jwt, const char *header);
 
-/**
- * @deprecated
- * Delete a header from this JWT object.
- *
- * Deletes the named header from this object. It is not an error if there
- * is no header matching the passed name.
- *
- * @param jwt Pointer to a JWT object.
- * @param header String containing the name of the header to delete.
- * @return Returns 0 on success, valid errno otherwise.
- */
-DEPRECATED(JWT_EXPORT int jwt_del_header(jwt_t *jwt, const char *header));
-
 /** @} */
 
 /**
