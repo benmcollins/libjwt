@@ -21,6 +21,9 @@ if (UNIX)
 	option (BUILD_TESTS "Build test projects." OFF)
 endif ()
 
+if (APPLE)
+	add_definitions(-DNO_WEAK_ALIASES)
+endif ()
 include_directories (include)
 
 if (MSVC)
