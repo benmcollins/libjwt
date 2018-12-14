@@ -4,5 +4,9 @@ jwt_dump
 jwt_encode
 jwt_rsa
 jwt_ec
+jwt_header
 *.log
 *.trs
+libjwt-*-coverage.info
+libjwt-*-coverage
+libjwt-*-coverage/*
