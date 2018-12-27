@@ -274,16 +274,22 @@ int jwt_verify_sha_pem(jwt_t *jwt, const char *head, const char *sig_b64)
 
 	switch (jwt->alg) {
 	case JWT_ALG_RS256:
-	case JWT_ALG_ES256:
 		alg = GNUTLS_DIG_SHA256;
 		break;
+	case JWT_ALG_ES256:
+		alg = GNUTLS_SIGN_ECDSA_SHA256;
+		break;
 	case JWT_ALG_RS384:
-	case JWT_ALG_ES384:
 		alg = GNUTLS_DIG_SHA384;
 		break;
+	case JWT_ALG_ES384:
+		alg = GNUTLS_SIGN_ECDSA_SHA384;
+		break;
 	case JWT_ALG_RS512:
-	case JWT_ALG_ES512:
 		alg = GNUTLS_DIG_SHA512;
+		break;
+	case JWT_ALG_ES512:
+		alg = GNUTLS_SIGN_ECDSA_SHA512;
 		break;
 	default:
 		return EINVAL;
