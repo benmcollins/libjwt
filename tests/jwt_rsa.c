@@ -80,6 +80,10 @@ static const char jwt_rs512_8192[] = "eyJhbGciOiJSUzUxMiIsInR5cCI6IkpXVCJ9.ey"
 	"qUNa4kV6TG20X7OvLQW81vdd8hIJIUq-xKNlQw25fMQpCy4matYx-FKZ-LCtigkzVFXg"
 	"24qGD3tFIsOSuZUmEjYu1Sbn6FfO9AuPUnC-qwVwloNPPCAjP2bqUF9OA";
 
+static const char jwt_rs256_invalid[] = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.ey"
+	"JpYXQiOjE0NzU5ODA1NDUsImlzcyI6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJYWF"
+	"hYLVlZWVktWlpaWi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.IAmCornholio";
+
 static void read_key(const char *key_file)
 {
 	FILE *fp = fopen(key_file, "r");
@@ -246,6 +250,90 @@ START_TEST(test_jwt_encode_rsa_with_ec)
 }
 END_TEST
 
+START_TEST(test_jwt_verify_invalid_token)
+{
+	jwt_t *jwt = NULL;
+	int ret = 0;
+
+	read_key("rsa_key_2048.pem");
+
+	ret = jwt_decode(&jwt, jwt_rs256_invalid, key, JWT_ALG_RS512);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_ptr_eq(jwt, NULL);
+}
+END_TEST
+
+START_TEST(test_jwt_verify_invalid_alg)
+{
+	jwt_t *jwt = NULL;
+	int ret = 0;
+
+	read_key("rsa_key_2048.pem");
+
+	ret = jwt_decode(&jwt, jwt_rs256_2048, key, JWT_ALG_RS512);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_ptr_eq(jwt, NULL);
+}
+END_TEST
+
+START_TEST(test_jwt_verify_invalid_cert)
+{
+	jwt_t *jwt = NULL;
+	int ret = 0;
+
+	read_key("rsa_key_8192-pub.pem");
+
+	ret = jwt_decode(&jwt, jwt_rs256_2048, key, JWT_ALG_RS256);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_ptr_eq(jwt, NULL);
+}
+END_TEST
+
+START_TEST(test_jwt_verify_invalid_cert_file)
+{
+	jwt_t *jwt = NULL;
+	int ret = 0;
+
+	read_key("rsa_key_invalid-pub.pem");
+
+	ret = jwt_decode(&jwt, jwt_rs256_2048, key, JWT_ALG_RS256);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_ptr_eq(jwt, NULL);
+}
+END_TEST
+
+START_TEST(test_jwt_encode_invalid_key)
+{
+	jwt_t *jwt = NULL;
+	int ret = 0;
+	char *out = NULL;
+
+	ALLOC_JWT(&jwt);
+
+	read_key("rsa_key_invalid.pem");
+
+	ret = jwt_add_grant(jwt, "iss", "files.cyphre.com");
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_add_grant(jwt, "sub", "user0");
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_set_alg(jwt, JWT_ALG_RS512, key, key_len);
+	ck_assert_int_eq(ret, 0);
+
+	out = jwt_encode_str(jwt);
+	ck_assert_ptr_eq(out, NULL);
+
+	jwt_free(jwt);
+}
+END_TEST
+
 static Suite *libjwt_suite(void)
 {
 	Suite *s;
@@ -263,6 +351,11 @@ static Suite *libjwt_suite(void)
 	tcase_add_test(tc_core, test_jwt_verify_rs512);
 	tcase_add_test(tc_core, test_jwt_verify_rsa_i37);
 	tcase_add_test(tc_core, test_jwt_encode_rsa_with_ec);
+	tcase_add_test(tc_core, test_jwt_verify_invalid_token);
+	tcase_add_test(tc_core, test_jwt_verify_invalid_alg);
+	tcase_add_test(tc_core, test_jwt_verify_invalid_cert);
+	tcase_add_test(tc_core, test_jwt_verify_invalid_cert_file);
+	tcase_add_test(tc_core, test_jwt_encode_invalid_key);
 
 	tcase_set_timeout(tc_core, 60);
 
