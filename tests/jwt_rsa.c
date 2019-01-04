@@ -357,7 +357,7 @@ static Suite *libjwt_suite(void)
 	tcase_add_test(tc_core, test_jwt_verify_invalid_cert_file);
 	tcase_add_test(tc_core, test_jwt_encode_invalid_key);
 
-	tcase_set_timeout(tc_core, 60);
+	tcase_set_timeout(tc_core, 120);
 
 	suite_add_tcase(s, tc_core);
 
