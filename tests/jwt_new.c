@@ -228,6 +228,51 @@ START_TEST(test_jwt_decode_hs256)
 }
 END_TEST
 
+START_TEST(test_jwt_decode_hs256_issue_1)
+{
+	const char token[] = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIi"
+		"OiJzb21lLWxvbmctdXVpZCIsImZpcnN0TmFtZSI6ImhlbGxvIiwibGFzdE"
+		"5hbWUiOiJ3b3JsZCIsInJvbGVzIjpbInRoaXMiLCJ0aGF0IiwidGhlb3Ro"
+		"ZXIiXSwiaXNzIjoiaXNzdWVyIiwicGVyc29uSWQiOiI3NWJiM2NjNy1iOT"
+		"MzLTQ0ZjAtOTNjNi0xNDdiMDgyZmFkYjUiLCJleHAiOjE5MDg4MzUyMDAs"
+		"ImlhdCI6MTQ4ODgxOTYwMCwidXNlcm5hbWUiOiJoZWxsby53b3JsZCJ9.t"
+		"JoAl_pvq95hK7GKqsp5TU462pLTbmSYZc1fAHzcqWM";
+	const unsigned char key256[] = "\x00\x11\x22\x33\x44\x55\x66\x77\x88"
+		"\x99\xAA\xBB\xCC\xDD\xEE\xFF\x00\x11\x22\x33\x44\x55\x66"
+		"\x77\x88\x99\xAA\xBB\xCC\xDD\xEE\xFF";
+	jwt_t *jwt;
+	int ret;
+
+	ret = jwt_decode(&jwt, token, key256, sizeof(key256));
+	ck_assert_int_eq(ret, 0);
+	ck_assert(jwt != NULL);
+
+	jwt_free(jwt);
+}
+END_TEST
+
+START_TEST(test_jwt_decode_hs256_issue_2)
+{
+	const char token[] = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIi"
+		"OiJzb21lLWxvbmctdXVpZCIsImZpcnN0TmFtZSI6ImhlbGxvIiwibGFzdE"
+		"5hbWUiOiJ3b3JsZCIsInJvbGVzIjpbInRoaXMiLCJ0aGF0IiwidGhlb3Ro"
+		"ZXIiXSwiaXNzIjoiaXNzdWVyIiwicGVyc29uSWQiOiI3NWJiM2NjNy1iOT"
+		"MzLTQ0ZjAtOTNjNi0xNDdiMDgyZmFkYjUiLCJleHAiOjE5MDg4MzUyMDAs"
+		"ImlhdCI6MTQ4ODgxOTYwMCwidXNlcm5hbWUiOiJoZWxsby53b3JsZCJ9.G"
+		"pCRdGxE4uClX6Vg7eAPwG-37ZvNBQXyfcldKzDG_QI";
+	const char key256[] = "00112233445566778899AABBCCDDEEFF001122334455"
+		"66778899AABBCCDDEEFF";
+	jwt_t *jwt;
+	int ret;
+
+	ret = jwt_decode(&jwt, token, (const unsigned char *)key256, strlen(key256));
+	ck_assert_int_eq(ret, 0);
+	ck_assert(jwt != NULL);
+
+	jwt_free(jwt);
+}
+END_TEST
+
 START_TEST(test_jwt_decode_hs384)
 {
 	const char token[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzM4NCJ9."
@@ -288,6 +333,9 @@ static Suite *libjwt_suite(void)
 	tcase_add_test(tc_core, test_jwt_decode_hs256);
 	tcase_add_test(tc_core, test_jwt_decode_hs384);
 	tcase_add_test(tc_core, test_jwt_decode_hs512);
+
+	tcase_add_test(tc_core, test_jwt_decode_hs256_issue_1);
+	tcase_add_test(tc_core, test_jwt_decode_hs256_issue_2);
 
 	tcase_set_timeout(tc_core, 30);
 
