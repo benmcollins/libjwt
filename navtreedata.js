@@ -1,6 +1,6 @@
 var NAVTREE =
 [
-  [ "libjwt-1.8.0", "index.html", [
+  [ "libjwt-1.10.1", "index.html", [
     [ "Deprecated List", "deprecated.html", null ],
     [ "Modules", "modules.html", "modules" ],
     [ "Files", null, [

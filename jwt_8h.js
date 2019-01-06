@@ -1,6 +1,7 @@
 var jwt_8h =
 [
     [ "DEPRECATED", "jwt_8h.html#aaf225a2b96038de3a42d61a1fa63654b", null ],
+    [ "JWT_ALG_INVAL", "jwt_8h.html#a3541fa2951819d49dea3cac216d1bccb", null ],
     [ "JWT_EXPORT", "jwt_8h.html#a2b5e67463c9576aa2e7bcceb9f5e6ac1", null ],
     [ "jwt_alg_t", "jwt_8h.html#af798055c91128486537a739cfa20f1fb", null ],
     [ "jwt_t", "jwt_8h.html#abf0acfb990d245214216af589c1d0947", null ],
@@ -21,9 +22,15 @@ var jwt_8h =
     [ "jwt_add_grant_bool", "group__jwt__grant.html#gad528aabec09be8d051485a45c49781c3", null ],
     [ "jwt_add_grant_int", "group__jwt__grant.html#gae4cdc69b259a0f2f98e3c07bf9038765", null ],
     [ "jwt_add_grants_json", "group__jwt__grant.html#ga0509c745c45eebb41c278cebb0617a55", null ],
+    [ "jwt_add_header", "group__jwt__header.html#ga1c0093b5b221f78bbd4e102d30870a27", null ],
+    [ "jwt_add_header_bool", "group__jwt__header.html#ga337c85106951204af60f40288da0a7d8", null ],
+    [ "jwt_add_header_int", "group__jwt__header.html#ga250b312a2c57fa5664f3921950c88766", null ],
+    [ "jwt_add_headers_json", "group__jwt__header.html#ga283f3dc2d9686e4db73874ae9f446ac1", null ],
+    [ "jwt_alg_str", "group__jwt__alg.html#ga710960df9fb6e8cdc2276763c8a3c650", null ],
     [ "jwt_decode", "group__jwt__new.html#ga4d498ffdcf1c95d67b81c224e2a447e5", null ],
     [ "jwt_del_grant", "group__jwt__grant.html#ga4c5ff4001da586297266bf4d3816bcfc", null ],
     [ "jwt_del_grants", "group__jwt__grant.html#ga0d8da61021d73817fb71bf8ffb7791b7", null ],
+    [ "jwt_del_headers", "group__jwt__header.html#gae5ebb283a76098e9a99f7fe13b18593f", null ],
     [ "jwt_dump_fp", "group__jwt__encode.html#gacc77ae9e2214c9b07352a400758f1f4d", null ],
     [ "jwt_dump_str", "group__jwt__encode.html#ga879135911589a45137afedf456cf28e9", null ],
     [ "jwt_dup", "group__jwt__new.html#gab69bff3779be7d0b92bd86456af80991", null ],
@@ -35,6 +42,11 @@ var jwt_8h =
     [ "jwt_get_grant_bool", "group__jwt__grant.html#ga439c70c683ebf8b44eb6cdcc7a88ae2f", null ],
     [ "jwt_get_grant_int", "group__jwt__grant.html#gae48541a059b47945181102d6478bd2bb", null ],
     [ "jwt_get_grants_json", "group__jwt__grant.html#ga422cc9955eefaba9471cba96d24d5a24", null ],
+    [ "jwt_get_header", "group__jwt__header.html#gad8dbb0f9890b4ad9f204e480517d0ca5", null ],
+    [ "jwt_get_header_bool", "group__jwt__header.html#ga33a937ff813f648aef0ed1a5179aa75a", null ],
+    [ "jwt_get_header_int", "group__jwt__header.html#gae245c9c95917566c0b135b39edd398fc", null ],
+    [ "jwt_get_headers_json", "group__jwt__header.html#ga308c00b85ab5ebfa76b1d2485a494104", null ],
     [ "jwt_new", "group__jwt__new.html#ga9ce4e8fb6c2eb66e41b07a7a57d8a68a", null ],
-    [ "jwt_set_alg", "group__jwt__alg.html#ga4b2fe3a4afc420fa7fa9feecebf2c4d7", null ]
+    [ "jwt_set_alg", "group__jwt__alg.html#ga4b2fe3a4afc420fa7fa9feecebf2c4d7", null ],
+    [ "jwt_str_alg", "group__jwt__alg.html#gaf15787af42ab0fc567a0a1fc5ef3edc6", null ]
 ];
