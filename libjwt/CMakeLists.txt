@@ -1,4 +1,4 @@
-set (TARGET_NAME ${CMAKE_PROJECT_NAME})
+set (TARGET_NAME ${PROJECT_NAME})
 
 option (BUILD_SHARED_LIBS "Build libjwt as shared library instead as static one." OFF)
 option (WITHOUT_OPENSSL "Use GnuTLS for encryption instead of OpenSSL" OFF)
@@ -87,6 +87,6 @@ install (TARGETS ${TARGET_NAME}
 	)
 
 install (FILES
-	${CMAKE_SOURCE_DIR}/include/jwt.h
+	${PROJECT_SOURCE_DIR}/include/jwt.h
 	DESTINATION include/
 	)
