@@ -65,12 +65,12 @@ int jwt_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len, const char *str
 	}
 
 	*len = gnutls_hmac_get_len(alg);
-	*out = malloc(*len);
+	*out = jalloc(*len);
 	if (*out == NULL)
 		return ENOMEM;
 
 	if (gnutls_hmac_fast(alg, jwt->key, jwt->key_len, str, strlen(str), *out)) {
-		free(*out);
+		jfree(*out);
 		*out = NULL;
 		return EINVAL;
 	}
@@ -92,7 +92,7 @@ int jwt_verify_sha_hmac(jwt_t *jwt, const char *head, const char *sig)
 		if (!strcmp(sig, buf))
 			ret = 0;
 
-		free(sig_check);
+		jfree(sig_check);
 	}
 
 	return ret;
@@ -183,7 +183,7 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len, const char *str)
 
 	/* RSA is very short. */
 	if (pk_alg == GNUTLS_PK_RSA) {
-		*out = malloc(sig_dat.size);
+		*out = jalloc(sig_dat.size);
 		if (*out == NULL) {
 			ret = ENOMEM;
 			goto sign_clean_privkey;
@@ -222,7 +222,7 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len, const char *str)
 
 	out_size = adj << 1;
 
-	*out = malloc(out_size);
+	*out = jalloc(out_size);
 	if (*out == NULL) {
 		ret = ENOMEM;
 		goto sign_clean_privkey;
@@ -249,7 +249,7 @@ sign_clean_key:
 	gnutls_x509_privkey_deinit(key);
 
 	if (ret && *out) {
-		free(*out);
+		jfree(*out);
 		*out = NULL;
 	}
 
@@ -359,7 +359,7 @@ verify_clean_pubkey:
 	gnutls_pubkey_deinit(pubkey);
 
 verify_clean_sig:
-	free(sig);
+	jfree(sig);
 
 	return ret;
 }
