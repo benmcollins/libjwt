@@ -62,6 +62,10 @@ typedef enum jwt_alg {
 	JWT_ALG_TERM
 } jwt_alg_t;
 
+typedef void *(*jwt_alloc_t)(size_t);
+typedef void *(*jwt_realloc_t)(void *, size_t);
+typedef void(*jwt_free_t)(void *);
+
 #define JWT_ALG_INVAL JWT_ALG_TERM
 
 /**
@@ -538,13 +542,21 @@ JWT_EXPORT int jwt_encode_fp(jwt_t *jwt, FILE *fp);
  * Fully encode a JWT object and return as a string.
  *
  * Similar to jwt_encode_fp() except that a string is returned. The string
- * must be freed by the caller.
+ * must be freed by the caller using jwt_free_str().
  *
  * @param jwt Pointer to a JWT object.
  * @return A nul terminated string on success, NULL on error with errno
  *     set appropriately.
  */
 JWT_EXPORT char *jwt_encode_str(jwt_t *jwt);
+
+/**
+ * Free a string returned from the library.
+ *
+ * @param str Pointer to a string previously created with
+ *     jwt_encode_str().
+ */
+JWT_EXPORT void jwt_free_str(char *str);
 
 /** @} */
 
@@ -610,6 +622,41 @@ JWT_EXPORT const char *jwt_alg_str(jwt_alg_t alg);
 JWT_EXPORT jwt_alg_t jwt_str_alg(const char *alg);
 
 /** @} */
+
+/**
+ * @defgroup jwt_memory JWT memory functions
+ * These functions allow you to get or set memory allocation functions.
+ * @{
+ */
+
+/**
+ * Set functions to be used for allocating and freeing memory.
+ *
+ * By default, LibJWT uses malloc and free for memory management.
+ * This function allows the user of the library to specify its own
+ * memory management functions. This is especially useful on Windows
+ * where mismatches in runtimes across DLLs can cause problems.
+ * 
+ * Note that this function will also set the memory allocator
+ * for the Jansson library.
+ *
+ * @param palloc The function to use for allocating memory
+ * @param palloc The function to use for reallocating memory
+ * @param pfree The function to use for freeing memory
+ * @returns 0 on success, or errno otherwise.
+ */
+JWT_EXPORT int jwt_set_alloc(jwt_alloc_t palloc, jwt_realloc_t prealloc, jwt_free_t pfree);
+
+/**
+ * Get functions used for allocating and freeing memory.
+ *
+ * @param palloc Pointer to alloc function output variable, or NULL
+ * @param palloc Pointer to realloc function output variable, or NULL
+ * @param pfree Pointer to free function output variable, or NULL
+ */
+JWT_EXPORT void jwt_get_alloc(jwt_alloc_t *palloc, jwt_realloc_t *prealloc, jwt_free_t *pfree);
+
+ /** @} */
 
 #ifdef __cplusplus
 }

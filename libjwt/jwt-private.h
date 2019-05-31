@@ -18,6 +18,13 @@ struct jwt {
 	json_t *headers;
 };
 
+/* Memory allocators. */
+void *jalloc(size_t size);
+void jfree(void *ptr);
+char *jstrdup(const char *str);
+void *jcalloc(size_t nmemb, size_t size);
+void *jrealloc(void *ptr, size_t size);
+
 /* Helper routines. */
 void jwt_base64uri_encode(char *str);
 void *jwt_b64_decode(const char *src, int *ret_len);
