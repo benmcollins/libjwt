@@ -8,6 +8,10 @@
 #include <windows.h>
 #include <wincrypt.h>
 
+#include <stdlib.h>
+#include <string.h>
+#include <errno.h>
+
 #include <jwt.h>
 
 #include "jwt-private.h"
@@ -81,7 +85,7 @@ get_cert_location(
 	}
 
 	remainder_len = path_len - (store_name_len + 1);
-	store_path_mbs = (char*)jalloc(remainder_len);
+	store_path_mbs = (char*)jwt_malloc(remainder_len);
 	if (!store_path_mbs)
 	{
 		ret = ENOMEM;
@@ -111,7 +115,7 @@ get_cert_location(
 		goto get_cert_location_done;
 	}
 
-	if (!CryptStringToBinary(
+	if (!CryptStringToBinaryA(
 		thumbprint_str,
 		CERT_THUMBPRINT_STR_LEN,
 		CRYPT_STRING_HEX,
@@ -131,7 +135,7 @@ get_cert_location(
 		goto get_cert_location_done;
 	}
 
-	wchar_buf = (wchar_t*)jalloc(wchar_count * sizeof(wchar_t));
+	wchar_buf = (wchar_t*)jwt_malloc(wchar_count * sizeof(wchar_t));
 	if (!wchar_buf)
 	{
 		ret = ENOMEM;
@@ -149,9 +153,9 @@ get_cert_location(
 
 get_cert_location_done:
 	if (store_path_mbs)
-		jfree(store_path_mbs);
+		jwt_freemem(store_path_mbs);
 	if (ret && wchar_buf)
-		jfree(wchar_buf);
+		jwt_freemem(wchar_buf);
 
 	return ret;
 }
@@ -221,7 +225,7 @@ static int open_private_key_from_store(
 		&keyProvInfoSize)))
 		OPEN_PRIVATE_STORE_ERROR(ENOENT);
 
-	if (!(pKeyProvInfo = (CRYPT_KEY_PROV_INFO *)jalloc(keyProvInfoSize)))
+	if (!(pKeyProvInfo = (CRYPT_KEY_PROV_INFO *)jwt_malloc(keyProvInfoSize)))
 		OPEN_PRIVATE_STORE_ERROR(ENOMEM);
 
 	if (!CertGetCertificateContextProperty(
@@ -252,10 +256,10 @@ static int open_private_key_from_store(
 
 open_private_key_from_store_done:
 	if (store_path)
-		jfree(store_path);
+		jwt_freemem(store_path);
 
 	if (pKeyProvInfo)
-		jfree(pKeyProvInfo);
+		jwt_freemem(pKeyProvInfo);
 
 	if (ret)
 	{
@@ -340,7 +344,7 @@ static int open_public_key_from_store(
 
 open_public_key_from_store_done:
 	if (store_path)
-		jfree(store_path);
+		jwt_freemem(store_path);
 
 	if (ret)
 	{
@@ -378,7 +382,7 @@ static int open_public_key_from_pem(
 	BCRYPT_KEY_HANDLE hKey = (BCRYPT_KEY_HANDLE)NULL;
 
 	/* Convert public key from PEM to DER. */
-	if (!CryptStringToBinary(
+	if (!CryptStringToBinaryA(
 		key,
 		key_len,
 		CRYPT_STRING_BASE64HEADER,
@@ -388,10 +392,10 @@ static int open_public_key_from_pem(
 		NULL))
 		OPEN_PUBLIC_PEM_ERROR(EINVAL);
 
-	if (!(pbPublicKeyDer = (BYTE *)jalloc(cbPublicKeyDer)))
+	if (!(pbPublicKeyDer = (BYTE *)jwt_malloc(cbPublicKeyDer)))
 		OPEN_PUBLIC_PEM_ERROR(ENOMEM);
 
-	if (!CryptStringToBinary(
+	if (!CryptStringToBinaryA(
 		key,
 		key_len,
 		CRYPT_STRING_BASE64HEADER,
@@ -413,7 +417,7 @@ static int open_public_key_from_pem(
 		&cbPublicKeyInfo))
 		OPEN_PUBLIC_PEM_ERROR(EINVAL);
 
-	if (!(pbPublicKeyInfo = (PCERT_PUBLIC_KEY_INFO)jalloc(cbPublicKeyInfo)))
+	if (!(pbPublicKeyInfo = (PCERT_PUBLIC_KEY_INFO)jwt_malloc(cbPublicKeyInfo)))
 		OPEN_PUBLIC_PEM_ERROR(ENOMEM);
 
 	if (!CryptDecodeObjectEx(
@@ -441,10 +445,10 @@ static int open_public_key_from_pem(
 
 open_public_key_from_pem_done:
 	if (pbPublicKeyDer)
-		jfree(pbPublicKeyDer);
+		jwt_freemem(pbPublicKeyDer);
 
 	if (pbPublicKeyInfo)
-		jfree(pbPublicKeyInfo);
+		jwt_freemem(pbPublicKeyInfo);
 
 	if (ret)
 	{
@@ -516,7 +520,7 @@ int jwt_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 		0) != ERROR_SUCCESS)
 		SIGN_HMAC_ERROR(EINVAL);
 
-	if (!(pbHashObject = (BYTE*)jalloc(cbHashObject)))
+	if (!(pbHashObject = (BYTE*)jwt_malloc(cbHashObject)))
 		SIGN_HMAC_ERROR(ENOMEM);
 
 	if (BCryptCreateHash(
@@ -538,7 +542,7 @@ int jwt_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 		0) != ERROR_SUCCESS)
 		SIGN_HMAC_ERROR(EINVAL);
 
-	if (!(pbHashValue = (BYTE*)jalloc(cbHashValue)))
+	if (!(pbHashValue = (BYTE*)jwt_malloc(cbHashValue)))
 		SIGN_HMAC_ERROR(ENOMEM);
 
 	if (BCryptHashData(
@@ -568,11 +572,11 @@ jwt_sign_sha_hmac_done:
 		BCryptCloseAlgorithmProvider(hAlg, 0);
 
 	if (pbHashObject)
-		jfree(pbHashObject);
+		jwt_freemem(pbHashObject);
 
 	/* Only free result string if function failed. */
 	if (ret && pbHashValue)
-		jfree(pbHashValue);
+		jwt_freemem(pbHashValue);
 
 	return ret;
 }
@@ -602,7 +606,7 @@ int jwt_verify_sha_hmac(jwt_t *jwt, const char *head, const char *sig)
 		VERIFY_HMAC_ERROR(EINVAL);
 
 	/* Null terminator is already included in base64Size. */
-	pbB64 = (char*)jalloc(cbB64);
+	pbB64 = (char*)jwt_malloc(cbB64);
 	if (!pbB64)
 		VERIFY_HMAC_ERROR(ENOMEM);
 
@@ -623,10 +627,10 @@ int jwt_verify_sha_hmac(jwt_t *jwt, const char *head, const char *sig)
 
 jwt_verify_hmac_done:
 	if (pbHash)
-		jfree(pbHash);
+		jwt_freemem(pbHash);
 
 	if (pbB64)
-		jfree(pbB64);
+		jwt_freemem(pbB64);
 
 	return ret;
 }
@@ -725,7 +729,7 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		0) != ERROR_SUCCESS)
 		SIGN_PEM_ERROR(EINVAL);
 
-	if (!(pbHashObject = (BYTE*)jalloc(cbHashObject)))
+	if (!(pbHashObject = (BYTE*)jwt_malloc(cbHashObject)))
 		SIGN_PEM_ERROR(ENOMEM);
 
 	if (BCryptCreateHash(
@@ -747,7 +751,7 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		0) != ERROR_SUCCESS)
 		SIGN_PEM_ERROR(EINVAL);
 
-	if (!(pbHashValue = (BYTE*)jalloc(cbHashValue)))
+	if (!(pbHashValue = (BYTE*)jwt_malloc(cbHashValue)))
 		SIGN_PEM_ERROR(ENOMEM);
 
 	if (BCryptHashData(
@@ -778,7 +782,7 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		ncryptSignFlags) != ERROR_SUCCESS)
 		SIGN_PEM_ERROR(EINVAL);
 
-	if (!(pbSignature = (BYTE*)jalloc(cbSignature)))
+	if (!(pbSignature = (BYTE*)jwt_malloc(cbSignature)))
 		SIGN_PEM_ERROR(ENOMEM);
 
 	paddingInfo.pszAlgId = alg;
@@ -818,14 +822,14 @@ jwt_sign_sha_pem_done:
 		CertCloseStore(hCertStore, CERT_CLOSE_STORE_CHECK_FLAG);
 
 	if (pbHashObject)
-		jfree(pbHashObject);
+		jwt_freemem(pbHashObject);
 
 	if (pbHashValue)
-		jfree(pbHashValue);
+		jwt_freemem(pbHashValue);
 
 	/* Only free result string if function failed. */
 	if (ret && pbSignature)
-		jfree(pbSignature);
+		jwt_freemem(pbSignature);
 	
 	return ret;
 }
@@ -926,7 +930,7 @@ int jwt_verify_sha_pem(jwt_t *jwt, const char *head, const char *sig_b64)
 		0) != ERROR_SUCCESS)
 		VERIFY_PEM_ERROR(EINVAL);
 
-	if (!(pbHashObject = (BYTE*)jalloc(cbHashObject)))
+	if (!(pbHashObject = (BYTE*)jwt_malloc(cbHashObject)))
 		VERIFY_PEM_ERROR(ENOMEM);
 
 	if (BCryptCreateHash(
@@ -948,7 +952,7 @@ int jwt_verify_sha_pem(jwt_t *jwt, const char *head, const char *sig_b64)
 		0) != ERROR_SUCCESS)
 		VERIFY_PEM_ERROR(EINVAL);
 
-	if (!(pbHashValue = (BYTE*)jalloc(cbHashValue)))
+	if (!(pbHashValue = (BYTE*)jwt_malloc(cbHashValue)))
 		VERIFY_PEM_ERROR(ENOMEM);
 
 	if (BCryptHashData(
@@ -982,13 +986,13 @@ int jwt_verify_sha_pem(jwt_t *jwt, const char *head, const char *sig_b64)
 
 jwt_verify_sha_pem_done:
 	if (pbSignature)
-		jfree(pbSignature);
+		jwt_freemem(pbSignature);
 
 	if (pbHashObject)
-		jfree(pbHashObject);
+		jwt_freemem(pbHashObject);
 
 	if (pbHashValue)
-		jfree(pbHashValue);
+		jwt_freemem(pbHashValue);
 
 	if (hHash)
 		BCryptDestroyHash(hHash);
