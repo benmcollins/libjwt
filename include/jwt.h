@@ -62,7 +62,7 @@ typedef enum jwt_alg {
 	JWT_ALG_TERM
 } jwt_alg_t;
 
-typedef void *(*jwt_alloc_t)(size_t);
+typedef void *(*jwt_malloc_t)(size_t);
 typedef void *(*jwt_realloc_t)(void *, size_t);
 typedef void(*jwt_free_t)(void *);
 
@@ -542,10 +542,11 @@ JWT_EXPORT int jwt_encode_fp(jwt_t *jwt, FILE *fp);
  * Fully encode a JWT object and return as a string.
  *
  * Similar to jwt_encode_fp() except that a string is returned. The string
- * must be freed by the caller using jwt_free_str().
+ * must be freed by the caller. If you changed the allocation method using
+ * jwt_set_alloc, then you must use jwt_free_str() to free the memory.
  *
  * @param jwt Pointer to a JWT object.
- * @return A nul terminated string on success, NULL on error with errno
+ * @return A null terminated string on success, NULL on error with errno
  *     set appropriately.
  */
 JWT_EXPORT char *jwt_encode_str(jwt_t *jwt);
@@ -629,32 +630,40 @@ JWT_EXPORT jwt_alg_t jwt_str_alg(const char *alg);
  * @{
  */
 
-/**
- * Set functions to be used for allocating and freeing memory.
- *
- * By default, LibJWT uses malloc and free for memory management.
- * This function allows the user of the library to specify its own
- * memory management functions. This is especially useful on Windows
- * where mismatches in runtimes across DLLs can cause problems.
- * 
- * Note that this function will also set the memory allocator
- * for the Jansson library.
- *
- * @param palloc The function to use for allocating memory
- * @param palloc The function to use for reallocating memory
- * @param pfree The function to use for freeing memory
- * @returns 0 on success, or errno otherwise.
- */
-JWT_EXPORT int jwt_set_alloc(jwt_alloc_t palloc, jwt_realloc_t prealloc, jwt_free_t pfree);
+ /**
+  * Set functions to be used for allocating and freeing memory.
+  *
+  * By default, LibJWT uses malloc, realloc, and free for memory
+  * management. This function allows the user of the library to
+  * specify its own memory management functions. This is especially
+  * useful on Windows where mismatches in runtimes across DLLs can
+  * cause problems.
+  *
+  * The caller can specify either a valid function pointer for
+  * any of the parameters or NULL to use the corresponding default
+  * allocator function.
+  *
+  * Note that this function will also set the memory allocator
+  * for the Jansson library.
+  *
+  * @param pmalloc The function to use for allocating memory or
+  *     NULL to use malloc
+  * @param prealloc The function to use for reallocating memory or
+  *     NULL to use realloc
+  * @param pfree The function to use for freeing memory or
+  *     NULL to use free
+  * @returns 0 on success or errno otherwise.
+  */
+JWT_EXPORT int jwt_set_alloc(jwt_malloc_t pmalloc, jwt_realloc_t prealloc, jwt_free_t pfree);
 
 /**
  * Get functions used for allocating and freeing memory.
  *
- * @param palloc Pointer to alloc function output variable, or NULL
- * @param palloc Pointer to realloc function output variable, or NULL
+ * @param pmalloc Pointer to malloc function output variable, or NULL
+ * @param prealloc Pointer to realloc function output variable, or NULL
  * @param pfree Pointer to free function output variable, or NULL
  */
-JWT_EXPORT void jwt_get_alloc(jwt_alloc_t *palloc, jwt_realloc_t *prealloc, jwt_free_t *pfree);
+JWT_EXPORT void jwt_get_alloc(jwt_malloc_t *pmalloc, jwt_realloc_t *prealloc, jwt_free_t *pfree);
 
  /** @} */
 
