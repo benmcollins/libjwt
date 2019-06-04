@@ -13,6 +13,7 @@
 #ifndef JWT_H
 #define JWT_H
 
+#include <jansson.h>
 #include <stdio.h>
 
 #ifdef _MSC_VER
@@ -218,6 +219,7 @@ JWT_EXPORT int jwt_get_grant_bool(jwt_t *jwt, const char *grant);
  *     returned string must be freed by the caller.
  */
 JWT_EXPORT char *jwt_get_grants_json(jwt_t *jwt, const char *grant);
+JWT_EXPORT json_t *jwt_get_grants(jwt_t *jwt, const char *grant);
 
 /**
  * Add a new string grant to this JWT object.
@@ -395,6 +397,7 @@ JWT_EXPORT int jwt_get_header_bool(jwt_t *jwt, const char *header);
  *     returned string must be freed by the caller.
  */
 JWT_EXPORT char *jwt_get_headers_json(jwt_t *jwt, const char *header);
+JWT_EXPORT json_t *jwt_get_headers(jwt_t *jwt, const char *header);
 
 /**
  * Add a new string header to this JWT object.

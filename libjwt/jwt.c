@@ -595,6 +595,28 @@ char *jwt_get_grants_json(jwt_t *jwt, const char *grant)
 	return json_dumps(js_val, JSON_SORT_KEYS | JSON_COMPACT | JSON_ENCODE_ANY);
 }
 
+json_t *jwt_get_grants(jwt_t *jwt, const char *grant)
+{
+	json_t *js_val = NULL;
+
+	errno = EINVAL;
+
+	if (!jwt)
+		return NULL;
+
+	if (grant && strlen(grant))
+		js_val = json_object_get(jwt->grants, grant);
+	else
+		js_val = jwt->grants;
+
+	if (js_val == NULL)
+		return NULL;
+
+	errno = 0;
+
+	return js_val;
+}
+
 int jwt_add_grant(jwt_t *jwt, const char *grant, const char *val)
 {
 	if (!jwt || !grant || !strlen(grant) || !val)
@@ -743,6 +765,28 @@ char *jwt_get_headers_json(jwt_t *jwt, const char *header)
 	errno = 0;
 
 	return json_dumps(js_val, JSON_SORT_KEYS | JSON_COMPACT | JSON_ENCODE_ANY);
+}
+
+json_t *jwt_get_headers(jwt_t *jwt, const char *header)
+{
+	json_t *js_val = NULL;
+
+	errno = EINVAL;
+
+	if (!jwt)
+		return NULL;
+
+	if (header && strlen(header))
+		js_val = json_object_get(jwt->headers, header);
+	else
+		js_val = jwt->headers;
+
+	if (js_val == NULL)
+		return NULL;
+
+	errno = 0;
+
+	return js_val;
 }
 
 int jwt_add_header(jwt_t *jwt, const char *header, const char *val)
