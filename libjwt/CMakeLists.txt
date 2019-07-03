@@ -1,7 +1,8 @@
-set (TARGET_NAME ${CMAKE_PROJECT_NAME})
+set (TARGET_NAME ${PROJECT_NAME})
 
 option (BUILD_SHARED_LIBS "Build libjwt as shared library instead as static one." OFF)
 option (WITHOUT_OPENSSL "Use GnuTLS for encryption instead of OpenSSL" OFF)
+option (USE_WINSSL "Use Windows crypto API for encryption instead of OpenSSL" OFF)
 
 if (UNIX)
 	option (ENABLE_PIC "Use position independent code in static library build." OFF)
@@ -20,9 +21,14 @@ else ()
 	endif ()
 endif ()
 
-if (WITHOUT_OPENSSL)
+if (USE_WINSSL)
+	set (FILES_TO_REMOVE ${CMAKE_CURRENT_SOURCE_DIR}/jwt-openssl.c ${CMAKE_CURRENT_SOURCE_DIR}/jwt-gnutls.c)
+	set (SSL_LIBRARY_INCLUDE_DIR )
+	set (SSL_LIBRARIES_DEBUG crypt32.lib ncrypt.lib bcrypt.lib)
+	set (SSL_LIBRARIES_OPTIMIZED crypt32.lib ncrypt.lib bcrypt.lib)
+elseif (WITHOUT_OPENSSL)
 	find_package (GnuTLS REQUIRED)
-	set (FILES_TO_REMOVE ${CMAKE_CURRENT_SOURCE_DIR}/jwt-openssl.c)
+	set (FILES_TO_REMOVE ${CMAKE_CURRENT_SOURCE_DIR}/jwt-openssl.c ${CMAKE_CURRENT_SOURCE_DIR}/jwt-wincrypt.c)
 	set (SSL_LIBRARY_INCLUDE_DIR ${GNUTLS_INCLUDE_DIR})
 	set (SSL_LIBRARIES_DEBUG ${GNUTLS_LIBRARY})
 	set (SSL_LIBRARIES_OPTIMIZED ${GNUTLS_LIBRARY})
@@ -31,7 +37,7 @@ else ()
 		set (OPENSSL_MSVC_STATIC_RT TRUE)
 	endif ()
 	find_package (OpenSSL REQUIRED)
-	set (FILES_TO_REMOVE ${CMAKE_CURRENT_SOURCE_DIR}/jwt-gnutls.c)
+	set (FILES_TO_REMOVE ${CMAKE_CURRENT_SOURCE_DIR}/jwt-gnutls.c ${CMAKE_CURRENT_SOURCE_DIR}/jwt-wincrypt.c)
 	set (SSL_LIBRARY_INCLUDE_DIR ${OPENSSL_INCLUDE_DIR})
 	if (MSVC)
 		set (SSL_LIBRARIES_DEBUG ${LIB_EAY_DEBUG} ${SSL_EAY_DEBUG})
@@ -87,6 +93,6 @@ install (TARGETS ${TARGET_NAME}
 	)
 
 install (FILES
-	${CMAKE_SOURCE_DIR}/include/jwt.h
+	${PROJECT_SOURCE_DIR}/include/jwt.h
 	DESTINATION include/
 	)

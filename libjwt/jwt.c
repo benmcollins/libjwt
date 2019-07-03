@@ -15,6 +15,64 @@
 #include "base64.h"
 #include "config.h"
 
+static jwt_malloc_t pfn_malloc = NULL;
+static jwt_realloc_t pfn_realloc = NULL;
+static jwt_free_t pfn_free = NULL;
+
+void *jwt_malloc(size_t size)
+{
+	if (pfn_malloc)
+		return pfn_malloc(size);
+	
+	return malloc(size);
+}
+
+void *jwt_realloc(void* ptr, size_t size)
+{
+	if (pfn_realloc)
+		return pfn_realloc(ptr, size);
+	
+	return realloc(ptr, size);
+}
+
+void jwt_freemem(void *ptr)
+{
+	if (pfn_free)
+		pfn_free(ptr);
+	else
+		free(ptr);
+}
+
+char *jwt_strdup(const char *str)
+{
+	size_t len;
+	char *result;
+
+	len = strlen(str);
+	result = (char *)jwt_malloc(len + 1);
+	if (!result)
+		return NULL;
+
+	memcpy(result, str, len);
+	result[len] = '\0';
+	return result;
+}
+
+void *jwt_calloc(size_t nmemb, size_t size)
+{
+	size_t total_size;
+	void* ptr;
+
+	total_size = nmemb * size;
+	if (!total_size)
+		return NULL;
+
+	ptr = jwt_malloc(total_size);
+	if (ptr)
+		memset(ptr, 0, total_size);
+
+	return ptr;
+}
 
 const char *jwt_alg_str(jwt_alg_t alg)
 {
@@ -79,7 +137,7 @@ static void jwt_scrub_key(jwt_t *jwt)
 		/* Overwrite it so it's gone from memory. */
 		memset(jwt->key, 0, jwt->key_len);
 
-		free(jwt->key);
+		jwt_freemem(jwt->key);
 		jwt->key = NULL;
 	}
 
@@ -105,7 +163,7 @@ int jwt_set_alg(jwt_t *jwt, jwt_alg_t alg, const unsigned char *key, int len)
 		if (!key || len <= 0)
 			return EINVAL;
 
-		jwt->key = malloc(len);
+		jwt->key = jwt_malloc(len);
 		if (!jwt->key)
 			return ENOMEM;
 
@@ -128,7 +186,7 @@ int jwt_new(jwt_t **jwt)
 	if (!jwt)
 		return EINVAL;
 
-	*jwt = malloc(sizeof(jwt_t));
+	*jwt = jwt_malloc(sizeof(jwt_t));
 	if (!*jwt)
 		return ENOMEM;
 
@@ -136,7 +194,7 @@ int jwt_new(jwt_t **jwt)
 
 	(*jwt)->grants = json_object();
 	if (!(*jwt)->grants) {
-		free(*jwt);
+		jwt_freemem(*jwt);
 		*jwt = NULL;
 		return ENOMEM;
 	}
@@ -144,7 +202,7 @@ int jwt_new(jwt_t **jwt)
 	(*jwt)->headers = json_object();
 	if (!(*jwt)->headers) {
 		json_decref((*jwt)->grants);
-		free(*jwt);
+		jwt_freemem(*jwt);
 		*jwt = NULL;
 		return ENOMEM;
 	}
@@ -162,7 +220,7 @@ void jwt_free(jwt_t *jwt)
 	json_decref(jwt->grants);
 	json_decref(jwt->headers);
 
-	free(jwt);
+	jwt_freemem(jwt);
 }
 
 jwt_t *jwt_dup(jwt_t *jwt)
@@ -176,7 +234,7 @@ jwt_t *jwt_dup(jwt_t *jwt)
 
 	errno = 0;
 
-	new = malloc(sizeof(jwt_t));
+	new = jwt_malloc(sizeof(jwt_t));
 	if (!new) {
 		errno = ENOMEM;
 		return NULL;
@@ -186,7 +244,7 @@ jwt_t *jwt_dup(jwt_t *jwt)
 
 	if (jwt->key_len) {
 		new->alg = jwt->alg;
-		new->key = malloc(jwt->key_len);
+		new->key = jwt_malloc(jwt->key_len);
 		if (!new->key) {
 			errno = ENOMEM;
 			goto dup_fail;
@@ -263,7 +321,7 @@ void *jwt_b64_decode(const char *src, int *ret_len)
 	int len, i, z;
 
 	/* Decode based on RFC-4648 URI safe encoding. */
-	len = strlen(src);
+	len = (int)strlen(src);
 	new = alloca(len + 4);
 	if (!new)
 		return NULL;
@@ -287,7 +345,7 @@ void *jwt_b64_decode(const char *src, int *ret_len)
 	}
 	new[i] = '\0';
 
-	buf = malloc(i);
+	buf = jwt_malloc(i);
 	if (buf == NULL)
 		return NULL;
 
@@ -312,14 +370,14 @@ static json_t *jwt_b64_decode_json(char *src)
 
 	js = json_loads(buf, 0, NULL);
 
-	free(buf);
+	jwt_freemem(buf);
 
 	return js;
 }
 
 void jwt_base64uri_encode(char *str)
 {
-	int len = strlen(str);
+	int len = (int)strlen(str);
 	int i, t;
 
 	for (i = t = 0; i < len; i++) {
@@ -463,7 +521,7 @@ verify_head_done:
 int jwt_decode(jwt_t **jwt, const char *token, const unsigned char *key,
 	       int key_len)
 {
-	char *head = strdup(token);
+	char *head = jwt_strdup(token);
 	jwt_t *new = NULL;
 	char *body, *sig;
 	int ret = EINVAL;
@@ -502,7 +560,7 @@ int jwt_decode(jwt_t **jwt, const char *token, const unsigned char *key,
 
 	/* Copy the key over for verify_head. */
 	if (key_len) {
-		new->key = malloc(key_len);
+		new->key = jwt_malloc(key_len);
 		if (new->key == NULL)
 			goto decode_done;
 		memcpy(new->key, key, key_len);
@@ -532,7 +590,7 @@ decode_done:
 	else
 		*jwt = new;
 
-	free(head);
+	jwt_freemem(head);
 
 	return ret;
 }
@@ -823,9 +881,9 @@ static int __append_str(char **buf, const char *str)
 	char *new;
 
 	if (*buf == NULL) {
-		new = calloc(1, strlen(str) + 1);
+		new = jwt_calloc(1, strlen(str) + 1);
 	} else {
-		new = realloc(*buf, strlen(*buf) + strlen(str) + 1);
+		new = jwt_realloc(*buf, strlen(*buf) + strlen(str) + 1);
 	}
 
 	if (new == NULL)
@@ -861,7 +919,7 @@ static int write_js(const json_t *js, char **buf, int pretty)
 
 	APPEND_STR(buf, serial);
 
-	free(serial);
+	jwt_freemem(serial);
 
 	if (pretty)
 		APPEND_STR(buf, "\n");
@@ -921,7 +979,7 @@ int jwt_dump_fp(jwt_t *jwt, FILE *fp, int pretty)
 		fputs(out, fp);
 
 	if (out)
-		free(out);
+		jwt_freemem(out);
 
 	return ret;
 }
@@ -936,7 +994,7 @@ char *jwt_dump_str(jwt_t *jwt, int pretty)
 	if (err) {
 		errno = err;
 		if (out)
-			free(out);
+			jwt_freemem(out);
 		out = NULL;
 	} else {
 		errno = 0;
@@ -955,45 +1013,45 @@ static int jwt_encode(jwt_t *jwt, char **out)
 	ret = jwt_write_head(jwt, &buf, 0);
 	if (ret) {
 		if (buf)
-			free(buf);
+			jwt_freemem(buf);
 		return ret;
 	}
 
 	head = alloca(strlen(buf) * 2);
 	if (head == NULL) {
-		free(buf);
+		jwt_freemem(buf);
 		return ENOMEM;
 	}
-	jwt_Base64encode(head, buf, strlen(buf));
-	head_len = strlen(head);
+	jwt_Base64encode(head, buf, (int)strlen(buf));
+	head_len = (int)strlen(head);
 
-	free(buf);
+	jwt_freemem(buf);
 	buf = NULL;
 
 	/* Now the body. */
 	ret = jwt_write_body(jwt, &buf, 0);
 	if (ret) {
 		if (buf)
-			free(buf);
+			jwt_freemem(buf);
 		return ret;
 	}
 
 	body = alloca(strlen(buf) * 2);
 	if (body == NULL) {
-		free(buf);
+		jwt_freemem(buf);
 		return ENOMEM;
 	}
-	jwt_Base64encode(body, buf, strlen(buf));
-	body_len = strlen(body);
+	jwt_Base64encode(body, buf, (int)strlen(buf));
+	body_len = (int)strlen(body);
 
-	free(buf);
+	jwt_freemem(buf);
 	buf = NULL;
 
 	jwt_base64uri_encode(head);
 	jwt_base64uri_encode(body);
 
 	/* Allocate enough to reuse as b64 buffer. */
-	buf = malloc(head_len + body_len + 2);
+	buf = jwt_malloc(head_len + body_len + 2);
 	if (buf == NULL)
 		return ENOMEM;
 	strcpy(buf, head);
@@ -1005,35 +1063,35 @@ static int jwt_encode(jwt_t *jwt, char **out)
 		ret = __append_str(out, ".");
 	if (ret) {
 		if (buf)
-			free(buf);
+			jwt_freemem(buf);
 		return ret;
 	}
 
 	if (jwt->alg == JWT_ALG_NONE) {
-		free(buf);
+		jwt_freemem(buf);
 		return 0;
 	}
 
 	/* Now the signature. */
 	ret = jwt_sign(jwt, &sig, &sig_len, buf);
-	free(buf);
+	jwt_freemem(buf);
 
 	if (ret)
 		return ret;
 
-	buf = malloc(sig_len * 2);
+	buf = jwt_malloc(sig_len * 2);
 	if (buf == NULL) {
-		free(sig);
+		jwt_freemem(sig);
 		return ENOMEM;
 	}
 
 	jwt_Base64encode(buf, sig, sig_len);
 
-	free(sig);
+	jwt_freemem(sig);
 
 	jwt_base64uri_encode(buf);
 	ret = __append_str(out, buf);
-	free(buf);
+	jwt_freemem(buf);
 
 	return ret;
 }
@@ -1046,12 +1104,12 @@ int jwt_encode_fp(jwt_t *jwt, FILE *fp)
 	ret = jwt_encode(jwt, &str);
 	if (ret) {
 		if (str)
-			free(str);
+			jwt_freemem(str);
 		return ret;
 	}
 
 	fputs(str, fp);
-	free(str);
+	jwt_freemem(str);
 
 	return 0;
 }
@@ -1063,9 +1121,40 @@ char *jwt_encode_str(jwt_t *jwt)
 	errno = jwt_encode(jwt, &str);
 	if (errno) {
 		if (str)
-			free(str);
+			jwt_freemem(str);
 		str = NULL;
 	}
 
 	return str;
+}
+
+void jwt_free_str(char *str)
+{
+	if (str)
+		jwt_freemem(str);
+}
+
+int jwt_set_alloc(jwt_malloc_t pmalloc, jwt_realloc_t prealloc, jwt_free_t pfree)
+{
+	/* Set allocator functions for LibJWT. */
+	pfn_malloc = pmalloc;
+	pfn_realloc = prealloc;
+	pfn_free = pfree;
+
+	/* Set same allocator functions for Jansson. */
+	json_set_alloc_funcs(jwt_malloc, jwt_freemem);
+
+	return 0;
+}
+
+void jwt_get_alloc(jwt_malloc_t *pmalloc, jwt_realloc_t* prealloc, jwt_free_t *pfree)
+{
+	if (pmalloc)
+		*pmalloc = pfn_malloc;
+
+	if (prealloc)
+		*prealloc = pfn_realloc;
+
+	if (pfree)
+		*pfree = pfn_free;
 }

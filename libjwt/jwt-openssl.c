@@ -70,7 +70,7 @@ int jwt_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 		return EINVAL;
 	}
 
-	*out = malloc(EVP_MAX_MD_SIZE);
+	*out = jwt_malloc(EVP_MAX_MD_SIZE);
 	if (*out == NULL)
 		return ENOMEM;
 
@@ -241,7 +241,7 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		SIGN_ERROR(EINVAL);
 
 	if (pkey_type != EVP_PKEY_EC) {
-		*out = malloc(slen);
+		*out = jwt_malloc(slen);
 		if (*out == NULL)
 			SIGN_ERROR(ENOMEM);
 		memcpy(*out, sig, slen);
@@ -284,7 +284,7 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		BN_bn2bin(ec_sig_r, raw_buf + bn_len - r_len);
 		BN_bn2bin(ec_sig_s, raw_buf + buf_len - s_len);
 
-		*out = malloc(buf_len);
+		*out = jwt_malloc(buf_len);
 		if (*out == NULL)
 			SIGN_ERROR(ENOMEM);
 		memcpy(*out, raw_buf, buf_len);
@@ -402,10 +402,10 @@ int jwt_verify_sha_pem(jwt_t *jwt, const char *head, const char *sig_b64)
 			VERIFY_ERROR(EINVAL);
 
 		ECDSA_SIG_set0(ec_sig, ec_sig_r, ec_sig_s);
-		free(sig);
+		jwt_freemem(sig);
 
 		slen = i2d_ECDSA_SIG(ec_sig, NULL);
-		sig = malloc(slen);
+		sig = jwt_malloc(slen);
 		if (sig == NULL)
 			VERIFY_ERROR(ENOMEM);
 
@@ -440,7 +440,7 @@ jwt_verify_sha_pem_done:
 	if (mdctx)
 		EVP_MD_CTX_destroy(mdctx);
 	if (sig)
-		free(sig);
+		jwt_freemem(sig);
 	if (ec_sig)
 		ECDSA_SIG_free(ec_sig);
 
