@@ -102,7 +102,7 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len, const char *str)
 {
 	/* For EC handling. */
 	int r_padding = 0, s_padding = 0, r_out_padding = 0,
-		s_out_padding = 0;
+		s_out_padding = 00;
 	size_t out_size;
 
 	gnutls_x509_privkey_t key;
@@ -148,16 +148,16 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len, const char *str)
 		pk_alg = GNUTLS_PK_EC;
 		break;
 	case JWT_ALG_PS256:
-		alg = GNUTLS_DIG_SHA256;
-		pk_alg = GNUTLS_PK_RSA_PSS;
+		alg = GNUTLS_SIGN_RSA_PSS_SHA256;
+		pk_alg = GNUTLS_PK_RSA;
 		break;
 	case JWT_ALG_PS384:
-		alg = GNUTLS_DIG_SHA384;
-		pk_alg = GNUTLS_PK_RSA_PSS;
+		alg = GNUTLS_SIGN_RSA_PSS_SHA384;
+		pk_alg = GNUTLS_PK_RSA;
 		break;
 	case JWT_ALG_PS512:
-		alg = GNUTLS_DIG_SHA512;
-		pk_alg = GNUTLS_PK_RSA_PSS;
+		alg = GNUTLS_SIGN_RSA_PSS_SHA512;
+		pk_alg = GNUTLS_PK_RSA;
 		break;
 	default:
 		return EINVAL;
@@ -188,10 +188,10 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len, const char *str)
 	}
 
 	/* Sign data */
-	if (gnutls_privkey_sign_data(privkey, alg, 0, &body_dat, &sig_dat)) {
-		ret = EINVAL;
-		goto sign_clean_privkey;
-	}
+        if (gnutls_privkey_sign_data2(privkey, alg, 0, &body_dat, &sig_dat)) {
+                ret = EINVAL;
+                goto sign_clean_privkey;
+        }
 
 	/* RSA is very short. */
 	if (pk_alg == GNUTLS_PK_RSA) {
