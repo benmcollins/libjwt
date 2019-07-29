@@ -191,9 +191,17 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len, const char *str)
 	}
 
 	/* Sign data */
-        if (gnutls_privkey_sign_data2(privkey, alg, 0, &body_dat, &sig_dat)) {
-                ret = EINVAL;
-                goto sign_clean_privkey;
+        if (pk_alg == GNUTLS_PK_EC) {
+                /* ec signatues don't like gnutls_privkey_sign_data2 */
+                if (gnutls_privkey_sign_data(privkey, alg, 0, &body_dat, &sig_dat)) {
+                        ret = EINVAL;
+                        goto sign_clean_privkey;
+                }
+        } else {
+                if (gnutls_privkey_sign_data2(privkey, alg, 0, &body_dat, &sig_dat)) {
+                        ret = EINVAL;
+                        goto sign_clean_privkey;
+                }
         }
 
 	/* RSA is very short. */
