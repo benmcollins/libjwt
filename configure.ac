@@ -1,6 +1,6 @@
 AC_PREREQ([2.61])
 AC_INIT([libjwt], [1.11.0], [https://github.com/benmcollins/libjwt/issues])
-AM_INIT_AUTOMAKE
+AM_INIT_AUTOMAKE([foreign])
 LT_PREREQ([2.2])
 LT_INIT([])
 AC_CONFIG_MACRO_DIR([m4])
