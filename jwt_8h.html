@@ -4,7 +4,7 @@
 <meta http-equiv="Content-Type" content="text/xhtml;charset=UTF-8"/>
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
 <meta name="generator" content="Doxygen 1.8.11"/>
-<title>libjwt-1.10.2: jwt.h File Reference</title>
+<title>libjwt-1.11.0: jwt.h File Reference</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -25,7 +25,7 @@
  <tbody>
  <tr style="height: 56px;">
   <td id="projectalign" style="padding-left: 0.5em;">
-   <div id="projectname">libjwt-1.10.2
+   <div id="projectname">libjwt-1.11.0
    </div>
   </td>
  </tr>
@@ -104,6 +104,12 @@ Typedefs</h2></td></tr>
 <tr class="memitem:af798055c91128486537a739cfa20f1fb"><td class="memItemLeft" align="right" valign="top">typedef enum <a class="el" href="jwt_8h.html#a3f05228338020adcde0d799e814e1851">jwt_alg</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="jwt_8h.html#af798055c91128486537a739cfa20f1fb">jwt_alg_t</a></td></tr>
 <tr class="memdesc:af798055c91128486537a739cfa20f1fb"><td class="mdescLeft">&#160;</td><td class="mdescRight">JWT algorithm types.  <a href="#af798055c91128486537a739cfa20f1fb">More...</a><br /></td></tr>
 <tr class="separator:af798055c91128486537a739cfa20f1fb"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aeca62c882d9e8bc8848d08e7f0e1f6bb"><td class="memItemLeft" align="right" valign="top">typedef void *(*&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="jwt_8h.html#aeca62c882d9e8bc8848d08e7f0e1f6bb">jwt_malloc_t</a>) (size_t)</td></tr>
+<tr class="separator:aeca62c882d9e8bc8848d08e7f0e1f6bb"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aba18a5461aeb54f2ef582a940a250cf6"><td class="memItemLeft" align="right" valign="top">typedef void *(*&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="jwt_8h.html#aba18a5461aeb54f2ef582a940a250cf6">jwt_realloc_t</a>) (void *, size_t)</td></tr>
+<tr class="separator:aba18a5461aeb54f2ef582a940a250cf6"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad3b3fc88482616b2883b786d0700c377"><td class="memItemLeft" align="right" valign="top">typedef void(*&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="jwt_8h.html#ad3b3fc88482616b2883b786d0700c377">jwt_free_t</a>) (void *)</td></tr>
+<tr class="separator:ad3b3fc88482616b2883b786d0700c377"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="enum-members"></a>
 Enumerations</h2></td></tr>
@@ -208,6 +214,9 @@ Functions</h2></td></tr>
 <tr class="memitem:gae660380bf45c955fd8909b14dae2441a"><td class="memItemLeft" align="right" valign="top">char *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__jwt__encode.html#gae660380bf45c955fd8909b14dae2441a">jwt_encode_str</a> (<a class="el" href="jwt_8h.html#abf0acfb990d245214216af589c1d0947">jwt_t</a> *jwt)</td></tr>
 <tr class="memdesc:gae660380bf45c955fd8909b14dae2441a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Fully encode a JWT object and return as a string.  <a href="group__jwt__encode.html#gae660380bf45c955fd8909b14dae2441a">More...</a><br /></td></tr>
 <tr class="separator:gae660380bf45c955fd8909b14dae2441a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga1c6ff5f00e8722f5522fe7b36697ecdd"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__jwt__encode.html#ga1c6ff5f00e8722f5522fe7b36697ecdd">jwt_free_str</a> (char *str)</td></tr>
+<tr class="memdesc:ga1c6ff5f00e8722f5522fe7b36697ecdd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Free a string returned from the library.  <a href="group__jwt__encode.html#ga1c6ff5f00e8722f5522fe7b36697ecdd">More...</a><br /></td></tr>
+<tr class="separator:ga1c6ff5f00e8722f5522fe7b36697ecdd"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ga4b2fe3a4afc420fa7fa9feecebf2c4d7"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__jwt__alg.html#ga4b2fe3a4afc420fa7fa9feecebf2c4d7">jwt_set_alg</a> (<a class="el" href="jwt_8h.html#abf0acfb990d245214216af589c1d0947">jwt_t</a> *jwt, <a class="el" href="jwt_8h.html#af798055c91128486537a739cfa20f1fb">jwt_alg_t</a> alg, const unsigned char *key, int len)</td></tr>
 <tr class="memdesc:ga4b2fe3a4afc420fa7fa9feecebf2c4d7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set an algorithm from jwt_alg_t for this JWT object.  <a href="group__jwt__alg.html#ga4b2fe3a4afc420fa7fa9feecebf2c4d7">More...</a><br /></td></tr>
 <tr class="separator:ga4b2fe3a4afc420fa7fa9feecebf2c4d7"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -220,6 +229,12 @@ Functions</h2></td></tr>
 <tr class="memitem:gaf15787af42ab0fc567a0a1fc5ef3edc6"><td class="memItemLeft" align="right" valign="top"><a class="el" href="jwt_8h.html#af798055c91128486537a739cfa20f1fb">jwt_alg_t</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__jwt__alg.html#gaf15787af42ab0fc567a0a1fc5ef3edc6">jwt_str_alg</a> (const char *alg)</td></tr>
 <tr class="memdesc:gaf15787af42ab0fc567a0a1fc5ef3edc6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Convert alg string to type.  <a href="group__jwt__alg.html#gaf15787af42ab0fc567a0a1fc5ef3edc6">More...</a><br /></td></tr>
 <tr class="separator:gaf15787af42ab0fc567a0a1fc5ef3edc6"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga1d0fb7527d55f7849d2195ff8fd28344"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__jwt__memory.html#ga1d0fb7527d55f7849d2195ff8fd28344">jwt_set_alloc</a> (<a class="el" href="jwt_8h.html#aeca62c882d9e8bc8848d08e7f0e1f6bb">jwt_malloc_t</a> pmalloc, <a class="el" href="jwt_8h.html#aba18a5461aeb54f2ef582a940a250cf6">jwt_realloc_t</a> prealloc, <a class="el" href="jwt_8h.html#ad3b3fc88482616b2883b786d0700c377">jwt_free_t</a> pfree)</td></tr>
+<tr class="memdesc:ga1d0fb7527d55f7849d2195ff8fd28344"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set functions to be used for allocating and freeing memory.  <a href="group__jwt__memory.html#ga1d0fb7527d55f7849d2195ff8fd28344">More...</a><br /></td></tr>
+<tr class="separator:ga1d0fb7527d55f7849d2195ff8fd28344"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga8d96db3450596f2e38b549bd8f0e4ec5"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__jwt__memory.html#ga8d96db3450596f2e38b549bd8f0e4ec5">jwt_get_alloc</a> (<a class="el" href="jwt_8h.html#aeca62c882d9e8bc8848d08e7f0e1f6bb">jwt_malloc_t</a> *pmalloc, <a class="el" href="jwt_8h.html#aba18a5461aeb54f2ef582a940a250cf6">jwt_realloc_t</a> *prealloc, <a class="el" href="jwt_8h.html#ad3b3fc88482616b2883b786d0700c377">jwt_free_t</a> *pfree)</td></tr>
+<tr class="memdesc:ga8d96db3450596f2e38b549bd8f0e4ec5"><td class="mdescLeft">&#160;</td><td class="mdescRight">Get functions used for allocating and freeing memory.  <a href="group__jwt__memory.html#ga8d96db3450596f2e38b549bd8f0e4ec5">More...</a><br /></td></tr>
+<tr class="separator:ga8d96db3450596f2e38b549bd8f0e4ec5"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>JWT C Library. </p>
@@ -254,7 +269,7 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p>Definition at line <a class="el" href="jwt_8h_source.html#l00065">65</a> of file <a class="el" href="jwt_8h_source.html">jwt.h</a>.</p>
+<p>Definition at line <a class="el" href="jwt_8h_source.html#l00069">69</a> of file <a class="el" href="jwt_8h_source.html">jwt.h</a>.</p>
 
 </div>
 </div>
@@ -284,6 +299,48 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 
 <p>JWT algorithm types. </p>
+
+</div>
+</div>
+<a class="anchor" id="ad3b3fc88482616b2883b786d0700c377"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">typedef void(* jwt_free_t) (void *)</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Definition at line <a class="el" href="jwt_8h_source.html#l00067">67</a> of file <a class="el" href="jwt_8h_source.html">jwt.h</a>.</p>
+
+</div>
+</div>
+<a class="anchor" id="aeca62c882d9e8bc8848d08e7f0e1f6bb"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">typedef void*(* jwt_malloc_t) (size_t)</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Definition at line <a class="el" href="jwt_8h_source.html#l00065">65</a> of file <a class="el" href="jwt_8h_source.html">jwt.h</a>.</p>
+
+</div>
+</div>
+<a class="anchor" id="aba18a5461aeb54f2ef582a940a250cf6"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">typedef void*(* jwt_realloc_t) (void *, size_t)</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Definition at line <a class="el" href="jwt_8h_source.html#l00066">66</a> of file <a class="el" href="jwt_8h_source.html">jwt.h</a>.</p>
 
 </div>
 </div>
@@ -350,7 +407,7 @@ Functions</h2></td></tr>
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
     <li class="navelem"><a class="el" href="jwt_8h.html">jwt.h</a></li>
-    <li class="footer">Generated on Thu May 30 2019 00:47:52 for libjwt-1.10.2 by
+    <li class="footer">Generated on Tue Sep 24 2019 03:15:01 for libjwt-1.11.0 by
     <a href="http://www.doxygen.org/index.html">
     <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.8.11 </li>
   </ul>

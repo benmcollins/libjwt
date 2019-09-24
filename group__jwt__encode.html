@@ -4,7 +4,7 @@
 <meta http-equiv="Content-Type" content="text/xhtml;charset=UTF-8"/>
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
 <meta name="generator" content="Doxygen 1.8.11"/>
-<title>libjwt-1.10.2: JWT Output Functions</title>
+<title>libjwt-1.11.0: JWT Output Functions</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -25,7 +25,7 @@
  <tbody>
  <tr style="height: 56px;">
   <td id="projectalign" style="padding-left: 0.5em;">
-   <div id="projectname">libjwt-1.10.2
+   <div id="projectname">libjwt-1.11.0
    </div>
   </td>
  </tr>
@@ -82,6 +82,9 @@ Functions</h2></td></tr>
 <tr class="memitem:gae660380bf45c955fd8909b14dae2441a"><td class="memItemLeft" align="right" valign="top">char *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__jwt__encode.html#gae660380bf45c955fd8909b14dae2441a">jwt_encode_str</a> (<a class="el" href="jwt_8h.html#abf0acfb990d245214216af589c1d0947">jwt_t</a> *jwt)</td></tr>
 <tr class="memdesc:gae660380bf45c955fd8909b14dae2441a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Fully encode a JWT object and return as a string.  <a href="#gae660380bf45c955fd8909b14dae2441a">More...</a><br /></td></tr>
 <tr class="separator:gae660380bf45c955fd8909b14dae2441a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga1c6ff5f00e8722f5522fe7b36697ecdd"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__jwt__encode.html#ga1c6ff5f00e8722f5522fe7b36697ecdd">jwt_free_str</a> (char *str)</td></tr>
+<tr class="memdesc:ga1c6ff5f00e8722f5522fe7b36697ecdd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Free a string returned from the library.  <a href="#ga1c6ff5f00e8722f5522fe7b36697ecdd">More...</a><br /></td></tr>
+<tr class="separator:ga1c6ff5f00e8722f5522fe7b36697ecdd"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <p>Functions that enable seeing the plain text or fully encoded version of a JWT object. </p>
@@ -219,14 +222,38 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 
 <p>Fully encode a JWT object and return as a string. </p>
-<p>Similar to <a class="el" href="group__jwt__encode.html#ga2782abdbb190b626a5bd4eb3943b7b8d" title="Fully encode a JWT object and write it to FILE. ">jwt_encode_fp()</a> except that a string is returned. The string must be freed by the caller.</p>
+<p>Similar to <a class="el" href="group__jwt__encode.html#ga2782abdbb190b626a5bd4eb3943b7b8d" title="Fully encode a JWT object and write it to FILE. ">jwt_encode_fp()</a> except that a string is returned. The string must be freed by the caller. If you changed the allocation method using jwt_set_alloc, then you must use <a class="el" href="group__jwt__encode.html#ga1c6ff5f00e8722f5522fe7b36697ecdd" title="Free a string returned from the library. ">jwt_free_str()</a> to free the memory.</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">jwt</td><td>Pointer to a JWT object. </td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd>A nul terminated string on success, NULL on error with errno set appropriately. </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd>A null terminated string on success, NULL on error with errno set appropriately. </dd></dl>
+
+</div>
+</div>
+<a class="anchor" id="ga1c6ff5f00e8722f5522fe7b36697ecdd"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void jwt_free_str </td>
+          <td>(</td>
+          <td class="paramtype">char *&#160;</td>
+          <td class="paramname"><em>str</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Free a string returned from the library. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">str</td><td>Pointer to a string previously created with <a class="el" href="group__jwt__encode.html#gae660380bf45c955fd8909b14dae2441a" title="Fully encode a JWT object and return as a string. ">jwt_encode_str()</a>. </td></tr>
+  </table>
+  </dd>
+</dl>
 
 </div>
 </div>
@@ -235,7 +262,7 @@ Functions</h2></td></tr>
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="footer">Generated on Thu May 30 2019 00:47:52 for libjwt-1.10.2 by
+    <li class="footer">Generated on Tue Sep 24 2019 03:15:01 for libjwt-1.11.0 by
     <a href="http://www.doxygen.org/index.html">
     <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.8.11 </li>
   </ul>

@@ -4,6 +4,9 @@ var jwt_8h =
     [ "JWT_ALG_INVAL", "jwt_8h.html#a3541fa2951819d49dea3cac216d1bccb", null ],
     [ "JWT_EXPORT", "jwt_8h.html#a2b5e67463c9576aa2e7bcceb9f5e6ac1", null ],
     [ "jwt_alg_t", "jwt_8h.html#af798055c91128486537a739cfa20f1fb", null ],
+    [ "jwt_free_t", "jwt_8h.html#ad3b3fc88482616b2883b786d0700c377", null ],
+    [ "jwt_malloc_t", "jwt_8h.html#aeca62c882d9e8bc8848d08e7f0e1f6bb", null ],
+    [ "jwt_realloc_t", "jwt_8h.html#aba18a5461aeb54f2ef582a940a250cf6", null ],
     [ "jwt_t", "jwt_8h.html#abf0acfb990d245214216af589c1d0947", null ],
     [ "jwt_alg", "jwt_8h.html#a3f05228338020adcde0d799e814e1851", [
       [ "JWT_ALG_NONE", "jwt_8h.html#a3f05228338020adcde0d799e814e1851a3249a71140a0bb4b3cb196fe15114b89", null ],
@@ -37,7 +40,9 @@ var jwt_8h =
     [ "jwt_encode_fp", "group__jwt__encode.html#ga2782abdbb190b626a5bd4eb3943b7b8d", null ],
     [ "jwt_encode_str", "group__jwt__encode.html#gae660380bf45c955fd8909b14dae2441a", null ],
     [ "jwt_free", "group__jwt__new.html#gafd51b076050815be44081439d1cb33fc", null ],
+    [ "jwt_free_str", "group__jwt__encode.html#ga1c6ff5f00e8722f5522fe7b36697ecdd", null ],
     [ "jwt_get_alg", "group__jwt__alg.html#ga5c5bece149deeb9546bf155646cf9797", null ],
+    [ "jwt_get_alloc", "group__jwt__memory.html#ga8d96db3450596f2e38b549bd8f0e4ec5", null ],
     [ "jwt_get_grant", "group__jwt__grant.html#gab8bafff3b4cbca17c5f04fd6d4cbe59a", null ],
     [ "jwt_get_grant_bool", "group__jwt__grant.html#ga439c70c683ebf8b44eb6cdcc7a88ae2f", null ],
     [ "jwt_get_grant_int", "group__jwt__grant.html#gae48541a059b47945181102d6478bd2bb", null ],
@@ -48,5 +53,6 @@ var jwt_8h =
     [ "jwt_get_headers_json", "group__jwt__header.html#ga308c00b85ab5ebfa76b1d2485a494104", null ],
     [ "jwt_new", "group__jwt__new.html#ga9ce4e8fb6c2eb66e41b07a7a57d8a68a", null ],
     [ "jwt_set_alg", "group__jwt__alg.html#ga4b2fe3a4afc420fa7fa9feecebf2c4d7", null ],
+    [ "jwt_set_alloc", "group__jwt__memory.html#ga1d0fb7527d55f7849d2195ff8fd28344", null ],
     [ "jwt_str_alg", "group__jwt__alg.html#gaf15787af42ab0fc567a0a1fc5ef3edc6", null ]
 ];
