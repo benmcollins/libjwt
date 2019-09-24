@@ -213,13 +213,13 @@ START_TEST(test_jwt_headers_json)
 	ck_assert(json_val != NULL);
 	ck_assert_str_eq(json_val, "[\"foo\",\"bar\"]");
 
-	free(json_val);
+	jwt_free_str(json_val);
 
 	json_val = jwt_get_headers_json(jwt, NULL);
 	ck_assert(json_val != NULL);
 	ck_assert_str_eq(json_val, json);
 
-	free(json_val);
+	jwt_free_str(json_val);
 
 	jwt_free(jwt);
 }

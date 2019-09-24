@@ -10,11 +10,56 @@
 
 #include <jwt.h>
 
+static void *test_malloc(size_t size)
+{
+	return malloc(size);
+}
+
+static void test_free(void *ptr)
+{
+	free(ptr);
+}
+
+static void *test_realloc(void *ptr, size_t size)
+{
+	return realloc(ptr, size);
+}
+
+static int test_set_alloc(void)
+{
+	return jwt_set_alloc(test_malloc, test_realloc, test_free);
+}
+
+START_TEST(test_alloc_funcs)
+{
+	jwt_malloc_t m = NULL;
+	jwt_realloc_t r = NULL;
+	jwt_free_t f = NULL;
+	int ret;
+
+	jwt_get_alloc(&m, &r, &f);
+	ck_assert(m == NULL);
+	ck_assert(r == NULL);
+	ck_assert(f == NULL);
+
+	ret = test_set_alloc();
+	ck_assert_int_eq(ret, 0);
+
+	jwt_get_alloc(&m, &r, &f);
+	ck_assert(m == test_malloc);
+	ck_assert(r == test_realloc);
+	ck_assert(f == test_free);
+}
+END_TEST
+
 START_TEST(test_jwt_dump_fp)
 {
 	FILE *out;
 	jwt_t *jwt = NULL;
 	int ret = 0;
+
+	ret = test_set_alloc();
+	ck_assert_int_eq(ret, 0);
 
 	ret = jwt_new(&jwt);
 	ck_assert_int_eq(ret, 0);
@@ -58,6 +103,9 @@ START_TEST(test_jwt_dump_str)
 	int ret = 0;
 	char *out;
 
+	ret = test_set_alloc();
+	ck_assert_int_eq(ret, 0);
+
 	ret = jwt_new(&jwt);
 	ck_assert_int_eq(ret, 0);
 	ck_assert(jwt != NULL);
@@ -77,12 +125,12 @@ START_TEST(test_jwt_dump_str)
 	out = jwt_dump_str(jwt, 1);
 	ck_assert(out != NULL);
 
-	free(out);
+	jwt_free_str(out);
 
 	out = jwt_dump_str(jwt, 0);
 	ck_assert(out != NULL);
 
-	free(out);
+	jwt_free_str(out);
 
 	jwt_free(jwt);
 }
@@ -94,6 +142,9 @@ START_TEST(test_jwt_dump_str_alg)
 	const char key[] = "My Passphrase";
 	int ret = 0;
 	char *out;
+
+	ret = test_set_alloc();
+	ck_assert_int_eq(ret, 0);
 
 	ret = jwt_new(&jwt);
 	ck_assert_int_eq(ret, 0);
@@ -118,12 +169,12 @@ START_TEST(test_jwt_dump_str_alg)
 	out = jwt_dump_str(jwt, 1);
 	ck_assert(out != NULL);
 
-	free(out);
+	jwt_free_str(out);
 
 	out = jwt_dump_str(jwt, 0);
 	ck_assert(out != NULL);
 
-	free(out);
+	jwt_free_str(out);
 
 	jwt_free(jwt);
 }
@@ -138,6 +189,7 @@ static Suite *libjwt_suite(void)
 
 	tc_core = tcase_create("jwt_dump");
 
+	tcase_add_test(tc_core, test_alloc_funcs);
 	tcase_add_test(tc_core, test_jwt_dump_fp);
 	tcase_add_test(tc_core, test_jwt_dump_str);
 	tcase_add_test(tc_core, test_jwt_dump_str_alg);

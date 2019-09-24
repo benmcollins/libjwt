@@ -96,7 +96,7 @@ static void read_key(const char *key_file)
 	fp = fopen(key_path, "r");
 	ck_assert_ptr_ne(fp, NULL);
 
-	free(key_path);
+	jwt_free_str(key_path);
 
 	key_len = fread(key, 1, sizeof(key), fp);
 	ck_assert_int_ne(key_len, 0);
@@ -139,7 +139,7 @@ static void __test_alg_key(const char *key_file, const char *jwt_str,
 
 	ck_assert_str_eq(out, jwt_str);
 
-	free(out);
+	jwt_free_str(out);
 	jwt_free(jwt);
 }
 

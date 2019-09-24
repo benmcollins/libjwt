@@ -91,7 +91,7 @@ START_TEST(test_jwt_encode_str)
 
 	ck_assert_str_eq(out, res);
 
-	free(out);
+	jwt_free_str(out);
 
 	jwt_free(jwt);
 }
@@ -124,7 +124,7 @@ START_TEST(test_jwt_encode_alg_none)
 
 	ck_assert_str_eq(out, res);
 
-	free(out);
+	jwt_free_str(out);
 
 	jwt_free(jwt);
 }
@@ -163,7 +163,7 @@ START_TEST(test_jwt_encode_hs256)
 
 	ck_assert_str_eq(out, res);
 
-	free(out);
+	jwt_free_str(out);
 
 	jwt_free(jwt);
 }
@@ -203,7 +203,7 @@ START_TEST(test_jwt_encode_hs384)
 
 	ck_assert_str_eq(out, res);
 
-	free(out);
+	jwt_free_str(out);
 
 	jwt_free(jwt);
 }
@@ -244,7 +244,7 @@ START_TEST(test_jwt_encode_hs512)
 
 	ck_assert_str_eq(out, res);
 
-	free(out);
+	jwt_free_str(out);
 
 	jwt_free(jwt);
 }
@@ -286,7 +286,7 @@ START_TEST(test_jwt_encode_change_alg)
 
 	ck_assert_str_eq(out, res);
 
-	free(out);
+	jwt_free_str(out);
 
 	jwt_free(jwt);
 }
