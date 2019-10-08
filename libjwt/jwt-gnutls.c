@@ -102,7 +102,7 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len, const char *str)
 {
 	/* For EC handling. */
 	int r_padding = 0, s_padding = 0, r_out_padding = 0,
-		s_out_padding = 0;
+		s_out_padding = 00;
 	size_t out_size;
 
 	gnutls_x509_privkey_t key;
@@ -147,6 +147,21 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len, const char *str)
 		alg = GNUTLS_DIG_SHA512;
 		pk_alg = GNUTLS_PK_EC;
 		break;
+/* RSA-PSS signature is available with GnuTLS >= 3.6 */
+#if GNUTLS_VERSION_NUMBER >= 0x030600
+	case JWT_ALG_PS256:
+		alg = GNUTLS_SIGN_RSA_PSS_SHA256;
+		pk_alg = GNUTLS_PK_RSA;
+		break;
+	case JWT_ALG_PS384:
+		alg = GNUTLS_SIGN_RSA_PSS_SHA384;
+		pk_alg = GNUTLS_PK_RSA;
+		break;
+	case JWT_ALG_PS512:
+		alg = GNUTLS_SIGN_RSA_PSS_SHA512;
+		pk_alg = GNUTLS_PK_RSA;
+		break;
+#endif
 	default:
 		return EINVAL;
 	}
@@ -176,10 +191,18 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len, const char *str)
 	}
 
 	/* Sign data */
-	if (gnutls_privkey_sign_data(privkey, alg, 0, &body_dat, &sig_dat)) {
-		ret = EINVAL;
-		goto sign_clean_privkey;
-	}
+        if (pk_alg == GNUTLS_PK_EC) {
+                /* ec signatues don't like gnutls_privkey_sign_data2 */
+                if (gnutls_privkey_sign_data(privkey, alg, 0, &body_dat, &sig_dat)) {
+                        ret = EINVAL;
+                        goto sign_clean_privkey;
+                }
+        } else {
+                if (gnutls_privkey_sign_data2(privkey, alg, 0, &body_dat, &sig_dat)) {
+                        ret = EINVAL;
+                        goto sign_clean_privkey;
+                }
+        }
 
 	/* RSA is very short. */
 	if (pk_alg == GNUTLS_PK_RSA) {
@@ -279,18 +302,35 @@ int jwt_verify_sha_pem(jwt_t *jwt, const char *head, const char *sig_b64)
 	case JWT_ALG_ES256:
 		alg = GNUTLS_SIGN_ECDSA_SHA256;
 		break;
+/* RSA-PSS signature is available with GnuTLS >= 3.6 */
+#if GNUTLS_VERSION_NUMBER >= 0x030600
+	case JWT_ALG_PS256:
+		alg = GNUTLS_SIGN_RSA_PSS_SHA256;
+		break;
+#endif
 	case JWT_ALG_RS384:
 		alg = GNUTLS_DIG_SHA384;
 		break;
 	case JWT_ALG_ES384:
 		alg = GNUTLS_SIGN_ECDSA_SHA384;
 		break;
+#if GNUTLS_VERSION_NUMBER >= 0x030600
+	case JWT_ALG_PS384:
+		alg = GNUTLS_SIGN_RSA_PSS_SHA384;
+		break;
+#endif
 	case JWT_ALG_RS512:
 		alg = GNUTLS_DIG_SHA512;
 		break;
 	case JWT_ALG_ES512:
 		alg = GNUTLS_SIGN_ECDSA_SHA512;
 		break;
+#if GNUTLS_VERSION_NUMBER >= 0x030600
+	case JWT_ALG_PS512:
+		alg = GNUTLS_SIGN_RSA_PSS_SHA512;
+		break;
+#endif
+
 	default:
 		return EINVAL;
 	}

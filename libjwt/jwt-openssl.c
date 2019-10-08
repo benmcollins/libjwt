@@ -195,6 +195,19 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		type = EVP_PKEY_EC;
 		break;
 
+	/* RSA-PSS */
+	case JWT_ALG_PS256:
+		alg = EVP_sha256();
+		type = EVP_PKEY_RSA_PSS;
+		break;
+	case JWT_ALG_PS384:
+		alg = EVP_sha384();
+		type = EVP_PKEY_RSA_PSS;
+		break;
+	case JWT_ALG_PS512:
+		alg = EVP_sha512();
+		type = EVP_PKEY_RSA_PSS;
+		break;
 	default:
 		return EINVAL;
 	}
@@ -350,6 +363,19 @@ int jwt_verify_sha_pem(jwt_t *jwt, const char *head, const char *sig_b64)
 		type = EVP_PKEY_EC;
 		break;
 
+	/* RSA-PSS */
+	case JWT_ALG_PS256:
+		alg = EVP_sha256();
+		type = EVP_PKEY_RSA_PSS;
+		break;
+	case JWT_ALG_PS384:
+		alg = EVP_sha384();
+		type = EVP_PKEY_RSA_PSS;
+		break;
+	case JWT_ALG_PS512:
+		alg = EVP_sha512();
+		type = EVP_PKEY_RSA_PSS;
+		break;
 	default:
 		return EINVAL;
 	}

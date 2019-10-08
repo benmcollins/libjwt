@@ -97,6 +97,12 @@ const char *jwt_alg_str(jwt_alg_t alg)
 		return "ES384";
 	case JWT_ALG_ES512:
 		return "ES512";
+	case JWT_ALG_PS256:
+		return "PS256";
+	case JWT_ALG_PS384:
+		return "PS384";
+	case JWT_ALG_PS512:
+		return "PS512";
 	default:
 		return NULL;
 	}
@@ -127,6 +133,12 @@ jwt_alg_t jwt_str_alg(const char *alg)
 		return JWT_ALG_ES384;
 	else if (!strcasecmp(alg, "ES512"))
 		return JWT_ALG_ES512;
+	else if (!strcasecmp(alg, "PS256"))
+		return JWT_ALG_PS256;
+	else if (!strcasecmp(alg, "PS384"))
+		return JWT_ALG_PS384;
+	else if (!strcasecmp(alg, "PS512"))
+		return JWT_ALG_PS512;
 
 	return JWT_ALG_INVAL;
 }
@@ -416,6 +428,11 @@ static int jwt_sign(jwt_t *jwt, char **out, unsigned int *len, const char *str)
 	case JWT_ALG_ES256:
 	case JWT_ALG_ES384:
 	case JWT_ALG_ES512:
+
+	/* PSS */
+	case JWT_ALG_PS256:
+	case JWT_ALG_PS384:
+	case JWT_ALG_PS512:
 		return jwt_sign_sha_pem(jwt, out, len, str);
 
 	/* You wut, mate? */
@@ -442,6 +459,11 @@ static int jwt_verify(jwt_t *jwt, const char *head, const char *sig)
 	case JWT_ALG_ES256:
 	case JWT_ALG_ES384:
 	case JWT_ALG_ES512:
+
+	/* PSS */
+	case JWT_ALG_PS256:
+	case JWT_ALG_PS384:
+	case JWT_ALG_PS512:
 		return jwt_verify_sha_pem(jwt, head, sig);
 
 	/* You wut, mate? */
