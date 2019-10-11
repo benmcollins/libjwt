@@ -191,10 +191,10 @@ START_TEST(test_jwt_validate_rs256)
 	jwt_valid_new(&jwt_valid, JWT_ALG_RS256);
 	ck_assert(jwt_valid != NULL);
 
-	ret = jwt_valid_add_required_grant(jwt_valid, "iss", "files.cyphre.com");
+	ret = jwt_valid_add_grant(jwt_valid, "iss", "files.cyphre.com");
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_valid_add_required_grant_int(jwt_valid, "iat", TS_CONST);
+	ret = jwt_valid_add_grant_int(jwt_valid, "iat", TS_CONST);
 	ck_assert_int_eq(ret, 0);
 
 	ck_assert_int_eq(1, jwt_validate(jwt, jwt_valid));
