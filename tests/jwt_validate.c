@@ -34,12 +34,12 @@ static void __teardown_jwt()
 
 START_TEST(test_jwt_valid)
 {
-	__setup_jwt();
-
 	jwt_valid_t *jwt_valid = NULL;
 	int ret = 0;
 
-	// matching algorithm is valid
+	__setup_jwt();
+
+	/* Matching algorithm is valid */
 	ret = jwt_valid_new(&jwt_valid, JWT_ALG_NONE);
 	ck_assert_int_eq(ret, 0);
 	ck_assert(jwt_valid != NULL);
@@ -49,7 +49,7 @@ START_TEST(test_jwt_valid)
 
 	jwt_valid_free(jwt_valid);
 
-	// wrong algorithm is not valid
+	/* Wrong algorithm is not valid */
 	ret = jwt_valid_new(&jwt_valid, JWT_ALG_HS256);
 	ck_assert_int_eq(ret, 0);
 	ck_assert(jwt_valid != NULL);
@@ -64,12 +64,12 @@ END_TEST
 
 START_TEST(test_jwt_valid_require_grant)
 {
-	__setup_jwt();
-
 	jwt_valid_t *jwt_valid = NULL;
 	int ret = 0;
 
-	// valid when alg matches and required grants match
+	__setup_jwt();
+
+	/* Valid when alg matches and required grants match */
 	ret = jwt_valid_new(&jwt_valid, JWT_ALG_NONE);
 	ck_assert_int_eq(ret, 0);
 	ck_assert(jwt_valid != NULL);
@@ -105,12 +105,12 @@ END_TEST
 
 START_TEST(test_jwt_valid_require_grant_nonmatch)
 {
-	__setup_jwt();
-
 	jwt_valid_t *jwt_valid = NULL;
 	int ret = 0;
 
-	// invalid when required grants don't match
+	__setup_jwt();
+
+	/* Invalid when required grants don't match */
 	ret = jwt_valid_new(&jwt_valid, JWT_ALG_NONE);
 	ck_assert_int_eq(ret, 0);
 	ck_assert(jwt_valid != NULL);
@@ -123,7 +123,7 @@ START_TEST(test_jwt_valid_require_grant_nonmatch)
 
 	jwt_valid_del_required_grants(jwt_valid, NULL);
 
-	// invalid when required grants don't match
+	/* Invalid when required grants don't match */
 	ret = jwt_valid_add_required_grant_int(jwt_valid, "iat", (long)time(NULL) + 1);
 
 	ret = jwt_validate(jwt, jwt_valid);
@@ -242,7 +242,7 @@ START_TEST(test_jwt_valid_missing_grants)
 
 	__setup_jwt();
 
-	// jwt is invalid when required grants are not present
+	/* JWT is invalid when required grants are not present */
 	ret = jwt_valid_new(&jwt_valid, JWT_ALG_NONE);
 	ck_assert_int_eq(ret, 0);
 	ck_assert(jwt_valid != NULL);
@@ -272,13 +272,13 @@ START_TEST(test_jwt_valid_not_before)
 	ck_assert_int_eq(ret, 0);
 	ck_assert(jwt_valid != NULL);
 
-	// jwt is valid when now < expires
+	/* JWT is invalid when now < not-before */
 	ret = jwt_valid_set_now(jwt_valid, not_before - 1);
 	ck_assert_int_eq(ret, 0);
 
 	ck_assert_int_eq(0, jwt_validate(jwt, jwt_valid));
 
-	// jwt is invalid when now >= expires
+	/* JWT is valid when now >= not-before */
 	ret = jwt_valid_set_now(jwt_valid, not_before);
 	ck_assert_int_eq(ret, 0);
 
@@ -301,13 +301,13 @@ START_TEST(test_jwt_valid_expires)
 	ck_assert_int_eq(ret, 0);
 	ck_assert(jwt_valid != NULL);
 
-	// jwt is valid when now < expires
+	/* JWT is valid when now < expires */
 	ret = jwt_valid_set_now(jwt_valid, (long)expires - 1);
 	ck_assert_int_eq(ret, 0);
 
 	ck_assert_int_eq(1, jwt_validate(jwt, jwt_valid));
 
-	// jwt is invalid when now >= expires
+	/* JWT is invalid when now >= expires */
 	ret = jwt_valid_set_now(jwt_valid, (long)expires);
 	ck_assert_int_eq(ret, 0);
 
@@ -323,7 +323,7 @@ START_TEST(test_jwt_valid_headers)
 	jwt_valid_t *jwt_valid = NULL;
 	int ret = 0;
 
-	// jwt is valid when iss in hdr matches iss in body
+	/* JWT is valid when iss in hdr matches iss in body */
 	__setup_jwt();
 	jwt_add_header(jwt, "iss", "test");
 
@@ -338,14 +338,14 @@ START_TEST(test_jwt_valid_headers)
 
 	jwt_del_headers(jwt, "iss");
 
-	// jwt is invalid when iss in hdr does not match iss in body
+	/* JWT is invalid when iss in hdr does not match iss in body */
 	jwt_add_header(jwt, "iss", "wrong");
 
 	ck_assert_int_eq(0, jwt_validate(jwt, jwt_valid));
 
 	jwt_del_headers(jwt, "iss");
 
-	// jwt is valid when checking hdr, but iss not replicated
+	/* JWT is valid when checking hdr, but iss not replicated */
 	ck_assert_int_eq(1, jwt_validate(jwt, jwt_valid));
 
 	jwt_valid_free(jwt_valid);
@@ -354,47 +354,49 @@ START_TEST(test_jwt_valid_headers)
 END_TEST
 
 
-//START_TEST(test_jwt_grants_json)
-//{
-//	const char *json = "{\"id\":\"FVvGYTr3FhiURCFebsBOpBqTbzHdX/DvImiA2yheXr8=\","
-//		"\"iss\":\"localhost\",\"other\":[\"foo\",\"bar\"],"
-//		"\"ref\":\"385d6518-fb73-45fc-b649-0527d8576130\","
-//		"\"scopes\":\"storage\",\"sub\":\"user0\"}";
-//	jwt_t *jwt = NULL;
-//	const char *val;
-//	char *json_val;
-//	int ret = 0;
-//
-//	ret = jwt_new(&jwt);
-//	ck_assert_int_eq(ret, 0);
-//	ck_assert(jwt != NULL);
-//
-//	ret = jwt_add_grants_json(jwt, json);
-//	ck_assert_int_eq(ret, 0);
-//
-//	val = jwt_get_grant(jwt, "ref");
-//	ck_assert(val != NULL);
-//	ck_assert_str_eq(val, "385d6518-fb73-45fc-b649-0527d8576130");
-//
-//	json_val = jwt_get_grants_json(NULL, "other");
-//	ck_assert(json_val == NULL);
-//	ck_assert_int_eq(errno, EINVAL);
-//
-//	json_val = jwt_get_grants_json(jwt, "other");
-//	ck_assert(json_val != NULL);
-//	ck_assert_str_eq(json_val, "[\"foo\",\"bar\"]");
-//
-//	jwt_free_str(json_val);
-//
-//	json_val = jwt_get_grants_json(jwt, NULL);
-//	ck_assert(json_val != NULL);
-//	ck_assert_str_eq(json_val, json);
-//
-//	jwt_free_str(json_val);
-//
-//	jwt_free(jwt);
-//}
-//END_TEST
+#if 0
+START_TEST(test_jwt_valid_grants_json)
+{
+	const char *json = "{\"id\":\"FVvGYTr3FhiURCFebsBOpBqTbzHdX/DvImiA2yheXr8=\","
+		"\"iss\":\"localhost\",\"other\":[\"foo\",\"bar\"],"
+		"\"ref\":\"385d6518-fb73-45fc-b649-0527d8576130\","
+		"\"scopes\":\"storage\",\"sub\":\"user0\"}";
+	jwt_t *jwt = NULL;
+	const char *val;
+	char *json_val;
+	int ret = 0;
+
+	ret = jwt_new(&jwt);
+	ck_assert_int_eq(ret, 0);
+	ck_assert(jwt != NULL);
+
+	ret = jwt_add_grants_json(jwt, json);
+	ck_assert_int_eq(ret, 0);
+
+	val = jwt_get_grant(jwt, "ref");
+	ck_assert(val != NULL);
+	ck_assert_str_eq(val, "385d6518-fb73-45fc-b649-0527d8576130");
+
+	json_val = jwt_get_grants_json(NULL, "other");
+	ck_assert(json_val == NULL);
+	ck_assert_int_eq(errno, EINVAL);
+
+	json_val = jwt_get_grants_json(jwt, "other");
+	ck_assert(json_val != NULL);
+	ck_assert_str_eq(json_val, "[\"foo\",\"bar\"]");
+
+	jwt_free_str(json_val);
+
+	json_val = jwt_get_grants_json(jwt, NULL);
+	ck_assert(json_val != NULL);
+	ck_assert_str_eq(json_val, json);
+
+	jwt_free_str(json_val);
+
+	jwt_free(jwt);
+}
+END_TEST
+#endif
 
 static Suite *libjwt_suite(void)
 {

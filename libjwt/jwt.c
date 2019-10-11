@@ -1306,33 +1306,33 @@ int jwt_validate(jwt_t *jwt, jwt_valid_t *jwt_valid)
 {
 	int valid = 1;
 
-	// validate algorithm
+	/* Validate algorithm */
 	if (jwt_valid->alg != jwt_get_alg(jwt))
 		return 0;
 
-	// validate expires
+	/* Validate expires */
 	time_t jwt_exp = get_js_int(jwt->grants, "exp");
 	if (jwt_valid->now && (jwt_exp != -1) && jwt_valid->now >= jwt_exp)
 		return 0;
 
-	// validate not-before
+	/* Validate not-before */
 	time_t jwt_nbf = get_js_int(jwt->grants, "nbf");
 	if (jwt_valid->now && (jwt_nbf != -1) && (jwt_valid->now < jwt_nbf))
 		return 0;
 
-	// validate replicated issuer
+	/* Validate replicated issuer */
 	const char *jwt_hdr_str = get_js_string(jwt->headers, "iss");
 	const char *jwt_body_str = get_js_string(jwt->grants, "iss");
 	if (jwt_hdr_str && jwt_body_str && strcmp(jwt_hdr_str, jwt_body_str) != 0)
 		return 0;
 
-	// validate replicated subject
+	/* Validate replicated subject */
 	jwt_hdr_str = get_js_string(jwt->headers, "sub");
 	jwt_body_str = get_js_string(jwt->grants, "sub");
 	if (jwt_hdr_str && jwt_body_str && strcmp(jwt_hdr_str, jwt_body_str) != 0)
 		return 0;
 
-	// validate required grants
+	/* Validate required grants */
 	const char *req_grant = NULL;
 	json_t *val = NULL;
 	const char *req_val = NULL;
