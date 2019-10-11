@@ -23,7 +23,7 @@ void *jwt_malloc(size_t size)
 {
 	if (pfn_malloc)
 		return pfn_malloc(size);
-	
+
 	return malloc(size);
 }
 
@@ -31,7 +31,7 @@ void *jwt_realloc(void* ptr, size_t size)
 {
 	if (pfn_realloc)
 		return pfn_realloc(ptr, size);
-	
+
 	return realloc(ptr, size);
 }
 
@@ -1157,4 +1157,216 @@ void jwt_get_alloc(jwt_malloc_t *pmalloc, jwt_realloc_t* prealloc, jwt_free_t *p
 
 	if (pfree)
 		*pfree = pfn_free;
+}
+
+int jwt_valid_new(jwt_valid_t **jwt_valid, jwt_alg_t alg)
+{
+	if (!jwt_valid)
+		return EINVAL;
+
+	*jwt_valid = jwt_malloc(sizeof(jwt_valid_t));
+	if (!*jwt_valid)
+		return ENOMEM;
+
+	memset(*jwt_valid, 0, sizeof(jwt_valid_t));
+	(*jwt_valid)->alg = alg;
+
+	(*jwt_valid)->req_grants = json_object();
+	if (!(*jwt_valid)->req_grants) {
+		jwt_freemem(*jwt_valid);
+		*jwt_valid = NULL;
+		return ENOMEM;
+	}
+
+	return 0;
+}
+
+void jwt_valid_free(jwt_valid_t *jwt_valid)
+{
+	if (!jwt_valid)
+		return;
+
+	json_decref(jwt_valid->req_grants);
+
+	jwt_freemem(jwt_valid);
+}
+
+int jwt_valid_add_required_grant(jwt_valid_t *jwt_valid, const char *grant, const char *val)
+{
+	if (!jwt_valid || !grant || !strlen(grant) || !val)
+		return EINVAL;
+
+	if (get_js_string(jwt_valid->req_grants, grant) != NULL)
+		return EEXIST;
+
+	if (json_object_set_new(jwt_valid->req_grants, grant, json_string(val)))
+		return EINVAL;
+
+	return 0;
+}
+
+int jwt_valid_add_required_grant_int(jwt_valid_t *jwt_valid, const char *grant, long val)
+{
+	if (!jwt_valid || !grant || !strlen(grant))
+		return EINVAL;
+
+	if (get_js_int(jwt_valid->req_grants, grant) != -1)
+		return EEXIST;
+
+	if (json_object_set_new(jwt_valid->req_grants, grant, json_integer((json_int_t)val)))
+		return EINVAL;
+
+	return 0;
+}
+
+int jwt_valid_add_required_grant_bool(jwt_valid_t *jwt_valid, const char *grant, int val)
+{
+	if (!jwt_valid || !grant || !strlen(grant))
+		return EINVAL;
+
+	if (get_js_int(jwt_valid->req_grants, grant) != -1)
+		return EEXIST;
+
+	if (json_object_set_new(jwt_valid->req_grants, grant, json_boolean(val)))
+		return EINVAL;
+
+	return 0;
+}
+
+const char *jwt_valid_get_required_grant(jwt_valid_t *jwt_valid, const char *grant)
+{
+	if (!jwt_valid || !grant || !strlen(grant)) {
+		errno = EINVAL;
+		return NULL;
+	}
+
+	errno = 0;
+
+	return get_js_string(jwt_valid->req_grants, grant);
+}
+
+long jwt_valid_get_required_grant_int(jwt_valid_t *jwt_valid, const char *grant)
+{
+	if (!jwt_valid || !grant || !strlen(grant)) {
+		errno = EINVAL;
+		return 0;
+	}
+
+	errno = 0;
+
+	return get_js_int(jwt_valid->req_grants, grant);
+}
+
+int jwt_valid_get_required_grant_bool(jwt_valid_t *jwt_valid, const char *grant)
+{
+	if (!jwt_valid || !grant || !strlen(grant)) {
+		errno = EINVAL;
+		return 0;
+	}
+
+	errno = 0;
+
+	return get_js_bool(jwt_valid->req_grants, grant);
+}
+
+int jwt_valid_set_now(jwt_valid_t *jwt_valid, const time_t now)
+{
+	if (!jwt_valid)
+		return EINVAL;
+
+	jwt_valid->now = now;
+
+	return 0;
+}
+
+int jwt_valid_set_headers(jwt_valid_t *jwt_valid, int hdr)
+{
+	if (!jwt_valid)
+		return EINVAL;
+
+	jwt_valid->hdr = hdr;
+
+	return 0;
+}
+
+int jwt_valid_del_required_grants(jwt_valid_t *jwt_valid, const char *grant)
+{
+	if (!jwt_valid)
+		return EINVAL;
+
+	if (grant == NULL || !strlen(grant))
+		json_object_clear(jwt_valid->req_grants);
+	else
+		json_object_del(jwt_valid->req_grants, grant);
+
+	return 0;
+}
+
+int jwt_validate(jwt_t *jwt, jwt_valid_t *jwt_valid)
+{
+	int valid = 1;
+
+	// validate algorithm
+	if (jwt_valid->alg != jwt_get_alg(jwt))
+		return 0;
+
+	// validate expires
+	time_t jwt_exp = get_js_int(jwt->grants, "exp");
+	if (jwt_valid->now && (jwt_exp != -1) && jwt_valid->now >= jwt_exp)
+		return 0;
+
+	// validate not-before
+	time_t jwt_nbf = get_js_int(jwt->grants, "nbf");
+	if (jwt_valid->now && (jwt_nbf != -1) && (jwt_valid->now < jwt_nbf))
+		return 0;
+
+	// validate replicated issuer
+	const char *jwt_hdr_str = get_js_string(jwt->headers, "iss");
+	const char *jwt_body_str = get_js_string(jwt->grants, "iss");
+	if (jwt_hdr_str && jwt_body_str && strcmp(jwt_hdr_str, jwt_body_str) != 0)
+		return 0;
+
+	// validate replicated subject
+	jwt_hdr_str = get_js_string(jwt->headers, "sub");
+	jwt_body_str = get_js_string(jwt->grants, "sub");
+	if (jwt_hdr_str && jwt_body_str && strcmp(jwt_hdr_str, jwt_body_str) != 0)
+		return 0;
+
+	// validate required grants
+	const char *req_grant = NULL;
+	json_t *val = NULL;
+	const char *req_val = NULL;
+	const char *act_val = NULL;
+	long req_val_int = 0;
+	long act_val_int = 0;
+	json_object_foreach(jwt_valid->req_grants, req_grant, val) {
+		if (json_is_string(val)) {
+			req_val = json_string_value(val);
+			act_val = get_js_string(jwt->grants, req_grant);
+			if (!act_val || strcmp(req_val, act_val) != 0) {
+				valid = 0;
+				break;
+			}
+		}
+		if (json_is_integer(val)) {
+			req_val_int = json_integer_value(val);
+			errno = 0;
+			act_val_int = get_js_int(jwt->grants, req_grant);
+			if (errno == ENOENT || req_val_int != act_val_int) {
+				valid = 0;
+				break;
+			}
+		}
+		if (json_is_boolean(val)) {
+			req_val_int = json_is_true(val);
+			errno = 0;
+			act_val_int = get_js_bool(jwt->grants, req_grant);
+			if (errno == ENOENT || req_val_int != act_val_int) {
+				valid = 0;
+				break;
+			}
+		}
+	}
+
+	return valid;
 }

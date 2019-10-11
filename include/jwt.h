@@ -47,6 +47,9 @@ extern "C" {
 /** Opaque JWT object. */
 typedef struct jwt jwt_t;
 
+/** Opaque JWT validation object. */
+typedef struct jwt_valid jwt_valid_t;
+
 /** JWT algorithm types. */
 typedef enum jwt_alg {
 	JWT_ALG_NONE = 0,
@@ -666,6 +669,202 @@ JWT_EXPORT int jwt_set_alloc(jwt_malloc_t pmalloc, jwt_realloc_t prealloc, jwt_f
 JWT_EXPORT void jwt_get_alloc(jwt_malloc_t *pmalloc, jwt_realloc_t *prealloc, jwt_free_t *pfree);
 
  /** @} */
+
+/**
+ * @defgroup jwt_vaildate JWT validation functions
+ * These functions allow you to define requirements for JWT validation.
+ *
+ * The most basic validation is that the JWT uses the expected algorithm.
+ *
+ * When replicating claims in header (usually for encrypted JWT), validation
+ * tests that they match claims in the body (iss, sub, aud).
+ *
+ * Time-based claims can also be validated (nbf, exp).
+ *
+ * Finally, validation can test that claims be present and have certain value.
+ *
+ * @{
+ */
+
+/**
+ * Validate a JWT object with a validation object.
+ *
+ * @param jwt Pointer to a JWT object.
+ * @param jwt_valid Pointer to a JWT validation object.
+ *
+ * @return 1 on valid, 0 on invalid, -1 on error
+ */
+JWT_EXPORT int jwt_validate(jwt_t *jwt, jwt_valid_t *jwt_valid);
+
+/**
+ * Allocate a new, JWT validation object.
+ *
+ * This is used to create a new object for a JWT validation. After you have
+ * finished with the object, use jwt_valid_free() to clean up the memory used by
+ * it.
+ *
+ * @param jwt_valid Pointer to a JWT validation object pointer. Will be allocated
+ *     on success.
+ * @return 0 on success, valid errno otherwise.
+ *
+ */
+JWT_EXPORT int jwt_valid_new(jwt_valid_t **jwt_valid, jwt_alg_t alg);
+
+/**
+ * Free a JWT validation object and any other resources it is using.
+ *
+ * After calling, the JWT validation object referenced will no longer be valid
+ * and its memory will be freed.
+ *
+ * @param jwt_valid Pointer to a JWT validation object previously created with
+ *     jwt_valid_new().
+ */
+JWT_EXPORT void jwt_valid_free(jwt_valid_t *jwt_valid);
+
+/**
+ * Add a new string grant requirement to this JWT validation object.
+ *
+ * @param jwt_valid Pointer to a JWT validation object.
+ * @param grant String containing the name of the grant to add.
+ * @param val String containing the value to be saved for grant. Can be
+ *     an empty string, but cannot be NULL.
+ * @return Returns 0 on success, valid errno otherwise.
+ *
+ * Note, this only allows for string based grants. If you wish to add
+ * integer grants, then use jwt_valid_add_required_grant_int(). If you wish to add more
+ * complex grants (e.g. an array), then use jwt_add_required_grants_json().
+ */
+JWT_EXPORT int jwt_valid_add_required_grant(jwt_valid_t *jwt_valid, const char *grant, const char *val);
+
+/**
+ * Return the value of a string required grant.
+ *
+ * Returns the string value for a grant (e.g. "iss"). If it does not exist,
+ * NULL will be returned.
+ *
+ * @param jwt_valid Pointer to a JWT validation object.
+ * @param grant String containing the name of the grant to return a value
+ *     for.
+ * @return Returns a string for the value, or NULL when not found.
+ *
+ * Note, this will only return grants with JSON string values. Use
+ * jwt_get_grant_json() to get the JSON representation of more complex
+ * values (e.g. arrays) or use jwt_get_grant_int() to get simple integer
+ * values.
+ */
+JWT_EXPORT const char *jwt_valid_get_required_grant(jwt_valid_t *jwt_valid, const char *grant);
+
+/**
+ * Add a new integer grant requirement to this JWT validation object.
+ *
+ * @param jwt_valid Pointer to a JWT validation object.
+ * @param grant String containing the name of the grant to add.
+ * @param val int containing the value to be saved for grant.
+ * @return Returns 0 on success, valid errno otherwise.
+ *
+ * Note, this only allows for integer based grants. If you wish to add
+ * string grants, then use jwt_valid_add_required_grant(). If you wish to add more
+ * complex grants (e.g. an array), then use jwt_valid_add_required_grants_json().
+ */
+JWT_EXPORT int jwt_valid_add_required_grant_int(jwt_valid_t *jwt_valid, const char *grant, long val);
+
+/**
+ * Return the value of an integer required grant.
+ *
+ * Returns the int value for a grant (e.g. "exp"). If it does not exist,
+ * 0 will be returned.
+ *
+ * @param jwt_valid Pointer to a JWT validation object.
+ * @param grant String containing the name of the grant to return a value
+ *     for.
+ * @return Returns an int for the value. Sets errno to ENOENT when not
+ * found.
+ *
+ * Note, this will only return grants with JSON integer values. Use
+ * jwt_valid_get_required_grant_json() to get the JSON representation of more complex
+ * values (e.g. arrays) or use jwt_valid_get_required_grant() to get string values.
+ */
+JWT_EXPORT long jwt_valid_get_required_grant_int(jwt_valid_t *jwt_valid, const char *grant);
+
+/**
+ * Add a new boolean required grant to this JWT validation object.
+ *
+ * Creates a new grant for this object. The string for grant
+ * is copied internally, so do not require that the pointer or string
+ * remain valid for the lifetime of this object. It is an error if you
+ * try to add a grant that already exists.
+ *
+ * @param jwt_valid Pointer to a JWT validation object.
+ * @param grant String containing the name of the grant to add.
+ * @param val boolean containing the value to be saved for grant.
+ * @return Returns 0 on success, valid errno otherwise.
+ *
+ * Note, this only allows for boolean based grants. If you wish to add
+ * string grants, then use jwt_valid_add_required_grant(). If you wish to add more
+ * complex grants (e.g. an array), then use jwt_valid_add_required_grants_json().
+ */
+JWT_EXPORT int jwt_valid_add_required_grant_bool(jwt_valid_t *jwt_valid, const char *grant, int val);
+
+/**
+ * Return the value of an boolean required grant.
+ *
+ * Returns the int value for a grant (e.g. "exp"). If it does not exist,
+ * 0 will be returned.
+ *
+ * @param jwt_valid Pointer to a JWT validation object.
+ * @param grant String containing the name of the grant to return a value
+ *     for.
+ * @return Returns a boolean for the value. Sets errno to ENOENT when not
+ * found.
+ *
+ * Note, this will only return grants with JSON boolean values. Use
+ * jwt_valid_get_required grant_json() to get the JSON representation of more complex
+ * values (e.g. arrays) or use jwt_valid_get_required grant() to get string values.
+ */
+JWT_EXPORT int jwt_valid_get_required_grant_bool(jwt_valid_t *jwt_valid, const char *grant);
+
+/**
+ * Delete a grant from this JWT object.
+ *
+ * Deletes the named grant from this object. It is not an error if there
+ * is no grant matching the passed name. If grant is NULL, then all grants
+ * are deleted from this JWT.
+ *
+ * @param jwt_valid Pointer to a JWT validation object.
+ * @param grant String containing the name of the grant to delete. If this
+ *    is NULL, then all grants are deleted.
+ * @return Returns 0 on success, valid errno otherwise.
+ */
+JWT_EXPORT int jwt_valid_del_required_grants(jwt_valid_t *jwt, const char *grant);
+
+/**
+ * Set the time for which expires and not-before claims should be evaluated.
+ *
+ * @param jwt_valid Pointer to a JWT validation object.
+ * @param now Time to use when considering nbf and exp claims.
+ * @return Returns 0 on success, valid errno otherwise.
+ *
+ * @remark jwt_validate() will not fail based on time if no expires or
+ *     not-before claims exist in a JWT object.
+ */
+JWT_EXPORT int jwt_valid_set_now(jwt_valid_t *jwt_valid, const time_t now);
+
+/**
+ * Set validation for replicated claims in headers.
+ *
+ * When set, validation tests for presence of iss, sub, aud in jwt headers and
+ * tests match for same claims in body.
+ *
+ * @param jwt_valid Pointer to a JWT validation object.
+ * @param now Time to use when considering nbf and exp claims.
+ * @return Returns 0 on success, valid errno otherwise.
+ *
+ * @remark jwt_validate() will not fail if iss, sub, aud are not present in JWT
+ *     header or body.
+ */
+JWT_EXPORT int jwt_valid_set_headers(jwt_valid_t *jwt_valid, int hdr);
+
+/** @} */
 
 #ifdef __cplusplus
 }

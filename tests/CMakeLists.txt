@@ -5,7 +5,7 @@ enable_testing ()
 # Add the check target to behave like automake
 add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND})
 
-set (TARGET_NAMES jwt_dump jwt_ec jwt_encode jwt_grant jwt_header jwt_new jwt_rsa)
+set (TARGET_NAMES jwt_dump jwt_ec jwt_encode jwt_grant jwt_header jwt_new jwt_rsa jwt_validate)
 
 if (UNIX)
 	set (PLATFORM_LIBRARIES pthread)
