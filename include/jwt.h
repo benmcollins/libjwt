@@ -731,10 +731,10 @@ JWT_EXPORT void jwt_valid_free(jwt_valid_t *jwt_valid);
  * @return Returns 0 on success, valid errno otherwise.
  *
  * Note, this only allows for string based grants. If you wish to add
- * integer grants, then use jwt_valid_add_required_grant_int(). If you wish to add more
- * complex grants (e.g. an array), then use jwt_add_required_grants_json().
+ * integer grants, then use jwt_valid_add_grant_int(). If you wish to add more
+ * complex grants (e.g. an array), then use jwt_valid_add_grants_json().
  */
-JWT_EXPORT int jwt_valid_add_required_grant(jwt_valid_t *jwt_valid, const char *grant, const char *val);
+JWT_EXPORT int jwt_valid_add_grant(jwt_valid_t *jwt_valid, const char *grant, const char *val);
 
 /**
  * Return the value of a string required grant.
@@ -748,11 +748,11 @@ JWT_EXPORT int jwt_valid_add_required_grant(jwt_valid_t *jwt_valid, const char *
  * @return Returns a string for the value, or NULL when not found.
  *
  * Note, this will only return grants with JSON string values. Use
- * jwt_get_grant_json() to get the JSON representation of more complex
- * values (e.g. arrays) or use jwt_get_grant_int() to get simple integer
+ * jwt_valid_get_grants_json() to get the JSON representation of more complex
+ * values (e.g. arrays) or use jwt_valid_get_grant_int() to get simple integer
  * values.
  */
-JWT_EXPORT const char *jwt_valid_get_required_grant(jwt_valid_t *jwt_valid, const char *grant);
+JWT_EXPORT const char *jwt_valid_get_grant(jwt_valid_t *jwt_valid, const char *grant);
 
 /**
  * Add a new integer grant requirement to this JWT validation object.
@@ -763,10 +763,10 @@ JWT_EXPORT const char *jwt_valid_get_required_grant(jwt_valid_t *jwt_valid, cons
  * @return Returns 0 on success, valid errno otherwise.
  *
  * Note, this only allows for integer based grants. If you wish to add
- * string grants, then use jwt_valid_add_required_grant(). If you wish to add more
- * complex grants (e.g. an array), then use jwt_valid_add_required_grants_json().
+ * string grants, then use jwt_valid_add_grant(). If you wish to add more
+ * complex grants (e.g. an array), then use jwt_valid_add_grants_json().
  */
-JWT_EXPORT int jwt_valid_add_required_grant_int(jwt_valid_t *jwt_valid, const char *grant, long val);
+JWT_EXPORT int jwt_valid_add_grant_int(jwt_valid_t *jwt_valid, const char *grant, long val);
 
 /**
  * Return the value of an integer required grant.
@@ -781,10 +781,10 @@ JWT_EXPORT int jwt_valid_add_required_grant_int(jwt_valid_t *jwt_valid, const ch
  * found.
  *
  * Note, this will only return grants with JSON integer values. Use
- * jwt_valid_get_required_grant_json() to get the JSON representation of more complex
- * values (e.g. arrays) or use jwt_valid_get_required_grant() to get string values.
+ * jwt_valid_get_grants_json() to get the JSON representation of more complex
+ * values (e.g. arrays) or use jwt_valid_get_grant() to get string values.
  */
-JWT_EXPORT long jwt_valid_get_required_grant_int(jwt_valid_t *jwt_valid, const char *grant);
+JWT_EXPORT long jwt_valid_get_grant_int(jwt_valid_t *jwt_valid, const char *grant);
 
 /**
  * Add a new boolean required grant to this JWT validation object.
@@ -800,10 +800,10 @@ JWT_EXPORT long jwt_valid_get_required_grant_int(jwt_valid_t *jwt_valid, const c
  * @return Returns 0 on success, valid errno otherwise.
  *
  * Note, this only allows for boolean based grants. If you wish to add
- * string grants, then use jwt_valid_add_required_grant(). If you wish to add more
- * complex grants (e.g. an array), then use jwt_valid_add_required_grants_json().
+ * string grants, then use jwt_valid_add_grant(). If you wish to add more
+ * complex grants (e.g. an array), then use jwt_valid_add_grants_json().
  */
-JWT_EXPORT int jwt_valid_add_required_grant_bool(jwt_valid_t *jwt_valid, const char *grant, int val);
+JWT_EXPORT int jwt_valid_add_grant_bool(jwt_valid_t *jwt_valid, const char *grant, int val);
 
 /**
  * Return the value of an boolean required grant.
@@ -818,10 +818,10 @@ JWT_EXPORT int jwt_valid_add_required_grant_bool(jwt_valid_t *jwt_valid, const c
  * found.
  *
  * Note, this will only return grants with JSON boolean values. Use
- * jwt_valid_get_required grant_json() to get the JSON representation of more complex
- * values (e.g. arrays) or use jwt_valid_get_required grant() to get string values.
+ * jwt_valid_get_grants_json() to get the JSON representation of more complex
+ * values (e.g. arrays) or use jwt_valid_get_grant() to get string values.
  */
-JWT_EXPORT int jwt_valid_get_required_grant_bool(jwt_valid_t *jwt_valid, const char *grant);
+JWT_EXPORT int jwt_valid_get_grant_bool(jwt_valid_t *jwt_valid, const char *grant);
 
 /**
  * Delete a grant from this JWT object.
@@ -835,7 +835,7 @@ JWT_EXPORT int jwt_valid_get_required_grant_bool(jwt_valid_t *jwt_valid, const c
  *    is NULL, then all grants are deleted.
  * @return Returns 0 on success, valid errno otherwise.
  */
-JWT_EXPORT int jwt_valid_del_required_grants(jwt_valid_t *jwt, const char *grant);
+JWT_EXPORT int jwt_valid_del_grants(jwt_valid_t *jwt, const char *grant);
 
 /**
  * Set the time for which expires and not-before claims should be evaluated.

@@ -1191,7 +1191,7 @@ void jwt_valid_free(jwt_valid_t *jwt_valid)
 	jwt_freemem(jwt_valid);
 }
 
-int jwt_valid_add_required_grant(jwt_valid_t *jwt_valid, const char *grant, const char *val)
+int jwt_valid_add_grant(jwt_valid_t *jwt_valid, const char *grant, const char *val)
 {
 	if (!jwt_valid || !grant || !strlen(grant) || !val)
 		return EINVAL;
@@ -1205,7 +1205,7 @@ int jwt_valid_add_required_grant(jwt_valid_t *jwt_valid, const char *grant, cons
 	return 0;
 }
 
-int jwt_valid_add_required_grant_int(jwt_valid_t *jwt_valid, const char *grant, long val)
+int jwt_valid_add_grant_int(jwt_valid_t *jwt_valid, const char *grant, long val)
 {
 	if (!jwt_valid || !grant || !strlen(grant))
 		return EINVAL;
@@ -1219,7 +1219,7 @@ int jwt_valid_add_required_grant_int(jwt_valid_t *jwt_valid, const char *grant, 
 	return 0;
 }
 
-int jwt_valid_add_required_grant_bool(jwt_valid_t *jwt_valid, const char *grant, int val)
+int jwt_valid_add_grant_bool(jwt_valid_t *jwt_valid, const char *grant, int val)
 {
 	if (!jwt_valid || !grant || !strlen(grant))
 		return EINVAL;
@@ -1233,7 +1233,7 @@ int jwt_valid_add_required_grant_bool(jwt_valid_t *jwt_valid, const char *grant,
 	return 0;
 }
 
-const char *jwt_valid_get_required_grant(jwt_valid_t *jwt_valid, const char *grant)
+const char *jwt_valid_get_grant(jwt_valid_t *jwt_valid, const char *grant)
 {
 	if (!jwt_valid || !grant || !strlen(grant)) {
 		errno = EINVAL;
@@ -1245,7 +1245,7 @@ const char *jwt_valid_get_required_grant(jwt_valid_t *jwt_valid, const char *gra
 	return get_js_string(jwt_valid->req_grants, grant);
 }
 
-long jwt_valid_get_required_grant_int(jwt_valid_t *jwt_valid, const char *grant)
+long jwt_valid_get_grant_int(jwt_valid_t *jwt_valid, const char *grant)
 {
 	if (!jwt_valid || !grant || !strlen(grant)) {
 		errno = EINVAL;
@@ -1257,7 +1257,7 @@ long jwt_valid_get_required_grant_int(jwt_valid_t *jwt_valid, const char *grant)
 	return get_js_int(jwt_valid->req_grants, grant);
 }
 
-int jwt_valid_get_required_grant_bool(jwt_valid_t *jwt_valid, const char *grant)
+int jwt_valid_get_grant_bool(jwt_valid_t *jwt_valid, const char *grant)
 {
 	if (!jwt_valid || !grant || !strlen(grant)) {
 		errno = EINVAL;
@@ -1289,7 +1289,7 @@ int jwt_valid_set_headers(jwt_valid_t *jwt_valid, int hdr)
 	return 0;
 }
 
-int jwt_valid_del_required_grants(jwt_valid_t *jwt_valid, const char *grant)
+int jwt_valid_del_grants(jwt_valid_t *jwt_valid, const char *grant)
 {
 	if (!jwt_valid)
 		return EINVAL;
