@@ -856,7 +856,7 @@ JWT_EXPORT int jwt_valid_set_now(jwt_valid_t *jwt_valid, const time_t now);
  * tests match for same claims in body.
  *
  * @param jwt_valid Pointer to a JWT validation object.
- * @param now Time to use when considering nbf and exp claims.
+ * @param hdr When true, test header claims
  * @return Returns 0 on success, valid errno otherwise.
  *
  * @remark jwt_validate() will not fail if iss, sub, aud are not present in JWT
