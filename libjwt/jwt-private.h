@@ -18,6 +18,13 @@ struct jwt {
 	json_t *headers;
 };
 
+struct jwt_valid {
+	jwt_alg_t alg;
+	time_t now;
+	int hdr;
+	json_t *req_grants;
+};
+
 /* Memory allocators. */
 void *jwt_malloc(size_t size);
 void jwt_freemem(void *ptr);
