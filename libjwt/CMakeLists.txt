@@ -63,6 +63,10 @@ target_include_directories (${TARGET_NAME} PRIVATE
 	${CMAKE_CURRENT_BINARY_DIR}
 	)
 
+if (UNIX)
+	target_compile_definitions (${TARGET_NAME} PUBLIC _GNU_SOURCE)
+endif ()
+
 if (UNIX AND ENABLE_LTO)
 	set_property(TARGET ${TARGET_NAME} PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 endif ()

@@ -23,6 +23,7 @@ struct jwt_valid {
 	time_t now;
 	int hdr;
 	json_t *req_grants;
+	char *status;
 };
 
 /* Memory allocators. */
