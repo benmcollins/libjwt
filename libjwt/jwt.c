@@ -1233,6 +1233,46 @@ int jwt_valid_add_grant_bool(jwt_valid_t *jwt_valid, const char *grant, int val)
 	return 0;
 }
 
+int jwt_valid_add_grants_json(jwt_valid_t *jwt_valid, const char *json)
+{
+	json_t *js_val;
+	int ret = -1;
+
+	if (!jwt_valid)
+		return EINVAL;
+
+	js_val = json_loads(json, JSON_REJECT_DUPLICATES, NULL);
+
+	if (json_is_object(js_val))
+		ret = json_object_update(jwt_valid->req_grants, js_val);
+
+	json_decref(js_val);
+
+	return ret ? EINVAL : 0;
+}
+
+char *jwt_valid_get_grants_json(jwt_valid_t *jwt_valid, const char *grant)
+{
+	json_t *js_val = NULL;
+
+	errno = EINVAL;
+
+	if (!jwt_valid)
+		return NULL;
+
+	if (grant && strlen(grant))
+		js_val = json_object_get(jwt_valid->req_grants, grant);
+	else
+		js_val = jwt_valid->req_grants;
+
+	if (js_val == NULL)
+		return NULL;
+
+	errno = 0;
+
+	return json_dumps(js_val, JSON_SORT_KEYS | JSON_COMPACT | JSON_ENCODE_ANY);
+}
+
 const char *jwt_valid_get_grant(jwt_valid_t *jwt_valid, const char *grant)
 {
 	if (!jwt_valid || !grant || !strlen(grant)) {
@@ -1332,6 +1372,13 @@ int jwt_validate(jwt_t *jwt, jwt_valid_t *jwt_valid)
 	if (jwt_hdr_str && jwt_body_str && strcmp(jwt_hdr_str, jwt_body_str) != 0)
 		return 0;
 
+	/* Validate replicated audience (might be array or string) */
+	json_t *aud_hdr_js = json_object_get(jwt->headers, "aud");
+	json_t *aud_body_js = json_object_get(jwt->grants, "aud");
+	if (aud_hdr_js && aud_body_js && !json_equal(aud_hdr_js, aud_body_js)) {
+		return 0;
+	}
+
 	/* Validate required grants */
 	const char *req_grant = NULL;
 	json_t *val = NULL;
@@ -1340,31 +1387,10 @@ int jwt_validate(jwt_t *jwt, jwt_valid_t *jwt_valid)
 	long req_val_int = 0;
 	long act_val_int = 0;
 	json_object_foreach(jwt_valid->req_grants, req_grant, val) {
-		if (json_is_string(val)) {
-			req_val = json_string_value(val);
-			act_val = get_js_string(jwt->grants, req_grant);
-			if (!act_val || strcmp(req_val, act_val) != 0) {
-				valid = 0;
-				break;
-			}
-		}
-		if (json_is_integer(val)) {
-			req_val_int = json_integer_value(val);
-			errno = 0;
-			act_val_int = get_js_int(jwt->grants, req_grant);
-			if (errno == ENOENT || req_val_int != act_val_int) {
-				valid = 0;
-				break;
-			}
-		}
-		if (json_is_boolean(val)) {
-			req_val_int = json_is_true(val);
-			errno = 0;
-			act_val_int = get_js_bool(jwt->grants, req_grant);
-			if (errno == ENOENT || req_val_int != act_val_int) {
-				valid = 0;
-				break;
-			}
+		json_t *act_js_val = json_object_get(jwt->grants, req_grant);
+		if (!act_js_val || !json_equal(val, act_js_val)) {
+			valid = 0;
+			break;
 		}
 	}
 
