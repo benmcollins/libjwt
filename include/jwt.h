@@ -824,6 +824,32 @@ JWT_EXPORT int jwt_valid_add_grant_bool(jwt_valid_t *jwt_valid, const char *gran
 JWT_EXPORT int jwt_valid_get_grant_bool(jwt_valid_t *jwt_valid, const char *grant);
 
 /**
+ * Add required grants from a JSON encoded object string.
+ *
+ * Loads a grant from an existing JSON encoded object string. Overwrites
+ * existing grant.
+ *
+ * @param jwt_valid Pointer to a JWT validation object.
+ * @param json String containing a JSON encoded object of grants.
+ * @return Returns 0 on success, valid errno otherwise.
+ */
+JWT_EXPORT int jwt_valid_add_grants_json(jwt_valid_t *jwt_valid, const char *json);
+
+/**
+ * Return the value of a grant as JSON encoded object string.
+ *
+ * Returns the JSON encoded string value for a grant (e.g. "iss"). If it
+ * does not exist, NULL will be returned.
+ *
+ * @param jwt_valid Pointer to a JWT validation object.
+ * @param grant String containing the name of the grant to return a value
+ *     for.
+ * @return Returns a string for the value, or NULL when not found. The
+ *     returned string must be freed by the caller.
+ */
+JWT_EXPORT char* jwt_valid_get_grants_json(jwt_valid_t *jwt_valid, const char *grant);
+
+/**
  * Delete a grant from this JWT object.
  *
  * Deletes the named grant from this object. It is not an error if there
