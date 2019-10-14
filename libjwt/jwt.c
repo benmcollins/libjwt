@@ -1346,6 +1346,11 @@ int jwt_validate(jwt_t *jwt, jwt_valid_t *jwt_valid)
 {
 	int valid = 1;
 
+	if (!jwt || !jwt_valid) {
+		errno = EINVAL;
+		return -1;
+	}
+
 	/* Validate algorithm */
 	if (jwt_valid->alg != jwt_get_alg(jwt))
 		return 0;
@@ -1382,10 +1387,6 @@ int jwt_validate(jwt_t *jwt, jwt_valid_t *jwt_valid)
 	/* Validate required grants */
 	const char *req_grant = NULL;
 	json_t *val = NULL;
-	const char *req_val = NULL;
-	const char *act_val = NULL;
-	long req_val_int = 0;
-	long act_val_int = 0;
 	json_object_foreach(jwt_valid->req_grants, req_grant, val) {
 		json_t *act_js_val = json_object_get(jwt->grants, req_grant);
 		if (!act_js_val || !json_equal(val, act_js_val)) {
@@ -1396,3 +1397,4 @@ int jwt_validate(jwt_t *jwt, jwt_valid_t *jwt_valid)
 
 	return valid;
 }
+
