@@ -59,6 +59,10 @@ START_TEST(test_jwt_validate_errno)
 	ck_assert_int_eq(ret, -1);
 	ck_assert_int_eq(errno, EINVAL);
 
+	/* Get status fails with NULL jwt_valid */
+	errno = 0;
+	ck_assert_ptr_eq(NULL, jwt_valid_get_status(NULL));
+	ck_assert_int_eq(errno, EINVAL);
 }
 END_TEST
 
@@ -98,6 +102,8 @@ START_TEST(test_jwt_valid_require_grant)
 {
 	jwt_valid_t *jwt_valid = NULL;
 	int ret = 0;
+	const char *valstr = NULL;
+	int valnum = 0;
 
 	__setup_jwt();
 
@@ -113,6 +119,11 @@ START_TEST(test_jwt_valid_require_grant)
 	ret = jwt_valid_add_grant(jwt_valid, "iss", "other");
 	ck_assert_int_eq(ret, EEXIST);
 
+	/* Grant has expected value */
+	valstr = jwt_valid_get_grant(jwt_valid, "iss");
+	ck_assert_ptr_ne(valstr, NULL);
+	ck_assert_str_eq(valstr, "test");
+
 	ret = jwt_valid_add_grant_int(jwt_valid, "iat", (long)iat);
 	ck_assert_int_eq(ret, 0);
 
@@ -120,12 +131,20 @@ START_TEST(test_jwt_valid_require_grant)
 	ret = jwt_valid_add_grant_int(jwt_valid, "iat", (long)time(NULL));
 	ck_assert_int_eq(ret, EEXIST);
 
+	/* Grant has expected value */
+	valnum = jwt_valid_get_grant_int(jwt_valid, "iat");
+	ck_assert_int_eq(valnum, (long)iat);
+
 	ret = jwt_valid_add_grant_bool(jwt_valid, "admin", 1);
 	ck_assert_int_eq(ret, 0);
 
 	/* No duplicates for bool */
 	ret = jwt_valid_add_grant_bool(jwt_valid, "admin", 0);
 	ck_assert_int_eq(ret, EEXIST);
+
+	/* Grant has expected value */
+	valnum = jwt_valid_get_grant_bool(jwt_valid, "admin");
+	ck_assert_int_eq(valnum, 1);
 
 	ret = jwt_valid_add_grants_json(jwt_valid, "{\"aud\": [\"svc1\",\"svc2\"]}");
 	ck_assert_int_eq(ret, 0);
