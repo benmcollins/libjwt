@@ -722,6 +722,18 @@ JWT_EXPORT int jwt_valid_new(jwt_valid_t **jwt_valid, jwt_alg_t alg);
 JWT_EXPORT void jwt_valid_free(jwt_valid_t *jwt_valid);
 
 /**
+ * Return the status string for the validation object.
+ *
+ * The status of validation object is primarily for describing the reason
+ * jwt_validate() failed.
+ *
+ * @param jwt_valid Pointer to a JWT validation object.
+ * @return Returns a string for the status, or NULL when jwt_validate() has not
+ *     run.
+ */
+JWT_EXPORT const char *jwt_valid_get_status(jwt_valid_t *jwt_valid);
+
+/**
  * Add a new string grant requirement to this JWT validation object.
  *
  * @param jwt_valid Pointer to a JWT validation object.
