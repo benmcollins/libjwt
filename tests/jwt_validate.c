@@ -34,6 +34,33 @@ static void __teardown_jwt()
 	jwt = NULL;
 }
 
+START_TEST(test_jwt_validate_errno)
+{
+	jwt_valid_t *jwt_valid = NULL;
+	int ret = 0;
+
+	__setup_jwt();
+	ck_assert(jwt != NULL);
+
+	ret = jwt_valid_new(&jwt_valid, JWT_ALG_NONE);
+	ck_assert_int_eq(ret, 0);
+	ck_assert(jwt_valid != NULL);
+
+	/* Validate fails with NULL jwt */
+	errno = 0;
+	ret = jwt_validate(NULL, jwt_valid);
+	ck_assert_int_eq(ret, -1);
+	ck_assert_int_eq(errno, EINVAL);
+
+	/* Validate fails with NULL jwt_valid */
+	errno = 0;
+	ret = jwt_validate(jwt, NULL);
+	ck_assert_int_eq(ret, -1);
+	ck_assert_int_eq(errno, EINVAL);
+
+}
+END_TEST
+
 START_TEST(test_jwt_valid_algorithm)
 {
 	jwt_valid_t *jwt_valid = NULL;
@@ -395,8 +422,8 @@ START_TEST(test_jwt_valid_headers)
 	jwt_add_header(jwt, "sub", "wrong");
 	ck_assert_int_eq(0, jwt_validate(jwt, jwt_valid));
 
-	/* JWT is valid when checking hdr and iss not replicated */
-	jwt_del_headers(jwt, "iss");
+	/* JWT is valid when checking hdr and sub not replicated */
+	jwt_del_headers(jwt, "sub");
 	ck_assert_int_eq(1, jwt_validate(jwt, jwt_valid));
 
 	/* JWT is valid when checking hdr and aud matches */
@@ -471,6 +498,7 @@ static Suite *libjwt_suite(void)
 
 	tc_core = tcase_create("jwt_grant");
 
+	tcase_add_test(tc_core, test_jwt_validate_errno);
 	tcase_add_test(tc_core, test_jwt_valid_algorithm);
 	tcase_add_test(tc_core, test_jwt_valid_require_grant);
 	tcase_add_test(tc_core, test_jwt_valid_nonmatch_grant);
