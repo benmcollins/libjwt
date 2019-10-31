@@ -1,6 +1,6 @@
 ACLOCAL_AMFLAGS = -I m4
 
-SUBDIRS = include libjwt tests
+SUBDIRS = include libjwt examples tests
 
 include $(top_srcdir)/doxygen.mk
 
