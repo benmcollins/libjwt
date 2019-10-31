@@ -15,7 +15,7 @@
 
 void usage(const char *name)
 {
-	// TODO Might want to support JWT input via stdin
+	/* TODO Might want to support JWT input via stdin */
 	printf("%s --key some-pub.pem --alg RS256 some-file.jwt\n", name);
 	printf("Options:\n"
 			"  -k --key KEY  The key to use for verification\n"
@@ -30,13 +30,17 @@ int main(int argc, char *argv[])
 	char opt_key_name[200] = "test-rsa256-pub.pem";
 	jwt_alg_t opt_alg = JWT_ALG_RS256;
 	char opt_jwt_name[200] = "test-rsa256.jwt";
-	size_t claims_count = 0;
-	struct kv {
-		char *key;
-		char *val;
-	} opt_claims[100];
-	memset(opt_claims, 0, sizeof(opt_claims));
-
+	int claims_count = 0;
+	int i = 0;
+	unsigned char key[10240];
+	size_t key_len;
+	FILE *fp_pub_key;
+	char jwt_str[2048];
+	size_t jwt_len;
+	FILE *fp_jwt;
+	int ret = 0;
+	jwt_valid_t *jwt_valid;
+	jwt_t *jwt = NULL;
 	int oc = 0;
 	char *optstr = "hk:a:c:";
 	struct option opttbl[] = {
@@ -47,6 +51,12 @@ int main(int argc, char *argv[])
 		{ NULL, 0, 0, 0 },
 	};
 	char *k = NULL, *v = NULL;
+	struct kv {
+		char *key;
+		char *val;
+	} opt_claims[100];
+	memset(opt_claims, 0, sizeof(opt_claims));
+
 
 	while ((oc = getopt_long(argc, argv, optstr, opttbl, NULL)) != -1) {
 		switch (oc) {
@@ -79,7 +89,7 @@ int main(int argc, char *argv[])
 			usage(basename(argv[0]));
 			return 0;
 
-		default: // '?'
+		default: /* '?' */
 			usage(basename(argv[0]));
 			exit(EXIT_FAILURE);
 		}
@@ -96,27 +106,22 @@ int main(int argc, char *argv[])
 	fprintf(stderr, "jwt verification: jwt %s pubkey %s algorithm %s\n",
 			opt_jwt_name, opt_key_name, jwt_alg_str(opt_alg));
 
-	// load pub key
-	unsigned char key[10240];
-	size_t key_len;
-	FILE *fp_pub_key = fopen(opt_key_name, "r");
+	/* Load pub key */
+	fp_pub_key = fopen(opt_key_name, "r");
 	key_len = fread(key, 1, sizeof(key), fp_pub_key);
 	fclose(fp_pub_key);
 	key[key_len] = '\0';
 	fprintf(stderr, "pub key loaded %s (%zu)!\n", opt_key_name, key_len);
 
-	// load jwt
-	char jwt_str[2048];
-	size_t jwt_len;
-	FILE *fp_jwt = fopen(opt_jwt_name, "r");
+	/* Load jwt */
+	fp_jwt = fopen(opt_jwt_name, "r");
 	jwt_len = fread(jwt_str, 1, sizeof(jwt_str), fp_jwt);
 	fclose(fp_jwt);
 	jwt_str[jwt_len] = '\0';
 	fprintf(stderr, "jwt loaded %s (%zu)!\n", opt_jwt_name, jwt_len);
 
-	// setup validation
-	jwt_valid_t *jwt_valid;
-	int ret = jwt_valid_new(&jwt_valid, opt_alg);
+	/* Setup validation */
+	ret = jwt_valid_new(&jwt_valid, opt_alg);
 	if (ret != 0 || jwt_valid == NULL) {
 		fprintf(stderr, "failed to allocate jwt_valid\n");
 		goto finish_valid;
@@ -124,12 +129,11 @@ int main(int argc, char *argv[])
 
 	jwt_valid_set_headers(jwt_valid, 1);
 	jwt_valid_set_now(jwt_valid, time(NULL));
-	for (size_t i = 0; i < claims_count; i++) {
+	for (i = 0; i < claims_count; i++) {
 		jwt_valid_add_grant(jwt_valid, opt_claims[i].key, opt_claims[i].val);
 	}
 
-	// decode jwt
-	jwt_t *jwt = NULL;
+	/* Decode jwt */
 	ret = jwt_decode(&jwt, jwt_str, key, key_len);
 	if (ret != 0 || jwt == NULL) {
 		fprintf(stderr, "invalid jwt\n");
@@ -139,7 +143,7 @@ int main(int argc, char *argv[])
 
 	fprintf(stderr, "jwt decoded successfully!\n");
 
-	// validate jwt
+	/* Validate jwt */
 	if (jwt_validate(jwt, jwt_valid) <= 0) {
 		fprintf(stderr, "jwt failed to validate: %s\n", jwt_valid_get_status(jwt_valid));
 		jwt_dump_fp(jwt, stderr, 1);
