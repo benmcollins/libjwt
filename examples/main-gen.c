@@ -15,7 +15,7 @@
 
 void usage(const char *name)
 {
-	// TODO Might want to support json input via stdin
+	/* TODO Might want to support json input via stdin */
 	printf("%s OPTIONS\n", name);
 	printf("Options:\n"
 			"  -k --key KEY  The private key to use for signing\n"
@@ -40,8 +40,15 @@ int main(int argc, char *argv[])
 		{ "claim",        required_argument,  NULL, 'c'         },
 		{ NULL, 0, 0, 0 },
 	};
+
 	char *k = NULL, *v = NULL;
-	size_t claims_count = 0;
+	int claims_count = 0;
+	int i = 0;
+	unsigned char key[10240];
+	size_t key_len = 0;
+	FILE *fp_priv_key;
+	int ret = 0;
+	jwt_t *jwt;
 	struct kv {
 		char *key;
 		char *val;
@@ -79,34 +86,31 @@ int main(int argc, char *argv[])
 			usage(basename(argv[0]));
 			return 0;
 
-		default: // '?'
+		default: /* '?' */
 			usage(basename(argv[0]));
 			exit(EXIT_FAILURE);
 		}
 	}
 
-	fprintf(stderr, "jwt gen: privkey %s algorithm %s\n",
+	fprintf(stderr, "jwtgen: privkey %s algorithm %s\n",
 			opt_key_name, jwt_alg_str(opt_alg));
 
-	unsigned char key[10240];
-	size_t key_len = 0;
 	if (opt_alg > JWT_ALG_NONE) {
-		FILE *fp_priv_key = fopen(opt_key_name, "r");
+		fp_priv_key = fopen(opt_key_name, "r");
 		key_len = fread(key, 1, sizeof(key), fp_priv_key);
 		fclose(fp_priv_key);
 		key[key_len] = '\0';
 		fprintf(stderr, "priv key loaded %s (%zu)!\n", opt_key_name, key_len);
 	}
 
-	jwt_t *jwt;
-	int ret = jwt_new(&jwt);
+	ret = jwt_new(&jwt);
 	if (ret != 0 || jwt == NULL) {
 		fprintf(stderr, "invalid jwt\n");
 		goto finish;
 	}
 
 	ret = jwt_add_grant_int(jwt, "iat", iat);
-	for (size_t i = 0; i < claims_count; i++) {
+	for (i = 0; i < claims_count; i++) {
 		fprintf(stderr, "Adding claim %s with valu %s\n", opt_claims[i].key, opt_claims[i].val);
 		jwt_add_grant(jwt, opt_claims[i].key, opt_claims[i].val);
 	}
