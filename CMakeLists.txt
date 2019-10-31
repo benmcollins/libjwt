@@ -64,6 +64,7 @@ if (ENABLE_LTO)
 endif ()
 
 add_subdirectory (libjwt)
+add_subdirectory (examples)
 
 if (${BUILD_TESTS})
 	add_subdirectory (tests)

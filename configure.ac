@@ -43,6 +43,7 @@ AC_CONFIG_FILES([
 	Makefile
 	include/Makefile
 	libjwt/Makefile
+	examples/Makefile
 	tests/Makefile
 	libjwt/libjwt.pc
 ])
