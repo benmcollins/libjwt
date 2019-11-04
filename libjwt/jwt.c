@@ -933,11 +933,16 @@ static int jwt_write_head(jwt_t *jwt, char **buf, int pretty)
 	int ret = 0;
 
 	if (jwt->alg != JWT_ALG_NONE) {
-		if ((ret = jwt_del_headers(jwt, "typ")))
-			return ret;
 
-		if ((ret = jwt_add_header(jwt, "typ", "JWT")))
-			return ret;
+		/* Only add default 'typ' header if it has not been defined,
+		 * allowing for any value of it. This allows for signaling
+		 * of application specific extentions to JWT, such as PASSporT,
+		 * RFC 8225. */
+		if ((ret = jwt_add_header(jwt, "typ", "JWT"))) {
+			if (ret != EEXIST) {
+				return ret;
+			}
+		}
 	}
 
 	if ((ret = jwt_del_headers(jwt, "alg")))
