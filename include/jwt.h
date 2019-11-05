@@ -14,6 +14,7 @@
 #define JWT_H
 
 #include <stdio.h>
+#include <time.h>
 
 #ifdef _MSC_VER
 
