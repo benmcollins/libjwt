@@ -250,6 +250,45 @@ START_TEST(test_jwt_encode_hs512)
 }
 END_TEST
 
+START_TEST(test_jwt_encode_es256)
+{
+	const char res[] = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE"
+		"0NzU5ODA1NDUsImlzcyI6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJYWF"
+		"hYLVlZWVktWlpaWi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.B0a9gqWg"
+		"PuuIx-EFXXSHQByCMHCzs0gjvY3-60oV4TY";
+	unsigned char key256[32] = "012345678901234567890123456789XY";
+	jwt_t *jwt = NULL;
+	int ret = 0;
+	char *out;
+
+	ALLOC_JWT(&jwt);
+
+	ret = jwt_add_grant(jwt, "iss", "files.cyphre.com");
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_add_grant(jwt, "sub", "user0");
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_set_alg(jwt, JWT_ALG_ES256, key256, sizeof(key256));
+	ck_assert_int_eq(ret, 0);
+
+	out = jwt_encode_str(jwt);
+	ck_assert_ptr_ne(out, NULL);
+
+	ck_assert_str_eq(out, res);
+
+	jwt_free_str(out);
+
+	jwt_free(jwt);
+}
+END_TEST
+
 START_TEST(test_jwt_encode_change_alg)
 {
 	const char res[] = "eyJhbGciOiJub25lIn0.eyJpYXQiOjE0NzU5ODA1NDUsIm"
@@ -354,6 +393,7 @@ static Suite *libjwt_suite(void)
 	tcase_add_test(tc_core, test_jwt_encode_hs256);
 	tcase_add_test(tc_core, test_jwt_encode_hs384);
 	tcase_add_test(tc_core, test_jwt_encode_hs512);
+	tcase_add_test(tc_core, test_jwt_encode_es256);
 	tcase_add_test(tc_core, test_jwt_encode_change_alg);
 	tcase_add_test(tc_core, test_jwt_encode_invalid);
 
