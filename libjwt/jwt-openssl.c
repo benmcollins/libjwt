@@ -151,7 +151,7 @@ jwt_verify_hmac_done:
 #define SIGN_ERROR(__err) { ret = __err; goto jwt_sign_sha_pem_done; }
 
 int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
-		     const char *str)
+		     const char *str, void *pk)
 {
 	EVP_MD_CTX *mdctx = NULL;
 	ECDSA_SIG *ec_sig = NULL;
@@ -199,16 +199,21 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		return EINVAL;
 	}
 
-	bufkey = BIO_new_mem_buf(jwt->key, jwt->key_len);
-	if (bufkey == NULL)
-		SIGN_ERROR(ENOMEM);
+	if (!pk) {
 
-	/* This uses OpenSSL's default passphrase callback if needed. The
-	 * library caller can override this in many ways, all of which are
-	 * outside of the scope of LibJWT and this is documented in jwt.h. */
-	pkey = PEM_read_bio_PrivateKey(bufkey, NULL, NULL, NULL);
-	if (pkey == NULL)
-		SIGN_ERROR(EINVAL);
+		bufkey = BIO_new_mem_buf(jwt->key, jwt->key_len);
+		if (bufkey == NULL)
+			SIGN_ERROR(ENOMEM);
+
+		/* This uses OpenSSL's default passphrase callback if needed. The
+		 * library caller can override this in many ways, all of which are
+		 * outside of the scope of LibJWT and this is documented in jwt.h. */
+		pkey = PEM_read_bio_PrivateKey(bufkey, NULL, NULL, NULL);
+		if (pkey == NULL)
+			SIGN_ERROR(EINVAL);
+	} else {
+		pkey = pk;
+	}
 
 	pkey_type = EVP_PKEY_id(pkey);
 	if (pkey_type != type)

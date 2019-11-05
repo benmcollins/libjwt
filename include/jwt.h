@@ -552,6 +552,11 @@ JWT_EXPORT int jwt_encode_fp(jwt_t *jwt, FILE *fp);
 JWT_EXPORT char *jwt_encode_str(jwt_t *jwt);
 
 /**
+ * Same as jwt_encode_str but using custom key if set.
+ */
+JWT_EXPORT char *jwt_encode_str_pkey(jwt_t *jwt, void *pkey);
+
+/**
  * Free a string returned from the library.
  *
  * @param str Pointer to a string previously created with

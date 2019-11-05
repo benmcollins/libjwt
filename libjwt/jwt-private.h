@@ -36,7 +36,7 @@ int jwt_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 int jwt_verify_sha_hmac(jwt_t *jwt, const char *head, const char *sig);
 
 int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
-		     const char *str);
+		     const char *str, void *pkey);
 
 int jwt_verify_sha_pem(jwt_t *jwt, const char *head, const char *sig_b64);
 

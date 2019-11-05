@@ -398,7 +398,7 @@ void jwt_base64uri_encode(char *str)
 	str[t] = '\0';
 }
 
-static int jwt_sign(jwt_t *jwt, char **out, unsigned int *len, const char *str)
+static int jwt_sign(jwt_t *jwt, char **out, unsigned int *len, const char *str, void *pkey)
 {
 	switch (jwt->alg) {
 	/* HMAC */
@@ -416,7 +416,7 @@ static int jwt_sign(jwt_t *jwt, char **out, unsigned int *len, const char *str)
 	case JWT_ALG_ES256:
 	case JWT_ALG_ES384:
 	case JWT_ALG_ES512:
-		return jwt_sign_sha_pem(jwt, out, len, str);
+		return jwt_sign_sha_pem(jwt, out, len, str, pkey);
 
 	/* You wut, mate? */
 	default:
@@ -1003,7 +1003,7 @@ char *jwt_dump_str(jwt_t *jwt, int pretty)
 	return out;
 }
 
-static int jwt_encode(jwt_t *jwt, char **out)
+static int jwt_encode(jwt_t *jwt, char **out, void *pkey)
 {
 	char *buf = NULL, *head, *body, *sig;
 	int ret, head_len, body_len;
@@ -1073,7 +1073,7 @@ static int jwt_encode(jwt_t *jwt, char **out)
 	}
 
 	/* Now the signature. */
-	ret = jwt_sign(jwt, &sig, &sig_len, buf);
+	ret = jwt_sign(jwt, &sig, &sig_len, buf, pkey);
 	jwt_freemem(buf);
 
 	if (ret)
@@ -1101,7 +1101,7 @@ int jwt_encode_fp(jwt_t *jwt, FILE *fp)
 	char *str = NULL;
 	int ret;
 
-	ret = jwt_encode(jwt, &str);
+	ret = jwt_encode(jwt, &str, NULL);
 	if (ret) {
 		if (str)
 			jwt_freemem(str);
@@ -1118,7 +1118,21 @@ char *jwt_encode_str(jwt_t *jwt)
 {
 	char *str = NULL;
 
-	errno = jwt_encode(jwt, &str);
+	errno = jwt_encode(jwt, &str, NULL);
+	if (errno) {
+		if (str)
+			jwt_freemem(str);
+		str = NULL;
+	}
+
+	return str;
+}
+
+char *jwt_encode_str_pkey(jwt_t *jwt, void *pkey)
+{
+	char *str = NULL;
+
+	errno = jwt_encode(jwt, &str, pkey);
 	if (errno) {
 		if (str)
 			jwt_freemem(str);
