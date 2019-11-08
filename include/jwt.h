@@ -503,6 +503,12 @@ JWT_EXPORT int jwt_del_headers(jwt_t *jwt, const char *header);
  * not compute the signature or encryption (if such an algorithm were being
  * used).
  *
+ * Note, this may change the content of JWT header if algorithm is set
+ * on the JWT object. If algorithm is set (jwt_set_alg was called
+ * on the jwt object) then dumping JWT attempts to append 'typ' header.
+ * If the 'typ' header already exists, then it is left untouched,
+ * otherwise it is added with default value of "JWT".
+ *
  * @param jwt Pointer to a JWT object.
  * @param fp Valid FILE pointer to write data to.
  * @param pretty Enables better visual formatting of output. Generally only
@@ -516,6 +522,12 @@ JWT_EXPORT int jwt_dump_fp(jwt_t *jwt, FILE *fp, int pretty);
  *
  * Similar to jwt_dump_fp() except that a string is returned. The string
  * must be freed by the caller.
+ *
+ * Note, this may change the content of JWT header if algorithm is set
+ * on the JWT object. If algorithm is set (jwt_set_alg was called
+ * on the jwt object) then dumping JWT attempts to append 'typ' header.
+ * If the 'typ' header already exists, then it is left untouched,
+ * otherwise it is added with default value of "JWT".
  *
  * @param jwt Pointer to a JWT object.
  * @param pretty Enables better visual formatting of output. Generally only
