@@ -46,8 +46,8 @@ AC_CONFIG_FILES([
 	examples/Makefile
 	tests/Makefile
 	libjwt/libjwt.pc
-        dist/Makefile
-        dist/libjwt.spec
+	dist/Makefile
+	dist/libjwt.spec
 ])
 
 AC_OUTPUT

@@ -2,13 +2,16 @@ Summary:            JSON Web Token (C implementation)
 Name:               libjwt
 Version:            @VERSION@
 Release:            0%{?dist}
-License:            LGPL v3
+License:            MPL v2
 Group:              Development/Tools
 Source:             https://github.com/benmcollins/libjwt/archive/v%{version}.tar.gz
 URL:                https://github.com/benmcollins/libjwt
 BuildRequires:      make libtool automake
 BuildRequires:      gcc doxygen
 Requires:           openssl jansson
+%if 0%{?rhel} >= 8
+BuildRequires:      check
+%endif
 
 
 %description
@@ -46,6 +49,11 @@ make all doxygen-doc
 make install DESTDIR=%{buildroot}
 mkdir -p %{buildroot}%{_datadir}/%{name}
 cp -r doxygen-doc/html %{buildroot}%{_datadir}/%{name}
+
+%if 0%{?rhel} >= 8
+%check
+make check
+%endif
 
 %post
 /sbin/ldconfig
