@@ -1,10 +1,12 @@
 TESTS =			\
 	jwt_new		\
 	jwt_grant	\
+	jwt_header	\
 	jwt_dump	\
 	jwt_encode	\
 	jwt_rsa		\
-	jwt_ec
+	jwt_ec		\
+	jwt_validate
 
 check_PROGRAMS = $(TESTS)
 

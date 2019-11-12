@@ -33,52 +33,56 @@
 static unsigned char key[16384];
 static size_t key_len;
 
-static const char jwt_rs256_2048[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.ey"
+static const char jwt_rs256_2048[] = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.ey"
 	"JpYXQiOjE0NzU5ODA1NDUsImlzcyI6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJYWF"
-	"hYLVlZWVktWlpaWi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.QKpsGhSvkF3OQCweg"
-	"KzbJsfhzgMrRjFGgBOR3zmBXEJwZiTF0Ns_-TcTweLHTmskeFs0ZA0ezDlRx_LcqLm60"
-	"AW2SqZWhhLQX9sN8AzTDugFS-C4P5oPNEq2QPNKDbvUzl8bwM15YracM232MsqNUwkTO"
-	"334x3PJiRXotqP1TEiiG7DCd7n_F8ClKxrqEimCUtO5isV4Bg5vMAhbYhzbwQ-5IZIJs"
-	"Em047BnqR7eZQILDn53Yy9BE9OWxfHPpqliexB1iqCSww4-llkMbvwes0ObiAaLUQXb4"
-	"4zRFxhNN2_i5kfxHIdVDqBXuo8MkpolTCe3Pt3JhM9iwWkvgJkW7Q";
+	"hYLVlZWVktWlpaWi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.cl9YHrbydUPb8dbij"
+	"SZzpTa-r-Z2bFz8r1DEQeqGB2ncHlNvYRLa3wa-IbOSQGPVok9xMutxc2ngm0cvquOOW"
+	"WVZIpYz3IdZQaCZ4G2PtTwnmhblSnqB-1ZvbUljBHjIoeXDTq2Msph2sjED9YKHKcjIm"
+	"kwil1cp75bnZMoKW3kDuNdq1vUwZDLdE_YRMpA53sTsoXHNSBzQwrIFEdCA8OA2rS-9R"
+	"IYtbLnKUZH4GXe2wb5y7pB21qqIdSl9k7yuD90k7LaCQDNLvrI1_cQB9wQcqqFA0qFc2"
+	"UxbiRRsC65eRZ1PfdZ8I_scukh5Vts5PNaRdE-_y_bpZKPaUu-WwA";
 
-static const char jwt_rs384_4096[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzM4NCJ9.ey"
+static const char jwt_rs384_4096[] = "eyJhbGciOiJSUzM4NCIsInR5cCI6IkpXVCJ9.ey"
 	"JpYXQiOjE0NzU5ODA1NDUsImlzcyI6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJYWF"
-	"hYLVlZWVktWlpaWi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.hid-b6F00dSgNeut4"
-	"qEVE27E4Vy-EViR8wbJol9erK15fQdURdDEfVYBAmZ_i72qx4EOpCRP4_XmX0G4Qj2JB"
-	"5IR8rh8bJKx33rmw1YgM2l0hRQ0b-kKu-FHV4Ng-LinTk3jRYeVn0YkE5ZFqAPVgp4tp"
-	"nLLUwheZiGYLeUIRxlzyvVpOaex-qEjw1wJULU1NdhZ5-CIKC9dka4qwFiLV6dezUM1q"
-	"la_j-RrmaNYo068GQn0is4RU9PWP_RPNtU_ZAE5NP_Zfy3RA9snwnLDmA4H7h4cNoI43"
-	"pv7VPv3MsiLBp1rjeA79od_rTQq7-CAgQpHh1u7VaF1yPPLLvzzFUT6DkDL4g0ztKx6F"
-	"RZNBiZFbsCqrLlYGdO2nqqQzqwtq8Az5B2MvKcUAvuHYIwRNj_ce5TGrzA53JDJaXWNL"
-	"MYSNzv2yn8HWaxUWG4YXp_EBHJkEVlcNorsoGYeL9vgUxUu6XuopukS8V_ifaimMyLjL"
-	"-V15Ydfr-nfRXgNb8W5MC7eYD3Sl5D-5IXzbaRtOLF1OlVBaJAmO0mFn-yz5cIJHPCdx"
-	"w5JRXFtcW6SMkbJduBsaN0fKprpHl1Ov3yFj-w1EzzBmA3R6jJUeTUN-UBvIj5TBnkC4"
-	"vODr07Iiro2GD0fUXLKmOPaaF7W_4_Vz47deGrDX6YY57FwlV_fb0g";
+	"hYLVlZWVktWlpaWi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.W0hvRx5yJaR3serc6"
+	"FoXy-0XeKxekQ3qIcIiBE4mTlH_E9vjO3Be_TAu2HTu4Th81VWzr6F5hbB2hGPP9UrCn"
+	"gwVx-mmRDQBEzdpS2n_Quews9GE68VdVP6zoVeQnOx4Htyg8eobmFfxxiqEegLJNqyTb"
+	"CJyZ7XeEDtLpa1iZBz__wlU5gHSinxogTsyfd4N5eRPD6_hjG6iGjQ2i6KmEhiR5SKYI"
+	"FLIfMm872Va4TmgxRQjL-mO-4xpo5ySgpWHuRvN6rAE6tGGTswiQoQq3zQbLCF1DScHv"
+	"owUbGaAHX46ACNbDHe1N8JbvVUyM0vrgKbmZ4Nlg5kf_b3MMYCQ_zlL2msTr-8NrU0Gc"
+	"5g1f1IL2GVPEZPxQT0Z5c9mRGIBN82OyrCftfy3O-PRWU0yLM5Odt_QzL7KfIIYLZfws"
+	"ADkqm3_-bst60DfTWWIr63smo1XAeLs1sqxO3QFxFHyaYcHl17QvX-2vxGJACzbjvGN4"
+	"9MeACklEyDVcWOQyNPu5kgPGhyjmH_A8qlcKGka8OqYnNIOSj54GTf5gWObBrPIXN8mL"
+	"7e64iI4dtlaA9-9KWLjpCLYlFGVMntu1YgzF9-xQ0RFxvcaHkXNVSQs61eMH-LH7kn2f"
+	"cfFKjDDFhm7OHNfCNcgTzfCDKIfOgh1FPAa7gRIBauutr-9n-TW8TY";
 
-static const char jwt_rs512_8192[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzUxMiJ9.ey"
+static const char jwt_rs512_8192[] = "eyJhbGciOiJSUzUxMiIsInR5cCI6IkpXVCJ9.ey"
 	"JpYXQiOjE0NzU5ODA1NDUsImlzcyI6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJYWF"
-	"hYLVlZWVktWlpaWi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.I6knmf13HzEtH_qUt"
-	"eKt0GTfrtVLlZ0gwac61tDzPRMviyymz9SjiYiPqnsNdtUsNOesfPCIFfGjG7zDx6ZD-"
-	"0PugKaOUjMkRWCdnDqAsO4ixDvO3fWDQOVhlLeSxgbyCayVJZvhTAl1iELc8bia1iv43"
-	"_VPwph-81fv3TkLfZByDJ1W_9UFE2qdrSCPy4WU0GOgowCUWdA7SCx3gRLfGp8SAVbhm"
-	"Urc4Z5j8tb03gv0WnhMsZOtysJqa9Pv_W_G9aqyu2YIYr3zjaJ5pmbUq4xLhS7flOciS"
-	"UGrFYrxb29G1hcEcsvN0OhUJsv1oI61wi_4PrHOlLu4x5TqY6eRifPEHjSlVM80qWMUi"
-	"FUYzJ5TDfcV_PIBXyBu6idpldwPPbSUVNW_YJoqXBfph0Wgy5q6EXAnF62pT2gH5TvOy"
-	"Ln26rgnLWcYCS1qsg17BPlN9q6zgfiUGMKCJZkDISM_aCGBNsCOcHS38fXYUEjOUZ5F2"
-	"ikSLBzMC-ETj23tQGpQPvtyBv4RwlLF5upyGA-mn3ZPhY5H_MfbR3cXTgzwEUgRdkcui"
-	"cprJ9LxzIemorq8VvgUFXtfgi54hD5vPWK5BPCy_R1t7qx7R_wEoB35l1BRS-ACBP3uD"
-	"-88bAJ8c0n7OLGokHhxoaAcaGPuDUclzzlhfEPwIx5KOQtP41dcqrOkDxp459jl2bFfB"
-	"VKHBg7agB8bkqwR5ADnuIv8DGUcIuioDXplnkjUK_46DXiey9TuastqVod2hSmmyuXMN"
-	"ds-Ssv9e8RRrMWhx8zavfrj-hJNgrZ15x0fqf9qqmBTGpZ_xpmBJy0N1vvD9TgzBkGIS"
-	"3QFd1myTH8z8hqHZYTIRXPvjqDDDRZTiLQyrBOxiP2f3pVMy5SSNkEdaFa4_KCclPJrB"
-	"lsQivlfCdOvt94DsZdXa235p_Ny_16QtkcMBietxBkhcnGvANukY2zegitIcgU4RnEsg"
-	"OqBRHTyvMvka54VfisK1_WoO8mW2CrBhN2BFgSBsIt8LbhbUukT0WXsYKiLoH3CY743k"
-	"pVp_OerBp0wPQME--zoibqjTitLJ2pMldAf6E0JeUf5dveu92nCfb2BUjn3nlBhOmI90"
-	"N97YtwVRqdHb7SrkAGJLd8gR7-bBS7ZtCmdC_XboPu7CNSf0GfM1ohoKArpGUF5vwYfN"
-	"TVxh7f7nJOXSvtLM4Ghpepy5nZWr1vvuxcaJBmG0_48Lp2MBNaOLuudoSUKsI9W9_NJH"
-	"RUeZCFZnALciVvwLm4hrVgMqnLrYFVMDsjb361H0CyxTb_Y_56YkjOB8nWUVMaLi27zL"
-	"nJz8gTU0TOFdfVzWoH8_aaMsnoU7FyYgzGaN3UshYG6YUldpNVdbl7nAQ";
+	"hYLVlZWVktWlpaWi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.Lon6Vh8pjAXq_XJfE"
+	"r_0ppYuawbL-AYqjw0BQep0Dc5hU-qOMHjZslnvS8MMkdzvsjvr10O0HHive8cw5XMoj"
+	"LndSXeKejzsLdYoU93cpmz-Eb_AX8XcWx201JlF8lDZYest1__yplNiSwrcfgsef6Upi"
+	"07P8hjHjQqF2W-n037ckgJANQ4wcacSUEcxtjY1Sk5Y-FMsckx-lD60hCYYxcMUt7Uoz"
+	"qXlFpk28H1xx7saVlheJGsgZYX2bVNW6PhT_VKjIwOP3MWBxndvlQfPG8ZJRWE2puCum"
+	"MAV7ncs6JcIrOstXx4RtXxgwbbjXta114np7sxIMnA8pYe6q_uTstFIJYry0YkBfZ9rO"
+	"PjHibREMOf7iFOwlls7bn_XwcBaYBEoo5R4yP8F_HVdr17gw6iorzA0iqnn_79WtQY2Z"
+	"THOFU8v2NxHat_MvuIWy79v05NY852wMjuxA_Z7nd1DP5xv5YYOV1AKG9g1UrsdAyMK1"
+	"75z75jy_HLmx_Y51zmDKwuovHMMZvtDOBtpM6nPVx0kTQkf6ngtpHGDtMxAd4SXmoUg8"
+	"76zQ04p64Wgn0m2_cvr2D35j-4ddAiEtWGEVygEEcA7amyhh56yuM8K6bxAguZM_81Iq"
+	"OuCJFD4qW6KtmYOFTpDPOnJuvVJLxHz7nixH8U-q5UcSW08ScbQq3XPjtoCAG6LKh94S"
+	"q663kRjA8a6RpeC1GHFRM1Jit2LgGVY8YzxA0d6vXOB9gTKTmuvhvHKtWCRhCx-SorC0"
+	"Zkn_910ZzwF3gVdbejvyxDfLa8eqLAr48SsBUtU-l69tu1X8tNJ6Ug549Y1yg_-BOzPz"
+	"Zb4r3tFW4lV_zTVyNGxDp4bq8LoG9aMmcB04r-f6hnwe9hlA-6pBaZ0PD6eYHFpAXJAi"
+	"XJc22VGZpI0f7G4BywOqEJ5qq5aivppxdLRQQQiHUk-_56zxx5q70301PH7rgf00Uuwa"
+	"zZI00rQAB5XhOKqIXuGEYnL9-AFKLl0Gipr_kMqVPPZ1PgVTcDp1ZuLub_iC7_Fh4_aV"
+	"lZL-Tx80Y0aRfiDiLGYtSlqiVYnASCqeyzs_10Bext7A0MjTiVd49h0Ek6vfEymJaRtL"
+	"tomuPM1UTZEePW4sx-0ewW5D2OGP2sGjm56bM4LQfXlGo3sQJBzc8jG1JOLXtZ0S6QqV"
+	"PIy02kuySuWXhUkfLKy7nCj1XFPohkrh32hef2Iml-ATnQzshIL2Ev7BL53W64XVaXsr"
+	"qUNa4kV6TG20X7OvLQW81vdd8hIJIUq-xKNlQw25fMQpCy4matYx-FKZ-LCtigkzVFXg"
+	"24qGD3tFIsOSuZUmEjYu1Sbn6FfO9AuPUnC-qwVwloNPPCAjP2bqUF9OA";
+
+static const char jwt_rs256_invalid[] = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.ey"
+	"JpYXQiOjE0NzU5ODA1NDUsImlzcyI6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJYWF"
+	"hYLVlZWVktWlpaWi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.IAmCornholio";
 
 static void read_key(const char *key_file)
 {
@@ -92,7 +96,7 @@ static void read_key(const char *key_file)
 	fp = fopen(key_path, "r");
 	ck_assert_ptr_ne(fp, NULL);
 
-	free(key_path);
+	jwt_free_str(key_path);
 
 	key_len = fread(key, 1, sizeof(key), fp);
 	ck_assert_int_ne(key_len, 0);
@@ -135,7 +139,7 @@ static void __test_alg_key(const char *key_file, const char *jwt_str,
 
 	ck_assert_str_eq(out, jwt_str);
 
-	free(out);
+	jwt_free_str(out);
 	jwt_free(jwt);
 }
 
@@ -151,8 +155,12 @@ static void __verify_alg_key(const char *key_file, const char *jwt_str,
 	ck_assert_int_eq(ret, 0);
 	ck_assert(jwt != NULL);
 
-	ck_assert(jwt_get_alg(jwt) == alg);
+	jwt_valid_t *jwt_valid = NULL;
+	jwt_valid_new(&jwt_valid, alg);
 
+	ck_assert_int_eq(1, jwt_validate(jwt, jwt_valid));
+
+	jwt_valid_free(jwt_valid);
 	jwt_free(jwt);
 }
 
@@ -165,6 +173,34 @@ END_TEST
 START_TEST(test_jwt_verify_rs256)
 {
 	__verify_alg_key("rsa_key_2048-pub.pem", jwt_rs256_2048, JWT_ALG_RS256);
+}
+END_TEST
+
+START_TEST(test_jwt_validate_rs256)
+{
+	jwt_t *jwt = NULL;
+	jwt_valid_t *jwt_valid = NULL;
+	int ret = 0;
+
+	read_key("rsa_key_2048-pub.pem");
+
+	ret = jwt_decode(&jwt, jwt_rs256_2048, key, key_len);
+	ck_assert_int_eq(ret, 0);
+	ck_assert(jwt != NULL);
+
+	jwt_valid_new(&jwt_valid, JWT_ALG_RS256);
+	ck_assert(jwt_valid != NULL);
+
+	ret = jwt_valid_add_grant(jwt_valid, "iss", "files.cyphre.com");
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_valid_add_grant_int(jwt_valid, "iat", TS_CONST);
+	ck_assert_int_eq(ret, 0);
+
+	ck_assert_int_eq(1, jwt_validate(jwt, jwt_valid));
+
+	jwt_valid_free(jwt_valid);
+	jwt_free(jwt);
 }
 END_TEST
 
@@ -246,6 +282,90 @@ START_TEST(test_jwt_encode_rsa_with_ec)
 }
 END_TEST
 
+START_TEST(test_jwt_verify_invalid_token)
+{
+	jwt_t *jwt = NULL;
+	int ret = 0;
+
+	read_key("rsa_key_2048.pem");
+
+	ret = jwt_decode(&jwt, jwt_rs256_invalid, key, JWT_ALG_RS512);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_ptr_eq(jwt, NULL);
+}
+END_TEST
+
+START_TEST(test_jwt_verify_invalid_alg)
+{
+	jwt_t *jwt = NULL;
+	int ret = 0;
+
+	read_key("rsa_key_2048.pem");
+
+	ret = jwt_decode(&jwt, jwt_rs256_2048, key, JWT_ALG_RS512);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_ptr_eq(jwt, NULL);
+}
+END_TEST
+
+START_TEST(test_jwt_verify_invalid_cert)
+{
+	jwt_t *jwt = NULL;
+	int ret = 0;
+
+	read_key("rsa_key_8192-pub.pem");
+
+	ret = jwt_decode(&jwt, jwt_rs256_2048, key, JWT_ALG_RS256);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_ptr_eq(jwt, NULL);
+}
+END_TEST
+
+START_TEST(test_jwt_verify_invalid_cert_file)
+{
+	jwt_t *jwt = NULL;
+	int ret = 0;
+
+	read_key("rsa_key_invalid-pub.pem");
+
+	ret = jwt_decode(&jwt, jwt_rs256_2048, key, JWT_ALG_RS256);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_ptr_eq(jwt, NULL);
+}
+END_TEST
+
+START_TEST(test_jwt_encode_invalid_key)
+{
+	jwt_t *jwt = NULL;
+	int ret = 0;
+	char *out = NULL;
+
+	ALLOC_JWT(&jwt);
+
+	read_key("rsa_key_invalid.pem");
+
+	ret = jwt_add_grant(jwt, "iss", "files.cyphre.com");
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_add_grant(jwt, "sub", "user0");
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_set_alg(jwt, JWT_ALG_RS512, key, key_len);
+	ck_assert_int_eq(ret, 0);
+
+	out = jwt_encode_str(jwt);
+	ck_assert_ptr_eq(out, NULL);
+
+	jwt_free(jwt);
+}
+END_TEST
+
 static Suite *libjwt_suite(void)
 {
 	Suite *s;
@@ -257,14 +377,20 @@ static Suite *libjwt_suite(void)
 
 	tcase_add_test(tc_core, test_jwt_encode_rs256);
 	tcase_add_test(tc_core, test_jwt_verify_rs256);
+	tcase_add_test(tc_core, test_jwt_validate_rs256);
 	tcase_add_test(tc_core, test_jwt_encode_rs384);
 	tcase_add_test(tc_core, test_jwt_verify_rs384);
 	tcase_add_test(tc_core, test_jwt_encode_rs512);
 	tcase_add_test(tc_core, test_jwt_verify_rs512);
 	tcase_add_test(tc_core, test_jwt_verify_rsa_i37);
 	tcase_add_test(tc_core, test_jwt_encode_rsa_with_ec);
+	tcase_add_test(tc_core, test_jwt_verify_invalid_token);
+	tcase_add_test(tc_core, test_jwt_verify_invalid_alg);
+	tcase_add_test(tc_core, test_jwt_verify_invalid_cert);
+	tcase_add_test(tc_core, test_jwt_verify_invalid_cert_file);
+	tcase_add_test(tc_core, test_jwt_encode_invalid_key);
 
-	tcase_set_timeout(tc_core, 60);
+	tcase_set_timeout(tc_core, 120);
 
 	suite_add_tcase(s, tc_core);
 

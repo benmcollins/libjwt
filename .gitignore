@@ -30,6 +30,10 @@ Makefile
 /coverage.info
 /coveragereport/*
 *.gcno
+/.vscode/*
+
+# Generic ignores for cmake project
+/out/*
 
 # Explicit stuff
 !/m4/ax_check_openssl.m4
