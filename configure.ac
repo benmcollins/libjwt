@@ -1,6 +1,6 @@
 AC_PREREQ([2.61])
-AC_INIT([libjwt], [1.8.0], [https://github.com/benmcollins/libjwt/issues])
-AM_INIT_AUTOMAKE
+AC_INIT([libjwt], [1.11.0], [https://github.com/benmcollins/libjwt/issues])
+AM_INIT_AUTOMAKE([foreign])
 LT_PREREQ([2.2])
 LT_INIT([])
 AC_CONFIG_MACRO_DIR([m4])
@@ -43,6 +43,7 @@ AC_CONFIG_FILES([
 	Makefile
 	include/Makefile
 	libjwt/Makefile
+	examples/Makefile
 	tests/Makefile
 	libjwt/libjwt.pc
 ])

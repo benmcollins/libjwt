@@ -46,8 +46,13 @@ START_TEST(test_jwt_encode_fp)
 	ck_assert_int_eq(ret, 0);
 
 	/* TODO Write to actual file and read back to validate output. */
+#ifdef _WIN32
+	out = fopen("nul", "w");
+	ck_assert_ptr_ne(out, NULL);
+#else
 	out = fopen("/dev/null", "w");
 	ck_assert_ptr_ne(out, NULL);
+#endif
 
 	ret = jwt_encode_fp(jwt, out);
 	ck_assert_int_eq(ret, 0);
@@ -86,7 +91,7 @@ START_TEST(test_jwt_encode_str)
 
 	ck_assert_str_eq(out, res);
 
-	free(out);
+	jwt_free_str(out);
 
 	jwt_free(jwt);
 }
@@ -119,7 +124,7 @@ START_TEST(test_jwt_encode_alg_none)
 
 	ck_assert_str_eq(out, res);
 
-	free(out);
+	jwt_free_str(out);
 
 	jwt_free(jwt);
 }
@@ -127,10 +132,10 @@ END_TEST
 
 START_TEST(test_jwt_encode_hs256)
 {
-	const char res[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE0NzU"
-		"5ODA1NDUsImlzcyI6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJYWFhYLVlZWV"
-		"ktWlpaWi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.ldP-njT746Qv9MihQmuy"
-		"_CgNg64lKywpBgkDxkkfkAs";
+	const char res[] = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE"
+		"0NzU5ODA1NDUsImlzcyI6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJYWF"
+		"hYLVlZWVktWlpaWi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.B0a9gqWg"
+		"PuuIx-EFXXSHQByCMHCzs0gjvY3-60oV4TY";
 	unsigned char key256[32] = "012345678901234567890123456789XY";
 	jwt_t *jwt = NULL;
 	int ret = 0;
@@ -158,7 +163,7 @@ START_TEST(test_jwt_encode_hs256)
 
 	ck_assert_str_eq(out, res);
 
-	free(out);
+	jwt_free_str(out);
 
 	jwt_free(jwt);
 }
@@ -166,11 +171,10 @@ END_TEST
 
 START_TEST(test_jwt_encode_hs384)
 {
-	const char res[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzM4NCJ9.eyJpYXQi"
-		"OjE0NzU5ODA1NDUsImlzcyI6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYi"
-		"OiJYWFhYLVlZWVktWlpaWi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9"
-		".Iu3GemfZo8eJX78QtgNXgYvb0KLo8_TsZskjivx8tc4jJ1-KhFpDtOr"
-		"W4KYBFspI";
+	const char res[] = "eyJhbGciOiJIUzM4NCIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE"
+		"0NzU5ODA1NDUsImlzcyI6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJYWF"
+		"hYLVlZWVktWlpaWi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.k5mpjWlu"
+		"aj4EQxuvoyXHR9HVw_V4GMnguwcQvZplTDT_H2PS0DDoZ5NF-VLC8kgO";
 	unsigned char key384[48] = "aaaabbbbccccddddeeeeffffgggghhhh"
 				   "iiiijjjjkkkkllll";
 	jwt_t *jwt = NULL;
@@ -199,7 +203,7 @@ START_TEST(test_jwt_encode_hs384)
 
 	ck_assert_str_eq(out, res);
 
-	free(out);
+	jwt_free_str(out);
 
 	jwt_free(jwt);
 }
@@ -207,11 +211,11 @@ END_TEST
 
 START_TEST(test_jwt_encode_hs512)
 {
-	const char res[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpYXQiOj"
-		"E0NzU5ODA1NDUsImlzcyI6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJY"
-		"WFhYLVlZWVktWlpaWi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.EETPP"
-		"pt4ViWccjHExKKyS-WPVtsvFTMVCl3WniLGdw_ZwGwXAEZ5ujf4cjmt1DU"
-		"akpemETBfFDEFsKaFA7ApjA";
+	const char res[] = "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE"
+		"0NzU5ODA1NDUsImlzcyI6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJYWF"
+		"hYLVlZWVktWlpaWi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.oxB_kx_h"
+		"5DANiG5oZWPO90MFlkoMb7VGlEBDbBTpX_JThJ8md6UEsxFvwm2weeyHU4-"
+		"MasEU4nzbVk4LZ0vrcg";
 	unsigned char key512[64] = "012345678901234567890123456789XY"
 				   "012345678901234567890123456789XY";
 	jwt_t *jwt = NULL;
@@ -240,7 +244,7 @@ START_TEST(test_jwt_encode_hs512)
 
 	ck_assert_str_eq(out, res);
 
-	free(out);
+	jwt_free_str(out);
 
 	jwt_free(jwt);
 }
@@ -282,7 +286,7 @@ START_TEST(test_jwt_encode_change_alg)
 
 	ck_assert_str_eq(out, res);
 
-	free(out);
+	jwt_free_str(out);
 
 	jwt_free(jwt);
 }

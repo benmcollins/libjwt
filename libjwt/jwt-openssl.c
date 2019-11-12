@@ -1,19 +1,9 @@
 /* Copyright (C) 2015-2017 Ben Collins <ben@cyphre.com>
    This file is part of the JWT C Library
 
-   This library is free software; you can redistribute it and/or
-   modify it under the terms of the GNU Lesser General Public
-   License as published by the Free Software Foundation; either
-   version 3 of the License, or (at your option) any later version.
-
-   This library is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Lesser General Public License for more details.
-
-   You should have received a copy of the GNU Lesser General Public
-   License along with the JWT Library; if not, see
-   <http://www.gnu.org/licenses/>.  */
+   This Source Code Form is subject to the terms of the Mozilla Public
+   License, v. 2.0. If a copy of the MPL was not distributed with this
+   file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include <stdlib.h>
 #include <string.h>
@@ -80,7 +70,7 @@ int jwt_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 		return EINVAL;
 	}
 
-	*out = malloc(EVP_MAX_MD_SIZE);
+	*out = jwt_malloc(EVP_MAX_MD_SIZE);
 	if (*out == NULL)
 		return ENOMEM;
 
@@ -158,7 +148,7 @@ jwt_verify_hmac_done:
 	return ret;
 }
 
-#define SIGN_ERROR(__err) ({ ret = __err; goto jwt_sign_sha_pem_done; })
+#define SIGN_ERROR(__err) { ret = __err; goto jwt_sign_sha_pem_done; }
 
 int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		     const char *str)
@@ -251,7 +241,7 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		SIGN_ERROR(EINVAL);
 
 	if (pkey_type != EVP_PKEY_EC) {
-		*out = malloc(slen);
+		*out = jwt_malloc(slen);
 		if (*out == NULL)
 			SIGN_ERROR(ENOMEM);
 		memcpy(*out, sig, slen);
@@ -294,7 +284,7 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		BN_bn2bin(ec_sig_r, raw_buf + bn_len - r_len);
 		BN_bn2bin(ec_sig_s, raw_buf + buf_len - s_len);
 
-		*out = malloc(buf_len);
+		*out = jwt_malloc(buf_len);
 		if (*out == NULL)
 			SIGN_ERROR(ENOMEM);
 		memcpy(*out, raw_buf, buf_len);
@@ -314,7 +304,7 @@ jwt_sign_sha_pem_done:
 	return ret;
 }
 
-#define VERIFY_ERROR(__err) ({ ret = __err; goto jwt_verify_sha_pem_done; })
+#define VERIFY_ERROR(__err) { ret = __err; goto jwt_verify_sha_pem_done; }
 
 int jwt_verify_sha_pem(jwt_t *jwt, const char *head, const char *sig_b64)
 {
@@ -412,10 +402,10 @@ int jwt_verify_sha_pem(jwt_t *jwt, const char *head, const char *sig_b64)
 			VERIFY_ERROR(EINVAL);
 
 		ECDSA_SIG_set0(ec_sig, ec_sig_r, ec_sig_s);
-		free(sig);
+		jwt_freemem(sig);
 
 		slen = i2d_ECDSA_SIG(ec_sig, NULL);
-		sig = malloc(slen);
+		sig = jwt_malloc(slen);
 		if (sig == NULL)
 			VERIFY_ERROR(ENOMEM);
 
@@ -450,7 +440,7 @@ jwt_verify_sha_pem_done:
 	if (mdctx)
 		EVP_MD_CTX_destroy(mdctx);
 	if (sig)
-		free(sig);
+		jwt_freemem(sig);
 	if (ec_sig)
 		ECDSA_SIG_free(ec_sig);
 
