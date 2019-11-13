@@ -66,11 +66,24 @@ typedef enum jwt_alg {
 	JWT_ALG_TERM
 } jwt_alg_t;
 
+#define JWT_ALG_INVAL JWT_ALG_TERM
+
+/** JWT Validation exception types. These are bit values. */
+#define JWT_VALIDATION_SUCCESS		0x0000
+#define JWT_VALIDATION_ERROR		0x0001	/* General failures */
+#define JWT_VALIDATION_ALG_MISMATCH	0x0002
+#define JWT_VALIDATION_EXPIRED		0x0004
+#define JWT_VALIDATION_TOO_NEW		0x0008
+#define JWT_VALIDATION_ISS_MISMATCH	0x0010
+#define JWT_VALIDATION_SUB_MISMATCH	0x0020
+#define JWT_VALIDATION_AUD_MISMATCH	0x0040
+#define JWT_VALIDATION_GRANT_MISSING	0x0080
+#define JWT_VALIDATION_GRANT_MISMATCH	0x0100
+
+/** JWT Memory allocation overrides */
 typedef void *(*jwt_malloc_t)(size_t);
 typedef void *(*jwt_realloc_t)(void *, size_t);
-typedef void(*jwt_free_t)(void *);
-
-#define JWT_ALG_INVAL JWT_ALG_TERM
+typedef void (*jwt_free_t)(void *);
 
 /**
  * @defgroup jwt_new JWT Object Creation
@@ -705,9 +718,9 @@ JWT_EXPORT void jwt_get_alloc(jwt_malloc_t *pmalloc, jwt_realloc_t *prealloc, jw
  * @param jwt Pointer to a JWT object.
  * @param jwt_valid Pointer to a JWT validation object.
  *
- * @return 1 on valid, 0 on invalid, -1 on error
+ * @return bitwide OR if possible validation errors or 0 on success
  */
-JWT_EXPORT int jwt_validate(jwt_t *jwt, jwt_valid_t *jwt_valid);
+JWT_EXPORT unsigned int jwt_validate(jwt_t *jwt, jwt_valid_t *jwt_valid);
 
 /**
  * Allocate a new, JWT validation object.
@@ -741,10 +754,10 @@ JWT_EXPORT void jwt_valid_free(jwt_valid_t *jwt_valid);
  * jwt_validate() failed.
  *
  * @param jwt_valid Pointer to a JWT validation object.
- * @return Returns a string for the status, or NULL when jwt_validate() has not
- *     run.
+ * @return Returns current validation status as a bitwise OR of possible
+ *   errors, or 0 if validation is currently successful.
  */
-JWT_EXPORT const char *jwt_valid_get_status(jwt_valid_t *jwt_valid);
+JWT_EXPORT unsigned int jwt_valid_get_status(jwt_valid_t *jwt_valid);
 
 /**
  * Add a new string grant requirement to this JWT validation object.

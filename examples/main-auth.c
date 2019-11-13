@@ -145,7 +145,7 @@ int main(int argc, char *argv[])
 
 	/* Validate jwt */
 	if (jwt_validate(jwt, jwt_valid) <= 0) {
-		fprintf(stderr, "jwt failed to validate: %s\n", jwt_valid_get_status(jwt_valid));
+		fprintf(stderr, "jwt failed to validate: %08x\n", jwt_valid_get_status(jwt_valid));
 		jwt_dump_fp(jwt, stderr, 1);
 		exit_status = 1;
 		goto finish;

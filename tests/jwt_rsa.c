@@ -158,7 +158,7 @@ static void __verify_alg_key(const char *key_file, const char *jwt_str,
 	jwt_valid_t *jwt_valid = NULL;
 	jwt_valid_new(&jwt_valid, alg);
 
-	ck_assert_int_eq(1, jwt_validate(jwt, jwt_valid));
+	ck_assert_int_eq(JWT_VALIDATION_SUCCESS, jwt_validate(jwt, jwt_valid));
 
 	jwt_valid_free(jwt_valid);
 	jwt_free(jwt);
@@ -197,7 +197,7 @@ START_TEST(test_jwt_validate_rs256)
 	ret = jwt_valid_add_grant_int(jwt_valid, "iat", TS_CONST);
 	ck_assert_int_eq(ret, 0);
 
-	ck_assert_int_eq(1, jwt_validate(jwt, jwt_valid));
+	ck_assert_int_eq(JWT_VALIDATION_SUCCESS, jwt_validate(jwt, jwt_valid));
 
 	jwt_valid_free(jwt_valid);
 	jwt_free(jwt);

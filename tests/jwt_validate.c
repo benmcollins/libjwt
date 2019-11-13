@@ -34,10 +34,16 @@ static void __teardown_jwt()
 	jwt = NULL;
 }
 
+#define __VAL_EQ(__v, __e) do {					\
+	unsigned int __r = jwt_validate(jwt, __v);		\
+	ck_assert_int_eq(__r, __e);				\
+	ck_assert_int_eq(__e, jwt_valid_get_status(__v));	\
+} while(0);
+
 START_TEST(test_jwt_validate_errno)
 {
 	jwt_valid_t *jwt_valid = NULL;
-	int ret = 0;
+	unsigned int ret = 0;
 
 	__setup_jwt();
 	ck_assert(jwt != NULL);
@@ -47,22 +53,16 @@ START_TEST(test_jwt_validate_errno)
 	ck_assert(jwt_valid != NULL);
 
 	/* Validate fails with NULL jwt */
-	errno = 0;
 	ret = jwt_validate(NULL, jwt_valid);
-	ck_assert_int_eq(ret, -1);
-	ck_assert_int_eq(errno, EINVAL);
-	ck_assert_str_eq("Invalid JWT", jwt_valid_get_status(jwt_valid));
+	ck_assert_int_eq(ret, JWT_VALIDATION_ERROR);
+	ck_assert_int_eq(JWT_VALIDATION_ERROR, jwt_valid_get_status(jwt_valid));
 
 	/* Validate fails with NULL jwt_valid */
-	errno = 0;
 	ret = jwt_validate(jwt, NULL);
-	ck_assert_int_eq(ret, -1);
-	ck_assert_int_eq(errno, EINVAL);
+	ck_assert_int_eq(ret, JWT_VALIDATION_ERROR);
 
 	/* Get status fails with NULL jwt_valid */
-	errno = 0;
-	ck_assert_ptr_eq(NULL, jwt_valid_get_status(NULL));
-	ck_assert_int_eq(errno, EINVAL);
+	ck_assert_int_eq(JWT_VALIDATION_ERROR, jwt_valid_get_status(NULL));
 
 	jwt_valid_free(jwt_valid);
 	__teardown_jwt();
@@ -72,7 +72,7 @@ END_TEST
 START_TEST(test_jwt_valid_algorithm)
 {
 	jwt_valid_t *jwt_valid = NULL;
-	int ret = 0;
+	unsigned int ret = 0;
 
 	__setup_jwt();
 
@@ -81,9 +81,7 @@ START_TEST(test_jwt_valid_algorithm)
 	ck_assert_int_eq(ret, 0);
 	ck_assert(jwt_valid != NULL);
 
-	ret = jwt_validate(jwt, jwt_valid);
-	ck_assert_int_eq(ret, 1);
-	ck_assert_str_eq("Valid JWT", jwt_valid_get_status(jwt_valid));
+	__VAL_EQ(jwt_valid, JWT_VALIDATION_SUCCESS);
 
 	jwt_valid_free(jwt_valid);
 
@@ -91,10 +89,10 @@ START_TEST(test_jwt_valid_algorithm)
 	ret = jwt_valid_new(&jwt_valid, JWT_ALG_HS256);
 	ck_assert_int_eq(ret, 0);
 	ck_assert(jwt_valid != NULL);
+	/* Starts with invalid */
+	ck_assert_int_eq(JWT_VALIDATION_ERROR, jwt_valid_get_status(jwt_valid));
 
-	ret = jwt_validate(jwt, jwt_valid);
-	ck_assert_int_eq(ret, 0);
-	ck_assert_str_eq("Algorithm does not match", jwt_valid_get_status(jwt_valid));
+	__VAL_EQ(jwt_valid, JWT_VALIDATION_ALG_MISMATCH);
 
 	jwt_valid_free(jwt_valid);
 	__teardown_jwt();
@@ -104,7 +102,7 @@ END_TEST
 START_TEST(test_jwt_valid_require_grant)
 {
 	jwt_valid_t *jwt_valid = NULL;
-	int ret = 0;
+	unsigned int ret = 0;
 	const char *valstr = NULL;
 	int valnum = 0;
 
@@ -152,9 +150,7 @@ START_TEST(test_jwt_valid_require_grant)
 	ret = jwt_valid_add_grants_json(jwt_valid, "{\"aud\": [\"svc1\",\"svc2\"]}");
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_validate(jwt, jwt_valid);
-	ck_assert_int_eq(ret, 1);
-	ck_assert_str_eq("Valid JWT", jwt_valid_get_status(jwt_valid));
+	__VAL_EQ(jwt_valid, JWT_VALIDATION_SUCCESS);
 
 	jwt_valid_free(jwt_valid);
 	__teardown_jwt();
@@ -164,7 +160,7 @@ END_TEST
 START_TEST(test_jwt_valid_nonmatch_grant)
 {
 	jwt_valid_t *jwt_valid = NULL;
-	int ret = 0;
+	unsigned int ret = 0;
 
 	__setup_jwt();
 
@@ -176,9 +172,7 @@ START_TEST(test_jwt_valid_nonmatch_grant)
 	ret = jwt_valid_add_grant(jwt_valid, "iss", "wrong");
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_validate(jwt, jwt_valid);
-	ck_assert_int_eq(ret, 0);
-	ck_assert_str_eq("JWT \"iss\" grant does not match", jwt_valid_get_status(jwt_valid));
+	__VAL_EQ(jwt_valid, JWT_VALIDATION_GRANT_MISMATCH);
 
 	jwt_valid_del_grants(jwt_valid, NULL);
 
@@ -186,9 +180,7 @@ START_TEST(test_jwt_valid_nonmatch_grant)
 	ret = jwt_valid_add_grant_int(jwt_valid, "iat", (long)time(NULL) + 1);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_validate(jwt, jwt_valid);
-	ck_assert_int_eq(ret, 0);
-	ck_assert_str_eq("JWT \"iat\" grant does not match", jwt_valid_get_status(jwt_valid));
+	__VAL_EQ(jwt_valid, JWT_VALIDATION_GRANT_MISMATCH);
 
 	jwt_valid_del_grants(jwt_valid, NULL);
 
@@ -196,9 +188,7 @@ START_TEST(test_jwt_valid_nonmatch_grant)
 	ret = jwt_valid_add_grant_bool(jwt_valid, "admin", 0);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_validate(jwt, jwt_valid);
-	ck_assert_int_eq(ret, 0);
-	ck_assert_str_eq("JWT \"admin\" grant does not match", jwt_valid_get_status(jwt_valid));
+	__VAL_EQ(jwt_valid, JWT_VALIDATION_GRANT_MISMATCH);
 
 	jwt_valid_del_grants(jwt_valid, NULL);
 
@@ -206,9 +196,7 @@ START_TEST(test_jwt_valid_nonmatch_grant)
 	ret = jwt_valid_add_grants_json(jwt_valid, "{\"aud\": [\"svc3\",\"svc4\"]}");
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_validate(jwt, jwt_valid);
-	ck_assert_int_eq(ret, 0);
-	ck_assert_str_eq("JWT \"aud\" grant does not match", jwt_valid_get_status(jwt_valid));
+	__VAL_EQ(jwt_valid, JWT_VALIDATION_GRANT_MISMATCH);
 
 	jwt_valid_free(jwt_valid);
 	__teardown_jwt();
@@ -219,7 +207,7 @@ START_TEST(test_jwt_valid_grant_bool)
 {
 	jwt_valid_t *jwt_valid = NULL;
 	int val;
-	int ret = 0;
+	unsigned int ret = 0;
 
 	ret = jwt_valid_new(&jwt_valid, JWT_ALG_NONE);
 	ck_assert_int_eq(ret, 0);
@@ -249,7 +237,7 @@ START_TEST(test_jwt_valid_del_grants)
 	jwt_valid_t *jwt_valid = NULL;
 	const char *val;
 	const char testval[] = "testing";
-	int ret = 0;
+	unsigned int ret = 0;
 
 	ret = jwt_valid_new(&jwt_valid, JWT_ALG_NONE);
 	ck_assert_int_eq(ret, 0);
@@ -288,7 +276,7 @@ START_TEST(test_jwt_valid_invalid_grant)
 	const char *val;
 	long valint = 0;
 	long valbool = 0;
-	int ret = 0;
+	unsigned int ret = 0;
 
 	ret = jwt_valid_new(&jwt_valid, JWT_ALG_NONE);
 	ck_assert_int_eq(ret, 0);
@@ -319,7 +307,7 @@ END_TEST
 START_TEST(test_jwt_valid_missing_grant)
 {
 	jwt_valid_t *jwt_valid = NULL;
-	int ret = 0;
+	unsigned int ret = 0;
 
 	__setup_jwt();
 
@@ -330,32 +318,28 @@ START_TEST(test_jwt_valid_missing_grant)
 	/* JWT is invalid when required grants are not present */
 	ret = jwt_valid_add_grant(jwt_valid, "np-str", "test");
 	ck_assert_int_eq(ret, 0);
-	ck_assert_int_eq(0, jwt_validate(jwt, jwt_valid));
-	ck_assert_str_eq("JWT \"np-str\" grant is not present", jwt_valid_get_status(jwt_valid));
+	__VAL_EQ(jwt_valid, JWT_VALIDATION_GRANT_MISSING);
 
 	jwt_valid_del_grants(jwt_valid, NULL);
 
 	/* JWT is invalid when required grants are not present (int) */
 	ret = jwt_valid_add_grant_int(jwt_valid, "np-int", 7);
 	ck_assert_int_eq(ret, 0);
-	ck_assert_int_eq(0, jwt_validate(jwt, jwt_valid));
-	ck_assert_str_eq("JWT \"np-int\" grant is not present", jwt_valid_get_status(jwt_valid));
+	__VAL_EQ(jwt_valid, JWT_VALIDATION_GRANT_MISSING);
 
 	jwt_valid_del_grants(jwt_valid, NULL);
 
 	/* JWT is invalid when required grants are not present (bool) */
 	ret = jwt_valid_add_grant_int(jwt_valid, "np-bool", 1);
 	ck_assert_int_eq(ret, 0);
-	ck_assert_int_eq(0, jwt_validate(jwt, jwt_valid));
-	ck_assert_str_eq("JWT \"np-bool\" grant is not present", jwt_valid_get_status(jwt_valid));
+	__VAL_EQ(jwt_valid, JWT_VALIDATION_GRANT_MISSING);
 
 	jwt_valid_del_grants(jwt_valid, NULL);
 
 	/* JWT is invalid when required grants are not present (json) */
 	ret = jwt_valid_add_grants_json(jwt_valid, "{\"np-other\": [\"foo\",\"bar\"]}");
 	ck_assert_int_eq(ret, 0);
-	ck_assert_int_eq(0, jwt_validate(jwt, jwt_valid));
-	ck_assert_str_eq("JWT \"np-other\" grant is not present", jwt_valid_get_status(jwt_valid));
+	__VAL_EQ(jwt_valid, JWT_VALIDATION_GRANT_MISSING);
 
 	jwt_valid_free(jwt_valid);
 	__teardown_jwt();
@@ -365,7 +349,7 @@ END_TEST
 START_TEST(test_jwt_valid_not_before)
 {
 	jwt_valid_t *jwt_valid = NULL;
-	int ret = 0;
+	unsigned int ret = 0;
 
 	__setup_jwt();
 	jwt_add_grant_int(jwt, "nbf", not_before);
@@ -378,15 +362,13 @@ START_TEST(test_jwt_valid_not_before)
 	ret = jwt_valid_set_now(jwt_valid, not_before - 1);
 	ck_assert_int_eq(ret, 0);
 
-	ck_assert_int_eq(0, jwt_validate(jwt, jwt_valid));
-	ck_assert_str_eq("JWT has not matured", jwt_valid_get_status(jwt_valid));
+	__VAL_EQ(jwt_valid, JWT_VALIDATION_TOO_NEW);
 
 	/* JWT is valid when now >= not-before */
 	ret = jwt_valid_set_now(jwt_valid, not_before);
 	ck_assert_int_eq(ret, 0);
 
-	ck_assert_int_eq(1, jwt_validate(jwt, jwt_valid));
-	ck_assert_str_eq("Valid JWT", jwt_valid_get_status(jwt_valid));
+	__VAL_EQ(jwt_valid, JWT_VALIDATION_SUCCESS);
 
 	jwt_valid_free(jwt_valid);
 	__teardown_jwt();
@@ -396,7 +378,7 @@ END_TEST
 START_TEST(test_jwt_valid_expires)
 {
 	jwt_valid_t *jwt_valid = NULL;
-	int ret = 0;
+	unsigned int ret = 0;
 
 	__setup_jwt();
 	jwt_add_grant_int(jwt, "exp", expires);
@@ -409,15 +391,13 @@ START_TEST(test_jwt_valid_expires)
 	ret = jwt_valid_set_now(jwt_valid, (long)expires - 1);
 	ck_assert_int_eq(ret, 0);
 
-	ck_assert_int_eq(1, jwt_validate(jwt, jwt_valid));
-	ck_assert_str_eq("Valid JWT", jwt_valid_get_status(jwt_valid));
+	__VAL_EQ(jwt_valid, JWT_VALIDATION_SUCCESS);
 
 	/* JWT is invalid when now >= expires */
 	ret = jwt_valid_set_now(jwt_valid, (long)expires);
 	ck_assert_int_eq(ret, 0);
 
-	ck_assert_int_eq(0, jwt_validate(jwt, jwt_valid));
-	ck_assert_str_eq("JWT has expired", jwt_valid_get_status(jwt_valid));
+	__VAL_EQ(jwt_valid, JWT_VALIDATION_EXPIRED);
 
 	jwt_valid_free(jwt_valid);
 	__teardown_jwt();
@@ -427,7 +407,7 @@ END_TEST
 START_TEST(test_jwt_valid_headers)
 {
 	jwt_valid_t *jwt_valid = NULL;
-	int ret = 0;
+	unsigned int ret = 0;
 
 	__setup_jwt();
 
@@ -440,51 +420,42 @@ START_TEST(test_jwt_valid_headers)
 
 	/* JWT is valid when iss in hdr matches iss in body */
 	jwt_add_header(jwt, "iss", "test");
-	ck_assert_int_eq(1, jwt_validate(jwt, jwt_valid));
-	ck_assert_str_eq("Valid JWT", jwt_valid_get_status(jwt_valid));
+	__VAL_EQ(jwt_valid, JWT_VALIDATION_SUCCESS);
 
 	/* JWT is invalid when iss in hdr does not match iss in body */
 	jwt_del_headers(jwt, "iss");
 	jwt_add_header(jwt, "iss", "wrong");
-	ck_assert_int_eq(0, jwt_validate(jwt, jwt_valid));
-	ck_assert_str_eq("JWT \"iss\" header does not match", jwt_valid_get_status(jwt_valid));
+	__VAL_EQ(jwt_valid, JWT_VALIDATION_ISS_MISMATCH);
 
 	/* JWT is valid when checking hdr and iss not replicated */
 	jwt_del_headers(jwt, "iss");
-	ck_assert_int_eq(1, jwt_validate(jwt, jwt_valid));
-	ck_assert_str_eq("Valid JWT", jwt_valid_get_status(jwt_valid));
+	__VAL_EQ(jwt_valid, JWT_VALIDATION_SUCCESS);
 
 	/* JWT is valid when iss in hdr matches iss in body */
 	jwt_add_header(jwt, "sub", "user0");
-	ck_assert_int_eq(1, jwt_validate(jwt, jwt_valid));
-	ck_assert_str_eq("Valid JWT", jwt_valid_get_status(jwt_valid));
+	__VAL_EQ(jwt_valid, JWT_VALIDATION_SUCCESS);
 
 	/* JWT is invalid when iss in hdr does not match iss in body */
 	jwt_del_headers(jwt, "sub");
 	jwt_add_header(jwt, "sub", "wrong");
-	ck_assert_int_eq(0, jwt_validate(jwt, jwt_valid));
-	ck_assert_str_eq("JWT \"sub\" header does not match", jwt_valid_get_status(jwt_valid));
+	__VAL_EQ(jwt_valid, JWT_VALIDATION_SUB_MISMATCH);
 
 	/* JWT is valid when checking hdr and sub not replicated */
 	jwt_del_headers(jwt, "sub");
-	ck_assert_int_eq(1, jwt_validate(jwt, jwt_valid));
-	ck_assert_str_eq("Valid JWT", jwt_valid_get_status(jwt_valid));
+	__VAL_EQ(jwt_valid, JWT_VALIDATION_SUCCESS);
 
 	/* JWT is valid when checking hdr and aud matches */
 	jwt_add_headers_json(jwt, "{\"aud\": [\"svc1\",\"svc2\"]}");
-	ck_assert_int_eq(1, jwt_validate(jwt, jwt_valid));
-	ck_assert_str_eq("Valid JWT", jwt_valid_get_status(jwt_valid));
+	__VAL_EQ(jwt_valid, JWT_VALIDATION_SUCCESS);
 
 	/* JWT is invalid when checking hdr and aud does not match */
 	jwt_del_headers(jwt, "aud");
 	jwt_add_headers_json(jwt, "{\"aud\": [\"svc1\",\"svc2\",\"svc3\"]}");
-	ck_assert_int_eq(0, jwt_validate(jwt, jwt_valid));
-	ck_assert_str_eq("JWT \"aud\" header does not match", jwt_valid_get_status(jwt_valid));
+	__VAL_EQ(jwt_valid, JWT_VALIDATION_AUD_MISMATCH);
 
 	/* JWT is invalid when checking hdr and aud does not match */
 	jwt_del_headers(jwt, "aud");
-	ck_assert_int_eq(1, jwt_validate(jwt, jwt_valid));
-	ck_assert_str_eq("Valid JWT", jwt_valid_get_status(jwt_valid));
+	__VAL_EQ(jwt_valid, JWT_VALIDATION_SUCCESS);
 
 	jwt_valid_free(jwt_valid);
 	__teardown_jwt();
@@ -502,7 +473,7 @@ START_TEST(test_jwt_valid_grants_json)
 	jwt_valid_t *jwt_valid = NULL;
 	const char *val;
 	char *json_val;
-	int ret = 0;
+	unsigned int ret = 0;
 
 	ret = jwt_valid_new(&jwt_valid, JWT_ALG_NONE);
 	ck_assert_int_eq(ret, 0);

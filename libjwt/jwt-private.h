@@ -24,15 +24,12 @@ struct jwt_valid {
 	time_t now;
 	int hdr;
 	json_t *req_grants;
-	char *status;
+	unsigned int status;
 };
 
 /* Memory allocators. */
 void *jwt_malloc(size_t size);
 void jwt_freemem(void *ptr);
-char *jwt_strdup(const char *str);
-void *jwt_calloc(size_t nmemb, size_t size);
-void *jwt_realloc(void *ptr, size_t size);
 
 /* Helper routines. */
 void jwt_base64uri_encode(char *str);

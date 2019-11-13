@@ -28,7 +28,7 @@ void *jwt_malloc(size_t size)
 	return malloc(size);
 }
 
-void *jwt_realloc(void* ptr, size_t size)
+static void *jwt_realloc(void* ptr, size_t size)
 {
 	if (pfn_realloc)
 		return pfn_realloc(ptr, size);
@@ -44,7 +44,7 @@ void jwt_freemem(void *ptr)
 		free(ptr);
 }
 
-char *jwt_strdup(const char *str)
+static char *jwt_strdup(const char *str)
 {
 	size_t len;
 	char *result;
@@ -59,7 +59,7 @@ char *jwt_strdup(const char *str)
 	return result;
 }
 
-void *jwt_calloc(size_t nmemb, size_t size)
+static void *jwt_calloc(size_t nmemb, size_t size)
 {
 	size_t total_size;
 	void* ptr;
@@ -1177,6 +1177,8 @@ int jwt_valid_new(jwt_valid_t **jwt_valid, jwt_alg_t alg)
 	memset(*jwt_valid, 0, sizeof(jwt_valid_t));
 	(*jwt_valid)->alg = alg;
 
+	(*jwt_valid)->status = JWT_VALIDATION_ERROR;
+
 	(*jwt_valid)->req_grants = json_object();
 	if (!(*jwt_valid)->req_grants) {
 		jwt_freemem(*jwt_valid);
@@ -1192,22 +1194,15 @@ void jwt_valid_free(jwt_valid_t *jwt_valid)
 	if (!jwt_valid)
 		return;
 
-	if (jwt_valid->status) {
-		jwt_free_str(jwt_valid->status);
-		jwt_valid->status = NULL;
-	}
-
 	json_decref(jwt_valid->req_grants);
 
 	jwt_freemem(jwt_valid);
 }
 
-const char *jwt_valid_get_status(jwt_valid_t *jwt_valid)
+unsigned int jwt_valid_get_status(jwt_valid_t *jwt_valid)
 {
-	if (!jwt_valid) {
-		errno = EINVAL;
-		return NULL;
-	}
+	if (!jwt_valid)
+		return JWT_VALIDATION_ERROR;
 
 	return jwt_valid->status;
 }
@@ -1363,92 +1358,71 @@ int jwt_valid_del_grants(jwt_valid_t *jwt_valid, const char *grant)
 	return 0;
 }
 
-int jwt_validate(jwt_t *jwt, jwt_valid_t *jwt_valid)
-{
-	int valid = 1;
+#define _SET_AND_RET(__v, __e) do {	\
+	__v->status |= __e;		\
+	return __v->status;		\
+} while(0)
 
-	if (!jwt_valid) {
-		errno = EINVAL;
-		return -1;
-	}
+unsigned int jwt_validate(jwt_t *jwt, jwt_valid_t *jwt_valid)
+{
+	const char *jwt_hdr_str, *jwt_body_str, *req_grant;
+	json_t *js_val_1, *js_val_2;
+	time_t t;
+
+	if (!jwt_valid)
+		return JWT_VALIDATION_ERROR;
 
 	if (!jwt) {
-		jwt_valid->status = jwt_strdup("Invalid JWT");
-		errno = EINVAL;
-		return -1;
+		jwt_valid->status = JWT_VALIDATION_ERROR;
+		return jwt_valid->status;
 	}
+
+	jwt_valid->status = JWT_VALIDATION_SUCCESS;
 
 	/* Validate algorithm */
-	if (jwt_valid->alg != jwt_get_alg(jwt)) {
-		jwt_free_str(jwt_valid->status);
-		jwt_valid->status = jwt_strdup("Algorithm does not match");
-		return 0;
-	}
+	if (jwt_valid->alg != jwt_get_alg(jwt))
+		jwt_valid->status |= JWT_VALIDATION_ALG_MISMATCH;
 
 	/* Validate expires */
-	time_t jwt_exp = get_js_int(jwt->grants, "exp");
-	if (jwt_valid->now && (jwt_exp != -1) && jwt_valid->now >= jwt_exp) {
-		jwt_free_str(jwt_valid->status);
-		jwt_valid->status = jwt_strdup("JWT has expired");
-		return 0;
-	}
+	t = get_js_int(jwt->grants, "exp");
+	if (jwt_valid->now && t != -1 && jwt_valid->now >= t)
+		jwt_valid->status |= JWT_VALIDATION_EXPIRED;
 
 	/* Validate not-before */
-	time_t jwt_nbf = get_js_int(jwt->grants, "nbf");
-	if (jwt_valid->now && (jwt_nbf != -1) && (jwt_valid->now < jwt_nbf)) {
-		jwt_free_str(jwt_valid->status);
-		jwt_valid->status = jwt_strdup("JWT has not matured");
-		return 0;
-	}
+	t = get_js_int(jwt->grants, "nbf");
+	if (jwt_valid->now && t != -1 && jwt_valid->now < t)
+		jwt_valid->status |= JWT_VALIDATION_TOO_NEW;
 
 	/* Validate replicated issuer */
-	const char *jwt_hdr_str = get_js_string(jwt->headers, "iss");
-	const char *jwt_body_str = get_js_string(jwt->grants, "iss");
-	if (jwt_hdr_str && jwt_body_str && strcmp(jwt_hdr_str, jwt_body_str) != 0) {
-		jwt_free_str(jwt_valid->status);
-		jwt_valid->status = jwt_strdup("JWT \"iss\" header does not match");
-		return 0;
-	}
+	jwt_hdr_str = get_js_string(jwt->headers, "iss");
+	jwt_body_str = get_js_string(jwt->grants, "iss");
+	if (jwt_hdr_str && jwt_body_str && strcmp(jwt_hdr_str, jwt_body_str))
+		jwt_valid->status |= JWT_VALIDATION_ISS_MISMATCH;
 
 	/* Validate replicated subject */
 	jwt_hdr_str = get_js_string(jwt->headers, "sub");
 	jwt_body_str = get_js_string(jwt->grants, "sub");
-	if (jwt_hdr_str && jwt_body_str && strcmp(jwt_hdr_str, jwt_body_str) != 0) {
-		jwt_free_str(jwt_valid->status);
-		jwt_valid->status = jwt_strdup("JWT \"sub\" header does not match");
-		return 0;
-	}
+	if (jwt_hdr_str && jwt_body_str && strcmp(jwt_hdr_str, jwt_body_str))
+		jwt_valid->status |= JWT_VALIDATION_SUB_MISMATCH;
 
 	/* Validate replicated audience (might be array or string) */
-	json_t *aud_hdr_js = json_object_get(jwt->headers, "aud");
-	json_t *aud_body_js = json_object_get(jwt->grants, "aud");
-	if (aud_hdr_js && aud_body_js && !json_equal(aud_hdr_js, aud_body_js)) {
-		jwt_free_str(jwt_valid->status);
-		jwt_valid->status = jwt_strdup("JWT \"aud\" header does not match");
-		return 0;
-	}
+	js_val_1 = json_object_get(jwt->headers, "aud");
+	js_val_2 = json_object_get(jwt->grants, "aud");
+	if (js_val_1 && js_val_2 && !json_equal(js_val_1, js_val_2))
+		jwt_valid->status |= JWT_VALIDATION_AUD_MISMATCH;
 
 	/* Validate required grants */
-	const char *req_grant = NULL;
-	json_t *val = NULL;
-	json_object_foreach(jwt_valid->req_grants, req_grant, val) {
+	json_object_foreach(jwt_valid->req_grants, req_grant, js_val_1) {
 		json_t *act_js_val = json_object_get(jwt->grants, req_grant);
-		if (!act_js_val || !json_equal(val, act_js_val)) {
-			jwt_free_str(jwt_valid->status);
-			if (-1 == asprintf(&jwt_valid->status, "JWT \"%s\" grant %s", req_grant, act_js_val ? "does not match" : "is not present")) {
-				jwt_free_str(jwt_valid->status);
-				jwt_valid->status = NULL;
-			}
-			valid = 0;
-			break;
-		}
+
+		if (act_js_val && json_equal(js_val_1, act_js_val))
+			continue;
+
+		if (act_js_val)
+			jwt_valid->status |= JWT_VALIDATION_GRANT_MISMATCH;
+		else
+			jwt_valid->status |= JWT_VALIDATION_GRANT_MISSING;
 	}
 
-	if (valid) {
-		jwt_free_str(jwt_valid->status);
-		jwt_valid->status = jwt_strdup("Valid JWT");
-	}
-
-	return valid;
+	return jwt_valid->status;
 }
-
