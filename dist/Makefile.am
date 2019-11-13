@@ -1,5 +1,9 @@
 VERSION=@VERSION@
 
+CLEANFILES=libjwt.spec
+
+all:
+
 check:
 	rpmlint -i dist/libjwt.spec
 

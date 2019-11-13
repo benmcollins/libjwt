@@ -43,3 +43,4 @@ Makefile
 !/m4/jwt_weak_alias.m4
 /doxygen-doc/*
 /libjwt/libjwt.pc
+/dist/libjwt.spec
