@@ -1444,8 +1444,10 @@ int jwt_validate(jwt_t *jwt, jwt_valid_t *jwt_valid)
 		}
 	}
 
-	if (valid)
+	if (valid) {
+		jwt_free_str(jwt_valid->status);
 		jwt_valid->status = jwt_strdup("Valid JWT");
+	}
 
 	return valid;
 }

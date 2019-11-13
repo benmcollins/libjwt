@@ -63,6 +63,9 @@ START_TEST(test_jwt_validate_errno)
 	errno = 0;
 	ck_assert_ptr_eq(NULL, jwt_valid_get_status(NULL));
 	ck_assert_int_eq(errno, EINVAL);
+
+	jwt_valid_free(jwt_valid);
+	__teardown_jwt();
 }
 END_TEST
 
