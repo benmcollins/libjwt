@@ -147,7 +147,7 @@ START_TEST(test_jwt_decode_invalid_alg)
 }
 END_TEST
 
-START_TEST(test_jwt_decode_invalid_typ)
+START_TEST(test_jwt_decode_ignore_typ)
 {
 	const char token[] = "eyJ0eXAiOiJBTEwiLCJhbGciOiJIUzI1NiJ9."
 			     "eyJpc3MiOiJmaWxlcy5jeXBocmUuY29tIiwic"
@@ -156,8 +156,8 @@ START_TEST(test_jwt_decode_invalid_typ)
 	int ret;
 
 	ret = jwt_decode(&jwt, token, NULL, 0);
-	ck_assert_int_eq(ret, EINVAL);
-	ck_assert(jwt == NULL);
+	ck_assert_int_eq(ret, 0);
+	ck_assert(jwt);
 
 	jwt_free(jwt);
 }
@@ -325,7 +325,7 @@ static Suite *libjwt_suite(void)
 	tcase_add_test(tc_core, test_jwt_dup_signed);
 	tcase_add_test(tc_core, test_jwt_decode);
 	tcase_add_test(tc_core, test_jwt_decode_invalid_alg);
-	tcase_add_test(tc_core, test_jwt_decode_invalid_typ);
+	tcase_add_test(tc_core, test_jwt_decode_ignore_typ);
 	tcase_add_test(tc_core, test_jwt_decode_invalid_head);
 	tcase_add_test(tc_core, test_jwt_decode_alg_none_with_key);
 	tcase_add_test(tc_core, test_jwt_decode_invalid_body);
