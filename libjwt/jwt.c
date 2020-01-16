@@ -108,25 +108,25 @@ jwt_alg_t jwt_str_alg(const char *alg)
 	if (alg == NULL)
 		return JWT_ALG_INVAL;
 
-	if (!strcasecmp(alg, "none"))
+	if (!strcmp(alg, "none"))
 		return JWT_ALG_NONE;
-	else if (!strcasecmp(alg, "HS256"))
+	else if (!strcmp(alg, "HS256"))
 		return JWT_ALG_HS256;
-	else if (!strcasecmp(alg, "HS384"))
+	else if (!strcmp(alg, "HS384"))
 		return JWT_ALG_HS384;
-	else if (!strcasecmp(alg, "HS512"))
+	else if (!strcmp(alg, "HS512"))
 		return JWT_ALG_HS512;
-	else if (!strcasecmp(alg, "RS256"))
+	else if (!strcmp(alg, "RS256"))
 		return JWT_ALG_RS256;
-	else if (!strcasecmp(alg, "RS384"))
+	else if (!strcmp(alg, "RS384"))
 		return JWT_ALG_RS384;
-	else if (!strcasecmp(alg, "RS512"))
+	else if (!strcmp(alg, "RS512"))
 		return JWT_ALG_RS512;
-	else if (!strcasecmp(alg, "ES256"))
+	else if (!strcmp(alg, "ES256"))
 		return JWT_ALG_ES256;
-	else if (!strcasecmp(alg, "ES384"))
+	else if (!strcmp(alg, "ES384"))
 		return JWT_ALG_ES384;
-	else if (!strcasecmp(alg, "ES512"))
+	else if (!strcmp(alg, "ES512"))
 		return JWT_ALG_ES512;
 
 	return JWT_ALG_INVAL;
