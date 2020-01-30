@@ -1,4 +1,8 @@
-cmake_minimum_required (VERSION 3.7)
+cmake_minimum_required (VERSION 3.7...3.15)
+
+if (${CMAKE_VERSION} VERSION_LESS 3.14.7 AND ${CMAKE_GENERATOR} STREQUAL "Visual Studio 16 2019")
+	message(FATAL_ERROR "Please update your version of CMake to version 3.14.7 or greater in order to use Visual Studio 2019")
+endif()
 
 if (MSVC)
 	set (CMAKE_SYSTEM_VERSION 8.1 CACHE TYPE INTERNAL FORCE)
