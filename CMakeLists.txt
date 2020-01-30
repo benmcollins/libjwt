@@ -12,6 +12,7 @@ string(REPLACE "\\" "/" CMAKE_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX})
 
 option (ENABLE_DEBUG_INFO_IN_RELEASE "Enable adding debug info to release build." OFF)
 option (ENABLE_LTO "Enable link time optimizations." OFF)
+option (BUILD_EXAMPLES "Build example projects." ON)
 
 if (MSVC)
 	option (STATIC_RUNTIME "Link runtome library statically." OFF)
@@ -64,7 +65,10 @@ if (ENABLE_LTO)
 endif ()
 
 add_subdirectory (libjwt)
-add_subdirectory (examples)
+
+if (${BUILD_EXAMPLES})
+	add_subdirectory (examples)
+endif()
 
 if (${BUILD_TESTS})
 	add_subdirectory (tests)
