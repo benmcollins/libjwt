@@ -44,3 +44,6 @@ Makefile
 /doxygen-doc/*
 /libjwt/libjwt.pc
 /dist/libjwt.spec
+
+# Cmake
+/build
