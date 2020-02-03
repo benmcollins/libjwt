@@ -45,7 +45,7 @@ ColumnLimit:     100
 # DerivePointerAlignment: false
 # DisableFormat:   false
 # ExperimentalAutoDetectBinPacking: false
-# ForEachMacros:   [ foreach, Q_FOREACH, BOOST_FOREACH ]
+ForEachMacros:   [ foreach, Q_FOREACH, BOOST_FOREACH, json_object_foreach ]
 # IncludeCategories: 
 #   - Regex:           '^"(llvm|llvm-c|clang|clang-c)/'
 #     Priority:        2
