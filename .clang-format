@@ -8,7 +8,7 @@ BasedOnStyle:  WebKit
 # AlignEscapedNewlinesLeft: false
 # AlignOperands:   true
 # AlignTrailingComments: true
-# AllowAllParametersOfDeclarationOnNextLine: false
+AllowAllParametersOfDeclarationOnNextLine: false
 # AllowShortBlocksOnASingleLine: true
 # AllowShortCaseLabelsOnASingleLine: true
 AllowShortFunctionsOnASingleLine: false
@@ -18,8 +18,8 @@ AllowShortFunctionsOnASingleLine: false
 # AlwaysBreakAfterReturnType: TopLevelDefinitions
 # AlwaysBreakBeforeMultilineStrings: false
 # AlwaysBreakTemplateDeclarations: true
-# BinPackArguments: false
-# BinPackParameters: false
+BinPackArguments: false
+BinPackParameters: false
 # BraceWrapping:   
 #   AfterClass:      true
 #   AfterControlStatement: true
@@ -44,7 +44,7 @@ ColumnLimit:     78
 # Cpp11BracedListStyle: false
 # DerivePointerAlignment: false
 # DisableFormat:   false
-# ExperimentalAutoDetectBinPacking: false
+ExperimentalAutoDetectBinPacking: false
 ForEachMacros:   [ foreach, Q_FOREACH, BOOST_FOREACH, json_object_foreach ]
 # IncludeCategories: 
 #   - Regex:           '^"(llvm|llvm-c|clang|clang-c)/'
