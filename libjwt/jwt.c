@@ -892,11 +892,13 @@ static int __append_str(char **buf, const char *str)
 	return 0;
 }
 
+// clang-format off
 #define APPEND_STR(__buf, __str) do {		\
 	int ret = __append_str(__buf, __str);	\
 	if (ret)				\
 		return ret;			\
 } while(0)
+// clang-format on
 
 static int write_js(const json_t *js, char **buf, int pretty)
 {
@@ -1353,10 +1355,12 @@ int jwt_valid_del_grants(jwt_valid_t *jwt_valid, const char *grant)
 	return 0;
 }
 
+// clang-format off
 #define _SET_AND_RET(__v, __e) do {	\
 	__v->status |= __e;		\
 	return __v->status;		\
 } while(0)
+// clang-format on
 
 unsigned int jwt_validate(jwt_t *jwt, jwt_valid_t *jwt_valid)
 {
