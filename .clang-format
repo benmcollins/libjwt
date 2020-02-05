@@ -36,7 +36,7 @@ AllowShortFunctionsOnASingleLine: false
 # BreakBeforeBraces: Mozilla
 # BreakBeforeTernaryOperators: true
 # BreakConstructorInitializersBeforeComma: true
-ColumnLimit:     100
+ColumnLimit:     78
 # CommentPragmas:  '^ IWYU pragma:'
 # ConstructorInitializerAllOnOneLineOrOnePerLine: false
 # ConstructorInitializerIndentWidth: 4
