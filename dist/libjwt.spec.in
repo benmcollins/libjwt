@@ -23,7 +23,7 @@ It supports HS256/384/512, RS256/384/512 and ES256/384/512 digest algorithms.
 %package devel
 Summary:            JSON Web Token (C implementation) development kit
 Group:              Development/Libraries
-Requires:           c-jwt
+Requires:           libjwt
 
 %description devel
 Development files for the JWT C library.
