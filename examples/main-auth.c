@@ -12,6 +12,7 @@
 #include <string.h>
 #include <errno.h>
 #include <time.h>
+#include <libgen.h>
 
 void usage(const char *name)
 {
