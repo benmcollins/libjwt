@@ -143,13 +143,13 @@ static void jwt_scrub_key(jwt_t *jwt)
 	}
 
 	jwt->key_len = 0;
-	jwt->alg = JWT_ALG_NONE;
 }
 
 int jwt_set_alg(jwt_t *jwt, jwt_alg_t alg, const unsigned char *key, int len)
 {
 	/* No matter what happens here, we do this. */
 	jwt_scrub_key(jwt);
+	jwt->alg = JWT_ALG_NONE;
 
 	if (alg < JWT_ALG_NONE || alg >= JWT_ALG_INVAL)
 		return EINVAL;
@@ -221,6 +221,9 @@ void jwt_free(jwt_t *jwt)
 	json_decref(jwt->grants);
 	json_decref(jwt->headers);
 
+	if (jwt->sig_data.token_data)
+		jwt_freemem(jwt->sig_data.token_data);
+
 	jwt_freemem(jwt);
 }
 
@@ -252,6 +255,18 @@ jwt_t *jwt_dup(jwt_t *jwt)
 		}
 		memcpy(new->key, jwt->key, jwt->key_len);
 		new->key_len = jwt->key_len;
+	}
+
+	if (jwt->sig_data.data_len) {
+		new->sig_data.token_data = jwt_malloc(jwt->sig_data.data_len);
+		if (!new->sig_data.token_data) {
+			errno = ENOMEM;
+			goto dup_fail;
+		}
+		memcpy(new->sig_data.token_data, jwt->sig_data.token_data, jwt->sig_data.data_len);
+		new->sig_data.data_len = jwt->sig_data.data_len;
+		new->sig_data.sig = new->sig_data.token_data
+			+ (jwt->sig_data.sig - jwt->sig_data.token_data);
 	}
 
 	new->grants = json_deep_copy(jwt->grants);
@@ -554,6 +569,14 @@ int jwt_decode(jwt_t **jwt, const char *token, const unsigned char *key,
 		goto decode_done;
 	}
 
+	/* Save a pointer to the token data in case a signature verification
+	 * is requested later. */
+	new->sig_data.token_data = head;
+	/* Also keep the null byte terminator in the block, in case someone
+	 * duplicates the JWT object with jwt_dup(). */
+	new->sig_data.data_len = strlen(token) + 1;
+	new->sig_data.sig = sig;
+
 	/* Copy the key over for verify_head. */
 	if (key_len) {
 		new->key = jwt_malloc(key_len);
@@ -571,24 +594,45 @@ int jwt_decode(jwt_t **jwt, const char *token, const unsigned char *key,
 	if (ret)
 		goto decode_done;
 
+	/* Re-add this since it's part of the verified data. */
+	body[-1] = '.';
 	/* Check the signature, if needed. */
-	if (new->alg != JWT_ALG_NONE) {
-		/* Re-add this since it's part of the verified data. */
-		body[-1] = '.';
+	if (new->alg != JWT_ALG_NONE && key_len > 0) {
 		ret = jwt_verify(new, head, sig);
 	} else {
 		ret = 0;
 	}
 
 decode_done:
-	if (ret)
-		jwt_free(new);
+	if (ret) {
+		if (new == NULL)
+			/* Free the memory pointed to by head only in case a jwt
+			 * could not be allocated. */
+			jwt_freemem(head);
+		else
+			jwt_free(new);
+        }
 	else
 		*jwt = new;
 
-	jwt_freemem(head);
-
 	return ret;
+}
+
+int jwt_check_signature(jwt_t *jwt, const unsigned char *key, int key_len)
+{
+	if (key_len <= 0)
+		return EINVAL;
+	jwt_scrub_key(jwt);
+	/* Copy the key over for jwt_verify. */
+	jwt->key = jwt_malloc(key_len);
+	if (jwt->key == NULL)
+		return ENOMEM;
+	memcpy(jwt->key, key, key_len);
+	jwt->key_len = key_len;
+	if (jwt->alg != JWT_ALG_NONE)
+		return jwt_verify(jwt, jwt->sig_data.token_data, jwt->sig_data.sig);
+	else
+		return EINVAL;
 }
 
 const char *jwt_get_grant(jwt_t *jwt, const char *grant)
