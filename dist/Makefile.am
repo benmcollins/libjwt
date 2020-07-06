@@ -4,7 +4,7 @@ CLEANFILES=libjwt.spec
 
 all:
 
-check:
+rpmcheck:
 	rpmlint -i dist/libjwt.spec
 
 rpm-prep:
