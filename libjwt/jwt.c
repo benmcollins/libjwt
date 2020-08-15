@@ -281,7 +281,7 @@ static const char *get_js_string(json_t *js, const char *key)
 		if (json_typeof(js_val) == JSON_STRING) {
 			val = json_string_value(js_val);
 		} else {
-			errno = EINVAL;
+			errno = EBADMSG;
 		}
 	} else {
 		errno = ENOENT;
@@ -300,7 +300,7 @@ static long get_js_int(json_t *js, const char *key)
 		if (json_typeof(js_val) == JSON_INTEGER) {
 			val = (long)json_integer_value(js_val);
 		} else {
-			errno = EINVAL;
+			errno = EBADMSG;
 		}
 	} else {
 		errno = ENOENT;
@@ -324,7 +324,7 @@ static int get_js_bool(json_t *js, const char *key)
 				val = 0;
 				break;
 			default:
-				errno = EINVAL;
+				errno = EBADMSG;
 		}
 	} else {
 		errno = ENOENT;
