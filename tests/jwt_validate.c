@@ -10,6 +10,11 @@
 
 #include <jwt.h>
 
+/* Older check doesn't have this. */
+#ifndef ck_assert_ptr_ne
+#define ck_assert_ptr_ne(X, Y) ck_assert(X != Y)
+#endif
+
 jwt_t *jwt = NULL;
 
 #define TS_CONST 1570732480L
