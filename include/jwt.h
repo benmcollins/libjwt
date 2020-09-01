@@ -141,6 +141,32 @@ JWT_EXPORT int jwt_decode(jwt_t **jwt, const char *token,
 	                 const unsigned char *key, int key_len);
 
 /**
+ * Check the signature of an already parsed JWT
+ *
+ * In some scenarios, it is hard to determine what key should
+ * be used for verifying a JWT signature. One example is in a
+ * system that needs to recognize JWT tokens signed by a set
+ * of issuers - to know which certificate to use for verifying
+ * the JWT signature, the issuer ('iss') field of the JWT needs
+ * to be consulted, and in order to access the issuer field, the
+ * JWT is first decoded without signature checking. After that,
+ * when the issuer is known, its certificate(s) can be used for
+ * signature checking. This function is introduced for usage in
+ * such a scenario - first the JWT is decoded with 'jwt_decode()',
+ * without signature checking, and after that, if a suitable
+ * certificate is found, it is used for only checking the already
+ * successfully parsed JWT by calling this routine.
+ *
+ * @param jwt Pointer to a JWT object that was returned from a
+ *     successfull JWT decoding step by jwt_decode()
+ * @param key Pointer to the key for validating the JWT signature
+ * @param key_len The length of the above key.
+ * @return 0 on success, valid errno otherwise.
+ */
+JWT_EXPORT int jwt_check_signature(jwt_t *jwt,
+	                 const unsigned char *key, int key_len);
+
+/**
  * Free a JWT object and any other resources it is using.
  *
  * After calling, the JWT object referenced will no longer be valid and
