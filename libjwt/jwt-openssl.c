@@ -51,7 +51,7 @@ static int ECDSA_SIG_set0(ECDSA_SIG *sig, BIGNUM *r, BIGNUM *s)
 #endif
 
 int jwt_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
-		      const char *str)
+		      const char *str, unsigned int str_len)
 {
 	const EVP_MD *alg;
 
@@ -75,13 +75,13 @@ int jwt_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 		return ENOMEM;
 
 	HMAC(alg, jwt->key, jwt->key_len,
-	     (const unsigned char *)str, strlen(str), (unsigned char *)*out,
+	     (const unsigned char *)str, str_len, (unsigned char *)*out,
 	     len);
 
 	return 0;
 }
 
-int jwt_verify_sha_hmac(jwt_t *jwt, const char *head, const char *sig)
+int jwt_verify_sha_hmac(jwt_t *jwt, const char *head, unsigned int head_len, const char *sig)
 {
 	unsigned char res[EVP_MAX_MD_SIZE];
 	BIO *bmem = NULL, *b64 = NULL;
@@ -118,7 +118,7 @@ int jwt_verify_sha_hmac(jwt_t *jwt, const char *head, const char *sig)
 	BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
 
 	HMAC(alg, jwt->key, jwt->key_len,
-	     (const unsigned char *)head, strlen(head), res, &res_len);
+	     (const unsigned char *)head, head_len, res, &res_len);
 
 	BIO_write(b64, res, res_len);
 
@@ -151,7 +151,7 @@ jwt_verify_hmac_done:
 #define SIGN_ERROR(__err) { ret = __err; goto jwt_sign_sha_pem_done; }
 
 int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
-		     const char *str)
+		     const char *str, unsigned int str_len)
 {
 	EVP_MD_CTX *mdctx = NULL;
 	ECDSA_SIG *ec_sig = NULL;
@@ -223,7 +223,7 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		SIGN_ERROR(EINVAL);
 
 	/* Call update with the message */
-	if (EVP_DigestSignUpdate(mdctx, str, strlen(str)) != 1)
+	if (EVP_DigestSignUpdate(mdctx, str, str_len) != 1)
 		SIGN_ERROR(EINVAL);
 
 	/* First, call EVP_DigestSignFinal with a NULL sig parameter to get length
@@ -306,7 +306,7 @@ jwt_sign_sha_pem_done:
 
 #define VERIFY_ERROR(__err) { ret = __err; goto jwt_verify_sha_pem_done; }
 
-int jwt_verify_sha_pem(jwt_t *jwt, const char *head, const char *sig_b64)
+int jwt_verify_sha_pem(jwt_t *jwt, const char *head, unsigned int head_len, const char *sig_b64)
 {
 	unsigned char *sig = NULL;
 	EVP_MD_CTX *mdctx = NULL;
@@ -425,7 +425,7 @@ int jwt_verify_sha_pem(jwt_t *jwt, const char *head, const char *sig_b64)
 		VERIFY_ERROR(EINVAL);
 
 	/* Call update with the message */
-	if (EVP_DigestVerifyUpdate(mdctx, head, strlen(head)) != 1)
+	if (EVP_DigestVerifyUpdate(mdctx, head, head_len) != 1)
 		VERIFY_ERROR(EINVAL);
 
 	/* Now check the sig for validity. */

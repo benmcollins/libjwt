@@ -37,13 +37,13 @@ void *jwt_b64_decode(const char *src, int *ret_len);
 
 /* These routines are implemented by the crypto backend. */
 int jwt_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
-		      const char *str);
+		      const char *str, unsigned int str_len);
 
-int jwt_verify_sha_hmac(jwt_t *jwt, const char *head, const char *sig);
+int jwt_verify_sha_hmac(jwt_t *jwt, const char *head, unsigned int head_len, const char *sig);
 
 int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
-		     const char *str);
+		     const char *str, unsigned int str_len);
 
-int jwt_verify_sha_pem(jwt_t *jwt, const char *head, const char *sig_b64);
+int jwt_verify_sha_pem(jwt_t *jwt, const char *head, unsigned int head_len, const char *sig_b64);
 
 #endif /* JWT_PRIVATE_H */
