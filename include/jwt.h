@@ -85,6 +85,15 @@ typedef void *(*jwt_malloc_t)(size_t);
 typedef void *(*jwt_realloc_t)(void *, size_t);
 typedef void (*jwt_free_t)(void *);
 
+/** Structure used by key provider to return a key */
+typedef struct {
+    const unsigned char *jwt_key;
+    int jwt_key_len;
+} jwt_key_t;
+
+/** Key provider - inspects the JWT to obtain the key used to verify the signature */
+typedef int (*jwt_key_p_t)(const jwt_t *, jwt_key_t *);
+
 /**
  * @defgroup jwt_new JWT Object Creation
  * Functions used to create and destroy JWT objects.
@@ -139,6 +148,24 @@ JWT_EXPORT int jwt_new(jwt_t **jwt);
  */
 JWT_EXPORT int jwt_decode(jwt_t **jwt, const char *token,
 	                 const unsigned char *key, int key_len);
+
+/**
+ * Like jwt_decode(), but the key will be obtained via the key provider.
+ * Key providers may use all sorts of key management techniques, e.g.
+ * can check the "kid" header parameter or download the key pointed to 
+ * in "x5u"
+ *
+ * @param jwt Pointer to a JWT object pointer. Will be allocated on
+ *     success.
+ * @param token Pointer to a valid JWT string, null terminated.
+ * @param key_provider Pointer to a function that will obtain the key for the given JWT. 
+ *      Returns 0 on success or any other value on failure.
+ *      In the case of an error, the same error value will be returned to the caller.
+ * @return 0 on success, valid errno otherwise.
+ *
+ * @remark See jwt_decode()
+ */
+JWT_EXPORT int jwt_decode_2(jwt_t **jwt, const char *token, jwt_key_p_t key_provider);
 
 /**
  * Free a JWT object and any other resources it is using.

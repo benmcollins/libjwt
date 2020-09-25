@@ -635,6 +635,51 @@ decode_done:
 	return ret;
 }
 
+int jwt_decode_2(jwt_t **jwt, const char *token, jwt_key_p_t key_provider) 
+{
+	jwt_t *new = NULL;
+	int ret = EINVAL;
+	unsigned int payload_len;
+	jwt_key_t key;
+
+	ret = jwt_parse(jwt, token, &payload_len);
+	if (ret) {
+		return ret;
+	}
+	new = *jwt;
+
+	/* Obtain the key. */
+	if (new->alg != JWT_ALG_NONE) {
+		ret = key_provider(new, &key);
+		if (ret) {
+			goto decode_done;
+		}
+		ret = jwt_copy_key(new, key.jwt_key, key.jwt_key_len);
+		if (ret)
+			goto decode_done;
+	}
+
+	ret = jwt_verify_head(new);
+	if (ret)
+		goto decode_done;
+
+	/* Check the signature, if needed. */
+	if (new->alg != JWT_ALG_NONE) {
+		ret = jwt_verify(new, token, payload_len,
+				 token + (payload_len + 1));
+	} else {
+		ret = 0;
+	}
+
+decode_done:
+	if (ret) {
+		jwt_free(new);
+		*jwt = NULL;
+	}
+
+	return ret;
+}
+
 const char *jwt_get_grant(jwt_t *jwt, const char *grant)
 {
 	if (!jwt || !grant || !strlen(grant)) {
