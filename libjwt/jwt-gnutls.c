@@ -46,7 +46,7 @@ static int gnutls_decode_rs_value(const gnutls_datum_t *sig_value,
 /**
  * libjwt encryption/decryption function definitions
  */
-int jwt_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len, const char *str)
+int jwt_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len, const char *str, unsigned int str_len)
 {
 	int alg;
 
@@ -69,7 +69,7 @@ int jwt_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len, const char *str
 	if (*out == NULL)
 		return ENOMEM;
 
-	if (gnutls_hmac_fast(alg, jwt->key, jwt->key_len, str, strlen(str), *out)) {
+	if (gnutls_hmac_fast(alg, jwt->key, jwt->key_len, str, str_len, *out)) {
 		jwt_freemem(*out);
 		*out = NULL;
 		return EINVAL;
@@ -78,13 +78,13 @@ int jwt_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len, const char *str
 	return 0;
 }
 
-int jwt_verify_sha_hmac(jwt_t *jwt, const char *head, const char *sig)
+int jwt_verify_sha_hmac(jwt_t *jwt, const char *head, unsigned int head_len, const char *sig)
 {
 	char *sig_check, *buf = NULL;
 	unsigned int len;
 	int ret = EINVAL;
 
-	if (!jwt_sign_sha_hmac(jwt, &sig_check, &len, head)) {
+	if (!jwt_sign_sha_hmac(jwt, &sig_check, &len, head, head_len)) {
 		buf = alloca(len * 2);
 		jwt_Base64encode(buf, sig_check, len);
 		jwt_base64uri_encode(buf);
@@ -98,7 +98,7 @@ int jwt_verify_sha_hmac(jwt_t *jwt, const char *head, const char *sig)
 	return ret;
 }
 
-int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len, const char *str)
+int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len, const char *str, unsigned int str_len)
 {
 	/* For EC handling. */
 	int r_padding = 0, s_padding = 0, r_out_padding = 0,
@@ -113,7 +113,7 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len, const char *str)
 	};
 	gnutls_datum_t body_dat = {
 		(unsigned char *)str,
-		strlen(str)
+		str_len
 	};
 	gnutls_datum_t sig_dat, r, s;
 	int ret = 0, pk_alg;
@@ -256,7 +256,7 @@ sign_clean_key:
 	return ret;
 }
 
-int jwt_verify_sha_pem(jwt_t *jwt, const char *head, const char *sig_b64)
+int jwt_verify_sha_pem(jwt_t *jwt, const char *head, unsigned int head_len, const char *sig_b64)
 {
 	gnutls_datum_t r, s;
 	gnutls_datum_t cert_dat = {
@@ -265,7 +265,7 @@ int jwt_verify_sha_pem(jwt_t *jwt, const char *head, const char *sig_b64)
 	};
 	gnutls_datum_t data = {
 		(unsigned char *)head,
-		strlen(head)
+		head_len
 	};
 	gnutls_datum_t sig_dat = { NULL, 0 };
 	gnutls_pubkey_t pubkey;

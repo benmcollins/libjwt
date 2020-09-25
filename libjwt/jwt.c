@@ -416,14 +416,14 @@ void jwt_base64uri_encode(char *str)
 	str[t] = '\0';
 }
 
-static int jwt_sign(jwt_t *jwt, char **out, unsigned int *len, const char *str)
+static int jwt_sign(jwt_t *jwt, char **out, unsigned int *len, const char *str, unsigned int str_len)
 {
 	switch (jwt->alg) {
 	/* HMAC */
 	case JWT_ALG_HS256:
 	case JWT_ALG_HS384:
 	case JWT_ALG_HS512:
-		return jwt_sign_sha_hmac(jwt, out, len, str);
+		return jwt_sign_sha_hmac(jwt, out, len, str, str_len);
 
 	/* RSA */
 	case JWT_ALG_RS256:
@@ -434,7 +434,7 @@ static int jwt_sign(jwt_t *jwt, char **out, unsigned int *len, const char *str)
 	case JWT_ALG_ES256:
 	case JWT_ALG_ES384:
 	case JWT_ALG_ES512:
-		return jwt_sign_sha_pem(jwt, out, len, str);
+		return jwt_sign_sha_pem(jwt, out, len, str, str_len);
 
 	/* You wut, mate? */
 	default:
@@ -442,14 +442,14 @@ static int jwt_sign(jwt_t *jwt, char **out, unsigned int *len, const char *str)
 	}
 }
 
-static int jwt_verify(jwt_t *jwt, const char *head, const char *sig)
+static int jwt_verify(jwt_t *jwt, const char *head, unsigned int head_len, const char *sig)
 {
 	switch (jwt->alg) {
 	/* HMAC */
 	case JWT_ALG_HS256:
 	case JWT_ALG_HS384:
 	case JWT_ALG_HS512:
-		return jwt_verify_sha_hmac(jwt, head, sig);
+		return jwt_verify_sha_hmac(jwt, head, head_len, sig);
 
 	/* RSA */
 	case JWT_ALG_RS256:
@@ -460,7 +460,7 @@ static int jwt_verify(jwt_t *jwt, const char *head, const char *sig)
 	case JWT_ALG_ES256:
 	case JWT_ALG_ES384:
 	case JWT_ALG_ES512:
-		return jwt_verify_sha_pem(jwt, head, sig);
+		return jwt_verify_sha_pem(jwt, head, head_len, sig);
 
 	/* You wut, mate? */
 	default:
@@ -484,6 +484,8 @@ static int jwt_parse_body(jwt_t *jwt, char *body)
 
 static int jwt_parse_head(jwt_t *jwt, char *head)
 {
+	const char *alg;
+
 	if (jwt->headers) {
 		json_decref(jwt->headers);
 		jwt->headers = NULL;
@@ -493,24 +495,18 @@ static int jwt_parse_head(jwt_t *jwt, char *head)
 	if (!jwt->headers)
 		return EINVAL;
 
+	alg = get_js_string(jwt->headers, "alg");
+	jwt->alg = jwt_str_alg(alg);
+	if (jwt->alg == JWT_ALG_INVAL) {
+		return EINVAL;
+	}
+
 	return 0;
 }
 
-static int jwt_verify_head(jwt_t *jwt, char *head)
+static int jwt_verify_head(jwt_t *jwt)
 {
 	int ret = 0;
-	if ((ret = jwt_parse_head(jwt, head))) {
-		return ret;
-	}
-
-	const char *val;
-
-	val = get_js_string(jwt->headers, "alg");
-	jwt->alg = jwt_str_alg(val);
-	if (jwt->alg == JWT_ALG_INVAL) {
-		ret = EINVAL;
-		goto verify_head_done;
-	}
 
 	if (jwt->alg != JWT_ALG_NONE) {
 		if (jwt->key) {
@@ -526,13 +522,10 @@ static int jwt_verify_head(jwt_t *jwt, char *head)
 		}
 	}
 
-verify_head_done:
-
 	return ret;
 }
 
-int jwt_decode(jwt_t **jwt, const char *token, const unsigned char *key,
-	       int key_len)
+static int jwt_parse(jwt_t **jwt, const char *token, unsigned int *len)
 {
 	char *head = jwt_strdup(token);
 	jwt_t *new = NULL;
@@ -550,7 +543,7 @@ int jwt_decode(jwt_t **jwt, const char *token, const unsigned char *key,
 	/* Find the components. */
 	for (body = head; body[0] != '.'; body++) {
 		if (body[0] == '\0')
-			goto decode_done;
+			goto parse_done;
 	}
 
 	body[0] = '\0';
@@ -558,52 +551,86 @@ int jwt_decode(jwt_t **jwt, const char *token, const unsigned char *key,
 
 	for (sig = body; sig[0] != '.'; sig++) {
 		if (sig[0] == '\0')
-			goto decode_done;
+			goto parse_done;
 	}
 
 	sig[0] = '\0';
-	sig++;
 
 	/* Now that we have everything split up, let's check out the
 	 * header. */
 	ret = jwt_new(&new);
 	if (ret) {
-		goto decode_done;
+		goto parse_done;
 	}
+
+	if ((ret = jwt_parse_head(new, head))) {
+		goto parse_done;
+	}
+
+	ret = jwt_parse_body(new, body);
+parse_done:
+	if (ret) {
+		jwt_free(new);
+        	*jwt = NULL;
+	} else {
+		*jwt = new;
+		*len = sig - head;
+	}
+
+	jwt_freemem(head);
+
+	return ret;
+}
+
+static int jwt_copy_key(jwt_t *jwt, const unsigned char *key, int key_len)
+{
+	int ret = 0;
+
+	if (key_len) {
+		jwt->key = jwt_malloc(key_len);
+		if (jwt->key == NULL)
+			return ENOMEM;
+		memcpy(jwt->key, key, key_len);
+		jwt->key_len = key_len;
+	}
+
+	return ret;
+}
+
+int jwt_decode(jwt_t **jwt, const char *token, const unsigned char *key, int key_len)
+{
+	jwt_t *new = NULL;
+	int ret = EINVAL;
+	unsigned int payload_len;
+
+	ret = jwt_parse(jwt, token, &payload_len);
+	if (ret) {
+		return ret;
+	}
+	new = *jwt;
 
 	/* Copy the key over for verify_head. */
-	if (key_len) {
-		new->key = jwt_malloc(key_len);
-		if (new->key == NULL)
-			goto decode_done;
-		memcpy(new->key, key, key_len);
-		new->key_len = key_len;
-	}
-
-	ret = jwt_verify_head(new, head);
+	ret = jwt_copy_key(new, key, key_len);
 	if (ret)
 		goto decode_done;
 
-	ret = jwt_parse_body(new, body);
+	ret = jwt_verify_head(new);
 	if (ret)
 		goto decode_done;
 
 	/* Check the signature, if needed. */
 	if (new->alg != JWT_ALG_NONE) {
-		/* Re-add this since it's part of the verified data. */
-		body[-1] = '.';
-		ret = jwt_verify(new, head, sig);
+		const char *sig = token + (payload_len + 1);
+		ret = jwt_verify(new, token, payload_len, sig);
 	} else {
 		ret = 0;
 	}
 
 decode_done:
-	if (ret)
+	if (ret) {
 		jwt_free(new);
-	else
-		*jwt = new;
-
-	jwt_freemem(head);
+		*jwt = NULL;
+	}
 
 	return ret;
 }
@@ -1093,7 +1120,7 @@ static int jwt_encode(jwt_t *jwt, char **out)
 	}
 
 	/* Now the signature. */
-	ret = jwt_sign(jwt, &sig, &sig_len, buf);
+	ret = jwt_sign(jwt, &sig, &sig_len, buf, head_len + body_len + 1);
 	jwt_freemem(buf);
 
 	if (ret)
