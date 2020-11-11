@@ -1,6 +1,11 @@
 sudo: required
 dist: trusty
 language: c
+
+arch:
+ - amd64
+ - ppc64le
+ 
 compiler:
   - gcc
 addons:
