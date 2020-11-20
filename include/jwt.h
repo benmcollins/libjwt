@@ -51,6 +51,9 @@ typedef struct jwt jwt_t;
 /** Opaque JWT validation object. */
 typedef struct jwt_valid jwt_valid_t;
 
+/** Provide iterator over jwt header and grant */
+typedef struct json_t json_t;
+
 /** JWT algorithm types. */
 typedef enum jwt_alg {
 	JWT_ALG_NONE = 0,
@@ -927,6 +930,34 @@ JWT_EXPORT int jwt_valid_set_now(jwt_valid_t *jwt_valid, const time_t now);
  *     header or body.
  */
 JWT_EXPORT int jwt_valid_set_headers(jwt_valid_t *jwt_valid, int hdr);
+
+/**
+ * @return jansson object that represents all headers
+ */
+JWT_EXPORT const json_t *jwt_get_headers(jwt_t *jwt);
+
+/**
+ * @return jansson object that represents all grants
+ */
+JWT_EXPORT const json_t *jwt_get_grants(jwt_t *jwt);
+
+/**
+ * @param headers jansson object
+ * @return 0 on success, valid errno otherwise
+ *
+ * @note jwt object doesn't take ownershiep of headers object
+ * @see jwt_add_headers_str
+ */
+JWT_EXPORT int jwt_add_headers(jwt_t *jwt, json_t *headers);
+
+/**
+ * @param grants jansson object
+ * @return 0 on success, valid errno otherwise
+ *
+ * @note jwt object doesn't take ownershiep of grants object
+ * @see jwt_add_grants_str
+ */
+JWT_EXPORT int jwt_add_grants(jwt_t *jwt, json_t *grants);
 
 /** @} */
 

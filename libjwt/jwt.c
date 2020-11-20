@@ -1440,3 +1440,40 @@ unsigned int jwt_validate(jwt_t *jwt, jwt_valid_t *jwt_valid)
 
 	return jwt_valid->status;
 }
+
+
+const json_t *jwt_get_headers(jwt_t *jwt)
+{
+	return jwt->headers;
+}
+
+const json_t *jwt_get_grants(jwt_t *jwt)
+{
+	return jwt->grants;
+}
+
+int jwt_add_headers(jwt_t *jwt, json_t *headers)
+{
+	int ret = -1;
+	
+	if (headers == NULL)
+		return EINVAL;
+	
+	if (json_is_object(headers))
+		ret = json_object_update(jwt->headers, headers);
+	
+	return ret ? EINVAL : 0;
+}
+
+int jwt_add_grants(jwt_t *jwt, json_t *grats)
+{
+	int ret = -1;
+	
+	if (grats== NULL)
+		return EINVAL;
+	
+	if (json_is_object(grats))
+		ret = json_object_update(jwt->grants,grats);
+	
+	return ret ? EINVAL : 0;
+}
