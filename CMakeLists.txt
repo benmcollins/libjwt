@@ -10,8 +10,6 @@ endif ()
 
 project (jwt)
 
-list (APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-
 string(REPLACE "\\" "/" CMAKE_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX})
 
 option (ENABLE_DEBUG_INFO_IN_RELEASE "Enable adding debug info to release build." OFF)

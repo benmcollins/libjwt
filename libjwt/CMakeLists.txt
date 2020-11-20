@@ -43,7 +43,7 @@ else ()
 	set (SSL_LIBRARIES_OPTIMIZED ${OPENSSL_LIBRARIES})
 endif ()
 
-find_package (Jansson REQUIRED)
+find_package (jansson REQUIRED)
 
 write_file(${CMAKE_CURRENT_BINARY_DIR}/config.h "")
 
@@ -57,6 +57,11 @@ target_include_directories (${TARGET_NAME} PRIVATE
 	${JANSSON_INCLUDE_DIRS}
 	${CMAKE_CURRENT_BINARY_DIR}
 	)
+
+# Need for using the project by add_subdirectory
+target_include_directories (${TARGET_NAME} INTERFACE
+  ${CMAKE_CURRENT_LIST_DIR}/../include
+  )
 
 if (UNIX)
 	target_compile_definitions (${TARGET_NAME} PUBLIC _GNU_SOURCE)
@@ -82,7 +87,7 @@ endif ()
 
 target_link_libraries (${TARGET_NAME}
 	debug ${SSL_LIBRARIES_DEBUG} optimized ${SSL_LIBRARIES_OPTIMIZED}
-	${JANSSON_LIBRARIES}
+  jansson::jansson
 	)
 
 install (TARGETS ${TARGET_NAME}
