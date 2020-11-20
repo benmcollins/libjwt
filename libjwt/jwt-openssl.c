@@ -5,20 +5,20 @@
    License, v. 2.0. If a copy of the MPL was not distributed with this
    file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 
 #include <openssl/bio.h>
+#include <openssl/buffer.h>
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
-#include <openssl/buffer.h>
 #include <openssl/pem.h>
 
 #include <jwt.h>
 
-#include "jwt-private.h"
 #include "config.h"
+#include "jwt-private.h"
 
 /* Routines to support crypto in LibJWT using OpenSSL. */
 
@@ -27,7 +27,8 @@
  */
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
 
-static void ECDSA_SIG_get0(const ECDSA_SIG *sig, const BIGNUM **pr, const BIGNUM **ps)
+static void
+ECDSA_SIG_get0(const ECDSA_SIG *sig, const BIGNUM **pr, const BIGNUM **ps)
 {
 	if (pr != NULL)
 		*pr = sig->r;
@@ -50,13 +51,15 @@ static int ECDSA_SIG_set0(ECDSA_SIG *sig, BIGNUM *r, BIGNUM *s)
 
 #endif
 
-int jwt_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
-		      const char *str)
+int jwt_sign_sha_hmac(jwt_t *       jwt,
+                      char **       out,
+                      unsigned int *len,
+                      const char *  str)
 {
 	const EVP_MD *alg;
 
 	switch (jwt->alg) {
-        /* HMAC */
+		/* HMAC */
 	case JWT_ALG_HS256:
 		alg = EVP_sha256();
 		break;
@@ -74,8 +77,12 @@ int jwt_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 	if (*out == NULL)
 		return ENOMEM;
 
-	HMAC(alg, jwt->key, jwt->key_len,
-	     (const unsigned char *)str, strlen(str), (unsigned char *)*out,
+	HMAC(alg,
+	     jwt->key,
+	     jwt->key_len,
+	     (const unsigned char *)str,
+	     strlen(str),
+	     (unsigned char *)*out,
 	     len);
 
 	return 0;
@@ -84,11 +91,11 @@ int jwt_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 int jwt_verify_sha_hmac(jwt_t *jwt, const char *head, const char *sig)
 {
 	unsigned char res[EVP_MAX_MD_SIZE];
-	BIO *bmem = NULL, *b64 = NULL;
-	unsigned int res_len;
+	BIO *         bmem = NULL, *b64 = NULL;
+	unsigned int  res_len;
 	const EVP_MD *alg;
-	char *buf;
-	int len, ret = EINVAL;
+	char *        buf;
+	int           len, ret = EINVAL;
 
 	switch (jwt->alg) {
 	case JWT_ALG_HS256:
@@ -117,8 +124,13 @@ int jwt_verify_sha_hmac(jwt_t *jwt, const char *head, const char *sig)
 	BIO_push(b64, bmem);
 	BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
 
-	HMAC(alg, jwt->key, jwt->key_len,
-	     (const unsigned char *)head, strlen(head), res, &res_len);
+	HMAC(alg,
+	     jwt->key,
+	     jwt->key_len,
+	     (const unsigned char *)head,
+	     strlen(head),
+	     res,
+	     &res_len);
 
 	BIO_write(b64, res, res_len);
 
@@ -134,7 +146,7 @@ int jwt_verify_sha_hmac(jwt_t *jwt, const char *head, const char *sig)
 		goto jwt_verify_hmac_done;
 	}
 
-	len = BIO_read(bmem, buf, len);
+	len      = BIO_read(bmem, buf, len);
 	buf[len] = '\0';
 
 	jwt_base64uri_encode(buf);
@@ -148,50 +160,53 @@ jwt_verify_hmac_done:
 	return ret;
 }
 
-#define SIGN_ERROR(__err) { ret = __err; goto jwt_sign_sha_pem_done; }
+#define SIGN_ERROR(__err) \
+	{ \
+		ret = __err; \
+		goto jwt_sign_sha_pem_done; \
+	}
 
-int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
-		     const char *str)
+int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len, const char *str)
 {
-	EVP_MD_CTX *mdctx = NULL;
-	ECDSA_SIG *ec_sig = NULL;
-	const BIGNUM *ec_sig_r = NULL;
-	const BIGNUM *ec_sig_s = NULL;
-	BIO *bufkey = NULL;
-	const EVP_MD *alg;
-	int type;
-	EVP_PKEY *pkey = NULL;
-	int pkey_type;
+	EVP_MD_CTX *   mdctx    = NULL;
+	ECDSA_SIG *    ec_sig   = NULL;
+	const BIGNUM * ec_sig_r = NULL;
+	const BIGNUM * ec_sig_s = NULL;
+	BIO *          bufkey   = NULL;
+	const EVP_MD * alg;
+	int            type;
+	EVP_PKEY *     pkey = NULL;
+	int            pkey_type;
 	unsigned char *sig;
-	int ret = 0;
-	size_t slen;
+	int            ret = 0;
+	size_t         slen;
 
 	switch (jwt->alg) {
 	/* RSA */
 	case JWT_ALG_RS256:
-		alg = EVP_sha256();
+		alg  = EVP_sha256();
 		type = EVP_PKEY_RSA;
 		break;
 	case JWT_ALG_RS384:
-		alg = EVP_sha384();
+		alg  = EVP_sha384();
 		type = EVP_PKEY_RSA;
 		break;
 	case JWT_ALG_RS512:
-		alg = EVP_sha512();
+		alg  = EVP_sha512();
 		type = EVP_PKEY_RSA;
 		break;
 
 	/* ECC */
 	case JWT_ALG_ES256:
-		alg = EVP_sha256();
+		alg  = EVP_sha256();
 		type = EVP_PKEY_EC;
 		break;
 	case JWT_ALG_ES384:
-		alg = EVP_sha384();
+		alg  = EVP_sha384();
 		type = EVP_PKEY_EC;
 		break;
 	case JWT_ALG_ES512:
-		alg = EVP_sha512();
+		alg  = EVP_sha512();
 		type = EVP_PKEY_EC;
 		break;
 
@@ -247,9 +262,9 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		memcpy(*out, sig, slen);
 		*len = slen;
 	} else {
-		unsigned int degree, bn_len, r_len, s_len, buf_len;
+		unsigned int   degree, bn_len, r_len, s_len, buf_len;
 		unsigned char *raw_buf;
-		EC_KEY *ec_key;
+		EC_KEY *       ec_key;
 
 		/* For EC we need to convert to a raw format of R/S. */
 
@@ -268,8 +283,8 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 			SIGN_ERROR(ENOMEM);
 
 		ECDSA_SIG_get0(ec_sig, &ec_sig_r, &ec_sig_s);
-		r_len = BN_num_bytes(ec_sig_r);
-		s_len = BN_num_bytes(ec_sig_s);
+		r_len  = BN_num_bytes(ec_sig_r);
+		s_len  = BN_num_bytes(ec_sig_s);
 		bn_len = (degree + 7) / 8;
 		if ((r_len > bn_len) || (s_len > bn_len))
 			SIGN_ERROR(EINVAL);
@@ -304,49 +319,53 @@ jwt_sign_sha_pem_done:
 	return ret;
 }
 
-#define VERIFY_ERROR(__err) { ret = __err; goto jwt_verify_sha_pem_done; }
+#define VERIFY_ERROR(__err) \
+	{ \
+		ret = __err; \
+		goto jwt_verify_sha_pem_done; \
+	}
 
 int jwt_verify_sha_pem(jwt_t *jwt, const char *head, const char *sig_b64)
 {
-	unsigned char *sig = NULL;
-	EVP_MD_CTX *mdctx = NULL;
-	ECDSA_SIG *ec_sig = NULL;
-	BIGNUM *ec_sig_r = NULL;
-	BIGNUM *ec_sig_s = NULL;
-	EVP_PKEY *pkey = NULL;
-	const EVP_MD *alg;
-	int type;
-	int pkey_type;
-	BIO *bufkey = NULL;
-	int ret = 0;
-	int slen;
+	unsigned char *sig      = NULL;
+	EVP_MD_CTX *   mdctx    = NULL;
+	ECDSA_SIG *    ec_sig   = NULL;
+	BIGNUM *       ec_sig_r = NULL;
+	BIGNUM *       ec_sig_s = NULL;
+	EVP_PKEY *     pkey     = NULL;
+	const EVP_MD * alg;
+	int            type;
+	int            pkey_type;
+	BIO *          bufkey = NULL;
+	int            ret    = 0;
+	int            slen;
 
 	switch (jwt->alg) {
 	/* RSA */
 	case JWT_ALG_RS256:
-		alg = EVP_sha256();
+		alg  = EVP_sha256();
 		type = EVP_PKEY_RSA;
 		break;
 	case JWT_ALG_RS384:
-		alg = EVP_sha384();
+		alg  = EVP_sha384();
 		type = EVP_PKEY_RSA;
 		break;
 	case JWT_ALG_RS512:
-		alg = EVP_sha512();
+		alg  = EVP_sha512();
 		type = EVP_PKEY_RSA;
 		break;
 
 	/* ECC */
 	case JWT_ALG_ES256:
-		alg = EVP_sha256();
+		alg  = EVP_sha256();
 		type = EVP_PKEY_EC;
 		break;
 	case JWT_ALG_ES384:
-		alg = EVP_sha384();
+		alg  = EVP_sha384();
 		type = EVP_PKEY_EC;
 		break;
 	case JWT_ALG_ES512:
-		alg = EVP_sha512();
+		alg  = EVP_sha512();
 		type = EVP_PKEY_EC;
 		break;
 
@@ -375,9 +394,9 @@ int jwt_verify_sha_pem(jwt_t *jwt, const char *head, const char *sig_b64)
 
 	/* Convert EC sigs back to ASN1. */
 	if (pkey_type == EVP_PKEY_EC) {
-		unsigned int degree, bn_len;
+		unsigned int   degree, bn_len;
 		unsigned char *p;
-		EC_KEY *ec_key;
+		EC_KEY *       ec_key;
 
 		ec_sig = ECDSA_SIG_new();
 		if (ec_sig == NULL)
@@ -398,18 +417,18 @@ int jwt_verify_sha_pem(jwt_t *jwt, const char *head, const char *sig_b64)
 
 		ec_sig_r = BN_bin2bn(sig, bn_len, NULL);
 		ec_sig_s = BN_bin2bn(sig + bn_len, bn_len, NULL);
-		if (ec_sig_r  == NULL || ec_sig_s == NULL)
+		if (ec_sig_r == NULL || ec_sig_s == NULL)
 			VERIFY_ERROR(EINVAL);
 
 		ECDSA_SIG_set0(ec_sig, ec_sig_r, ec_sig_s);
 		jwt_freemem(sig);
 
 		slen = i2d_ECDSA_SIG(ec_sig, NULL);
-		sig = jwt_malloc(slen);
+		sig  = jwt_malloc(slen);
 		if (sig == NULL)
 			VERIFY_ERROR(ENOMEM);
 
-		p = sig;
+		p    = sig;
 		slen = i2d_ECDSA_SIG(ec_sig, &p);
 
 		if (slen == 0)

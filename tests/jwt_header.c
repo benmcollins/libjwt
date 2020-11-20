@@ -1,9 +1,9 @@
 /* Public domain, no copyright. Use at your own risk. */
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 #include <time.h>
 
 #include <check.h>
@@ -13,7 +13,7 @@
 START_TEST(test_jwt_add_header)
 {
 	jwt_t *jwt = NULL;
-	int ret = 0;
+	int    ret = 0;
 
 	ret = jwt_new(&jwt);
 	ck_assert_int_eq(ret, 0);
@@ -39,10 +39,10 @@ END_TEST
 
 START_TEST(test_jwt_get_header)
 {
-	jwt_t *jwt = NULL;
+	jwt_t *     jwt = NULL;
 	const char *val;
-	const char testval[] = "testing";
-	int ret = 0;
+	const char  testval[] = "testing";
+	int         ret       = 0;
 
 	ret = jwt_new(&jwt);
 	ck_assert_int_eq(ret, 0);
@@ -62,8 +62,8 @@ END_TEST
 START_TEST(test_jwt_add_header_int)
 {
 	jwt_t *jwt = NULL;
-	long val;
-	int ret = 0;
+	long   val;
+	int    ret = 0;
 
 	ret = jwt_new(&jwt);
 	ck_assert_int_eq(ret, 0);
@@ -85,8 +85,8 @@ END_TEST
 START_TEST(test_jwt_add_header_bool)
 {
 	jwt_t *jwt = NULL;
-	int val;
-	int ret = 0;
+	int    val;
+	int    ret = 0;
 
 	ret = jwt_new(&jwt);
 	ck_assert_int_eq(ret, 0);
@@ -113,10 +113,10 @@ END_TEST
 
 START_TEST(test_jwt_del_headers)
 {
-	jwt_t *jwt = NULL;
+	jwt_t *     jwt = NULL;
 	const char *val;
-	const char testval[] = "testing";
-	int ret = 0;
+	const char  testval[] = "testing";
+	int         ret       = 0;
 
 	ret = jwt_new(&jwt);
 	ck_assert_int_eq(ret, 0);
@@ -151,11 +151,11 @@ END_TEST
 
 START_TEST(test_jwt_header_invalid)
 {
-	jwt_t *jwt = NULL;
+	jwt_t *     jwt = NULL;
 	const char *val;
-	long valint = 0;
-	int valbool = 0;
-	int ret = 0;
+	long        valint  = 0;
+	int         valbool = 0;
+	int         ret     = 0;
 
 	ret = jwt_new(&jwt);
 	ck_assert_int_eq(ret, 0);
@@ -186,13 +186,13 @@ END_TEST
 START_TEST(test_jwt_headers_json)
 {
 	const char *json = "{\"id\":\"FVvGYTr3FhiURCFebsBOpBqTbzHdX/DvImiA2yheXr8=\","
-		"\"iss\":\"localhost\",\"other\":[\"foo\",\"bar\"],"
-		"\"ref\":\"385d6518-fb73-45fc-b649-0527d8576130\","
-		"\"scopes\":\"storage\",\"sub\":\"user0\"}";
-	jwt_t *jwt = NULL;
+	                   "\"iss\":\"localhost\",\"other\":[\"foo\",\"bar\"],"
+	                   "\"ref\":\"385d6518-fb73-45fc-b649-0527d8576130\","
+	                   "\"scopes\":\"storage\",\"sub\":\"user0\"}";
+	jwt_t *     jwt = NULL;
 	const char *val;
-	char *json_val;
-	int ret = 0;
+	char *      json_val;
+	int         ret = 0;
 
 	ret = jwt_new(&jwt);
 	ck_assert_int_eq(ret, 0);
@@ -251,11 +251,11 @@ static Suite *libjwt_suite(void)
 
 int main(int argc, char *argv[])
 {
-	int number_failed;
-	Suite *s;
+	int      number_failed;
+	Suite *  s;
 	SRunner *sr;
 
-	s = libjwt_suite();
+	s  = libjwt_suite();
 	sr = srunner_create(s);
 
 	srunner_run_all(sr, CK_VERBOSE);

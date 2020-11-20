@@ -1,9 +1,9 @@
 /* Public domain, no copyright. Use at your own risk. */
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 #include <time.h>
 
 #include <check.h>
@@ -32,10 +32,10 @@ static int test_set_alloc(void)
 
 START_TEST(test_alloc_funcs)
 {
-	jwt_malloc_t m = NULL;
+	jwt_malloc_t  m = NULL;
 	jwt_realloc_t r = NULL;
-	jwt_free_t f = NULL;
-	int ret;
+	jwt_free_t    f = NULL;
+	int           ret;
 
 	jwt_get_alloc(&m, &r, &f);
 	ck_assert(m == NULL);
@@ -54,9 +54,9 @@ END_TEST
 
 START_TEST(test_jwt_dump_fp)
 {
-	FILE *out;
+	FILE * out;
 	jwt_t *jwt = NULL;
-	int ret = 0;
+	int    ret = 0;
 
 	ret = test_set_alloc();
 	ck_assert_int_eq(ret, 0);
@@ -99,9 +99,9 @@ END_TEST
 
 START_TEST(test_jwt_dump_str)
 {
-	jwt_t *jwt = NULL;
-	int ret = 0;
-	char *out;
+	jwt_t *     jwt = NULL;
+	int         ret = 0;
+	char *      out;
 	const char *val = NULL;
 
 	ret = test_set_alloc();
@@ -151,10 +151,10 @@ END_TEST
 
 START_TEST(test_jwt_dump_str_alg_default_typ_header)
 {
-	jwt_t *jwt = NULL;
-	const char key[] = "My Passphrase";
-	int ret = 0;
-	char *out;
+	jwt_t *     jwt   = NULL;
+	const char  key[] = "My Passphrase";
+	int         ret   = 0;
+	char *      out;
 	const char *val = NULL;
 
 	ret = test_set_alloc();
@@ -176,20 +176,20 @@ START_TEST(test_jwt_dump_str_alg_default_typ_header)
 	ret = jwt_add_grant_int(jwt, "iat", (long)time(NULL));
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_set_alg(jwt, JWT_ALG_HS256, (unsigned char *)key,
-			  strlen(key));
+	ret = jwt_set_alg(jwt, JWT_ALG_HS256, (unsigned char *)key, strlen(key));
 	ck_assert_int_eq(ret, 0);
 
-	/* Test 'typ' header: should not be present, cause jwt's header has not been touched yet
-	 * by jwt_write_head, this is only called as a result of calling jwt_dump* methods. */
+	/* Test 'typ' header: should not be present, cause jwt's header has not been
+	 * touched yet by jwt_write_head, this is only called as a result of calling
+	 * jwt_dump* methods. */
 	val = jwt_get_header(jwt, "typ");
 	ck_assert(val == NULL);
 
 	out = jwt_dump_str(jwt, 1);
 	ck_assert(out != NULL);
 
-	/* Test 'typ' header: should be added with default value of 'JWT', cause 'alg' is set explicitly
-	 * and jwt's header has been processed by jwt_write_head. */
+	/* Test 'typ' header: should be added with default value of 'JWT', cause 'alg'
+	 * is set explicitly and jwt's header has been processed by jwt_write_head. */
 	val = jwt_get_header(jwt, "typ");
 	ck_assert(val != NULL);
 	ck_assert_str_eq(val, "JWT");
@@ -199,8 +199,8 @@ START_TEST(test_jwt_dump_str_alg_default_typ_header)
 	out = jwt_dump_str(jwt, 0);
 	ck_assert(out != NULL);
 
-	/* Test 'typ' header: should be added with default value of 'JWT', cause 'alg' is set explicitly
-	 * and jwt's header has been processed by jwt_write_head. */
+	/* Test 'typ' header: should be added with default value of 'JWT', cause 'alg'
+	 * is set explicitly and jwt's header has been processed by jwt_write_head. */
 	val = jwt_get_header(jwt, "typ");
 	ck_assert(val != NULL);
 	ck_assert_str_eq(val, "JWT");
@@ -213,10 +213,10 @@ END_TEST
 
 START_TEST(test_jwt_dump_str_alg_custom_typ_header)
 {
-	jwt_t *jwt = NULL;
-	const char key[] = "My Passphrase";
-	int ret = 0;
-	char *out;
+	jwt_t *     jwt   = NULL;
+	const char  key[] = "My Passphrase";
+	int         ret   = 0;
+	char *      out;
 	const char *val = NULL;
 
 	ret = test_set_alloc();
@@ -246,8 +246,7 @@ START_TEST(test_jwt_dump_str_alg_custom_typ_header)
 	ck_assert(val != NULL);
 	ck_assert_str_eq(val, "favourite");
 
-	ret = jwt_set_alg(jwt, JWT_ALG_HS256, (unsigned char *)key,
-			  strlen(key));
+	ret = jwt_set_alg(jwt, JWT_ALG_HS256, (unsigned char *)key, strlen(key));
 	ck_assert_int_eq(ret, 0);
 
 	/* Test 'typ' header: should be left untouched. */
@@ -303,11 +302,11 @@ static Suite *libjwt_suite(void)
 
 int main(int argc, char *argv[])
 {
-	int number_failed;
-	Suite *s;
+	int      number_failed;
+	Suite *  s;
 	SRunner *sr;
 
-	s = libjwt_suite();
+	s  = libjwt_suite();
 	sr = srunner_create(s);
 
 	srunner_run_all(sr, CK_VERBOSE);

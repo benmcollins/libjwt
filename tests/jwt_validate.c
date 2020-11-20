@@ -1,9 +1,9 @@
 /* Public domain, no copyright. Use at your own risk. */
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 #include <time.h>
 
 #include <check.h>
@@ -12,15 +12,15 @@
 
 /* Older check doesn't have this. */
 #ifndef ck_assert_ptr_ne
-#define ck_assert_ptr_ne(X, Y) ck_assert(X != Y)
+	#define ck_assert_ptr_ne(X, Y) ck_assert(X != Y)
 #endif
 
 jwt_t *jwt = NULL;
 
 #define TS_CONST 1570732480L
-const time_t iat = TS_CONST;
+const time_t iat        = TS_CONST;
 const time_t not_before = TS_CONST + 60L;
-const time_t expires = TS_CONST + 600L;
+const time_t expires    = TS_CONST + 600L;
 
 static void __setup_jwt()
 {
@@ -39,16 +39,17 @@ static void __teardown_jwt()
 	jwt = NULL;
 }
 
-#define __VAL_EQ(__v, __e) do {					\
-	unsigned int __r = jwt_validate(jwt, __v);		\
-	ck_assert_int_eq(__r, __e);				\
-	ck_assert_int_eq(__e, jwt_valid_get_status(__v));	\
-} while(0);
+#define __VAL_EQ(__v, __e) \
+	do { \
+		unsigned int __r = jwt_validate(jwt, __v); \
+		ck_assert_int_eq(__r, __e); \
+		ck_assert_int_eq(__e, jwt_valid_get_status(__v)); \
+	} while (0);
 
 START_TEST(test_jwt_validate_errno)
 {
 	jwt_valid_t *jwt_valid = NULL;
-	unsigned int ret = 0;
+	unsigned int ret       = 0;
 
 	__setup_jwt();
 	ck_assert(jwt != NULL);
@@ -77,7 +78,7 @@ END_TEST
 START_TEST(test_jwt_valid_algorithm)
 {
 	jwt_valid_t *jwt_valid = NULL;
-	unsigned int ret = 0;
+	unsigned int ret       = 0;
 
 	__setup_jwt();
 
@@ -107,9 +108,9 @@ END_TEST
 START_TEST(test_jwt_valid_require_grant)
 {
 	jwt_valid_t *jwt_valid = NULL;
-	unsigned int ret = 0;
-	const char *valstr = NULL;
-	int valnum = 0;
+	unsigned int ret       = 0;
+	const char * valstr    = NULL;
+	int          valnum    = 0;
 
 	__setup_jwt();
 
@@ -165,7 +166,7 @@ END_TEST
 START_TEST(test_jwt_valid_nonmatch_grant)
 {
 	jwt_valid_t *jwt_valid = NULL;
-	unsigned int ret = 0;
+	unsigned int ret       = 0;
 
 	__setup_jwt();
 
@@ -211,7 +212,7 @@ END_TEST
 START_TEST(test_jwt_valid_grant_bool)
 {
 	jwt_valid_t *jwt_valid = NULL;
-	int val;
+	int          val;
 	unsigned int ret = 0;
 
 	ret = jwt_valid_new(&jwt_valid, JWT_ALG_NONE);
@@ -240,9 +241,9 @@ END_TEST
 START_TEST(test_jwt_valid_del_grants)
 {
 	jwt_valid_t *jwt_valid = NULL;
-	const char *val;
-	const char testval[] = "testing";
-	unsigned int ret = 0;
+	const char * val;
+	const char   testval[] = "testing";
+	unsigned int ret       = 0;
 
 	ret = jwt_valid_new(&jwt_valid, JWT_ALG_NONE);
 	ck_assert_int_eq(ret, 0);
@@ -278,10 +279,10 @@ END_TEST
 START_TEST(test_jwt_valid_invalid_grant)
 {
 	jwt_valid_t *jwt_valid = NULL;
-	const char *val;
-	long valint = 0;
-	long valbool = 0;
-	unsigned int ret = 0;
+	const char * val;
+	long         valint  = 0;
+	long         valbool = 0;
+	unsigned int ret     = 0;
 
 	ret = jwt_valid_new(&jwt_valid, JWT_ALG_NONE);
 	ck_assert_int_eq(ret, 0);
@@ -312,7 +313,7 @@ END_TEST
 START_TEST(test_jwt_valid_missing_grant)
 {
 	jwt_valid_t *jwt_valid = NULL;
-	unsigned int ret = 0;
+	unsigned int ret       = 0;
 
 	__setup_jwt();
 
@@ -342,7 +343,8 @@ START_TEST(test_jwt_valid_missing_grant)
 	jwt_valid_del_grants(jwt_valid, NULL);
 
 	/* JWT is invalid when required grants are not present (json) */
-	ret = jwt_valid_add_grants_json(jwt_valid, "{\"np-other\": [\"foo\",\"bar\"]}");
+	ret =
+	    jwt_valid_add_grants_json(jwt_valid, "{\"np-other\": [\"foo\",\"bar\"]}");
 	ck_assert_int_eq(ret, 0);
 	__VAL_EQ(jwt_valid, JWT_VALIDATION_GRANT_MISSING);
 
@@ -354,7 +356,7 @@ END_TEST
 START_TEST(test_jwt_valid_not_before)
 {
 	jwt_valid_t *jwt_valid = NULL;
-	unsigned int ret = 0;
+	unsigned int ret       = 0;
 
 	__setup_jwt();
 	jwt_add_grant_int(jwt, "nbf", not_before);
@@ -383,7 +385,7 @@ END_TEST
 START_TEST(test_jwt_valid_expires)
 {
 	jwt_valid_t *jwt_valid = NULL;
-	unsigned int ret = 0;
+	unsigned int ret       = 0;
 
 	__setup_jwt();
 	jwt_add_grant_int(jwt, "exp", expires);
@@ -412,7 +414,7 @@ END_TEST
 START_TEST(test_jwt_valid_headers)
 {
 	jwt_valid_t *jwt_valid = NULL;
-	unsigned int ret = 0;
+	unsigned int ret       = 0;
 
 	__setup_jwt();
 
@@ -472,12 +474,12 @@ END_TEST
 START_TEST(test_jwt_valid_grants_json)
 {
 	const char *json = "{\"id\":\"FVvGYTr3FhiURCFebsBOpBqTbzHdX/DvImiA2yheXr8=\","
-		"\"iss\":\"localhost\",\"other\":[\"foo\",\"bar\"],"
-		"\"ref\":\"385d6518-fb73-45fc-b649-0527d8576130\","
-		"\"scopes\":\"storage\",\"sub\":\"user0\"}";
+	                   "\"iss\":\"localhost\",\"other\":[\"foo\",\"bar\"],"
+	                   "\"ref\":\"385d6518-fb73-45fc-b649-0527d8576130\","
+	                   "\"scopes\":\"storage\",\"sub\":\"user0\"}";
 	jwt_valid_t *jwt_valid = NULL;
-	const char *val;
-	char *json_val;
+	const char * val;
+	char *       json_val;
 	unsigned int ret = 0;
 
 	ret = jwt_valid_new(&jwt_valid, JWT_ALG_NONE);
@@ -543,11 +545,11 @@ static Suite *libjwt_suite(void)
 
 int main(int argc, char *argv[])
 {
-	int number_failed;
-	Suite *s;
+	int      number_failed;
+	Suite *  s;
 	SRunner *sr;
 
-	s = libjwt_suite();
+	s  = libjwt_suite();
 	sr = srunner_create(s);
 
 	srunner_run_all(sr, CK_VERBOSE);

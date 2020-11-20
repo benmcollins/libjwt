@@ -5,51 +5,49 @@
    License, v. 2.0. If a copy of the MPL was not distributed with this
    file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+#include <getopt.h>
+#include <jwt.h>
+#include <libgen.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <jwt.h>
-#include <getopt.h>
 #include <string.h>
 #include <time.h>
-#include <string.h>
-#include <libgen.h>
 
 void usage(const char *name)
 {
 	/* TODO Might want to support json input via stdin */
 	printf("%s OPTIONS\n", name);
 	printf("Options:\n"
-			"  -k --key KEY  The private key to use for signing\n"
-			"  -a --alg ALG  The algorithm to use for signing\n"
-			"  -c --claim KEY=VALUE  A claim to add to JWT\n"
-			);
+	       "  -k --key KEY  The private key to use for signing\n"
+	       "  -a --alg ALG  The algorithm to use for signing\n"
+	       "  -c --claim KEY=VALUE  A claim to add to JWT\n");
 	exit(0);
 }
 
 int main(int argc, char *argv[])
 {
-	char opt_key_name[200] = "test-rsa256.pem";
-	jwt_alg_t opt_alg = JWT_ALG_RS256;
-	time_t iat = time(NULL);
+	char      opt_key_name[200] = "test-rsa256.pem";
+	jwt_alg_t opt_alg           = JWT_ALG_RS256;
+	time_t    iat               = time(NULL);
 
-	int oc = 0;
-	char *optstr = "hk:a:c:";
+	int           oc       = 0;
+	char *        optstr   = "hk:a:c:";
 	struct option opttbl[] = {
-		{ "help",         no_argument,        NULL, 'h'         },
-		{ "key",          required_argument,  NULL, 'k'         },
-		{ "alg",          required_argument,  NULL, 'a'         },
-		{ "claim",        required_argument,  NULL, 'c'         },
-		{ NULL, 0, 0, 0 },
+	    {"help", no_argument, NULL, 'h'},
+	    {"key", required_argument, NULL, 'k'},
+	    {"alg", required_argument, NULL, 'a'},
+	    {"claim", required_argument, NULL, 'c'},
+	    {NULL, 0, 0, 0},
 	};
 
-	char *k = NULL, *v = NULL;
-	int claims_count = 0;
-	int i = 0;
+	char *        k = NULL, *v = NULL;
+	int           claims_count = 0;
+	int           i            = 0;
 	unsigned char key[10240];
-	size_t key_len = 0;
-	FILE *fp_priv_key;
-	int ret = 0;
-	jwt_t *jwt;
+	size_t        key_len = 0;
+	FILE *        fp_priv_key;
+	int           ret = 0;
+	jwt_t *       jwt;
 	struct kv {
 		char *key;
 		char *val;
@@ -93,12 +91,14 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	fprintf(stderr, "jwtgen: privkey %s algorithm %s\n",
-			opt_key_name, jwt_alg_str(opt_alg));
+	fprintf(stderr,
+	        "jwtgen: privkey %s algorithm %s\n",
+	        opt_key_name,
+	        jwt_alg_str(opt_alg));
 
 	if (opt_alg > JWT_ALG_NONE) {
 		fp_priv_key = fopen(opt_key_name, "r");
-		key_len = fread(key, 1, sizeof(key), fp_priv_key);
+		key_len     = fread(key, 1, sizeof(key), fp_priv_key);
 		fclose(fp_priv_key);
 		key[key_len] = '\0';
 		fprintf(stderr, "priv key loaded %s (%zu)!\n", opt_key_name, key_len);
@@ -112,11 +112,17 @@ int main(int argc, char *argv[])
 
 	ret = jwt_add_grant_int(jwt, "iat", iat);
 	for (i = 0; i < claims_count; i++) {
-		fprintf(stderr, "Adding claim %s with valu %s\n", opt_claims[i].key, opt_claims[i].val);
+		fprintf(stderr,
+		        "Adding claim %s with valu %s\n",
+		        opt_claims[i].key,
+		        opt_claims[i].val);
 		jwt_add_grant(jwt, opt_claims[i].key, opt_claims[i].val);
 	}
 
-	ret = jwt_set_alg(jwt, opt_alg, opt_alg == JWT_ALG_NONE ? NULL : key, opt_alg == JWT_ALG_NONE ? 0 : key_len);
+	ret = jwt_set_alg(jwt,
+	                  opt_alg,
+	                  opt_alg == JWT_ALG_NONE ? NULL : key,
+	                  opt_alg == JWT_ALG_NONE ? 0 : key_len);
 	if (ret < 0) {
 		fprintf(stderr, "jwt incorrect algorithm\n");
 		goto finish;
@@ -135,4 +141,3 @@ finish:
 
 	return 0;
 }
-

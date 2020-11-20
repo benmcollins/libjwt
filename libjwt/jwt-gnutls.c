@@ -5,39 +5,41 @@
    License, v. 2.0. If a copy of the MPL was not distributed with this
    file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 
-#include <gnutls/gnutls.h>
-#include <gnutls/crypto.h>
-#include <gnutls/x509.h>
 #include <gnutls/abstract.h>
+#include <gnutls/crypto.h>
+#include <gnutls/gnutls.h>
+#include <gnutls/x509.h>
 
 #include <jwt.h>
 
-#include "jwt-private.h"
 #include "base64.h"
 #include "config.h"
+#include "jwt-private.h"
 
 /* Workaround to use GnuTLS 3.5 EC signature encode/decode functions that
  * are not public yet. */
 #if GNUTLS_VERSION_MAJOR == 3 && GNUTLS_VERSION_MINOR == 5
-extern int _gnutls_encode_ber_rs_raw(gnutls_datum_t *sig_value,
-				     const gnutls_datum_t *r,
-				     const gnutls_datum_t *s);
+extern int _gnutls_encode_ber_rs_raw(gnutls_datum_t *      sig_value,
+                                     const gnutls_datum_t *r,
+                                     const gnutls_datum_t *s);
 extern int _gnutls_decode_ber_rs_raw(const gnutls_datum_t *sig_value,
-				     gnutls_datum_t *r, gnutls_datum_t *s);
+                                     gnutls_datum_t *      r,
+                                     gnutls_datum_t *      s);
 
-static int gnutls_encode_rs_value(gnutls_datum_t *sig_value,
-				  const gnutls_datum_t *r,
-				  const gnutls_datum_t * s)
+static int gnutls_encode_rs_value(gnutls_datum_t *      sig_value,
+                                  const gnutls_datum_t *r,
+                                  const gnutls_datum_t *s)
 {
 	return _gnutls_encode_ber_rs_raw(sig_value, r, s);
 }
 
 static int gnutls_decode_rs_value(const gnutls_datum_t *sig_value,
-				  gnutls_datum_t *r, gnutls_datum_t *s)
+                                  gnutls_datum_t *      r,
+                                  gnutls_datum_t *      s)
 {
 	return _gnutls_decode_ber_rs_raw(sig_value, r, s);
 }
@@ -46,7 +48,10 @@ static int gnutls_decode_rs_value(const gnutls_datum_t *sig_value,
 /**
  * libjwt encryption/decryption function definitions
  */
-int jwt_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len, const char *str)
+int jwt_sign_sha_hmac(jwt_t *       jwt,
+                      char **       out,
+                      unsigned int *len,
+                      const char *  str)
 {
 	int alg;
 
@@ -80,9 +85,9 @@ int jwt_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len, const char *str
 
 int jwt_verify_sha_hmac(jwt_t *jwt, const char *head, const char *sig)
 {
-	char *sig_check, *buf = NULL;
+	char *       sig_check, *buf = NULL;
 	unsigned int len;
-	int ret = EINVAL;
+	int          ret = EINVAL;
 
 	if (!jwt_sign_sha_hmac(jwt, &sig_check, &len, head)) {
 		buf = alloca(len * 2);
@@ -101,50 +106,43 @@ int jwt_verify_sha_hmac(jwt_t *jwt, const char *head, const char *sig)
 int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len, const char *str)
 {
 	/* For EC handling. */
-	int r_padding = 0, s_padding = 0, r_out_padding = 0,
-		s_out_padding = 0;
+	int    r_padding = 0, s_padding = 0, r_out_padding = 0, s_out_padding = 0;
 	size_t out_size;
 
 	gnutls_x509_privkey_t key;
-	gnutls_privkey_t privkey;
-	gnutls_datum_t key_dat = {
-		jwt->key,
-		jwt->key_len
-	};
-	gnutls_datum_t body_dat = {
-		(unsigned char *)str,
-		strlen(str)
-	};
-	gnutls_datum_t sig_dat, r, s;
-	int ret = 0, pk_alg;
-	int alg, adj;
+	gnutls_privkey_t      privkey;
+	gnutls_datum_t        key_dat  = {jwt->key, jwt->key_len};
+	gnutls_datum_t        body_dat = {(unsigned char *)str, strlen(str)};
+	gnutls_datum_t        sig_dat, r, s;
+	int                   ret = 0, pk_alg;
+	int                   alg, adj;
 
 	/* Initialiaze for checking later. */
 	*out = NULL;
 
 	switch (jwt->alg) {
 	case JWT_ALG_RS256:
-		alg = GNUTLS_DIG_SHA256;
+		alg    = GNUTLS_DIG_SHA256;
 		pk_alg = GNUTLS_PK_RSA;
 		break;
 	case JWT_ALG_RS384:
-		alg = GNUTLS_DIG_SHA384;
+		alg    = GNUTLS_DIG_SHA384;
 		pk_alg = GNUTLS_PK_RSA;
 		break;
 	case JWT_ALG_RS512:
-		alg = GNUTLS_DIG_SHA512;
+		alg    = GNUTLS_DIG_SHA512;
 		pk_alg = GNUTLS_PK_RSA;
 		break;
 	case JWT_ALG_ES256:
-		alg = GNUTLS_DIG_SHA256;
+		alg    = GNUTLS_DIG_SHA256;
 		pk_alg = GNUTLS_PK_EC;
 		break;
 	case JWT_ALG_ES384:
-		alg = GNUTLS_DIG_SHA384;
+		alg    = GNUTLS_DIG_SHA384;
 		pk_alg = GNUTLS_PK_EC;
 		break;
 	case JWT_ALG_ES512:
-		alg = GNUTLS_DIG_SHA512;
+		alg    = GNUTLS_DIG_SHA512;
 		pk_alg = GNUTLS_PK_EC;
 		break;
 	default:
@@ -231,10 +229,11 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len, const char *str)
 
 	memcpy(*out + r_out_padding, r.data + r_padding, r.size - r_padding);
 	memcpy(*out + (r.size - r_padding + r_out_padding) + s_out_padding,
-	       s.data + s_padding, (s.size - s_padding));
+	       s.data + s_padding,
+	       (s.size - s_padding));
 
 	*len = (r.size - r_padding + r_out_padding) +
-		(s.size - s_padding + s_out_padding);
+	       (s.size - s_padding + s_out_padding);
 	gnutls_free(r.data);
 	gnutls_free(s.data);
 
@@ -258,19 +257,13 @@ sign_clean_key:
 
 int jwt_verify_sha_pem(jwt_t *jwt, const char *head, const char *sig_b64)
 {
-	gnutls_datum_t r, s;
-	gnutls_datum_t cert_dat = {
-		jwt->key,
-		jwt->key_len
-	};
-	gnutls_datum_t data = {
-		(unsigned char *)head,
-		strlen(head)
-	};
-	gnutls_datum_t sig_dat = { NULL, 0 };
+	gnutls_datum_t  r, s;
+	gnutls_datum_t  cert_dat = {jwt->key, jwt->key_len};
+	gnutls_datum_t  data     = {(unsigned char *)head, strlen(head)};
+	gnutls_datum_t  sig_dat  = {NULL, 0};
 	gnutls_pubkey_t pubkey;
-	int alg, ret = 0, sig_len;
-	unsigned char *sig = NULL;
+	int             alg, ret = 0, sig_len;
+	unsigned char * sig = NULL;
 
 	switch (jwt->alg) {
 	case JWT_ALG_RS256:

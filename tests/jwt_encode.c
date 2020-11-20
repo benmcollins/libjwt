@@ -1,9 +1,9 @@
 /* Public domain, no copyright. Use at your own risk. */
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 #include <time.h>
 
 #include <check.h>
@@ -11,25 +11,26 @@
 #include <jwt.h>
 
 /* Constant time to make tests consistent. */
-#define TS_CONST	1475980545L
+#define TS_CONST 1475980545L
 
 /* Macro to allocate a new JWT with checks. */
-#define ALLOC_JWT(__jwt) do {		\
-	int __ret = jwt_new(__jwt);	\
-	ck_assert_int_eq(__ret, 0);	\
-	ck_assert_ptr_ne(__jwt, NULL);	\
-} while(0)
+#define ALLOC_JWT(__jwt) \
+	do { \
+		int __ret = jwt_new(__jwt); \
+		ck_assert_int_eq(__ret, 0); \
+		ck_assert_ptr_ne(__jwt, NULL); \
+	} while (0)
 
 /* Older check doesn't have this. */
 #ifndef ck_assert_ptr_ne
-#define ck_assert_ptr_ne(X, Y) ck_assert(X != Y)
+	#define ck_assert_ptr_ne(X, Y) ck_assert(X != Y)
 #endif
 
 START_TEST(test_jwt_encode_fp)
 {
-	FILE *out;
+	FILE * out;
 	jwt_t *jwt = NULL;
-	int ret = 0;
+	int    ret = 0;
 
 	ALLOC_JWT(&jwt);
 
@@ -65,12 +66,13 @@ END_TEST
 
 START_TEST(test_jwt_encode_str)
 {
-	const char res[] = "eyJhbGciOiJub25lIn0.eyJpYXQiOjE0NzU5ODA1NDUsIm"
-		"lzcyI6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJYWFhYLVlZWVktWlpa"
-		"Wi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.";
+	const char res[] =
+	    "eyJhbGciOiJub25lIn0.eyJpYXQiOjE0NzU5ODA1NDUsIm"
+	    "lzcyI6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJYWFhYLVlZWVktWlpa"
+	    "Wi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.";
 	jwt_t *jwt = NULL;
-	int ret = 0;
-	char *out;
+	int    ret = 0;
+	char * out;
 
 	ALLOC_JWT(&jwt);
 
@@ -99,11 +101,12 @@ END_TEST
 
 START_TEST(test_jwt_encode_alg_none)
 {
-	const char res[] = "eyJhbGciOiJub25lIn0.eyJhdWQiOiJ3d3cucGx1Z2dlcnM"
-		"ubmwiLCJleHAiOjE0Nzc1MTQ4MTIsInN1YiI6IlBsdWdnZXJzIFNvZnR3YXJlIn0.";
+	const char res[] =
+	    "eyJhbGciOiJub25lIn0.eyJhdWQiOiJ3d3cucGx1Z2dlcnM"
+	    "ubmwiLCJleHAiOjE0Nzc1MTQ4MTIsInN1YiI6IlBsdWdnZXJzIFNvZnR3YXJlIn0.";
 	jwt_t *jwt = NULL;
-	int ret = 0;
-	char *out;
+	int    ret = 0;
+	char * out;
 
 	ALLOC_JWT(&jwt);
 
@@ -132,14 +135,15 @@ END_TEST
 
 START_TEST(test_jwt_encode_hs256)
 {
-	const char res[] = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE"
-		"0NzU5ODA1NDUsImlzcyI6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJYWF"
-		"hYLVlZWVktWlpaWi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.B0a9gqWg"
-		"PuuIx-EFXXSHQByCMHCzs0gjvY3-60oV4TY";
+	const char res[] =
+	    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE"
+	    "0NzU5ODA1NDUsImlzcyI6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJYWF"
+	    "hYLVlZWVktWlpaWi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.B0a9gqWg"
+	    "PuuIx-EFXXSHQByCMHCzs0gjvY3-60oV4TY";
 	unsigned char key256[32] = "012345678901234567890123456789XY";
-	jwt_t *jwt = NULL;
-	int ret = 0;
-	char *out;
+	jwt_t *       jwt        = NULL;
+	int           ret        = 0;
+	char *        out;
 
 	ALLOC_JWT(&jwt);
 
@@ -171,15 +175,16 @@ END_TEST
 
 START_TEST(test_jwt_encode_hs384)
 {
-	const char res[] = "eyJhbGciOiJIUzM4NCIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE"
-		"0NzU5ODA1NDUsImlzcyI6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJYWF"
-		"hYLVlZWVktWlpaWi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.k5mpjWlu"
-		"aj4EQxuvoyXHR9HVw_V4GMnguwcQvZplTDT_H2PS0DDoZ5NF-VLC8kgO";
+	const char res[] =
+	    "eyJhbGciOiJIUzM4NCIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE"
+	    "0NzU5ODA1NDUsImlzcyI6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJYWF"
+	    "hYLVlZWVktWlpaWi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.k5mpjWlu"
+	    "aj4EQxuvoyXHR9HVw_V4GMnguwcQvZplTDT_H2PS0DDoZ5NF-VLC8kgO";
 	unsigned char key384[48] = "aaaabbbbccccddddeeeeffffgggghhhh"
-				   "iiiijjjjkkkkllll";
+	                           "iiiijjjjkkkkllll";
 	jwt_t *jwt = NULL;
-	int ret = 0;
-	char *out;
+	int    ret = 0;
+	char * out;
 
 	ALLOC_JWT(&jwt);
 
@@ -211,16 +216,17 @@ END_TEST
 
 START_TEST(test_jwt_encode_hs512)
 {
-	const char res[] = "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE"
-		"0NzU5ODA1NDUsImlzcyI6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJYWF"
-		"hYLVlZWVktWlpaWi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.oxB_kx_h"
-		"5DANiG5oZWPO90MFlkoMb7VGlEBDbBTpX_JThJ8md6UEsxFvwm2weeyHU4-"
-		"MasEU4nzbVk4LZ0vrcg";
+	const char res[] =
+	    "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE"
+	    "0NzU5ODA1NDUsImlzcyI6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJYWF"
+	    "hYLVlZWVktWlpaWi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.oxB_kx_h"
+	    "5DANiG5oZWPO90MFlkoMb7VGlEBDbBTpX_JThJ8md6UEsxFvwm2weeyHU4-"
+	    "MasEU4nzbVk4LZ0vrcg";
 	unsigned char key512[64] = "012345678901234567890123456789XY"
-				   "012345678901234567890123456789XY";
+	                           "012345678901234567890123456789XY";
 	jwt_t *jwt = NULL;
-	int ret = 0;
-	char *out;
+	int    ret = 0;
+	char * out;
 
 	ALLOC_JWT(&jwt);
 
@@ -252,14 +258,15 @@ END_TEST
 
 START_TEST(test_jwt_encode_change_alg)
 {
-	const char res[] = "eyJhbGciOiJub25lIn0.eyJpYXQiOjE0NzU5ODA1NDUsIm"
-		"lzcyI6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJYWFhYLVlZWVktWlpa"
-		"Wi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.";
+	const char res[] =
+	    "eyJhbGciOiJub25lIn0.eyJpYXQiOjE0NzU5ODA1NDUsIm"
+	    "lzcyI6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJYWFhYLVlZWVktWlpa"
+	    "Wi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.";
 	unsigned char key512[64] = "012345678901234567890123456789XY"
-				   "012345678901234567890123456789XY";
+	                           "012345678901234567890123456789XY";
 	jwt_t *jwt = NULL;
-	int ret = 0;
-	char *out;
+	int    ret = 0;
+	char * out;
 
 	ALLOC_JWT(&jwt);
 
@@ -295,9 +302,9 @@ END_TEST
 START_TEST(test_jwt_encode_invalid)
 {
 	unsigned char key512[64] = "012345678901234567890123456789XY"
-				   "012345678901234567890123456789XY";
+	                           "012345678901234567890123456789XY";
 	jwt_t *jwt = NULL;
-	int ret = 0;
+	int    ret = 0;
 
 	ALLOC_JWT(&jwt);
 
@@ -366,11 +373,11 @@ static Suite *libjwt_suite(void)
 
 int main(int argc, char *argv[])
 {
-	int number_failed;
-	Suite *s;
+	int      number_failed;
+	Suite *  s;
 	SRunner *sr;
 
-	s = libjwt_suite();
+	s  = libjwt_suite();
 	sr = srunner_create(s);
 
 	srunner_run_all(sr, CK_VERBOSE);
