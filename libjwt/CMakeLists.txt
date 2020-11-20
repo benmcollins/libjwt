@@ -87,7 +87,7 @@ endif ()
 
 target_link_libraries (${TARGET_NAME}
 	debug ${SSL_LIBRARIES_DEBUG} optimized ${SSL_LIBRARIES_OPTIMIZED}
-  jansson::jansson
+	jansson::jansson
 	)
 
 install (TARGETS ${TARGET_NAME}
