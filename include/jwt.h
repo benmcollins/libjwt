@@ -183,7 +183,7 @@ JWT_EXPORT jwt_t *jwt_dup(jwt_t *jwt);
  * @return Returns a string for the value, or NULL when not found.
  *
  * Note, this will only return grants with JSON string values. Use
- * jwt_get_grant_json() to get the JSON representation of more complex
+ * jwt_get_grants_json() to get the JSON representation of more complex
  * values (e.g. arrays) or use jwt_get_grant_int() to get simple integer
  * values.
  */
@@ -202,7 +202,7 @@ JWT_EXPORT const char *jwt_get_grant(jwt_t *jwt, const char *grant);
  * found.
  *
  * Note, this will only return grants with JSON integer values. Use
- * jwt_get_grant_json() to get the JSON representation of more complex
+ * jwt_get_grants_json() to get the JSON representation of more complex
  * values (e.g. arrays) or use jwt_get_grant() to get string values.
  */
 JWT_EXPORT long jwt_get_grant_int(jwt_t *jwt, const char *grant);
@@ -220,7 +220,7 @@ JWT_EXPORT long jwt_get_grant_int(jwt_t *jwt, const char *grant);
  * found.
  *
  * Note, this will only return grants with JSON boolean values. Use
- * jwt_get_grant_json() to get the JSON representation of more complex
+ * jwt_get_grants_json() to get the JSON representation of more complex
  * values (e.g. arrays) or use jwt_get_grant() to get string values.
  */
 JWT_EXPORT int jwt_get_grant_bool(jwt_t *jwt, const char *grant);
