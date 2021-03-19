@@ -16,12 +16,12 @@
 
 void usage(const char *name)
 {
-	/* TODO Might want to support json input via stdin */
 	printf("%s OPTIONS\n", name);
 	printf("Options:\n"
 			"  -k --key KEY  The private key to use for signing\n"
 			"  -a --alg ALG  The algorithm to use for signing\n"
 			"  -c --claim KEY=VALUE  A claim to add to JWT\n"
+			"  -j --json '{key1:value1}'  A json to add to JWT\n"
 			);
 	exit(0);
 }
@@ -33,12 +33,13 @@ int main(int argc, char *argv[])
 	time_t iat = time(NULL);
 
 	int oc = 0;
-	char *optstr = "hk:a:c:";
+	char *optstr = "hk:a:c:j:";
 	struct option opttbl[] = {
 		{ "help",         no_argument,        NULL, 'h'         },
 		{ "key",          required_argument,  NULL, 'k'         },
 		{ "alg",          required_argument,  NULL, 'a'         },
 		{ "claim",        required_argument,  NULL, 'c'         },
+		{ "json",         required_argument,  NULL, 'j'         },
 		{ NULL, 0, 0, 0 },
 	};
 
@@ -55,6 +56,9 @@ int main(int argc, char *argv[])
 		char *val;
 	} opt_claims[100];
 	memset(opt_claims, 0, sizeof(opt_claims));
+	char* opt_json;
+	opt_json = (char *) malloc(3*sizeof(char));
+	strcpy(opt_json, "{}");
 
 	while ((oc = getopt_long(argc, argv, optstr, opttbl, NULL)) != -1) {
 		switch (oc) {
@@ -82,9 +86,15 @@ int main(int argc, char *argv[])
 				}
 			}
 			break;
+		case 'j':
+			free(opt_json);
+			opt_json = (char *) malloc((strlen(optarg)+1)*sizeof(char));
+			strcpy(opt_json, optarg);
+			break;
 
 		case 'h':
 			usage(basename(argv[0]));
+			free(opt_json);
 			return 0;
 
 		default: /* '?' */
@@ -116,6 +126,8 @@ int main(int argc, char *argv[])
 		jwt_add_grant(jwt, opt_claims[i].key, opt_claims[i].val);
 	}
 
+	ret = jwt_add_grants_json(jwt, opt_json);
+
 	ret = jwt_set_alg(jwt, opt_alg, opt_alg == JWT_ALG_NONE ? NULL : key, opt_alg == JWT_ALG_NONE ? 0 : key_len);
 	if (ret < 0) {
 		fprintf(stderr, "jwt incorrect algorithm\n");
@@ -131,6 +143,7 @@ int main(int argc, char *argv[])
 
 	jwt_free_str(out);
 finish:
+	free(opt_json);
 	jwt_free(jwt);
 
 	return 0;
