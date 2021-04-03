@@ -56,9 +56,7 @@ int main(int argc, char *argv[])
 		char *val;
 	} opt_claims[100];
 	memset(opt_claims, 0, sizeof(opt_claims));
-	char* opt_json;
-	opt_json = (char *) malloc(3*sizeof(char));
-	strcpy(opt_json, "{}");
+	char* opt_json = NULL;
 
 	while ((oc = getopt_long(argc, argv, optstr, opttbl, NULL)) != -1) {
 		switch (oc) {
@@ -87,14 +85,13 @@ int main(int argc, char *argv[])
 			}
 			break;
 		case 'j':
-			free(opt_json);
-			opt_json = (char *) malloc((strlen(optarg)+1)*sizeof(char));
-			strcpy(opt_json, optarg);
+			if (optarg != NULL) {
+				opt_json = strdup(optarg);
+			}
 			break;
 
 		case 'h':
 			usage(basename(argv[0]));
-			free(opt_json);
 			return 0;
 
 		default: /* '?' */
@@ -126,7 +123,13 @@ int main(int argc, char *argv[])
 		jwt_add_grant(jwt, opt_claims[i].key, opt_claims[i].val);
 	}
 
-	ret = jwt_add_grants_json(jwt, opt_json);
+	if (opt_json != NULL) {
+		ret = jwt_add_grants_json(jwt, opt_json);
+		if (ret != 0) {
+			fprintf(stderr, "Input json is invalid\n");
+			goto finish;
+		}
+	}
 
 	ret = jwt_set_alg(jwt, opt_alg, opt_alg == JWT_ALG_NONE ? NULL : key, opt_alg == JWT_ALG_NONE ? 0 : key_len);
 	if (ret < 0) {
@@ -143,7 +146,9 @@ int main(int argc, char *argv[])
 
 	jwt_free_str(out);
 finish:
-	free(opt_json);
+	if (opt_json != NULL) {
+		free(opt_json);
+	}
 	jwt_free(jwt);
 
 	return 0;
