@@ -652,7 +652,7 @@ JWT_EXPORT int jwt_set_alg(jwt_t *jwt, jwt_alg_t alg, const unsigned char *key, 
  * @param jwt Pointer to a JWT object.
  * @returns Returns a jwt_alg_t type for this object.
  */
-JWT_EXPORT jwt_alg_t jwt_get_alg(jwt_t *jwt);
+JWT_EXPORT jwt_alg_t jwt_get_alg(const jwt_t *jwt);
 
 /**
  * Convert alg type to it's string representation.

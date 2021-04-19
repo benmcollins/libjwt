@@ -177,7 +177,7 @@ int jwt_set_alg(jwt_t *jwt, jwt_alg_t alg, const unsigned char *key, int len)
 	return 0;
 }
 
-jwt_alg_t jwt_get_alg(jwt_t *jwt)
+jwt_alg_t jwt_get_alg(const jwt_t *jwt)
 {
 	return jwt->alg;
 }
