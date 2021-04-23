@@ -29,7 +29,7 @@ void usage(const char *name)
 int main(int argc, char *argv[])
 {
 	char *opt_key_name = "test-rsa256.pem";
-	bool free_key = false;
+	int free_key = 0;
 	jwt_alg_t opt_alg = JWT_ALG_RS256;
 	time_t iat = time(NULL);
 
@@ -63,7 +63,7 @@ int main(int argc, char *argv[])
 		switch (oc) {
 		case 'k':
 			opt_key_name = strdup(optarg);
-			free_key = true;
+			free_key = 1;
 			break;
 
 		case 'a':
