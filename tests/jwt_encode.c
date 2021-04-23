@@ -339,6 +339,25 @@ START_TEST(test_jwt_encode_invalid)
 }
 END_TEST
 
+START_TEST(test_jwt_encode_decode)
+{
+	const char *key = "somestring";
+	jwt_t *mytoken, *ymtoken;
+	char *encoded;
+	int rc;
+
+	jwt_new(&mytoken);
+	jwt_add_grant(mytoken, "sub", "user0");
+	jwt_add_grant_int(mytoken, "iat", 1619130517);
+	jwt_add_grant_int(mytoken, "exp", 1619216917);
+	jwt_set_alg(mytoken, JWT_ALG_HS256, (unsigned char *)key, strlen(key));
+
+	encoded = jwt_encode_str(mytoken);
+	rc = jwt_decode(&ymtoken, encoded, (unsigned char *)key, strlen(key));
+	ck_assert_int_eq(rc, 0);
+}
+END_TEST
+
 static Suite *libjwt_suite(void)
 {
 	Suite *s;
@@ -356,6 +375,7 @@ static Suite *libjwt_suite(void)
 	tcase_add_test(tc_core, test_jwt_encode_hs512);
 	tcase_add_test(tc_core, test_jwt_encode_change_alg);
 	tcase_add_test(tc_core, test_jwt_encode_invalid);
+	tcase_add_test(tc_core, test_jwt_encode_decode);
 
 	tcase_set_timeout(tc_core, 30);
 

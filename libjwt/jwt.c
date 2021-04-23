@@ -517,7 +517,7 @@ static int jwt_verify_head(jwt_t *jwt)
 		}
 	} else {
 		/* If alg is NONE, there should not be a key */
-		if (jwt->key){
+		if (jwt->key) {
 			ret = EINVAL;
 		}
 	}
@@ -597,7 +597,8 @@ static int jwt_copy_key(jwt_t *jwt, const unsigned char *key, int key_len)
 	return ret;
 }
 
-int jwt_decode(jwt_t **jwt, const char *token, const unsigned char *key, int key_len)
+int jwt_decode(jwt_t **jwt, const char *token, const unsigned char *key,
+	       int key_len)
 {
 	jwt_t *new = NULL;
 	int ret = EINVAL;
@@ -1165,7 +1166,7 @@ static int jwt_encode(jwt_t *jwt, char **out)
 	}
 
 	/* Now the signature. */
-	ret = jwt_sign(jwt, &sig, &sig_len, buf, head_len + body_len + 1);
+	ret = jwt_sign(jwt, &sig, &sig_len, buf, strlen(buf));
 	jwt_freemem(buf);
 
 	if (ret)
