@@ -28,7 +28,8 @@ void usage(const char *name)
 
 int main(int argc, char *argv[])
 {
-	char opt_key_name[200] = "test-rsa256.pem";
+	char *opt_key_name = "test-rsa256.pem";
+	bool free_key = false;
 	jwt_alg_t opt_alg = JWT_ALG_RS256;
 	time_t iat = time(NULL);
 
@@ -61,8 +62,8 @@ int main(int argc, char *argv[])
 	while ((oc = getopt_long(argc, argv, optstr, opttbl, NULL)) != -1) {
 		switch (oc) {
 		case 'k':
-			strncpy(opt_key_name, optarg, sizeof(opt_key_name));
-			opt_key_name[sizeof(opt_key_name) - 1] = '\0';
+			opt_key_name = strdup(optarg);
+			free_key = true;
 			break;
 
 		case 'a':
@@ -105,6 +106,10 @@ int main(int argc, char *argv[])
 
 	if (opt_alg > JWT_ALG_NONE) {
 		fp_priv_key = fopen(opt_key_name, "r");
+		if (fp_priv_key == NULL) {
+			perror("Failed to open key file");
+			goto finish;
+		}
 		key_len = fread(key, 1, sizeof(key), fp_priv_key);
 		fclose(fp_priv_key);
 		key[key_len] = '\0';
@@ -146,10 +151,13 @@ int main(int argc, char *argv[])
 
 	jwt_free_str(out);
 finish:
-	if (opt_json != NULL) {
+	if (opt_json != NULL)
 		free(opt_json);
-	}
+
 	jwt_free(jwt);
+
+	if (free_key)
+		free(opt_key_name);
 
 	return 0;
 }
