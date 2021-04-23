@@ -355,6 +355,10 @@ START_TEST(test_jwt_encode_decode)
 	encoded = jwt_encode_str(mytoken);
 	rc = jwt_decode(&ymtoken, encoded, (unsigned char *)key, strlen(key));
 	ck_assert_int_eq(rc, 0);
+
+	jwt_free(mytoken);
+	jwt_free(ymtoken);
+	free(encoded);
 }
 END_TEST
 
