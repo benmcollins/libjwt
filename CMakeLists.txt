@@ -75,3 +75,19 @@ endif()
 if (${BUILD_TESTS})
 	add_subdirectory (tests)
 endif ()
+
+set(INCLUDE_INSTALL_DIR include/)
+set(LIB_INSTALL_DIR lib/)
+set(LIBJWT_VERSION 1.13.1)
+include(CMakePackageConfigHelpers)
+configure_package_config_file(cmake/libjwtConfig.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/libjwtConfig.cmake
+  INSTALL_DESTINATION ${LIB_INSTALL_DIR}/libjwt/cmake
+  PATH_VARS INCLUDE_INSTALL_DIR)
+write_basic_package_version_file(
+  ${CMAKE_CURRENT_BINARY_DIR}/libjwtConfigVersion.cmake
+  VERSION ${LIBJWT_VERSION}
+  COMPATIBILITY SameMajorVersion )
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libjwtConfig.cmake
+              ${CMAKE_CURRENT_BINARY_DIR}/libjwtConfigVersion.cmake
+        DESTINATION ${LIB_INSTALL_DIR}/libjwt/cmake )
