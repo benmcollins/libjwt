@@ -76,9 +76,22 @@ if (${BUILD_TESTS})
 	add_subdirectory (tests)
 endif ()
 
+
+# extract version from configure.ac
+FILE(READ "${CMAKE_CURRENT_SOURCE_DIR}/configure.ac" configure_ac_contents)
+STRING(REGEX REPLACE ";" "\\\\;" configure_ac_contents "${configure_ac_contents}")
+STRING(REGEX REPLACE "\n" ";" configure_ac_contents "${configure_ac_contents}")
+foreach(configure_ac_line ${configure_ac_contents})
+	if("${configure_ac_line}" MATCHES "^[ ]*AC_INIT")
+		string(REGEX MATCH "[0-9]+\.[0-9]+\.[0-9]+" version_string "${configure_ac_line}")
+		message(STATUS "version from configure.ac: '${version_string}'")
+		break()
+	endif()
+endforeach()
+
 set(INCLUDE_INSTALL_DIR include/)
 set(LIB_INSTALL_DIR lib/)
-set(LIBJWT_VERSION 1.13.1)
+set(LIBJWT_VERSION ${version_string})
 include(CMakePackageConfigHelpers)
 configure_package_config_file(cmake/libjwtConfig.cmake.in
   ${CMAKE_CURRENT_BINARY_DIR}/libjwtConfig.cmake
