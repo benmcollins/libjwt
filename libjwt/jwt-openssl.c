@@ -14,6 +14,7 @@
 #include <openssl/hmac.h>
 #include <openssl/buffer.h>
 #include <openssl/pem.h>
+#include <openssl/bn.h>
 
 #include <jwt.h>
 
