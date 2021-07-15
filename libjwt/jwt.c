@@ -527,7 +527,7 @@ static int jwt_verify_head(jwt_t *jwt)
 
 static int jwt_parse(jwt_t **jwt, const char *token, unsigned int *len)
 {
-	char *head = jwt_strdup(token);
+	char *head = NULL;
 	jwt_t *new = NULL;
 	char *body, *sig;
 	int ret = EINVAL;
@@ -536,6 +536,7 @@ static int jwt_parse(jwt_t **jwt, const char *token, unsigned int *len)
 		return EINVAL;
 
 	*jwt = NULL;
+	head = jwt_strdup(token);
 
 	if (!head)
 		return ENOMEM;
