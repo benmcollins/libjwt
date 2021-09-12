@@ -3,6 +3,7 @@ set (TARGET_NAME ${PROJECT_NAME})
 option (BUILD_SHARED_LIBS "Build libjwt as shared library instead as static one." OFF)
 option (WITHOUT_OPENSSL "Use GnuTLS for encryption instead of OpenSSL" OFF)
 option (USE_WINSSL "Use Windows crypto API for encryption instead of OpenSSL" OFF)
+option (USE_INSTALLED_JANSSON "Use pre-installed jansson library" ON)
 
 if (UNIX)
 	option (ENABLE_PIC "Use position independent code in static library build." OFF)
@@ -43,7 +44,9 @@ else ()
 	set (SSL_LIBRARIES_OPTIMIZED ${OPENSSL_LIBRARIES})
 endif ()
 
-find_package (jansson REQUIRED)
+if (USE_INSTALLED_JANSSON)
+    find_package (jansson REQUIRED)
+endif()
 
 write_file(${CMAKE_CURRENT_BINARY_DIR}/config.h "")
 
@@ -87,7 +90,7 @@ endif ()
 
 target_link_libraries (${TARGET_NAME}
 	debug ${SSL_LIBRARIES_DEBUG} optimized ${SSL_LIBRARIES_OPTIMIZED}
-	jansson::jansson
+	jansson
 	)
 
 install (TARGETS ${TARGET_NAME}
