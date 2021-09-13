@@ -1,3 +1,5 @@
+include(FetchContent)
+
 set (TARGET_NAME ${PROJECT_NAME})
 
 option (BUILD_SHARED_LIBS "Build libjwt as shared library instead as static one." OFF)
@@ -46,6 +48,15 @@ endif ()
 
 if (USE_INSTALLED_JANSSON)
     find_package (jansson REQUIRED)
+else()
+    FetchContent_Declare(
+    jansson
+    GIT_REPOSITORY https://github.com/akheron/jansson.git
+    GIT_TAG        v2.13.1
+    SOURCE_SUBDIR  cmake
+    )
+
+    FetchContent_MakeAvailable(jansson)
 endif()
 
 write_file(${CMAKE_CURRENT_BINARY_DIR}/config.h "")
@@ -57,8 +68,9 @@ add_library (${TARGET_NAME} ${LIBRARY_TYPE} ${SOURCE_FILES})
 
 target_include_directories (${TARGET_NAME} PRIVATE
 	${SSL_LIBRARY_INCLUDE_DIR}
-	${JANSSON_INCLUDE_DIRS}
-	${CMAKE_CURRENT_BINARY_DIR}
+       ${jansson_SOURCE_DIR}/src
+       ${jansson_SOURCE_DIR}/android
+       ${CMAKE_CURRENT_BINARY_DIR}
 	)
 
 # Need for using the project by add_subdirectory
