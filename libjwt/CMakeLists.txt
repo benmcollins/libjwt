@@ -52,8 +52,7 @@ else()
     FetchContent_Declare(
     jansson
     GIT_REPOSITORY https://github.com/akheron/jansson.git
-    GIT_TAG        v2.13.1
-    SOURCE_SUBDIR  cmake
+    GIT_TAG        v2.14
     )
 
     FetchContent_MakeAvailable(jansson)
