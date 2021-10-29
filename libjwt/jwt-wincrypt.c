@@ -581,6 +581,11 @@ jwt_sign_sha_hmac_done:
 	return ret;
 }
 
+int jwt_get_public_key_pem(jwt_t *jwt, char **dest)
+{
+	return EOPNOTSUPP;
+}
+
 #define VERIFY_HMAC_ERROR(__err) { ret = __err; goto jwt_verify_hmac_done; }
 
 int jwt_verify_sha_hmac(jwt_t *jwt, const char *head, const char *sig)

@@ -645,12 +645,20 @@ JWT_EXPORT void jwt_free_str(char *str);
 JWT_EXPORT int jwt_set_alg(jwt_t *jwt, jwt_alg_t alg, const unsigned char *key, int len);
 
 /**
- * Get the jwt_alg_t set for this JWT object.
- *
- * Returns the jwt_alg_t type for this JWT object.
+ * Get the PEM formatted public key.
  *
  * @param jwt Pointer to a JWT object.
- * @returns Returns a jwt_alg_t type for this object.
+ * @returns PEM formatted string or NULL with errno set
+ */
+JWT_EXPORT char *jwt_get_alg_public_key(jwt_t *jwt);
+
+/**
+ * Get the PEM formatted PEM public key
+ *
+ * Returns the PEM for
+ *
+ * @param jwt Pointer to a JWT object.
+ * @returns PEM formatted string or NULL with errno set
  */
 JWT_EXPORT jwt_alg_t jwt_get_alg(const jwt_t *jwt);
 

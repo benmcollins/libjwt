@@ -256,6 +256,11 @@ sign_clean_key:
 	return ret;
 }
 
+int jwt_get_public_key_pem(jwt_t *jwt, char **dest)
+{
+	return EOPNOTSUPP;
+}
+
 int jwt_verify_sha_pem(jwt_t *jwt, const char *head, unsigned int head_len, const char *sig_b64)
 {
 	gnutls_datum_t r, s;
