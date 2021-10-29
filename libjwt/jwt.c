@@ -16,6 +16,9 @@
 #include "base64.h"
 #include "config.h"
 
+/* Number of elements in an array */
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+
 static jwt_malloc_t pfn_malloc = NULL;
 static jwt_realloc_t pfn_realloc = NULL;
 static jwt_free_t pfn_free = NULL;
@@ -1555,4 +1558,56 @@ unsigned int jwt_validate(jwt_t *jwt, jwt_valid_t *jwt_valid)
 	}
 
 	return jwt_valid->status;
+}
+
+typedef struct {
+	int error;
+	char *str;
+} jwt_exception_dict_t;
+
+static jwt_exception_dict_t jwt_exceptions[] = {
+	/* { JWT_VALIDATION_SUCCESS, "SUCCESS" }, */
+	{ JWT_VALIDATION_ERROR, "general failures" },
+	{ JWT_VALIDATION_ALG_MISMATCH, "algorithm mismatch" },
+	{ JWT_VALIDATION_EXPIRED, "token expired" },
+	{ JWT_VALIDATION_TOO_NEW, "token future dated" },
+	{ JWT_VALIDATION_ISS_MISMATCH, "issuer mismatch" },
+	{ JWT_VALIDATION_SUB_MISMATCH, "subject mismatch" },
+	{ JWT_VALIDATION_AUD_MISMATCH, "audience mismatch" },
+	{ JWT_VALIDATION_GRANT_MISSING, "grant missing" },
+	{ JWT_VALIDATION_GRANT_MISMATCH, "grant mismatch" },
+};
+
+char *jwt_exception_str(unsigned int exceptions)
+{
+	int rc;
+	char *str = NULL;
+
+	if (exceptions == JWT_VALIDATION_SUCCESS) {
+		if ((rc = __append_str(&str, "success")))
+			goto fail;
+		return str;
+	}
+
+	for (int i = 0; i < ARRAY_SIZE(jwt_exceptions); i++) {
+		if (!(jwt_exceptions[i].error & exceptions))
+			continue;
+
+		if (str && (rc = __append_str(&str, ", ")))
+			goto fail;
+
+		if ((rc = __append_str(&str, jwt_exceptions[i].str)))
+			goto fail;
+	}
+
+	/* check if none of the exceptions matched? */
+	if (!str && (rc = __append_str(&str, "unknown exceptions"))) {
+		goto fail;
+	}
+
+	return str;
+fail:
+	errno = rc;
+	jwt_freemem(str);
+	return NULL;
 }
