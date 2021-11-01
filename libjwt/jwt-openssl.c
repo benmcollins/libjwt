@@ -305,10 +305,85 @@ jwt_sign_sha_pem_done:
 	return ret;
 }
 
+#define PUB_ERROR(__err) { ret = __err; goto jwt_public_key_pem_done; }
+
 int jwt_get_public_key_pem(jwt_t *jwt, char **dest)
 {
-	return EOPNOTSUPP;
+	char *pem = NULL;
+	int ret = EOPNOTSUPP;
+	BIO *bufkey = NULL;
+
+	/* dest must be a pointer to a NULL string */
+	if (!dest || *dest)
+		return EINVAL;
+
+	/* only works when there is a private key */
+	if (!jwt->key_len || !jwt->key)
+		return EOPNOTSUPP;
+
+	bufkey = BIO_new_mem_buf(jwt->key, jwt->key_len);
+	if (!bufkey || BIO_tell(bufkey) ||
+	    (BIO_pending(bufkey) != jwt->key_len))
+		PUB_ERROR(ENOMEM);
+
+	switch (jwt->alg) {
+	/* RSA */
+	case JWT_ALG_RS256:
+	case JWT_ALG_RS384:
+	case JWT_ALG_RS512:
+	{
+		RSA *pkey = NULL;
+		BIO *bpem = NULL;
+		const char *bpem_ptr = NULL;
+		long octets = 0;
+
+		pkey = PEM_read_bio_RSAPrivateKey(bufkey, NULL, 0, NULL);
+		if (!pkey)
+			PUB_ERROR(EINVAL);
+
+		bpem = BIO_new(BIO_s_mem());
+
+		if ((PEM_write_bio_RSAPublicKey(bpem, pkey) != 1) ||
+		    !(octets = BIO_get_mem_data(bpem, &bpem_ptr))) {
+			BIO_free(bpem);
+			PUB_ERROR(ENOMEM);
+		}
+
+		if (!(pem = jwt_malloc(octets + 1)))
+			PUB_ERROR(ENOMEM);
+
+		memcpy(pem, bpem_ptr, octets);
+
+		/* force NULL terminated string */
+		pem[octets] = '\0';
+
+		ret = 0;
+		break;
+	}
+
+	/* ECC */
+	case JWT_ALG_ES256:
+	case JWT_ALG_ES384:
+	case JWT_ALG_ES512:
+		PUB_ERROR(EOPNOTSUPP);
+
+	default:
+		PUB_ERROR(EINVAL);
+	}
+
+jwt_public_key_pem_done:
+	if (bufkey)
+		BIO_free(bufkey);
+
+	if (!ret)
+		*dest = pem;
+	else if (pem)
+		jwt_freemem(pem);
+
+	return ret;
 }
+
+#undef PUB_ERROR
 
 #define VERIFY_ERROR(__err) { ret = __err; goto jwt_verify_sha_pem_done; }
 
