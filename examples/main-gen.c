@@ -51,7 +51,7 @@ int main(int argc, char *argv[])
 	size_t key_len = 0;
 	FILE *fp_priv_key;
 	int ret = 0;
-	jwt_t *jwt;
+	jwt_t *jwt = NULL;
 	struct kv {
 		char *key;
 		char *val;
