@@ -33,7 +33,7 @@ START_TEST(test_jwt_encode_fp)
 
 	ALLOC_JWT(&jwt);
 
-	ret = jwt_add_grant(jwt, "iss", "files.cyphre.com");
+	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
 	ck_assert_int_eq(ret, 0);
 
 	ret = jwt_add_grant(jwt, "sub", "user0");
@@ -74,7 +74,7 @@ START_TEST(test_jwt_encode_str)
 
 	ALLOC_JWT(&jwt);
 
-	ret = jwt_add_grant(jwt, "iss", "files.cyphre.com");
+	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
 	ck_assert_int_eq(ret, 0);
 
 	ret = jwt_add_grant(jwt, "sub", "user0");
@@ -143,7 +143,7 @@ START_TEST(test_jwt_encode_hs256)
 
 	ALLOC_JWT(&jwt);
 
-	ret = jwt_add_grant(jwt, "iss", "files.cyphre.com");
+	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
 	ck_assert_int_eq(ret, 0);
 
 	ret = jwt_add_grant(jwt, "sub", "user0");
@@ -183,7 +183,7 @@ START_TEST(test_jwt_encode_hs384)
 
 	ALLOC_JWT(&jwt);
 
-	ret = jwt_add_grant(jwt, "iss", "files.cyphre.com");
+	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
 	ck_assert_int_eq(ret, 0);
 
 	ret = jwt_add_grant(jwt, "sub", "user0");
@@ -224,7 +224,7 @@ START_TEST(test_jwt_encode_hs512)
 
 	ALLOC_JWT(&jwt);
 
-	ret = jwt_add_grant(jwt, "iss", "files.cyphre.com");
+	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
 	ck_assert_int_eq(ret, 0);
 
 	ret = jwt_add_grant(jwt, "sub", "user0");
@@ -263,7 +263,7 @@ START_TEST(test_jwt_encode_change_alg)
 
 	ALLOC_JWT(&jwt);
 
-	ret = jwt_add_grant(jwt, "iss", "files.cyphre.com");
+	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
 	ck_assert_int_eq(ret, 0);
 
 	ret = jwt_add_grant(jwt, "sub", "user0");
@@ -301,7 +301,7 @@ START_TEST(test_jwt_encode_invalid)
 
 	ALLOC_JWT(&jwt);
 
-	ret = jwt_add_grant(jwt, "iss", "files.cyphre.com");
+	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
 	ck_assert_int_eq(ret, 0);
 
 	ret = jwt_add_grant(jwt, "sub", "user0");

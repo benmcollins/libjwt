@@ -108,7 +108,7 @@ static void __test_alg_key(const jwt_alg_t alg)
 
 	read_key("ec_key_secp384r1.pem");
 
-	ret = jwt_add_grant(jwt, "iss", "files.cyphre.com");
+	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
 	ck_assert_int_eq(ret, 0);
 
 	ret = jwt_add_grant(jwt, "sub", "user0");
@@ -178,7 +178,7 @@ START_TEST(test_jwt_encode_ec_with_rsa)
 
 	read_key("rsa_key_4096.pem");
 
-	ret = jwt_add_grant(jwt, "iss", "files.cyphre.com");
+	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
 	ck_assert_int_eq(ret, 0);
 
 	ret = jwt_add_grant(jwt, "sub", "user0");
@@ -263,7 +263,7 @@ START_TEST(test_jwt_encode_invalid_key)
 
 	read_key("ec_key_invalid.pem");
 
-	ret = jwt_add_grant(jwt, "iss", "files.cyphre.com");
+	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
 	ck_assert_int_eq(ret, 0);
 
 	ret = jwt_add_grant(jwt, "sub", "user0");

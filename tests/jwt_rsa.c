@@ -119,7 +119,7 @@ static void __test_alg_key(const char *key_file, const char *jwt_str,
 
 	read_key(key_file);
 
-	ret = jwt_add_grant(jwt, "iss", "files.cyphre.com");
+	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
 	ck_assert_int_eq(ret, 0);
 
 	ret = jwt_add_grant(jwt, "sub", "user0");
@@ -191,7 +191,7 @@ START_TEST(test_jwt_validate_rs256)
 	jwt_valid_new(&jwt_valid, JWT_ALG_RS256);
 	ck_assert(jwt_valid != NULL);
 
-	ret = jwt_valid_add_grant(jwt_valid, "iss", "files.cyphre.com");
+	ret = jwt_valid_add_grant(jwt_valid, "iss", "files.maclara-llc.com");
 	ck_assert_int_eq(ret, 0);
 
 	ret = jwt_valid_add_grant_int(jwt_valid, "iat", TS_CONST);
@@ -259,7 +259,7 @@ START_TEST(test_jwt_encode_rsa_with_ec)
 
 	read_key("ec_key_secp384r1.pem");
 
-	ret = jwt_add_grant(jwt, "iss", "files.cyphre.com");
+	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
 	ck_assert_int_eq(ret, 0);
 
 	ret = jwt_add_grant(jwt, "sub", "user0");
@@ -344,7 +344,7 @@ START_TEST(test_jwt_encode_invalid_key)
 
 	read_key("rsa_key_invalid.pem");
 
-	ret = jwt_add_grant(jwt, "iss", "files.cyphre.com");
+	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
 	ck_assert_int_eq(ret, 0);
 
 	ret = jwt_add_grant(jwt, "sub", "user0");
