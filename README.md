@@ -15,9 +15,9 @@
 
 [GitHub Pages](http://benmcollins.github.io/libjwt/)
 
-## Pre-built Ubuntu Packages (PPA)
+## Pre-built Packages
 
-`sudo add-apt-repository ppa:ben-collins/libjwt`
+LibJWT is available in most Linux distribitons.
 
 ## Build Instructions
 
