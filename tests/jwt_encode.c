@@ -65,9 +65,9 @@ END_TEST
 
 START_TEST(test_jwt_encode_str)
 {
-	const char res[] = "eyJhbGciOiJub25lIn0.eyJpYXQiOjE0NzU5ODA1NDUsIm"
-		"lzcyI6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJYWFhYLVlZWVktWlpa"
-		"Wi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.";
+	const char res[] = "eyJhbGciOiJub25lIn0.eyJpYXQiOjE0NzU5ODA1NDUsIml"
+		"zcyI6ImZpbGVzLm1hY2xhcmEtbGxjLmNvbSIsInJlZiI6IlhYWFgtWVlZW"
+		"S1aWlpaLUFBQUEtQ0NDQyIsInN1YiI6InVzZXIwIn0.";
 	jwt_t *jwt = NULL;
 	int ret = 0;
 	char *out;
@@ -132,10 +132,10 @@ END_TEST
 
 START_TEST(test_jwt_encode_hs256)
 {
-	const char res[] = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE"
-		"0NzU5ODA1NDUsImlzcyI6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJYWF"
-		"hYLVlZWVktWlpaWi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.B0a9gqWg"
-		"PuuIx-EFXXSHQByCMHCzs0gjvY3-60oV4TY";
+	const char res[] = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOj"
+		"E0NzU5ODA1NDUsImlzcyI6ImZpbGVzLm1hY2xhcmEtbGxjLmNvbSIsInJl"
+		"ZiI6IlhYWFgtWVlZWS1aWlpaLUFBQUEtQ0NDQyIsInN1YiI6InVzZXIwIn"
+		"0.ezbB-vH0KoNU5aA6apcJ1JNorI2HnD8s0yp7zdXt42M";
 	unsigned char key256[32] = "012345678901234567890123456789XY";
 	jwt_t *jwt = NULL;
 	int ret = 0;
@@ -171,10 +171,11 @@ END_TEST
 
 START_TEST(test_jwt_encode_hs384)
 {
-	const char res[] = "eyJhbGciOiJIUzM4NCIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE"
-		"0NzU5ODA1NDUsImlzcyI6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJYWF"
-		"hYLVlZWVktWlpaWi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.k5mpjWlu"
-		"aj4EQxuvoyXHR9HVw_V4GMnguwcQvZplTDT_H2PS0DDoZ5NF-VLC8kgO";
+	const char res[] = "eyJhbGciOiJIUzM4NCIsInR5cCI6IkpXVCJ9.eyJpYXQiOj"
+		"E0NzU5ODA1NDUsImlzcyI6ImZpbGVzLm1hY2xhcmEtbGxjLmNvbSIsInJl"
+		"ZiI6IlhYWFgtWVlZWS1aWlpaLUFBQUEtQ0NDQyIsInN1YiI6InVzZXIwIn"
+		"0.jiOTkn_HXFz1eff2rx4bh2USfCVFh_YigoJP77Baf2d9wtQn6TBxqXmo"
+		"kdQtTDQm";
 	unsigned char key384[48] = "aaaabbbbccccddddeeeeffffgggghhhh"
 				   "iiiijjjjkkkkllll";
 	jwt_t *jwt = NULL;
@@ -211,11 +212,11 @@ END_TEST
 
 START_TEST(test_jwt_encode_hs512)
 {
-	const char res[] = "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE"
-		"0NzU5ODA1NDUsImlzcyI6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJYWF"
-		"hYLVlZWVktWlpaWi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.oxB_kx_h"
-		"5DANiG5oZWPO90MFlkoMb7VGlEBDbBTpX_JThJ8md6UEsxFvwm2weeyHU4-"
-		"MasEU4nzbVk4LZ0vrcg";
+	const char res[] = "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJpYXQiOj"
+		"E0NzU5ODA1NDUsImlzcyI6ImZpbGVzLm1hY2xhcmEtbGxjLmNvbSIsInJl"
+		"ZiI6IlhYWFgtWVlZWS1aWlpaLUFBQUEtQ0NDQyIsInN1YiI6InVzZXIwIn"
+		"0.OgEFcuV7zY3A-_3YgBzZqdMXW09CGDznMuqoHh5Ln2i18UJ3pf6WdMec"
+		"zlBniP2LzuS_fWJRpHMOuofeMHgU3Q";
 	unsigned char key512[64] = "012345678901234567890123456789XY"
 				   "012345678901234567890123456789XY";
 	jwt_t *jwt = NULL;
@@ -252,9 +253,9 @@ END_TEST
 
 START_TEST(test_jwt_encode_change_alg)
 {
-	const char res[] = "eyJhbGciOiJub25lIn0.eyJpYXQiOjE0NzU5ODA1NDUsIm"
-		"lzcyI6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJYWFhYLVlZWVktWlpa"
-		"Wi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.";
+	const char res[] = "eyJhbGciOiJub25lIn0.eyJpYXQiOjE0NzU5ODA1NDUsIml"
+		"zcyI6ImZpbGVzLm1hY2xhcmEtbGxjLmNvbSIsInJlZiI6IlhYWFgtWVlZW"
+		"S1aWlpaLUFBQUEtQ0NDQyIsInN1YiI6InVzZXIwIn0.";
 	unsigned char key512[64] = "012345678901234567890123456789XY"
 				   "012345678901234567890123456789XY";
 	jwt_t *jwt = NULL;
