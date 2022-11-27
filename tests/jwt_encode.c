@@ -48,11 +48,10 @@ START_TEST(test_jwt_encode_fp)
 	/* TODO Write to actual file and read back to validate output. */
 #ifdef _WIN32
 	out = fopen("nul", "w");
-	ck_assert_ptr_ne(out, NULL);
 #else
 	out = fopen("/dev/null", "w");
-	ck_assert_ptr_ne(out, NULL);
 #endif
+	ck_assert_ptr_ne(out, NULL);
 
 	ret = jwt_encode_fp(jwt, out);
 	ck_assert_int_eq(ret, 0);

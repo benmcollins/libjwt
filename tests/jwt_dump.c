@@ -79,11 +79,10 @@ START_TEST(test_jwt_dump_fp)
 
 #ifdef _WIN32
 	out = fopen("nul", "w");
-	ck_assert(out != NULL);
 #else
 	out = fopen("/dev/null", "w");
-	ck_assert(out != NULL);
 #endif
+	ck_assert_ptr_ne(out, NULL);
 
 	ret = jwt_dump_fp(jwt, out, 1);
 	ck_assert_int_eq(ret, 0);
