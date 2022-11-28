@@ -1,3 +1,5 @@
+EXTRA_DIST = CMakeLists.txt keys
+
 TESTS =			\
 	jwt_new		\
 	jwt_grant	\

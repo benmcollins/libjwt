@@ -1,3 +1,5 @@
+EXTRA_DIST = base64.h jwt-private.h CMakeLists.txt
+
 lib_LTLIBRARIES = libjwt.la
 
 libjwt_la_SOURCES = jwt.c base64.c
