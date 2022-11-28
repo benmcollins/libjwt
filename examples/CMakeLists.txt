@@ -1,7 +1,3 @@
-
-# Add local search path for find modules
-#set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-
 #find_package(LibJWT)
 
 add_definitions(-D_GNU_SOURCE)

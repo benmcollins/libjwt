@@ -1,5 +1,7 @@
 cmake_minimum_required (VERSION 3.7...3.15)
 
+set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
 if (${CMAKE_VERSION} VERSION_LESS 3.14.7 AND ${CMAKE_GENERATOR} STREQUAL "Visual Studio 16 2019")
 	message(FATAL_ERROR "Please update your version of CMake to version 3.14.7 or greater in order to use Visual Studio 2019")
 endif()

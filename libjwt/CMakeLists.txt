@@ -47,7 +47,7 @@ else ()
 endif ()
 
 if (USE_INSTALLED_JANSSON)
-    find_package (jansson REQUIRED)
+    PKG_SEARCH_MODULE( JANSSON jansson )
 else()
     FetchContent_Declare(
     jansson
