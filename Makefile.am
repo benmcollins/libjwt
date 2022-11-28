@@ -1,6 +1,6 @@
 ACLOCAL_AMFLAGS = -I m4
 
-EXTRA_DIST = README.md README.cmake.md CMakeLists.txt
+EXTRA_DIST = README.md README.cmake.md CMakeLists.txt cmake images
 
 SUBDIRS = include libjwt tests dist
 if BUILD_EXAMPLES
