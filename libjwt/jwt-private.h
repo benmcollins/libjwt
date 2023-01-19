@@ -22,6 +22,8 @@ struct jwt {
 struct jwt_valid {
 	jwt_alg_t alg;
 	time_t now;
+	time_t nbf_leeway;
+	time_t exp_leeway;
 	int hdr;
 	json_t *req_grants;
 	unsigned int status;
