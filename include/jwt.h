@@ -774,6 +774,22 @@ JWT_EXPORT void jwt_valid_free(jwt_valid_t *jwt_valid);
 JWT_EXPORT unsigned int jwt_valid_get_status(jwt_valid_t *jwt_valid);
 
 /**
+ * Return the nbf_leeway value set.
+ *
+ * @param jwt_valid Pointer to a JWT validation object.
+ * @return Returns current nbf_leeway value
+ */
+JWT_EXPORT time_t jwt_valid_get_nbf_leeway(jwt_valid_t *jwt_valid);
+
+/**
+ * Return the exp_leeway value set.
+ *
+ * @param jwt_valid Pointer to a JWT validation object.
+ * @return Returns current exp_leeway value
+ */
+JWT_EXPORT time_t jwt_valid_get_exp_leeway(jwt_valid_t *jwt_valid);
+
+/**
  * Add a new string grant requirement to this JWT validation object.
  *
  * @param jwt_valid Pointer to a JWT validation object.
@@ -926,6 +942,26 @@ JWT_EXPORT int jwt_valid_del_grants(jwt_valid_t *jwt_valid, const char *grant);
  *     not-before claims exist in a JWT object.
  */
 JWT_EXPORT int jwt_valid_set_now(jwt_valid_t *jwt_valid, const time_t now);
+
+/**
+ * Set the nbf_leeway value as defined in: https://www.rfc-editor.org/rfc/rfc7519#section-4.1.5.
+ *
+ * @param jwt_valid Pointer to a JWT validation object.
+ * @param nbf_leeway leeway for nbf value.
+ * @return Returns 0 on success, valid errno otherwise.
+ *
+ */
+JWT_EXPORT int jwt_valid_set_nbf_leeway(jwt_valid_t *jwt_valid, const time_t nbf_leeway);
+
+/**
+ * Set the exp_leeway value as defined in: https://www.rfc-editor.org/rfc/rfc7519#section-4.1.4.
+ *
+ * @param jwt_valid Pointer to a JWT validation object.
+ * @param exp_leeway leeway for exp value.
+ * @return Returns 0 on success, valid errno otherwise.
+ *
+ */
+JWT_EXPORT int jwt_valid_set_exp_leeway(jwt_valid_t *jwt_valid, const time_t exp_leeway);
 
 /**
  * Set validation for replicated claims in headers.

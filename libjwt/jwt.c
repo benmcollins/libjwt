@@ -1279,6 +1279,22 @@ unsigned int jwt_valid_get_status(jwt_valid_t *jwt_valid)
 	return jwt_valid->status;
 }
 
+time_t jwt_valid_get_nbf_leeway(jwt_valid_t *jwt_valid)
+{
+	if (!jwt_valid)
+		return EINVAL;
+
+	return jwt_valid->nbf_leeway;
+}
+
+time_t jwt_valid_get_exp_leeway(jwt_valid_t *jwt_valid)
+{
+	if (!jwt_valid)
+		return EINVAL;
+
+	return jwt_valid->exp_leeway;
+}
+
 int jwt_valid_add_grant(jwt_valid_t *jwt_valid, const char *grant, const char *val)
 {
 	if (!jwt_valid || !grant || !strlen(grant) || !val)
