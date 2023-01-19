@@ -1248,6 +1248,9 @@ int jwt_valid_new(jwt_valid_t **jwt_valid, jwt_alg_t alg)
 
 	(*jwt_valid)->status = JWT_VALIDATION_ERROR;
 
+	(*jwt_valid)->nbf_leeway = 0;
+	(*jwt_valid)->exp_leeway = 0;
+
 	(*jwt_valid)->req_grants = json_object();
 	if (!(*jwt_valid)->req_grants) {
 		jwt_freemem(*jwt_valid);
@@ -1404,6 +1407,26 @@ int jwt_valid_set_now(jwt_valid_t *jwt_valid, const time_t now)
 	return 0;
 }
 
+int jwt_valid_set_nbf_leeway(jwt_valid_t *jwt_valid, const time_t nbf_leeway)
+{
+	if (!jwt_valid)
+		return EINVAL;
+
+	jwt_valid->nbf_leeway = nbf_leeway;
+
+	return 0;
+}
+
+int jwt_valid_set_exp_leeway(jwt_valid_t *jwt_valid, const time_t exp_leeway)
+{
+	if (!jwt_valid)
+		return EINVAL;
+
+	jwt_valid->exp_leeway = exp_leeway;
+
+	return 0;
+}
+
 int jwt_valid_set_headers(jwt_valid_t *jwt_valid, int hdr)
 {
 	if (!jwt_valid)
@@ -1454,12 +1477,12 @@ unsigned int jwt_validate(jwt_t *jwt, jwt_valid_t *jwt_valid)
 
 	/* Validate expires */
 	t = get_js_int(jwt->grants, "exp");
-	if (jwt_valid->now && t != -1 && jwt_valid->now >= t)
+	if (jwt_valid->now && t != -1 && jwt_valid->now - jwt_valid->exp_leeway >= t)
 		jwt_valid->status |= JWT_VALIDATION_EXPIRED;
 
 	/* Validate not-before */
 	t = get_js_int(jwt->grants, "nbf");
-	if (jwt_valid->now && t != -1 && jwt_valid->now < t)
+	if (jwt_valid->now && t != -1 && jwt_valid->now + jwt_valid->nbf_leeway < t)
 		jwt_valid->status |= JWT_VALIDATION_TOO_NEW;
 
 	/* Validate replicated issuer */

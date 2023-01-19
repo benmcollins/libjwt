@@ -380,6 +380,39 @@ START_TEST(test_jwt_valid_not_before)
 }
 END_TEST
 
+START_TEST(test_jwt_valid_not_before_leeway)
+{
+	jwt_valid_t *jwt_valid = NULL;
+	unsigned int ret = 0;
+
+	__setup_jwt();
+	jwt_add_grant_int(jwt, "nbf", not_before);
+
+	ret = jwt_valid_new(&jwt_valid, JWT_ALG_NONE);
+	ck_assert_int_eq(ret, 0);
+	ck_assert(jwt_valid != NULL);
+
+	/* Setting nbf_leeway */
+	ret = jwt_valid_set_nbf_leeway(jwt_valid, (long)not_before - 10);
+	ck_assert_int_eq(ret, 0);
+
+	/* JWT is invalid when now < not-before - nbf_leeway */
+	ret = jwt_valid_set_now(jwt_valid, (long)not_before - 15);
+	ck_assert_int_eq(ret, 0);
+
+	__VAL_EQ(jwt_valid, JWT_VALIDATION_TOO_NEW);
+
+	/* JWT is valid when now >= not-before - nbf_leeway */
+	ret = jwt_valid_set_now(jwt_valid, (long)not_before - 5);
+	ck_assert_int_eq(ret, 0);
+
+	__VAL_EQ(jwt_valid, JWT_VALIDATION_SUCCESS);
+
+	jwt_valid_free(jwt_valid);
+	__teardown_jwt();
+}
+END_TEST
+
 START_TEST(test_jwt_valid_expires)
 {
 	jwt_valid_t *jwt_valid = NULL;
@@ -400,6 +433,39 @@ START_TEST(test_jwt_valid_expires)
 
 	/* JWT is invalid when now >= expires */
 	ret = jwt_valid_set_now(jwt_valid, (long)expires);
+	ck_assert_int_eq(ret, 0);
+
+	__VAL_EQ(jwt_valid, JWT_VALIDATION_EXPIRED);
+
+	jwt_valid_free(jwt_valid);
+	__teardown_jwt();
+}
+END_TEST
+
+START_TEST(test_jwt_valid_expires_leeway)
+{
+	jwt_valid_t *jwt_valid = NULL;
+	unsigned int ret = 0;
+
+	__setup_jwt();
+	jwt_add_grant_int(jwt, "exp", expires);
+
+	ret = jwt_valid_new(&jwt_valid, JWT_ALG_NONE);
+	ck_assert_int_eq(ret, 0);
+	ck_assert(jwt_valid != NULL);
+
+	/* Setting exp_leeway */
+	ret = jwt_valid_set_exp_leeway(jwt_valid, (long)expires + 10);
+	ck_assert_int_eq(ret, 0);
+
+	/* JWT is valid when now < expires + exp_leeway */
+	ret = jwt_valid_set_now(jwt_valid, (long)expires + 5);
+	ck_assert_int_eq(ret, 0);
+
+	__VAL_EQ(jwt_valid, JWT_VALIDATION_SUCCESS);
+
+	/* JWT is invalid when now >= expires + exp_leeway */
+	ret = jwt_valid_set_now(jwt_valid, (long)expires + 15);
 	ck_assert_int_eq(ret, 0);
 
 	__VAL_EQ(jwt_valid, JWT_VALIDATION_EXPIRED);
