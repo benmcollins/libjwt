@@ -380,6 +380,32 @@ START_TEST(test_jwt_valid_not_before)
 }
 END_TEST
 
+START_TEST(test_jwt_valid_set_nbf_leeway)
+{
+	jwt_valid_t *jwt_valid = NULL;
+	unsigned int ret = 0;
+
+	__setup_jwt();
+	ret = jwt_valid_new(&jwt_valid, JWT_ALG_NONE);
+	ck_assert_int_eq(ret, 0);
+	ck_assert(jwt_valid != NULL);
+
+	/* 0 by default */
+	time_t init_nbf_leeway = jwt_valid_get_nbf_leeway(jwt_valid);
+	ck_assert_int_eq(init_nbf_leeway, 0);
+
+	/* Setting nbf_leeway */
+	ret = jwt_valid_set_nbf_leeway(jwt_valid, 1);
+	ck_assert_int_eq(ret, 0);
+
+	time_t set_nbf_leeway = jwt_valid_get_nbf_leeway(jwt_valid);
+	ck_assert_int_eq(set_nbf_leeway, 1);
+
+	jwt_valid_free(jwt_valid);
+	__teardown_jwt();
+}
+END_TEST
+
 START_TEST(test_jwt_valid_not_before_leeway)
 {
 	jwt_valid_t *jwt_valid = NULL;
@@ -393,7 +419,7 @@ START_TEST(test_jwt_valid_not_before_leeway)
 	ck_assert(jwt_valid != NULL);
 
 	/* Setting nbf_leeway */
-	ret = jwt_valid_set_nbf_leeway(jwt_valid, (long)not_before - 10);
+	ret = jwt_valid_set_nbf_leeway(jwt_valid, 10);
 	ck_assert_int_eq(ret, 0);
 
 	/* JWT is invalid when now < not-before - nbf_leeway */
@@ -442,6 +468,32 @@ START_TEST(test_jwt_valid_expires)
 }
 END_TEST
 
+START_TEST(test_jwt_valid_set_exp_leeway)
+{
+	jwt_valid_t *jwt_valid = NULL;
+	unsigned int ret = 0;
+
+	__setup_jwt();
+	ret = jwt_valid_new(&jwt_valid, JWT_ALG_NONE);
+	ck_assert_int_eq(ret, 0);
+	ck_assert(jwt_valid != NULL);
+
+	/* 0 by default */
+	time_t init_exp_leeway = jwt_valid_get_exp_leeway(jwt_valid);
+	ck_assert_int_eq(init_exp_leeway, 0);
+
+	/* Setting exp_leeway */
+	ret = jwt_valid_set_exp_leeway(jwt_valid, 1);
+	ck_assert_int_eq(ret, 0);
+
+	time_t set_exp_leeway = jwt_valid_get_exp_leeway(jwt_valid);
+	ck_assert_int_eq(set_exp_leeway, 1);
+
+	jwt_valid_free(jwt_valid);
+	__teardown_jwt();
+}
+END_TEST
+
 START_TEST(test_jwt_valid_expires_leeway)
 {
 	jwt_valid_t *jwt_valid = NULL;
@@ -455,7 +507,7 @@ START_TEST(test_jwt_valid_expires_leeway)
 	ck_assert(jwt_valid != NULL);
 
 	/* Setting exp_leeway */
-	ret = jwt_valid_set_exp_leeway(jwt_valid, (long)expires + 10);
+	ret = jwt_valid_set_exp_leeway(jwt_valid, 10);
 	ck_assert_int_eq(ret, 0);
 
 	/* JWT is valid when now < expires + exp_leeway */
@@ -597,7 +649,11 @@ static Suite *libjwt_suite(void)
 	tcase_add_test(tc_core, test_jwt_valid_grants_json);
 	tcase_add_test(tc_core, test_jwt_valid_del_grants);
 	tcase_add_test(tc_core, test_jwt_valid_not_before);
+	tcase_add_test(tc_core, test_jwt_valid_set_nbf_leeway);
+	tcase_add_test(tc_core, test_jwt_valid_not_before_leeway);
 	tcase_add_test(tc_core, test_jwt_valid_expires);
+	tcase_add_test(tc_core, test_jwt_valid_set_exp_leeway);
+	tcase_add_test(tc_core, test_jwt_valid_expires_leeway);
 	tcase_add_test(tc_core, test_jwt_valid_headers);
 
 	tcase_set_timeout(tc_core, 30);
