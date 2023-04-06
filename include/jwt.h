@@ -236,14 +236,11 @@ JWT_EXPORT long jwt_get_grant_int(jwt_t *jwt, const char *grant);
 /**
  * Return the value of an boolean grant.
  *
- * Returns the int value for a grant (e.g. "exp"). If it does not exist,
- * -1 will be returned.
- *
  * @param jwt Pointer to a JWT object.
  * @param grant String containing the name of the grant to return a value
  *     for.
- * @return Returns a boolean for the value. Sets errno to ENOENT when not
- * found.
+ * @return Returns 1 (true) or 0 (false) for the value. Returns -1 and sets
+ *     errno to ENOENT when not found.
  *
  * Note, this will only return grants with JSON boolean values. Use
  * jwt_get_grants_json() to get the JSON representation of more complex
