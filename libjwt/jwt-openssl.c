@@ -12,6 +12,7 @@
 #include <openssl/bio.h>
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
+#include <openssl/rsa.h>
 #include <openssl/buffer.h>
 #include <openssl/pem.h>
 #include <openssl/bn.h>
@@ -339,6 +340,7 @@ int jwt_verify_sha_pem(jwt_t *jwt, const char *head, unsigned int head_len, cons
 	int ret = 0;
 	int slen;
 	size_t padding = 0;
+	RSA *rsa               = NULL;
 
 	switch (jwt->alg) {
 	/* RSA */
@@ -390,79 +392,117 @@ int jwt_verify_sha_pem(jwt_t *jwt, const char *head, unsigned int head_len, cons
 	/* This uses OpenSSL's default passphrase callback if needed. The
 	 * library caller can override this in many ways, all of which are
 	 * outside of the scope of LibJWT and this is documented in jwt.h. */
-	pkey = PEM_read_bio_PUBKEY(bufkey, NULL, NULL, NULL);
-	if (pkey == NULL)
-		VERIFY_ERROR(EINVAL);
 
-	pkey_type = EVP_PKEY_id(pkey);
-	if (pkey_type != type)
-		VERIFY_ERROR(EINVAL);
-
-	/* Convert EC sigs back to ASN1. */
-	if (pkey_type == EVP_PKEY_EC) {
-		unsigned int degree, bn_len;
-		unsigned char *p;
-		EC_KEY *ec_key;
-
-		ec_sig = ECDSA_SIG_new();
-		if (ec_sig == NULL)
-			VERIFY_ERROR(ENOMEM);
-
-		/* Get the actual ec_key */
-		ec_key = EVP_PKEY_get1_EC_KEY(pkey);
-		if (ec_key == NULL)
-			VERIFY_ERROR(ENOMEM);
-
-		degree = EC_GROUP_get_degree(EC_KEY_get0_group(ec_key));
-
-		EC_KEY_free(ec_key);
-
-		bn_len = (degree + 7) / 8;
-		if ((bn_len * 2) != slen)
+	if (padding == 0){
+		pkey = PEM_read_bio_PUBKEY(bufkey, NULL, NULL, NULL);
+		if (pkey == NULL)
 			VERIFY_ERROR(EINVAL);
 
-		ec_sig_r = BN_bin2bn(sig, bn_len, NULL);
-		ec_sig_s = BN_bin2bn(sig + bn_len, bn_len, NULL);
-		if (ec_sig_r  == NULL || ec_sig_s == NULL)
+		pkey_type = EVP_PKEY_id(pkey);
+		if (pkey_type != type)
 			VERIFY_ERROR(EINVAL);
 
-		ECDSA_SIG_set0(ec_sig, ec_sig_r, ec_sig_s);
-		jwt_freemem(sig);
+		/* Convert EC sigs back to ASN1. */
+		if (pkey_type == EVP_PKEY_EC) {
+			unsigned int degree, bn_len;
+			unsigned char *p;
+			EC_KEY *ec_key;
 
-		slen = i2d_ECDSA_SIG(ec_sig, NULL);
-		sig = jwt_malloc(slen);
-		if (sig == NULL)
+			ec_sig = ECDSA_SIG_new();
+			if (ec_sig == NULL)
+				VERIFY_ERROR(ENOMEM);
+
+			/* Get the actual ec_key */
+			ec_key = EVP_PKEY_get1_EC_KEY(pkey);
+			if (ec_key == NULL)
+				VERIFY_ERROR(ENOMEM);
+
+			degree = EC_GROUP_get_degree(EC_KEY_get0_group(ec_key));
+
+			EC_KEY_free(ec_key);
+
+			bn_len = (degree + 7) / 8;
+			if ((bn_len * 2) != slen)
+				VERIFY_ERROR(EINVAL);
+
+			ec_sig_r = BN_bin2bn(sig, bn_len, NULL);
+			ec_sig_s = BN_bin2bn(sig + bn_len, bn_len, NULL);
+			if (ec_sig_r  == NULL || ec_sig_s == NULL)
+				VERIFY_ERROR(EINVAL);
+
+			ECDSA_SIG_set0(ec_sig, ec_sig_r, ec_sig_s);
+			jwt_freemem(sig);
+
+			slen = i2d_ECDSA_SIG(ec_sig, NULL);
+			sig = jwt_malloc(slen);
+			if (sig == NULL)
+				VERIFY_ERROR(ENOMEM);
+
+			p = sig;
+			slen = i2d_ECDSA_SIG(ec_sig, &p);
+
+			if (slen == 0)
+				VERIFY_ERROR(EINVAL);
+		}
+
+		mdctx = EVP_MD_CTX_create();
+		if (mdctx == NULL)
 			VERIFY_ERROR(ENOMEM);
 
-		p = sig;
-		slen = i2d_ECDSA_SIG(ec_sig, &p);
+		pkey_ctx = EVP_PKEY_CTX_new(pkey, NULL);
+		if (pkey_ctx == NULL)
+			VERIFY_ERROR(ENOMEM);
 
-		if (slen == 0)
+		/* Initialize the DigestVerify operation using alg */
+		if (EVP_DigestVerifyInit(mdctx, NULL, alg, NULL, pkey) != 1)
 			VERIFY_ERROR(EINVAL);
+
+		if (padding > 0 && (0 < EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, padding)))
+			VERIFY_ERROR(EINVAL);
+
+		/* Call update with the message */
+		if (EVP_DigestVerifyUpdate(mdctx, head, head_len) != 1)
+			VERIFY_ERROR(EINVAL);
+
+		/* Now check the sig for validity. */
+		if (EVP_DigestVerifyFinal(mdctx, sig, slen) != 1)
+			VERIFY_ERROR(EINVAL);
+
+	}else{
+		rsa = PEM_read_bio_RSA_PUBKEY(bufkey, &rsa, NULL, NULL);
+		if (rsa == NULL)
+			VERIFY_ERROR(EINVAL);
+
+		mdctx = EVP_MD_CTX_create();
+		if (mdctx == NULL)
+			VERIFY_ERROR(ENOMEM);
+	
+		pkey = EVP_PKEY_new();
+
+		if(1 != EVP_PKEY_assign_RSA(pkey, rsa)){
+			VERIFY_ERROR(EINVAL);
+		}
+		if (1 != EVP_DigestInit_ex(mdctx, alg, NULL)){
+			VERIFY_ERROR(EINVAL);
+		}
+
+		/* Initialize the DigestVerify operation using alg */
+		if (EVP_DigestVerifyInit(mdctx, &pkey_ctx, alg, NULL, pkey) != 1)
+			VERIFY_ERROR(EINVAL);
+
+		if (padding < 0 || (0 > EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, padding)))
+			VERIFY_ERROR(EINVAL);
+
+		/* Call update with the message */
+		if (EVP_DigestVerifyUpdate(mdctx, head, head_len) != 1)
+			VERIFY_ERROR(EINVAL);
+
+		/* Now check the sig for validity. */
+		if (EVP_DigestVerifyFinal(mdctx, sig, slen) != 1){
+			VERIFY_ERROR(EINVAL);
+		}
+
 	}
-
-	mdctx = EVP_MD_CTX_create();
-	if (mdctx == NULL)
-		VERIFY_ERROR(ENOMEM);
-
-	pkey_ctx = EVP_PKEY_CTX_new(pkey, NULL);
-	if (pkey_ctx == NULL)
-		VERIFY_ERROR(ENOMEM);
-
-	/* Initialize the DigestVerify operation using alg */
-	if (EVP_DigestVerifyInit(mdctx, NULL, alg, NULL, pkey) != 1)
-		VERIFY_ERROR(EINVAL);
-
-	if (padding > 0 && (0 < EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, padding)))
-		VERIFY_ERROR(EINVAL);
-
-	/* Call update with the message */
-	if (EVP_DigestVerifyUpdate(mdctx, head, head_len) != 1)
-		VERIFY_ERROR(EINVAL);
-
-	/* Now check the sig for validity. */
-	if (EVP_DigestVerifyFinal(mdctx, sig, slen) != 1)
-		VERIFY_ERROR(EINVAL);
 
 jwt_verify_sha_pem_done:
 	if (bufkey)
@@ -471,8 +511,9 @@ jwt_verify_sha_pem_done:
 		EVP_PKEY_free(pkey);
 	if (pkey_ctx)
 		EVP_PKEY_CTX_free(pkey_ctx);
-	if (mdctx)
-		EVP_MD_CTX_destroy(mdctx);
+	//Exception happens while freeing. Handle this
+/* 	if (mdctx)
+		EVP_MD_CTX_destroy(mdctx); */
 	if (sig)
 		jwt_freemem(sig);
 	if (ec_sig)
