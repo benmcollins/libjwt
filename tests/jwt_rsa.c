@@ -80,9 +80,18 @@ static const char jwt_rs512_8192[] = "eyJhbGciOiJSUzUxMiIsInR5cCI6IkpXVCJ9.ey"
 	"MDRrJehImeyDE0H0rpOsxSXOjnDqiFBsf9d0-zJNFvo9tWlK_-d-N40BIy5eZm37FKG7"
 	"g2rFmXtuicUs6jiwu0_tHSi1fPKO7YN2ezQc9HAoBvvrur1z_XGbDSmFTQNTv0Cg";
 
-static const char jwt_rs256_invalid[] = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.ey"
-	"JpYXQiOjE0NzU5ODA1NDUsImlzcyI6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJYWF"
-	"hYLVlZWVktWlpaWi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.IAmCornholio";
+static const char jwt_rs256_invalid[] = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9"
+	".eyJpYXQiOjE0NzU5ODA1NDUsImlzcyI6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJ"
+	"YWFhYLVlZWVktWlpaWi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.IAmCornholio";
+
+static const char jwt_ps256_2048[] = "eyJhbGciOiJQUzI1NiIsInR5cCI6IkpXVCJ9.ey"
+	"JpYXQiOjE0NzU5ODA1NDUsImlzcyI6ImZpbGVzLm1hY2xhcmEtbGxjLmNvbSIsInJlZi"
+	"I6IlhYWFgtWVlZWS1aWlpaLUFBQUEtQ0NDQyIsInN1YiI6InVzZXIwIn0.B9gxqtbZae"
+	"9PyGkjQaBMyBITOieALP39yCDSqmynmvnE2L8JJzNxOKjm5dy_ORhYjagghE18ti90v2"
+	"whAwRFFvA7MlQC2rQm-4pXrHqAyhT7Dl1_lSeL98WGToZgJ646WLjr-SwbMNjp3RWwZz"
+	"F-IwnB1D1f-RoA9yUoaNEFHUYVuL4okVj4ImnUE07pW-l2eal3bxUg6lzqGWSctbT46t"
+	"y8qFlsOyrifev3y_z6-eKPHUruYEbWb1zw3-snBtcPfGMWAQ91PVoNkPLTO6G56I8FAF"
+	"IufXyyp6k9VuKQ_WRzRQhwO8zBOto4RsTUjYbDJEY2FSFYVZUdPctwojNlCw";
 
 static void read_key(const char *key_file)
 {
@@ -146,6 +155,7 @@ static void __test_alg_key(const char *key_file, const char *jwt_str,
 static void __verify_alg_key(const char *key_file, const char *jwt_str,
 			     const jwt_alg_t alg)
 {
+	jwt_valid_t *jwt_valid = NULL;
 	jwt_t *jwt = NULL;
 	int ret = 0;
 
@@ -155,7 +165,6 @@ static void __verify_alg_key(const char *key_file, const char *jwt_str,
 	ck_assert_int_eq(ret, 0);
 	ck_assert(jwt != NULL);
 
-	jwt_valid_t *jwt_valid = NULL;
 	jwt_valid_new(&jwt_valid, alg);
 
 	ck_assert_int_eq(JWT_VALIDATION_SUCCESS, jwt_validate(jwt, jwt_valid));
@@ -366,6 +375,47 @@ START_TEST(test_jwt_encode_invalid_key)
 }
 END_TEST
 
+START_TEST(test_jwt_encode_ps256)
+{
+	jwt_t *jwt = NULL;
+	int ret = 0;
+	char *out;
+
+	ALLOC_JWT(&jwt);
+
+	read_key("rsa-pss_key_2048.pem");
+
+	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_add_grant(jwt, "sub", "user0");
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_set_alg(jwt, JWT_ALG_PS256, key, key_len);
+	ck_assert_int_eq(ret, 0);
+
+	out = jwt_encode_str(jwt);
+	ck_assert_ptr_ne(out, NULL);
+
+	__verify_alg_key("rsa-pss_key_2048-pub.pem", out, JWT_ALG_PS256);
+
+	jwt_free_str(out);
+	jwt_free(jwt);
+}
+END_TEST
+
+START_TEST(test_jwt_verify_ps256)
+{
+	__verify_alg_key("rsa-pss_key_2048-pub.pem", jwt_ps256_2048, JWT_ALG_PS256);
+}
+END_TEST
+
 static Suite *libjwt_suite(void)
 {
 	Suite *s;
@@ -389,6 +439,10 @@ static Suite *libjwt_suite(void)
 	tcase_add_test(tc_core, test_jwt_verify_invalid_cert);
 	tcase_add_test(tc_core, test_jwt_verify_invalid_cert_file);
 	tcase_add_test(tc_core, test_jwt_encode_invalid_key);
+
+	/* RSA-PSS */
+	tcase_add_test(tc_core, test_jwt_encode_ps256);
+	tcase_add_test(tc_core, test_jwt_verify_ps256);
 
 	tcase_set_timeout(tc_core, 120);
 
