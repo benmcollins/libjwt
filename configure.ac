@@ -1,5 +1,5 @@
 AC_PREREQ([2.61])
-AC_INIT([libjwt],[1.15.3],[https://github.com/benmcollins/libjwt/issues])
+AC_INIT([libjwt],[1.16.0],[https://github.com/benmcollins/libjwt/issues])
 AM_INIT_AUTOMAKE([foreign])
 LT_PREREQ([2.2])
 LT_INIT([])
@@ -16,7 +16,7 @@ AS_IF([test "x$with_openssl" != "xno"], [
 	PKG_CHECK_MODULES([OPENSSL], [openssl >= 0.9.8])
 	AM_CONDITIONAL([HAVE_OPENSSL], [true])
 ], [
-	PKG_CHECK_MODULES([GNUTLS], [gnutls >= 3.5.8])
+	PKG_CHECK_MODULES([GNUTLS], [gnutls >= 3.6.0])
 	AM_CONDITIONAL([HAVE_OPENSSL], [false])
 ])
 
