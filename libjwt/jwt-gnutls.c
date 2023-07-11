@@ -123,6 +123,7 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len, const char *str,
 	*out = NULL;
 
 	switch (jwt->alg) {
+	/* RSA */
 	case JWT_ALG_RS256:
 		alg = GNUTLS_DIG_SHA256;
 		pk_alg = GNUTLS_PK_RSA;
@@ -135,6 +136,22 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len, const char *str,
 		alg = GNUTLS_DIG_SHA512;
 		pk_alg = GNUTLS_PK_RSA;
 		break;
+
+	/* RSA-PSS */
+        case JWT_ALG_PS256:
+		alg = GNUTLS_DIG_SHA256;
+		pk_alg = GNUTLS_PK_RSA_PSS;
+		break;
+	case JWT_ALG_PS384:
+		alg = GNUTLS_DIG_SHA384;
+		pk_alg = GNUTLS_PK_RSA_PSS;
+		break;
+	case JWT_ALG_PS512:
+		alg = GNUTLS_DIG_SHA512;
+		pk_alg = GNUTLS_PK_RSA_PSS;
+		break;
+
+	/* EC */
 	case JWT_ALG_ES256:
 		alg = GNUTLS_DIG_SHA256;
 		pk_alg = GNUTLS_PK_EC;
@@ -182,7 +199,7 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len, const char *str,
 	}
 
 	/* RSA is very short. */
-	if (pk_alg == GNUTLS_PK_RSA) {
+	if (pk_alg == GNUTLS_PK_RSA || pk_alg == GNUTLS_PK_RSA_PSS) {
 		*out = jwt_malloc(sig_dat.size);
 		if (*out == NULL) {
 			ret = ENOMEM;
@@ -273,20 +290,34 @@ int jwt_verify_sha_pem(jwt_t *jwt, const char *head, unsigned int head_len, cons
 	unsigned char *sig = NULL;
 
 	switch (jwt->alg) {
+	/* RSA */
 	case JWT_ALG_RS256:
-		alg = GNUTLS_DIG_SHA256;
+		alg = GNUTLS_SIGN_RSA_SHA256;
 		break;
+	case JWT_ALG_RS384:
+		alg = GNUTLS_SIGN_RSA_SHA384;
+		break;
+	case JWT_ALG_RS512:
+		alg = GNUTLS_SIGN_RSA_SHA512;
+		break;
+
+	/* RSA-PSS */
+	case JWT_ALG_PS256:
+		alg = GNUTLS_SIGN_RSA_PSS_SHA256;
+		break;
+	case JWT_ALG_PS384:
+		alg = GNUTLS_SIGN_RSA_PSS_SHA384;
+		break;
+	case JWT_ALG_PS512:
+		alg = GNUTLS_SIGN_RSA_PSS_SHA512;
+		break;
+
+	/* EC */
 	case JWT_ALG_ES256:
 		alg = GNUTLS_SIGN_ECDSA_SHA256;
 		break;
-	case JWT_ALG_RS384:
-		alg = GNUTLS_DIG_SHA384;
-		break;
 	case JWT_ALG_ES384:
 		alg = GNUTLS_SIGN_ECDSA_SHA384;
-		break;
-	case JWT_ALG_RS512:
-		alg = GNUTLS_DIG_SHA512;
 		break;
 	case JWT_ALG_ES512:
 		alg = GNUTLS_SIGN_ECDSA_SHA512;
