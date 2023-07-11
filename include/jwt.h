@@ -83,21 +83,6 @@ typedef enum jwt_alg {
 #define JWT_VALIDATION_GRANT_MISSING	0x0080
 #define JWT_VALIDATION_GRANT_MISMATCH	0x0100
 
-/**
- * Parses exceptions and returns a comma delimited and human-readable string.
- *
- * The string returned string must be freed by the caller. If you changed the allocation
- * method using jwt_set_alloc, then you must use jwt_free_str() to free the memory.
- *
- * Note: This string is currently en-US ASCII only. Language support will come in the
- * future.
- *
- * @param rc Integer containing the exception flags.
- * @return A null terminated string on success, NULL on error with errno
- *     set appropriately.
- */
-JWT_EXPORT char *jwt_exception_str(unsigned int rc);
-
 /** JWT Memory allocation overrides */
 typedef void *(*jwt_malloc_t)(size_t);
 typedef void *(*jwt_realloc_t)(void *, size_t);
@@ -995,6 +980,21 @@ JWT_EXPORT int jwt_valid_set_exp_leeway(jwt_valid_t *jwt_valid, const time_t exp
  *     header or body.
  */
 JWT_EXPORT int jwt_valid_set_headers(jwt_valid_t *jwt_valid, int hdr);
+
+/**
+ * Parses exceptions and returns a comma delimited and human-readable string.
+ *
+ * The returned string must be freed by the caller. If you changed the allocation
+ * method using jwt_set_alloc, then you must use jwt_free_str() to free the memory.
+ *
+ * Note: This string is currently en-US ASCII only. Language support will come in the
+ * future.
+ *
+ * @param exceptions Integer containing the exception flags.
+ * @return A null terminated string on success, NULL on error with errno
+ *     set appropriately.
+ */
+JWT_EXPORT char *jwt_exception_str(unsigned int exceptions);
 
 /** @} */
 
