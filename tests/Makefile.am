@@ -7,6 +7,7 @@ TESTS =			\
 	jwt_dump	\
 	jwt_encode	\
 	jwt_rsa		\
+	jwt_rsa_pss	\
 	jwt_ec		\
 	jwt_validate
 
