@@ -17,7 +17,8 @@
 
 ## Pre-built Packages
 
-LibJWT is available in most Linux distribitons.
+LibJWT is available in most Linux distribitons as well as through [Homebrew](https://brew.sh/)
+for macOS and Windows.
 
 ## Build Instructions
 
