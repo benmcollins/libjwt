@@ -44,27 +44,27 @@ static const char jwt_ps256_2048[] = "eyJhbGciOiJQUzI1NiIsInR5cCI6IkpXVCJ9.ey"
 
 static const char jwt_ps384_2048[] = "eyJhbGciOiJQUzM4NCIsInR5cCI6IkpXVCJ9.ey"
 	"JpYXQiOjE0NzU5ODA1NDUsImlzcyI6ImZpbGVzLm1hY2xhcmEtbGxjLmNvbSIsInJlZi"
-	"I6IlhYWFgtWVlZWS1aWlpaLUFBQUEtQ0NDQyIsInN1YiI6InVzZXIwIn0.HGI3jmvkMT"
-	"aot4JM3ElUuEp_ufbG2os116tJdiJsZDM310N3q46vTMAax2QBI3qENEJU_p6qd30i-l"
-	"f8imM1-D-PiPjMHxvkN5sOkt35MqEwT8I2Xo3ikn8TSBJKPLM4uBBgO49wG2_0tYTfp0"
-	"GPCinBpkSxttH7T3PmK0gqRXde-5TI99XxUbCAtpS9tSAG4RCpQW4XuhA_Hn4WM8pbGZ"
-	"vrCvSXWg0ms8fibdDzehuL5AGwJdrabGsPJFU7F2ItrfCaQcVsT6aTSLfFPCv91RK1tl"
-	"PlUkpxVg6UdVNwzG44o6UgnCil1jLXbcJmIozsJ_tMQHMg2R6YCslah1MrNA";
+	"I6IlhYWFgtWVlZWS1aWlpaLUFBQUEtQ0NDQyIsInN1YiI6InVzZXIwIn0.GY8aZobXTy"
+	"6DzooRUt6vwgBbWwWvTchFtDCVMto_NM68aqT_OI8_X1MAHwE7ppS1S-yxg1aEeGzZEG"
+	"VEAdeIzswd7ilCpQrUQ2Qcym6SuK3NAKLtr6NyUZwdaEPTeEx3GWQbmvY66hVs7g2o4c"
+	"luSfp3I4McgLCm-HS5Dl_xHoyV_1ympz_n3n7YDoe5l0EoHaX3-XPMtUvL4kxeMV5pLh"
+	"72Yj2qNM5Dbbe9F_WSxoeQsyktg8MmPb22LWAAW7uafazr7TinJvPtBhPqT7hc2sUFbA"
+	"Jui_TSM60Kjfqg15QQELifywNvgW0ZO6xKEI5GKgaIi2S9F2iqQehBBkjMrg";
 
 static const char jwt_ps512_2048[] = "eyJhbGciOiJQUzUxMiIsInR5cCI6IkpXVCJ9.ey"
 	"JpYXQiOjE0NzU5ODA1NDUsImlzcyI6ImZpbGVzLm1hY2xhcmEtbGxjLmNvbSIsInJlZi"
-	"I6IlhYWFgtWVlZWS1aWlpaLUFBQUEtQ0NDQyIsInN1YiI6InVzZXIwIn0.VDihpYTMLt"
-	"5mrAphNgo8iJhH5_Ss2uVIDkkARvcNXrUc8RR0dRTeMs-Apw_KsMczwPpE98IR6Z55aV"
-	"GWs3-oqv5bp1DWC6-8XaUc3vNfIEV6Rvt2_5D4J8xlOnN-V4Lj99xBOP6A5aeBpRUqWk"
-	"ZWpA9cJZOW1oiq-IrSK8VYSfRj6_vdnf-PxHcMziyGX1ITnOqfWtv_-JbaHSXlFyj4hM"
-	"gc5pYtS2UC8SEEfHoIk0Pm6zrrcadb5CjQGY7qRi8ESXJhZWsendjwkY8j5Jw_fBs3n1"
-	"nXuTVD4G7nBcznQmtdv0trshoYjHRNpAulzoVKgb4k4L4nrm-eM_649rDlOg";
+	"I6IlhYWFgtWVlZWS1aWlpaLUFBQUEtQ0NDQyIsInN1YiI6InVzZXIwIn0.OxnjxVNAEC"
+	"xEnNVg6S6sx-JIxOq3sJimEefq4OONsYomWz1TAM8_42bmAnvda0bhC8LTmIogQwnYj3"
+	"qIYrjef3s7nrs5USS3_ffqeMuog_Xp7cH1YhVwvkXEWzfeT-SLZiEdxGBrPvEASxwzv0"
+	"CitQrfDGvFe20UXkhAvOKIc_1K5Fzv9IQiaKaPR2Jg8Ub0qQ6qZq1whnwDbjutWCFlW3"
+	"62UOQbhA2WtE72Q60OFXMr2J0PYrScGgTRRrL6V2G7cNRend14FzDFG586dGUCwp9iKF"
+	"nCrshFefpaFsOJYHG70Ka6CNIDG4LDiLatjjz1UCtAgbnHfy9qyJEpcJYPWg";
 
 static void read_key(const char *key_file)
 {
-	FILE *fp = fopen(key_file, "r");
+	FILE *fp;
 	char *key_path;
-	int ret = 0;
+	int ret;
 
 	ret = asprintf(&key_path, KEYDIR "/%s", key_file);
 	ck_assert_int_gt(ret, 0);
