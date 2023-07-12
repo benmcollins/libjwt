@@ -60,6 +60,19 @@ static const char jwt_ps512_2048[] = "eyJhbGciOiJQUzUxMiIsInR5cCI6IkpXVCJ9.ey"
 	"62UOQbhA2WtE72Q60OFXMr2J0PYrScGgTRRrL6V2G7cNRend14FzDFG586dGUCwp9iKF"
 	"nCrshFefpaFsOJYHG70Ka6CNIDG4LDiLatjjz1UCtAgbnHfy9qyJEpcJYPWg";
 
+static const char jwt_ps256_2048_invalid[] = "eyJhbGciOiJQUzI1NiIsInR5cCI6Ikp"
+	"XVCJ9.eyJpYXQiOjE0NzU5ODA1NDUsImlzcyI6ImZpbGVzLm1hY2xhcmEtbGxjLmNvbS"
+	"IsInJlZiI6IlhYWFgtWVlZWS1aWlpaLUFBQUEtQ0NDQyIsInN1YiI6InVzZXIwIn0.WX"
+	"41yYTKxf6lDg7toDAAnwuLKCUSdEWUsJ-5neEbOPE4l09EEIDW2cjK4NZkAgySgCZHCa"
+	"NUSn8XaOouoLoEMVua5f0g6U-_-c380KRfmiqFGe39vjHCqiw8j-WkdxHisi7eXw3fvL"
+	"kp0VoyeWA6Fnp2x-shfHU5Br67Wagp7OgCk-SvVL08xyfvgZr6fzEqc486zdNhQE71Pv"
+	"in5dRQ75Lg3rr1W8Xmx2zRrFKZALsEwGMhRL7e-x46mt6KF1UlwTYAW6FYoKTrrW62sH"
+	"OgpgvsIwhE93RfCmJ_xvZNkKrqnB6RxfpHEbZYTS8iAI3va2S8IBEL_pH-2etsr1fqAg";
+
+#define RSA_PSS_KEY_PRE "rsa-pss_key_2048"
+#define PS_KEY_PRIV RSA_PSS_KEY_PRE ".pem"
+#define PS_KEY_PUB RSA_PSS_KEY_PRE "-pub.pem"
+
 static void read_key(const char *key_file)
 {
 	FILE *fp;
@@ -87,17 +100,18 @@ static void read_key(const char *key_file)
 static void __verify_alg_key(const char *key_file, const char *jwt_str,
 			     const jwt_alg_t alg)
 {
-	jwt_valid_t *jwt_valid = NULL;
-	jwt_t *jwt = NULL;
-	int ret = 0;
+	jwt_valid_t *jwt_valid;
+	jwt_t *jwt;
+	int ret;
 
 	read_key(key_file);
 
 	ret = jwt_decode(&jwt, jwt_str, key, key_len);
 	ck_assert_int_eq(ret, 0);
-	ck_assert(jwt != NULL);
+	ck_assert_ptr_ne(jwt, NULL);
 
 	jwt_valid_new(&jwt_valid, alg);
+	ck_assert_ptr_ne(jwt_valid, NULL);
 
 	ret = jwt_validate(jwt, jwt_valid);
 	ck_assert_int_eq(JWT_VALIDATION_SUCCESS, ret);
@@ -110,8 +124,8 @@ static void __test_rsa_pss_encode(const char *priv_key_file,
 				  const char *pub_key_file,
 				  const jwt_alg_t alg)
 {
-	jwt_t *jwt = NULL;
-	int ret = 0;
+	jwt_t *jwt;
+	int ret;
 	char *out;
 
 	ALLOC_JWT(&jwt);
@@ -136,6 +150,8 @@ static void __test_rsa_pss_encode(const char *priv_key_file,
 	out = jwt_encode_str(jwt);
 	ck_assert_ptr_ne(out, NULL);
 
+fprintf(stderr, "%s\n\n", out);
+
 	__verify_alg_key(pub_key_file, out, alg);
 
 	jwt_free_str(out);
@@ -144,37 +160,37 @@ static void __test_rsa_pss_encode(const char *priv_key_file,
 
 START_TEST(test_jwt_encode_ps256)
 {
-	__test_rsa_pss_encode("rsa-pss_key_2048.pem", "rsa-pss_key_2048-pub.pem", JWT_ALG_PS256);
+	__test_rsa_pss_encode(PS_KEY_PRIV, PS_KEY_PUB, JWT_ALG_PS256);
 }
 END_TEST
 
 START_TEST(test_jwt_encode_ps384)
 {
-	__test_rsa_pss_encode("rsa-pss_key_2048.pem", "rsa-pss_key_2048-pub.pem", JWT_ALG_PS384);
+	__test_rsa_pss_encode(PS_KEY_PRIV, PS_KEY_PUB, JWT_ALG_PS384);
 }
 END_TEST
 
 START_TEST(test_jwt_encode_ps512)
 {
-	__test_rsa_pss_encode("rsa-pss_key_2048.pem", "rsa-pss_key_2048-pub.pem", JWT_ALG_PS512);
+	__test_rsa_pss_encode(PS_KEY_PRIV, PS_KEY_PUB, JWT_ALG_PS512);
 }
 END_TEST
 
 START_TEST(test_jwt_verify_ps256)
 {
-	__verify_alg_key("rsa-pss_key_2048-pub.pem", jwt_ps256_2048, JWT_ALG_PS256);
+	__verify_alg_key(PS_KEY_PUB, jwt_ps256_2048, JWT_ALG_PS256);
 }
 END_TEST
 
 START_TEST(test_jwt_verify_ps384)
 {
-	__verify_alg_key("rsa-pss_key_2048-pub.pem", jwt_ps384_2048, JWT_ALG_PS384);
+	__verify_alg_key(PS_KEY_PUB, jwt_ps384_2048, JWT_ALG_PS384);
 }
 END_TEST
 
 START_TEST(test_jwt_verify_ps512)
 {
-	__verify_alg_key("rsa-pss_key_2048-pub.pem", jwt_ps512_2048, JWT_ALG_PS512);
+	__verify_alg_key(PS_KEY_PUB, jwt_ps512_2048, JWT_ALG_PS512);
 }
 END_TEST
 
@@ -183,9 +199,9 @@ START_TEST(test_jwt_verify_invalid_rsa_pss)
 	jwt_t *jwt = NULL;
 	int ret = 0;
 
-	read_key("rsa_key_2048-pub.pem");
+	read_key(PS_KEY_PUB);
 
-	ret = jwt_decode(&jwt, jwt_ps256_2048, key, JWT_ALG_PS256);
+	ret = jwt_decode(&jwt, jwt_ps256_2048_invalid, key, key_len);
 	ck_assert_int_ne(ret, 0);
 	ck_assert_ptr_eq(jwt, NULL);
 }
