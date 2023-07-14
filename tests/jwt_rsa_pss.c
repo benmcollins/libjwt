@@ -150,8 +150,6 @@ static void __test_rsa_pss_encode(const char *priv_key_file,
 	out = jwt_encode_str(jwt);
 	ck_assert_ptr_ne(out, NULL);
 
-fprintf(stderr, "%s\n\n", out);
-
 	__verify_alg_key(pub_key_file, out, alg);
 
 	jwt_free_str(out);
