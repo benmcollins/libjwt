@@ -124,7 +124,7 @@ int main(int argc, char *argv[])
 
 	ret = jwt_add_grant_int(jwt, "iat", iat);
 	for (i = 0; i < claims_count; i++) {
-		fprintf(stderr, "Adding claim %s with valu %s\n", opt_claims[i].key, opt_claims[i].val);
+		fprintf(stderr, "Adding claim %s with value %s\n", opt_claims[i].key, opt_claims[i].val);
 		jwt_add_grant(jwt, opt_claims[i].key, opt_claims[i].val);
 	}
 

@@ -1030,7 +1030,7 @@ static int jwt_write_head(jwt_t *jwt, char **buf, int pretty)
 
 		/* Only add default 'typ' header if it has not been defined,
 		 * allowing for any value of it. This allows for signaling
-		 * of application specific extentions to JWT, such as PASSporT,
+		 * of application specific extensions to JWT, such as PASSporT,
 		 * RFC 8225. */
 		if ((ret = jwt_add_header(jwt, "typ", "JWT"))) {
 			if (ret != EEXIST) {
