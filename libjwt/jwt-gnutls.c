@@ -31,7 +31,7 @@ extern int _gnutls_decode_ber_rs_raw(const gnutls_datum_t *sig_value,
 
 static int gnutls_encode_rs_value(gnutls_datum_t *sig_value,
 				  const gnutls_datum_t *r,
-				  const gnutls_datum_t * s)
+				  const gnutls_datum_t *s)
 {
 	return _gnutls_encode_ber_rs_raw(sig_value, r, s);
 }
