@@ -715,7 +715,7 @@ JWT_EXPORT void jwt_get_alloc(jwt_malloc_t *pmalloc, jwt_realloc_t *prealloc, jw
  /** @} */
 
 /**
- * @defgroup jwt_vaildate JWT validation functions
+ * @defgroup jwt_validate JWT validation functions
  * These functions allow you to define requirements for JWT validation.
  *
  * The most basic validation is that the JWT uses the expected algorithm.
