@@ -241,7 +241,7 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 	if (EVP_DigestSignInit(mdctx, &pkey_ctx, alg, NULL, pkey) != 1)
 		SIGN_ERROR(EINVAL);
 
-	if (padding > 0 && (0 > EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, padding)))
+	if (padding > 0 && EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, padding) < 0)
 		SIGN_ERROR(EINVAL);
 
 	/* Call update with the message */
@@ -465,7 +465,7 @@ int jwt_verify_sha_pem(jwt_t *jwt, const char *head, unsigned int head_len, cons
 	if (EVP_DigestVerifyInit(mdctx, &pkey_ctx, alg, NULL, pkey) != 1)
 		VERIFY_ERROR(EINVAL);
 
-	if (padding > 0 && (0 > EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, padding)))
+	if (padding > 0 && EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, padding) < 0)
 		VERIFY_ERROR(EINVAL);
 
 	/* Call update with the message */
