@@ -332,14 +332,14 @@ static int get_js_bool(json_t *js, const char *key)
 	js_val = json_object_get(js, key);
 	if (js_val) {
 		switch (json_typeof(js_val)) {
-			case JSON_TRUE:
-				val = 1;
-				break;
-			case JSON_FALSE:
-				val = 0;
-				break;
-			default:
-				errno = EINVAL;
+		case JSON_TRUE:
+			val = 1;
+			break;
+		case JSON_FALSE:
+			val = 0;
+			break;
+		default:
+			errno = EINVAL;
 		}
 	} else {
 		errno = ENOENT;
@@ -597,7 +597,7 @@ static int jwt_parse(jwt_t **jwt, const char *token, unsigned int *len)
 parse_done:
 	if (ret) {
 		jwt_free(new);
-        	*jwt = NULL;
+		*jwt = NULL;
 	} else {
 		*jwt = new;
 		*len = sig - head;
@@ -662,7 +662,7 @@ decode_done:
 	return ret;
 }
 
-int jwt_decode_2(jwt_t **jwt, const char *token, jwt_key_p_t key_provider) 
+int jwt_decode_2(jwt_t **jwt, const char *token, jwt_key_p_t key_provider)
 {
 	jwt_t *new = NULL;
 	int ret = EINVAL;

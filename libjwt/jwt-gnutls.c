@@ -138,7 +138,7 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len, const char *str,
 		break;
 
 	/* RSA-PSS */
-        case JWT_ALG_PS256:
+	case JWT_ALG_PS256:
 		alg = GNUTLS_DIG_SHA256;
 		pk_alg = GNUTLS_PK_RSA_PSS;
 		break;

@@ -57,7 +57,7 @@ int jwt_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 	const EVP_MD *alg;
 
 	switch (jwt->alg) {
-        /* HMAC */
+	/* HMAC */
 	case JWT_ALG_HS256:
 		alg = EVP_sha256();
 		break;
@@ -360,8 +360,8 @@ int jwt_verify_sha_pem(jwt_t *jwt, const char *head, unsigned int head_len, cons
 		type = EVP_PKEY_RSA;
 		break;
 
-        /* RSA-PSS */
-        case JWT_ALG_PS256:
+	/* RSA-PSS */
+	case JWT_ALG_PS256:
 		alg = EVP_sha256();
 		type = EVP_PKEY_RSA_PSS;
 		padding = RSA_PKCS1_PSS_PADDING;
