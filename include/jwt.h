@@ -1,4 +1,4 @@
-/* Copyright (C) 2015-2022 Ben Collins <bcollins@maclara-llc.com>
+/* Copyright (C) 2015-2023 Ben Collins <bcollins@maclara-llc.com>
    This file is part of the JWT C Library
 
    SPDX-License-Identifier:  MPL-2.0
