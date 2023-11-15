@@ -1,4 +1,5 @@
 include(FetchContent)
+include(FindPkgConfig)
 
 set (TARGET_NAME ${PROJECT_NAME})
 
