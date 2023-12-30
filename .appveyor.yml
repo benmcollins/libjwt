@@ -1,0 +1,25 @@
+version: '1.0.{build}'
+configuration: Release
+platform:
+- x64
+environment:
+    global:
+        APPVEYOR_SAVE_CACHE_ON_ERROR: true
+image:
+  - Visual Studio 2022
+install:
+- cd C:\Tools\vcpkg
+- git pull --quiet
+- .\bootstrap-vcpkg.bat
+- vcpkg install openssl:x64-windows
+- vcpkg install jansson:x64-windows
+- vcpkg install check:x64-windows
+build_script:
+- cmd: cd C:/projects/libjwt
+- cmd: set VCPKG_ROOT=C:\Tools\vcpkg
+- cmd: call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat"
+- cmd: cmake -DCMAKE_TOOLCHAIN_FILE="%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake"
+- cmd: cmake --build .
+test: off
+cache:
+  - c:\tools\vcpkg\installed
