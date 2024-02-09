@@ -80,16 +80,14 @@ int jwt_strcmp(const char *str1, const char *str2)
 	for (i = 0; i < len_max; i++) {
 		char c1, c2;
 
-		c1 = len1 < i ? str1[i] : '\0';
-		c2 = len2 < i ? str2[i] : '\0';
+		c1 = (i < len1) ? str1[i] : 0;
+		c2 = (i < len2) ? str2[i] : 0;
 
-		if (c1 != c2)
-			ret = 1;
+		ret |= c1 ^ c2;
 	}
 
 	/* Don't forget to check length */
-	if (len1 != len2)
-		ret = -1;
+	ret |= len1 ^ len2;
 
 	return ret;
 }
