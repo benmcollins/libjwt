@@ -184,6 +184,7 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		type = EVP_PKEY_RSA;
 		break;
 
+#ifndef HAVE_OPENSSL
 	/* RSA-PSS */
 	case JWT_ALG_PS256:
 		alg = EVP_sha256();
@@ -200,6 +201,7 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		type = EVP_PKEY_RSA_PSS;
 		padding = RSA_PKCS1_PSS_PADDING;
 		break;
+#endif
 
 	/* ECC */
 	case JWT_ALG_ES256:
@@ -361,6 +363,7 @@ int jwt_verify_sha_pem(jwt_t *jwt, const char *head, unsigned int head_len, cons
 		type = EVP_PKEY_RSA;
 		break;
 
+#ifndef HAVE_OPENSSL
 	/* RSA-PSS */
 	case JWT_ALG_PS256:
 		alg = EVP_sha256();
@@ -377,6 +380,7 @@ int jwt_verify_sha_pem(jwt_t *jwt, const char *head, unsigned int head_len, cons
 		type = EVP_PKEY_RSA_PSS;
 		padding = RSA_PKCS1_PSS_PADDING;
 		break;
+#endif
 
 	/* ECC */
 	case JWT_ALG_ES256:
