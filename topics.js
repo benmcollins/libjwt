@@ -1,4 +1,4 @@
-var modules =
+var topics =
 [
     [ "JWT Object Creation", "group__jwt__new.html", "group__jwt__new" ],
     [ "JWT Grant Manipulation", "group__jwt__grant.html", "group__jwt__grant" ],
@@ -6,5 +6,5 @@ var modules =
     [ "JWT Output Functions", "group__jwt__encode.html", "group__jwt__encode" ],
     [ "JWT Algorithm Functions", "group__jwt__alg.html", "group__jwt__alg" ],
     [ "JWT memory functions", "group__jwt__memory.html", "group__jwt__memory" ],
-    [ "JWT validation functions", "group__jwt__vaildate.html", "group__jwt__vaildate" ]
+    [ "JWT validation functions", "group__jwt__validate.html", "group__jwt__validate" ]
 ];

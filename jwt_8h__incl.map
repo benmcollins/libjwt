@@ -1,5 +1,7 @@
 <map id="jwt.h" name="jwt.h">
-<area shape="rect" id="node1" title="JWT C Library." alt="" coords="52,5,102,31"/>
-<area shape="rect" id="node2" title=" " alt="" coords="5,79,66,105"/>
-<area shape="rect" id="node3" title=" " alt="" coords="90,79,147,105"/>
+<area shape="rect" id="Node000001" title="JWT C Library." alt="" coords="52,5,102,31"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="5,79,66,105"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="72,33,52,67,48,64,68,30"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="90,79,147,105"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="86,30,106,64,101,67,81,33"/>
 </map>
