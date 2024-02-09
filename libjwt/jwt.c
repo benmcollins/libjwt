@@ -1,4 +1,4 @@
-/* Copyright (C) 2015-2023 Ben Collins <bcollins@maclara-llc.com>
+/* Copyright (C) 2015-2024 Ben Collins <bcollins@maclara-llc.com>
    This file is part of the JWT C Library
 
    SPDX-License-Identifier:  MPL-2.0
@@ -61,6 +61,37 @@ static char *jwt_strdup(const char *str)
 	memcpy(result, str, len);
 	result[len] = '\0';
 	return result;
+}
+
+/* A time-safe strcmp function */
+int jwt_strcmp(const char *str1, const char *str2)
+{
+	/* Get the LONGEST length */
+	int len1 = strlen(str1);
+	int len2 = strlen(str2);
+	int len_max = len1 >= len2 ? len1 : len2;
+
+	int i, ret = 0;
+
+	/* Iterate the entire longest string no matter what. Only testing
+	 * the shortest string would still allow attacks for
+	 * "a" == "aKJSDHkjashaaHJASJ", adding a character each time one
+	 * is found. */
+	for (i = 0; i < len_max; i++) {
+		char c1, c2;
+
+		c1 = len1 < i ? str1[i] : '\0';
+		c2 = len2 < i ? str2[i] : '\0';
+
+		if (c1 != c2)
+			ret = 1;
+	}
+
+	/* Don't forget to check length */
+	if (len1 != len2)
+		ret = -1;
+
+	return ret;
 }
 
 static void *jwt_calloc(size_t nmemb, size_t size)

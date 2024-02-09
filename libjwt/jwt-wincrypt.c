@@ -1,4 +1,4 @@
-/* Copyright (C) 2015-2023 Ben Collins <bcollins@maclara-llc.com>
+/* Copyright (C) 2015-2024 Ben Collins <bcollins@maclara-llc.com>
    This file is part of the JWT C Library
 
    SPDX-License-Identifier:  MPL-2.0
@@ -624,7 +624,7 @@ int jwt_verify_sha_hmac(jwt_t *jwt, const char *head, const char *sig)
 	jwt_base64uri_encode(pbB64);
 
 	/* And now... */
-	ret = strcmp(pbB64, sig) ? EINVAL : 0;
+	ret = jwt_strcmp(pbB64, sig) ? EINVAL : 0;
 
 jwt_verify_hmac_done:
 	if (pbHash)

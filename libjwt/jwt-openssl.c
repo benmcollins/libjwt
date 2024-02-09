@@ -142,7 +142,7 @@ int jwt_verify_sha_hmac(jwt_t *jwt, const char *head, unsigned int head_len, con
 	jwt_base64uri_encode(buf);
 
 	/* And now... */
-	ret = strcmp(buf, sig) ? EINVAL : 0;
+	ret = jwt_strcmp(buf, sig) ? EINVAL : 0;
 
 jwt_verify_hmac_done:
 	BIO_free_all(b64);

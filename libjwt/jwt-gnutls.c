@@ -90,7 +90,7 @@ int jwt_verify_sha_hmac(jwt_t *jwt, const char *head, unsigned int head_len, con
 		jwt_Base64encode(buf, sig_check, len);
 		jwt_base64uri_encode(buf);
 
-		if (!strcmp(sig, buf))
+		if (!jwt_strcmp(sig, buf))
 			ret = 0;
 
 		jwt_freemem(sig_check);
