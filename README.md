@@ -13,7 +13,7 @@
 
 ## Documentation
 
-[GitHub Pages](http://benmcollins.github.io/libjwt/)
+[GitHub Pages](https://benmcollins.github.io/libjwt/)
 
 ## Pre-built Packages
 
