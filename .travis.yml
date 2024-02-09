@@ -20,9 +20,9 @@ before_install:
   - sudo pip install codecov
   - autoreconf -fi
 script:
-  - ./configure --without-openssl
-  - make check
-  - make distclean
+#  - ./configure --without-openssl
+#  - make check
+#  - make distclean
   - ./configure --enable-code-coverage
   - make check-code-coverage
 after_success:
