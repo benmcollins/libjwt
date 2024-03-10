@@ -1606,7 +1606,7 @@ static jwt_exception_dict_t jwt_exceptions[] = {
 
 char *jwt_exception_str(unsigned int exceptions)
 {
-	int rc;
+	int rc, i;
 	char *str = NULL;
 
 	if (exceptions == JWT_VALIDATION_SUCCESS) {
@@ -1615,7 +1615,7 @@ char *jwt_exception_str(unsigned int exceptions)
 		return str;
 	}
 
-	for (int i = 0; i < ARRAY_SIZE(jwt_exceptions); i++) {
+	for (i = 0; i < ARRAY_SIZE(jwt_exceptions); i++) {
 		if (!(jwt_exceptions[i].error & exceptions))
 			continue;
 

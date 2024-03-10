@@ -16,6 +16,7 @@
 #include <openssl/buffer.h>
 #include <openssl/pem.h>
 #include <openssl/bn.h>
+#include <openssl/rsa.h>
 
 #include <jwt.h>
 
