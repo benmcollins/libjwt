@@ -7,9 +7,12 @@ TESTS =			\
 	jwt_dump	\
 	jwt_encode	\
 	jwt_rsa		\
-	jwt_rsa_pss	\
 	jwt_ec		\
 	jwt_validate
+
+if !HAVE_OPENSSL
+TESTS += jwt_rsa_pss
+endif
 
 check_PROGRAMS = $(TESTS)
 

@@ -1,4 +1,4 @@
-dist: bionic
+dist: jammy
 language: c
 
 os:
