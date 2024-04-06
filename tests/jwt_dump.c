@@ -148,6 +148,74 @@ START_TEST(test_jwt_dump_str)
 }
 END_TEST
 
+#define JSON_GRANTS_PRETTY "\n{\n" \
+	"    \"%s\": %ld,\n" \
+	"    \"%s\": \"%s\",\n" \
+	"    \"%s\": \"%s\",\n" \
+	"    \"%s\": \"%s\"\n" \
+	"}\n"
+
+#define JSON_GRANTS_COMPACT "{\"%s\":%ld,\"%s\":\"%s\"," \
+	"\"%s\":\"%s\",\"%s\":\"%s\"}"
+
+
+START_TEST(test_jwt_dump_grants_str)
+{
+	jwt_t *jwt = NULL;
+	int ret = 0;
+	char *out;
+	long timestamp = (long)time(NULL);
+	char buf[1024];
+
+	ret = test_set_alloc();
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_new(&jwt);
+	ck_assert_int_eq(ret, 0);
+	ck_assert(jwt != NULL);
+
+	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_add_grant(jwt, "sub", "user0");
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_add_grant_int(jwt, "iat", timestamp);
+	ck_assert_int_eq(ret, 0);
+
+	out = jwt_dump_grants_str(jwt, 1);
+	ck_assert(out != NULL);
+
+	/* Sorted Keys are expected */
+	snprintf(buf, sizeof(buf), JSON_GRANTS_PRETTY,
+			"iat", timestamp,
+			"iss", "files.maclara-llc.com",
+			"ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC",
+			"sub", "user0");
+	ck_assert_str_eq(out, buf);
+
+	jwt_free_str(out);
+
+	out = jwt_dump_grants_str(jwt, 0);
+	ck_assert(out != NULL);
+
+	/* Sorted Keys are expected */
+	snprintf(buf, sizeof(buf), JSON_GRANTS_COMPACT,
+			"iat", timestamp,
+			"iss", "files.maclara-llc.com",
+			"ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC",
+			"sub", "user0");
+	ck_assert_str_eq(out, buf);
+
+	jwt_free_str(out);
+
+	jwt_free(jwt);
+}
+END_TEST
+
 START_TEST(test_jwt_dump_str_alg_default_typ_header)
 {
 	jwt_t *jwt = NULL;
@@ -290,6 +358,7 @@ static Suite *libjwt_suite(void)
 	tcase_add_test(tc_core, test_alloc_funcs);
 	tcase_add_test(tc_core, test_jwt_dump_fp);
 	tcase_add_test(tc_core, test_jwt_dump_str);
+	tcase_add_test(tc_core, test_jwt_dump_grants_str);
 	tcase_add_test(tc_core, test_jwt_dump_str_alg_default_typ_header);
 	tcase_add_test(tc_core, test_jwt_dump_str_alg_custom_typ_header);
 
