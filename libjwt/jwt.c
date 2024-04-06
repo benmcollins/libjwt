@@ -1094,6 +1094,25 @@ static int jwt_dump(jwt_t *jwt, char **buf, int pretty)
 	return ret;
 }
 
+char *jwt_dump_grants_str(jwt_t *jwt, int pretty)
+{
+	char *out = NULL;
+	int err;
+
+	errno = 0;
+
+	err = jwt_write_body(jwt, &out, pretty);
+
+	if (err) {
+		errno = err;
+		if (out)
+			jwt_freemem(out);
+		out = NULL;
+	}
+
+	return out;
+}
+
 int jwt_dump_fp(jwt_t *jwt, FILE *fp, int pretty)
 {
 	char *out = NULL;

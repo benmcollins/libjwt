@@ -573,6 +573,20 @@ JWT_EXPORT int jwt_dump_fp(jwt_t *jwt, FILE *fp, int pretty);
 JWT_EXPORT char *jwt_dump_str(jwt_t *jwt, int pretty);
 
 /**
+ * Return plain text representation of grants as a string.
+ *
+ * Similar to jwt_dump_str() except that only a string containing the
+ * grants string is returned. The string must be freed by the caller.
+ *
+ * @param jwt Pointer to a JWT object.
+ * @param pretty Enables better visual formatting of output. Generally only
+ *     used for debugging.
+ * @return A nul terminated string on success, NULL on error with errno
+ *     set appropriately.
+ */
+JWT_EXPORT char *jwt_dump_grants_str(jwt_t *jwt, int pretty);
+
+/**
  * Fully encode a JWT object and write it to FILE.
  *
  * This will create and write the complete JWT object to FILE. All parts
