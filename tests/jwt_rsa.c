@@ -154,7 +154,7 @@ static void __verify_alg_key(const char *key_file, const char *jwt_str,
 
 	ret = jwt_decode(&jwt, jwt_str, key, key_len);
 	ck_assert_int_eq(ret, 0);
-	ck_assert(jwt != NULL);
+	ck_assert_ptr_nonnull(jwt);
 
 	jwt_valid_new(&jwt_valid, alg);
 
@@ -187,10 +187,10 @@ START_TEST(test_jwt_validate_rs256)
 
 	ret = jwt_decode(&jwt, jwt_rs256_2048, key, key_len);
 	ck_assert_int_eq(ret, 0);
-	ck_assert(jwt != NULL);
+	ck_assert_ptr_nonnull(jwt);
 
 	jwt_valid_new(&jwt_valid, JWT_ALG_RS256);
-	ck_assert(jwt_valid != NULL);
+	ck_assert_ptr_nonnull(jwt_valid);
 
 	ret = jwt_valid_add_grant(jwt_valid, "iss", "files.maclara-llc.com");
 	ck_assert_int_eq(ret, 0);

@@ -38,9 +38,9 @@ START_TEST(test_alloc_funcs)
 	int ret;
 
 	jwt_get_alloc(&m, &r, &f);
-	ck_assert(m == NULL);
-	ck_assert(r == NULL);
-	ck_assert(f == NULL);
+	ck_assert_ptr_null(m);
+	ck_assert_ptr_null(r);
+	ck_assert_ptr_null(f);
 
 	ret = test_set_alloc();
 	ck_assert_int_eq(ret, 0);
@@ -63,7 +63,7 @@ START_TEST(test_jwt_dump_fp)
 
 	ret = jwt_new(&jwt);
 	ck_assert_int_eq(ret, 0);
-	ck_assert(jwt != NULL);
+	ck_assert_ptr_nonnull(jwt);
 
 	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
 	ck_assert_int_eq(ret, 0);
@@ -108,7 +108,7 @@ START_TEST(test_jwt_dump_str)
 
 	ret = jwt_new(&jwt);
 	ck_assert_int_eq(ret, 0);
-	ck_assert(jwt != NULL);
+	ck_assert_ptr_nonnull(jwt);
 
 	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
 	ck_assert_int_eq(ret, 0);
@@ -124,23 +124,23 @@ START_TEST(test_jwt_dump_str)
 
 	/* Test 'typ' header: should not be present, cause 'alg' is JWT_ALG_NONE. */
 	val = jwt_get_header(jwt, "typ");
-	ck_assert(val == NULL);
+	ck_assert_ptr_null(val);
 
 	out = jwt_dump_str(jwt, 1);
-	ck_assert(out != NULL);
+	ck_assert_ptr_nonnull(out);
 
 	/* Test 'typ' header: should not be present, cause 'alg' is JWT_ALG_NONE. */
 	val = jwt_get_header(jwt, "typ");
-	ck_assert(val == NULL);
+	ck_assert_ptr_null(val);
 
 	jwt_free_str(out);
 
 	out = jwt_dump_str(jwt, 0);
-	ck_assert(out != NULL);
+	ck_assert_ptr_nonnull(out);
 
 	/* Test 'typ' header: should not be present, cause 'alg' is JWT_ALG_NONE. */
 	val = jwt_get_header(jwt, "typ");
-	ck_assert(val == NULL);
+	ck_assert_ptr_null(val);
 
 	jwt_free_str(out);
 
@@ -172,7 +172,7 @@ START_TEST(test_jwt_dump_grants_str)
 
 	ret = jwt_new(&jwt);
 	ck_assert_int_eq(ret, 0);
-	ck_assert(jwt != NULL);
+	ck_assert_ptr_nonnull(jwt);
 
 	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
 	ck_assert_int_eq(ret, 0);
@@ -187,7 +187,7 @@ START_TEST(test_jwt_dump_grants_str)
 	ck_assert_int_eq(ret, 0);
 
 	out = jwt_dump_grants_str(jwt, 1);
-	ck_assert(out != NULL);
+	ck_assert_ptr_nonnull(out);
 
 	/* Sorted Keys are expected */
 	snprintf(buf, sizeof(buf), JSON_GRANTS_PRETTY,
@@ -200,7 +200,7 @@ START_TEST(test_jwt_dump_grants_str)
 	jwt_free_str(out);
 
 	out = jwt_dump_grants_str(jwt, 0);
-	ck_assert(out != NULL);
+	ck_assert_ptr_nonnull(out);
 
 	/* Sorted Keys are expected */
 	snprintf(buf, sizeof(buf), JSON_GRANTS_COMPACT,
@@ -229,7 +229,7 @@ START_TEST(test_jwt_dump_str_alg_default_typ_header)
 
 	ret = jwt_new(&jwt);
 	ck_assert_int_eq(ret, 0);
-	ck_assert(jwt != NULL);
+	ck_assert_ptr_nonnull(jwt);
 
 	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
 	ck_assert_int_eq(ret, 0);
@@ -250,26 +250,26 @@ START_TEST(test_jwt_dump_str_alg_default_typ_header)
 	/* Test 'typ' header: should not be present, cause jwt's header has not been touched yet
 	 * by jwt_write_head, this is only called as a result of calling jwt_dump* methods. */
 	val = jwt_get_header(jwt, "typ");
-	ck_assert(val == NULL);
+	ck_assert_ptr_null(val);
 
 	out = jwt_dump_str(jwt, 1);
-	ck_assert(out != NULL);
+	ck_assert_ptr_nonnull(out);
 
 	/* Test 'typ' header: should be added with default value of 'JWT', cause 'alg' is set explicitly
 	 * and jwt's header has been processed by jwt_write_head. */
 	val = jwt_get_header(jwt, "typ");
-	ck_assert(val != NULL);
+	ck_assert_ptr_nonnull(val);
 	ck_assert_str_eq(val, "JWT");
 
 	jwt_free_str(out);
 
 	out = jwt_dump_str(jwt, 0);
-	ck_assert(out != NULL);
+	ck_assert_ptr_nonnull(out);
 
 	/* Test 'typ' header: should be added with default value of 'JWT', cause 'alg' is set explicitly
 	 * and jwt's header has been processed by jwt_write_head. */
 	val = jwt_get_header(jwt, "typ");
-	ck_assert(val != NULL);
+	ck_assert_ptr_nonnull(val);
 	ck_assert_str_eq(val, "JWT");
 
 	jwt_free_str(out);
@@ -291,7 +291,7 @@ START_TEST(test_jwt_dump_str_alg_custom_typ_header)
 
 	ret = jwt_new(&jwt);
 	ck_assert_int_eq(ret, 0);
-	ck_assert(jwt != NULL);
+	ck_assert_ptr_nonnull(jwt);
 
 	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
 	ck_assert_int_eq(ret, 0);
@@ -310,7 +310,7 @@ START_TEST(test_jwt_dump_str_alg_custom_typ_header)
 
 	/* Test that 'typ' header has been added. */
 	val = jwt_get_header(jwt, "typ");
-	ck_assert(val != NULL);
+	ck_assert_ptr_nonnull(val);
 	ck_assert_str_eq(val, "favourite");
 
 	ret = jwt_set_alg(jwt, JWT_ALG_HS256, (unsigned char *)key,
@@ -319,25 +319,25 @@ START_TEST(test_jwt_dump_str_alg_custom_typ_header)
 
 	/* Test 'typ' header: should be left untouched. */
 	val = jwt_get_header(jwt, "typ");
-	ck_assert(val != NULL);
+	ck_assert_ptr_nonnull(val);
 	ck_assert_str_eq(val, "favourite");
 
 	out = jwt_dump_str(jwt, 1);
-	ck_assert(out != NULL);
+	ck_assert_ptr_nonnull(out);
 
 	/* Test 'typ' header: should be left untouched. */
 	val = jwt_get_header(jwt, "typ");
-	ck_assert(val != NULL);
+	ck_assert_ptr_nonnull(val);
 	ck_assert_str_eq(val, "favourite");
 
 	jwt_free_str(out);
 
 	out = jwt_dump_str(jwt, 0);
-	ck_assert(out != NULL);
+	ck_assert_ptr_nonnull(out);
 
 	/* Test 'typ' header: should be left untouched. */
 	val = jwt_get_header(jwt, "typ");
-	ck_assert(val != NULL);
+	ck_assert_ptr_nonnull(val);
 	ck_assert_str_eq(val, "favourite");
 
 	jwt_free_str(out);

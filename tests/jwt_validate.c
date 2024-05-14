@@ -51,11 +51,11 @@ START_TEST(test_jwt_validate_errno)
 	unsigned int ret = 0;
 
 	__setup_jwt();
-	ck_assert(jwt != NULL);
+	ck_assert_ptr_nonnull(jwt);
 
 	ret = jwt_valid_new(&jwt_valid, JWT_ALG_NONE);
 	ck_assert_int_eq(ret, 0);
-	ck_assert(jwt_valid != NULL);
+	ck_assert_ptr_nonnull(jwt_valid);
 
 	/* Validate fails with NULL jwt */
 	ret = jwt_validate(NULL, jwt_valid);
@@ -84,7 +84,7 @@ START_TEST(test_jwt_valid_algorithm)
 	/* Matching algorithm is valid */
 	ret = jwt_valid_new(&jwt_valid, JWT_ALG_NONE);
 	ck_assert_int_eq(ret, 0);
-	ck_assert(jwt_valid != NULL);
+	ck_assert_ptr_nonnull(jwt_valid);
 
 	__VAL_EQ(jwt_valid, JWT_VALIDATION_SUCCESS);
 
@@ -93,7 +93,8 @@ START_TEST(test_jwt_valid_algorithm)
 	/* Wrong algorithm is not valid */
 	ret = jwt_valid_new(&jwt_valid, JWT_ALG_HS256);
 	ck_assert_int_eq(ret, 0);
-	ck_assert(jwt_valid != NULL);
+	ck_assert_ptr_nonnull(jwt_valid);
+
 	/* Starts with invalid */
 	ck_assert_int_eq(JWT_VALIDATION_ERROR, jwt_valid_get_status(jwt_valid));
 
@@ -116,7 +117,7 @@ START_TEST(test_jwt_valid_require_grant)
 	/* Valid when alg matches and all required grants match */
 	ret = jwt_valid_new(&jwt_valid, JWT_ALG_NONE);
 	ck_assert_int_eq(ret, 0);
-	ck_assert(jwt_valid != NULL);
+	ck_assert_ptr_nonnull(jwt_valid);
 
 	ret = jwt_valid_add_grant(jwt_valid, "iss", "test");
 	ck_assert_int_eq(ret, 0);
@@ -127,7 +128,7 @@ START_TEST(test_jwt_valid_require_grant)
 
 	/* Grant has expected value */
 	valstr = jwt_valid_get_grant(jwt_valid, "iss");
-	ck_assert_ptr_ne(valstr, NULL);
+	ck_assert_ptr_nonnull(valstr);
 	ck_assert_str_eq(valstr, "test");
 
 	ret = jwt_valid_add_grant_int(jwt_valid, "iat", (long)iat);
@@ -171,7 +172,7 @@ START_TEST(test_jwt_valid_nonmatch_grant)
 
 	ret = jwt_valid_new(&jwt_valid, JWT_ALG_NONE);
 	ck_assert_int_eq(ret, 0);
-	ck_assert(jwt_valid != NULL);
+	ck_assert_ptr_nonnull(jwt_valid);
 
 	/* Invalid when required grants don't match */
 	ret = jwt_valid_add_grant(jwt_valid, "iss", "wrong");
@@ -216,7 +217,7 @@ START_TEST(test_jwt_valid_grant_bool)
 
 	ret = jwt_valid_new(&jwt_valid, JWT_ALG_NONE);
 	ck_assert_int_eq(ret, 0);
-	ck_assert(jwt_valid != NULL);
+	ck_assert_ptr_nonnull(jwt_valid);
 
 	ret = jwt_valid_add_grant_bool(jwt_valid, "admin", 1);
 	ck_assert_int_eq(ret, 0);
@@ -246,7 +247,7 @@ START_TEST(test_jwt_valid_del_grants)
 
 	ret = jwt_valid_new(&jwt_valid, JWT_ALG_NONE);
 	ck_assert_int_eq(ret, 0);
-	ck_assert(jwt_valid != NULL);
+	ck_assert_ptr_nonnull(jwt_valid);
 
 	ret = jwt_valid_add_grant(jwt_valid, "iss", testval);
 	ck_assert_int_eq(ret, 0);
@@ -258,7 +259,7 @@ START_TEST(test_jwt_valid_del_grants)
 	ck_assert_int_eq(ret, 0);
 
 	val = jwt_valid_get_grant(jwt_valid, "iss");
-	ck_assert(val == NULL);
+	ck_assert_ptr_null(val);
 
 	/* Delete non existent. */
 	ret = jwt_valid_del_grants(jwt_valid, "iss");
@@ -269,7 +270,7 @@ START_TEST(test_jwt_valid_del_grants)
 	ck_assert_int_eq(ret, 0);
 
 	val = jwt_valid_get_grant(jwt_valid, "other");
-	ck_assert(val == NULL);
+	ck_assert_ptr_null(val);
 
 	jwt_valid_free(jwt_valid);
 }
@@ -285,7 +286,7 @@ START_TEST(test_jwt_valid_invalid_grant)
 
 	ret = jwt_valid_new(&jwt_valid, JWT_ALG_NONE);
 	ck_assert_int_eq(ret, 0);
-	ck_assert(jwt_valid != NULL);
+	ck_assert_ptr_nonnull(jwt_valid);
 
 	ret = jwt_valid_add_grant(jwt_valid, "iss", NULL);
 	ck_assert_int_eq(ret, EINVAL);
@@ -295,7 +296,7 @@ START_TEST(test_jwt_valid_invalid_grant)
 
 	val = jwt_valid_get_grant(jwt_valid, NULL);
 	ck_assert_int_eq(errno, EINVAL);
-	ck_assert(val == NULL);
+	ck_assert_ptr_null(val);
 
 	valint = jwt_valid_get_grant_int(jwt_valid, NULL);
 	ck_assert_int_eq(errno, EINVAL);
@@ -318,7 +319,7 @@ START_TEST(test_jwt_valid_missing_grant)
 
 	ret = jwt_valid_new(&jwt_valid, JWT_ALG_NONE);
 	ck_assert_int_eq(ret, 0);
-	ck_assert(jwt_valid != NULL);
+	ck_assert_ptr_nonnull(jwt_valid);
 
 	/* JWT is invalid when required grants are not present */
 	ret = jwt_valid_add_grant(jwt_valid, "np-str", "test");
@@ -361,7 +362,7 @@ START_TEST(test_jwt_valid_not_before)
 
 	ret = jwt_valid_new(&jwt_valid, JWT_ALG_NONE);
 	ck_assert_int_eq(ret, 0);
-	ck_assert(jwt_valid != NULL);
+	ck_assert_ptr_nonnull(jwt_valid);
 
 	/* JWT is invalid when now < not-before */
 	ret = jwt_valid_set_now(jwt_valid, not_before - 1);
@@ -388,7 +389,7 @@ START_TEST(test_jwt_valid_set_nbf_leeway)
 	__setup_jwt();
 	ret = jwt_valid_new(&jwt_valid, JWT_ALG_NONE);
 	ck_assert_int_eq(ret, 0);
-	ck_assert(jwt_valid != NULL);
+	ck_assert_ptr_nonnull(jwt_valid);
 
 	/* 0 by default */
 	time_t init_nbf_leeway = jwt_valid_get_nbf_leeway(jwt_valid);
@@ -416,7 +417,7 @@ START_TEST(test_jwt_valid_not_before_leeway)
 
 	ret = jwt_valid_new(&jwt_valid, JWT_ALG_NONE);
 	ck_assert_int_eq(ret, 0);
-	ck_assert(jwt_valid != NULL);
+	ck_assert_ptr_nonnull(jwt_valid);
 
 	/* Setting nbf_leeway */
 	ret = jwt_valid_set_nbf_leeway(jwt_valid, 10);
@@ -449,7 +450,7 @@ START_TEST(test_jwt_valid_expires)
 
 	ret = jwt_valid_new(&jwt_valid, JWT_ALG_NONE);
 	ck_assert_int_eq(ret, 0);
-	ck_assert(jwt_valid != NULL);
+	ck_assert_ptr_nonnull(jwt_valid);
 
 	/* JWT is valid when now < expires */
 	ret = jwt_valid_set_now(jwt_valid, (long)expires - 1);
@@ -476,7 +477,7 @@ START_TEST(test_jwt_valid_set_exp_leeway)
 	__setup_jwt();
 	ret = jwt_valid_new(&jwt_valid, JWT_ALG_NONE);
 	ck_assert_int_eq(ret, 0);
-	ck_assert(jwt_valid != NULL);
+	ck_assert_ptr_nonnull(jwt_valid);
 
 	/* 0 by default */
 	time_t init_exp_leeway = jwt_valid_get_exp_leeway(jwt_valid);
@@ -504,7 +505,7 @@ START_TEST(test_jwt_valid_expires_leeway)
 
 	ret = jwt_valid_new(&jwt_valid, JWT_ALG_NONE);
 	ck_assert_int_eq(ret, 0);
-	ck_assert(jwt_valid != NULL);
+	ck_assert_ptr_nonnull(jwt_valid);
 
 	/* Setting exp_leeway */
 	ret = jwt_valid_set_exp_leeway(jwt_valid, 10);
@@ -536,7 +537,7 @@ START_TEST(test_jwt_valid_headers)
 
 	ret = jwt_valid_new(&jwt_valid, JWT_ALG_NONE);
 	ck_assert_int_eq(ret, 0);
-	ck_assert(jwt_valid != NULL);
+	ck_assert_ptr_nonnull(jwt_valid);
 
 	ret = jwt_valid_set_headers(jwt_valid, 1);
 	ck_assert_int_eq(ret, 0);
@@ -585,8 +586,6 @@ START_TEST(test_jwt_valid_headers)
 }
 END_TEST
 
-
-#if 1
 START_TEST(test_jwt_valid_grants_json)
 {
 	const char *json = "{\"id\":\"FVvGYTr3FhiURCFebsBOpBqTbzHdX/DvImiA2yheXr8=\","
@@ -600,27 +599,27 @@ START_TEST(test_jwt_valid_grants_json)
 
 	ret = jwt_valid_new(&jwt_valid, JWT_ALG_NONE);
 	ck_assert_int_eq(ret, 0);
-	ck_assert(jwt_valid != NULL);
+	ck_assert_ptr_nonnull(jwt_valid);
 
 	ret = jwt_valid_add_grants_json(jwt_valid, json);
 	ck_assert_int_eq(ret, 0);
 
 	val = jwt_valid_get_grant(jwt_valid, "ref");
-	ck_assert(val != NULL);
+	ck_assert_ptr_nonnull(val);
 	ck_assert_str_eq(val, "385d6518-fb73-45fc-b649-0527d8576130");
 
 	json_val = jwt_valid_get_grants_json(NULL, "other");
-	ck_assert(json_val == NULL);
+	ck_assert_ptr_null(json_val);
 	ck_assert_int_eq(errno, EINVAL);
 
 	json_val = jwt_valid_get_grants_json(jwt_valid, "other");
-	ck_assert(json_val != NULL);
+	ck_assert_ptr_nonnull(json_val);
 	ck_assert_str_eq(json_val, "[\"foo\",\"bar\"]");
 
 	jwt_free_str(json_val);
 
 	json_val = jwt_valid_get_grants_json(jwt_valid, NULL);
-	ck_assert(json_val != NULL);
+	ck_assert_ptr_nonnull(json_val);
 	ck_assert_str_eq(json_val, json);
 
 	jwt_free_str(json_val);
@@ -628,7 +627,6 @@ START_TEST(test_jwt_valid_grants_json)
 	jwt_valid_free(jwt_valid);
 }
 END_TEST
-#endif
 
 static Suite *libjwt_suite(void)
 {

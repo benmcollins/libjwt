@@ -17,7 +17,7 @@ START_TEST(test_jwt_add_grant)
 
 	ret = jwt_new(&jwt);
 	ck_assert_int_eq(ret, 0);
-	ck_assert(jwt != NULL);
+	ck_assert_ptr_nonnull(jwt);
 
 	ret = jwt_add_grant(jwt, "iss", "test");
 	ck_assert_int_eq(ret, 0);
@@ -46,13 +46,13 @@ START_TEST(test_jwt_get_grant)
 
 	ret = jwt_new(&jwt);
 	ck_assert_int_eq(ret, 0);
-	ck_assert(jwt != NULL);
+	ck_assert_ptr_nonnull(jwt);
 
 	ret = jwt_add_grant(jwt, "iss", testval);
 	ck_assert_int_eq(ret, 0);
 
 	val = jwt_get_grant(jwt, "iss");
-	ck_assert(val != NULL);
+	ck_assert_ptr_nonnull(val);
 	ck_assert_str_eq(val, testval);
 
 	jwt_free(jwt);
@@ -67,7 +67,7 @@ START_TEST(test_jwt_add_grant_int)
 
 	ret = jwt_new(&jwt);
 	ck_assert_int_eq(ret, 0);
-	ck_assert(jwt != NULL);
+	ck_assert_ptr_nonnull(jwt);
 
 	ret = jwt_add_grant_int(jwt, "int", 1);
 	ck_assert_int_eq(ret, 0);
@@ -90,7 +90,7 @@ START_TEST(test_jwt_add_grant_bool)
 
 	ret = jwt_new(&jwt);
 	ck_assert_int_eq(ret, 0);
-	ck_assert(jwt != NULL);
+	ck_assert_ptr_nonnull(jwt);
 
 	ret = jwt_add_grant_bool(jwt, "admin", 1);
 	ck_assert_int_eq(ret, 0);
@@ -120,7 +120,7 @@ START_TEST(test_jwt_del_grants)
 
 	ret = jwt_new(&jwt);
 	ck_assert_int_eq(ret, 0);
-	ck_assert(jwt != NULL);
+	ck_assert_ptr_nonnull(jwt);
 
 	ret = jwt_add_grant(jwt, "iss", testval);
 	ck_assert_int_eq(ret, 0);
@@ -132,7 +132,7 @@ START_TEST(test_jwt_del_grants)
 	ck_assert_int_eq(ret, 0);
 
 	val = jwt_get_grant(jwt, "iss");
-	ck_assert(val == NULL);
+	ck_assert_ptr_null(val);
 
 	/* Delete non existent. */
 	ret = jwt_del_grants(jwt, "iss");
@@ -143,7 +143,7 @@ START_TEST(test_jwt_del_grants)
 	ck_assert_int_eq(ret, 0);
 
 	val = jwt_get_grant(jwt, "other");
-	ck_assert(val == NULL);
+	ck_assert_ptr_null(val);
 
 	jwt_free(jwt);
 }
@@ -159,7 +159,7 @@ START_TEST(test_jwt_grant_invalid)
 
 	ret = jwt_new(&jwt);
 	ck_assert_int_eq(ret, 0);
-	ck_assert(jwt != NULL);
+	ck_assert_ptr_nonnull(jwt);
 
 	ret = jwt_add_grant(jwt, "iss", NULL);
 	ck_assert_int_eq(ret, EINVAL);
@@ -169,7 +169,7 @@ START_TEST(test_jwt_grant_invalid)
 
 	val = jwt_get_grant(jwt, NULL);
 	ck_assert_int_eq(errno, EINVAL);
-	ck_assert(val == NULL);
+	ck_assert_ptr_null(val);
 
 	valint = jwt_get_grant_int(jwt, NULL);
 	ck_assert_int_eq(errno, EINVAL);
@@ -196,27 +196,27 @@ START_TEST(test_jwt_grants_json)
 
 	ret = jwt_new(&jwt);
 	ck_assert_int_eq(ret, 0);
-	ck_assert(jwt != NULL);
+	ck_assert_ptr_nonnull(jwt);
 
 	ret = jwt_add_grants_json(jwt, json);
 	ck_assert_int_eq(ret, 0);
 
 	val = jwt_get_grant(jwt, "ref");
-	ck_assert(val != NULL);
+	ck_assert_ptr_nonnull(val);
 	ck_assert_str_eq(val, "385d6518-fb73-45fc-b649-0527d8576130");
 
 	json_val = jwt_get_grants_json(NULL, "other");
-	ck_assert(json_val == NULL);
+	ck_assert_ptr_null(json_val);
 	ck_assert_int_eq(errno, EINVAL);
 
 	json_val = jwt_get_grants_json(jwt, "other");
-	ck_assert(json_val != NULL);
+	ck_assert_ptr_nonnull(json_val);
 	ck_assert_str_eq(json_val, "[\"foo\",\"bar\"]");
 
 	jwt_free_str(json_val);
 
 	json_val = jwt_get_grants_json(jwt, NULL);
-	ck_assert(json_val != NULL);
+	ck_assert_ptr_nonnull(json_val);
 	ck_assert_str_eq(json_val, json);
 
 	jwt_free_str(json_val);
