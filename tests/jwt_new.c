@@ -20,7 +20,7 @@ START_TEST(test_jwt_new)
 
 	ret = jwt_new(&jwt);
 	ck_assert_int_eq(ret, 0);
-	ck_assert(jwt != NULL);
+	ck_assert_ptr_nonnull(jwt);
 
 	jwt_free(jwt);
 }
@@ -35,20 +35,20 @@ START_TEST(test_jwt_dup)
 	long valint;
 
 	new = jwt_dup(NULL);
-	ck_assert(new == NULL);
+	ck_assert_ptr_null(new);
 
 	ret = jwt_new(&jwt);
 	ck_assert_int_eq(ret, 0);
-	ck_assert(jwt != NULL);
+	ck_assert_ptr_nonnull(jwt);
 
 	ret = jwt_add_grant(jwt, "iss", "test");
 	ck_assert_int_eq(ret, 0);
 
 	new = jwt_dup(jwt);
-	ck_assert(new != NULL);
+	ck_assert_ptr_nonnull(new);
 
 	val = jwt_get_grant(new, "iss");
-	ck_assert(val != NULL);
+	ck_assert_ptr_nonnull(val);
 	ck_assert_str_eq(val, "test");
 
 	ck_assert_int_eq(jwt_get_alg(new), JWT_ALG_NONE);
@@ -74,7 +74,7 @@ START_TEST(test_jwt_dup_signed)
 
 	ret = jwt_new(&jwt);
 	ck_assert_int_eq(ret, 0);
-	ck_assert(jwt != NULL);
+	ck_assert_ptr_nonnull(jwt);
 
 	ret = jwt_add_grant(jwt, "iss", "test");
 	ck_assert_int_eq(ret, 0);
@@ -83,10 +83,10 @@ START_TEST(test_jwt_dup_signed)
 	ck_assert_int_eq(ret, 0);
 
 	new = jwt_dup(jwt);
-	ck_assert(new != NULL);
+	ck_assert_ptr_nonnull(new);
 
 	val = jwt_get_grant(new, "iss");
-	ck_assert(val != NULL);
+	ck_assert_ptr_nonnull(val);
 	ck_assert_str_eq(val, "test");
 
 	ck_assert_int_eq(jwt_get_alg(new), JWT_ALG_HS256);
@@ -106,7 +106,7 @@ START_TEST(test_jwt_decode)
 
 	ret = jwt_decode(&jwt, token, NULL, 0);
 	ck_assert_int_eq(ret, 0);
-	ck_assert(jwt != NULL);
+	ck_assert_ptr_nonnull(jwt);
 
 	alg = jwt_get_alg(jwt);
 	ck_assert(alg == JWT_ALG_NONE);
@@ -125,7 +125,7 @@ START_TEST(test_jwt_decode_2)
 
 	ret = jwt_decode_2(&jwt, token, NULL);
 	ck_assert_int_eq(ret, 0);
-	ck_assert(jwt != NULL);
+	ck_assert_ptr_nonnull(jwt);
 
 	alg = jwt_get_alg(jwt);
 	ck_assert(alg == JWT_ALG_NONE);
@@ -144,7 +144,7 @@ START_TEST(test_jwt_decode_invalid_final_dot)
 
 	ret = jwt_decode(&jwt, token, NULL, 0);
 	ck_assert_int_eq(ret, EINVAL);
-	ck_assert(jwt == NULL);
+	ck_assert_ptr_null(jwt);
 
 	jwt_free(jwt);
 }
@@ -160,7 +160,7 @@ START_TEST(test_jwt_decode_invalid_alg)
 
 	ret = jwt_decode(&jwt, token, NULL, 0);
 	ck_assert_int_eq(ret, EINVAL);
-	ck_assert(jwt == NULL);
+	ck_assert_ptr_null(jwt);
 
 	jwt_free(jwt);
 }
@@ -192,7 +192,7 @@ START_TEST(test_jwt_decode_invalid_head)
 
 	ret = jwt_decode(&jwt, token, NULL, 0);
 	ck_assert_int_eq(ret, EINVAL);
-	ck_assert(jwt == NULL);
+	ck_assert_ptr_null(jwt);
 
 	jwt_free(jwt);
 }
@@ -208,7 +208,7 @@ START_TEST(test_jwt_decode_alg_none_with_key)
 
 	ret = jwt_decode(&jwt, token, (const unsigned char *)"key", 3);
 	ck_assert_int_eq(ret, EINVAL);
-	ck_assert(jwt == NULL);
+	ck_assert_ptr_null(jwt);
 
 	jwt_free(jwt);
 }
@@ -224,7 +224,7 @@ START_TEST(test_jwt_decode_invalid_body)
 
 	ret = jwt_decode(&jwt, token, NULL, 0);
 	ck_assert_int_eq(ret, EINVAL);
-	ck_assert(jwt == NULL);
+	ck_assert_ptr_null(jwt);
 
 	jwt_free(jwt);
 }
@@ -241,7 +241,7 @@ START_TEST(test_jwt_decode_hs256)
 
 	ret = jwt_decode(&jwt, token, key256, sizeof(key256));
 	ck_assert_int_eq(ret, 0);
-	ck_assert(jwt != NULL);
+	ck_assert_ptr_nonnull(jwt);
 
 	jwt_free(jwt);
 }
@@ -264,7 +264,7 @@ START_TEST(test_jwt_decode_hs256_issue_1)
 
 	ret = jwt_decode(&jwt, token, key256, sizeof(key256));
 	ck_assert_int_eq(ret, 0);
-	ck_assert(jwt != NULL);
+	ck_assert_ptr_nonnull(jwt);
 
 	jwt_free(jwt);
 }
@@ -286,7 +286,7 @@ START_TEST(test_jwt_decode_hs256_issue_2)
 
 	ret = jwt_decode(&jwt, token, (const unsigned char *)key256, strlen(key256));
 	ck_assert_int_eq(ret, 0);
-	ck_assert(jwt != NULL);
+	ck_assert_ptr_nonnull(jwt);
 
 	jwt_free(jwt);
 }
@@ -306,7 +306,7 @@ START_TEST(test_jwt_decode_hs384)
 
 	ret = jwt_decode(&jwt, token, key384, sizeof(key384));
 	ck_assert_int_eq(ret, 0);
-	ck_assert(jwt != NULL);
+	ck_assert_ptr_nonnull(jwt);
 
 	jwt_free(jwt);
 }
@@ -325,7 +325,7 @@ START_TEST(test_jwt_decode_hs512)
 
 	ret = jwt_decode(&jwt, token, key512, sizeof(key512));
 	ck_assert_int_eq(ret, 0);
-	ck_assert(jwt != NULL);
+	ck_assert_ptr_nonnull(jwt);
 
 	jwt_free(jwt);
 }
@@ -356,7 +356,7 @@ START_TEST(test_jwt_decode_2_hs512)
 
 	ret = jwt_decode_2(&jwt, token, &test_jwt_decode_2_hs512_kp);
 	ck_assert_int_eq(ret, 0);
-	ck_assert(jwt != NULL);
+	ck_assert_ptr_nonnull(jwt);
 
 	jwt_free(jwt);
 }
@@ -375,7 +375,7 @@ START_TEST(test_jwt_decode_2_invalid)
 
 	ret = jwt_decode_2(&jwt, token, &test_jwt_decode_2_hs512_kp);
 	ck_assert_int_eq(ret, EINVAL);
-	ck_assert(jwt == NULL);
+	ck_assert_ptr_null(jwt);
 
 	jwt_free(jwt);
 }
@@ -391,7 +391,24 @@ START_TEST(test_jwt_decode_2_invalid_body)
 
 	ret = jwt_decode_2(&jwt, token, &test_jwt_decode_2_hs512_kp);
 	ck_assert_int_eq(ret, EINVAL);
-	ck_assert(jwt == NULL);
+	ck_assert_ptr_null(jwt);
+
+	jwt_free(jwt);
+}
+END_TEST
+
+START_TEST(test_jwt_decode_invalid_base64)
+{
+	const char token[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3Mi"
+			     "OiJmaWxlcy5jeXBocmUuY29tIiwic3ViIjoidXNlcjAif"
+			     "Q.dLFbrHVViu1e3VD1yeCd9aaLNed-bfXhSsF0Gh56fBga";
+	unsigned char key256[32] = "012345678901234567890123456789XY";
+	jwt_t *jwt;
+	int ret;
+
+	ret = jwt_decode(&jwt, token, key256, sizeof(key256));
+	ck_assert_int_ne(ret, 0);
+	ck_assert_ptr_null(jwt);
 
 	jwt_free(jwt);
 }
@@ -422,6 +439,7 @@ static Suite *libjwt_suite(void)
 	tcase_add_test(tc_core, test_jwt_decode_hs512);
 	tcase_add_test(tc_core, test_jwt_decode_2_hs512);
 	tcase_add_test(tc_core, test_jwt_decode_2_invalid);
+	tcase_add_test(tc_core, test_jwt_decode_invalid_base64);
 
 	tcase_add_test(tc_core, test_jwt_decode_hs256_issue_1);
 	tcase_add_test(tc_core, test_jwt_decode_hs256_issue_2);

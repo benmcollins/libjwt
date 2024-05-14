@@ -412,6 +412,11 @@ void *jwt_b64_decode(const char *src, int *ret_len)
 
 	*ret_len = jwt_Base64decode(buf, new);
 
+	if (*ret_len == 0) {
+		jwt_freemem(buf);
+		buf = NULL;
+	}
+
 	return buf;
 }
 
