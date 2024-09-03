@@ -127,7 +127,7 @@ typedef int (*jwt_key_p_t)(const jwt_t *, jwt_key_t *);
 JWT_EXPORT int jwt_new(jwt_t **jwt);
 
 /**
- * Verify an existing JWT and allocate a new JWT object from it.
+ * Decode an existing JWT and allocate a new JWT object from it.
  *
  * Decodes a JWT string and verifies the signature (if one is supplied).
  * If no signature is used (JWS, alg="none") or key is NULL, then no
@@ -149,6 +149,9 @@ JWT_EXPORT int jwt_new(jwt_t **jwt);
  *     non-encrypted token will be parsed without any checks for a valid
  *     signature, however, standard validation of the token is still
  *     performed.
+ *
+ * @warning You should not assume that decoding means your JWT is verified.
+ *     You should check the resulting jwt_t for proper algorithm and grants.
  */
 JWT_EXPORT int jwt_decode(jwt_t **jwt, const char *token,
 	                 const unsigned char *key, int key_len);
