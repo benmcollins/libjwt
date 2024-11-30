@@ -247,6 +247,34 @@ START_TEST(test_jwt_decode_hs256)
 }
 END_TEST
 
+/* Fron issue #201. Adding tests for alg checks. */
+START_TEST(test_jwt_decode_hs256_no_key_alg)
+{
+	const char token[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3Mi"
+			     "OiJmaWxlcy5jeXBocmUuY29tIiwic3ViIjoidXNlcjAif"
+			     "Q.dLFbrHVViu1e3VD1yeCd9aaLNed-bfXhSsF0Gh56fBg";
+	jwt_t *jwt;
+	int ret;
+	const char *alg_str;
+	jwt_alg_t alg;
+
+	ret = jwt_decode(&jwt, token, NULL, 0);
+	ck_assert_int_eq(ret, 0);
+	ck_assert_ptr_nonnull(jwt);
+
+	alg_str = jwt_get_header(jwt, "alg");
+	ck_assert_str_eq(alg_str, "HS256");
+
+	alg = jwt_str_alg(alg_str);
+	ck_assert_int_eq(alg, JWT_ALG_HS256);
+
+	alg_str = jwt_alg_str(alg);
+	ck_assert_str_eq(alg_str, "HS256");
+
+	jwt_free(jwt);
+}
+END_TEST
+
 START_TEST(test_jwt_decode_hs256_issue_1)
 {
 	const char token[] = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIi"
@@ -435,6 +463,7 @@ static Suite *libjwt_suite(void)
 	tcase_add_test(tc_core, test_jwt_decode_2_invalid_body);
 	tcase_add_test(tc_core, test_jwt_decode_invalid_final_dot);
 	tcase_add_test(tc_core, test_jwt_decode_hs256);
+	tcase_add_test(tc_core, test_jwt_decode_hs256_no_key_alg);
 	tcase_add_test(tc_core, test_jwt_decode_hs384);
 	tcase_add_test(tc_core, test_jwt_decode_hs512);
 	tcase_add_test(tc_core, test_jwt_decode_2_hs512);
