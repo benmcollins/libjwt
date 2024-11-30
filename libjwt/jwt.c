@@ -658,18 +658,11 @@ static int jwt_copy_key(jwt_t *jwt, const unsigned char *key, int key_len)
 	return ret;
 }
 
-int jwt_decode(jwt_t **jwt, const char *token, const unsigned char *key,
-	       int key_len)
+static int jwt_decode_complete(jwt_t **jwt, const unsigned char *key, int key_len,
+			       const char *token, unsigned int payload_len)
 {
-	jwt_t *new = NULL;
 	int ret = EINVAL;
-	unsigned int payload_len;
-
-	ret = jwt_parse(jwt, token, &payload_len);
-	if (ret) {
-		return ret;
-	}
-	new = *jwt;
+	jwt_t *new = *jwt;
 
 	/* Copy the key over for verify_head. */
 	ret = jwt_copy_key(new, key, key_len);
@@ -697,12 +690,24 @@ decode_done:
 	return ret;
 }
 
+int jwt_decode(jwt_t **jwt, const char *token, const unsigned char *key,
+	       int key_len)
+{
+	int ret;
+	unsigned int payload_len;
+
+	if ((ret = jwt_parse(jwt, token, &payload_len)))
+		return ret;
+
+	return jwt_decode_complete(jwt, key, key_len, token, payload_len);
+}
+
 int jwt_decode_2(jwt_t **jwt, const char *token, jwt_key_p_t key_provider)
 {
-	jwt_t *new = NULL;
-	int ret = EINVAL;
+	int ret;
 	unsigned int payload_len;
-	jwt_key_t key;
+	jwt_key_t key = { NULL, 0 };
+	jwt_t *new;
 
 	ret = jwt_parse(jwt, token, &payload_len);
 	if (ret)
@@ -711,33 +716,14 @@ int jwt_decode_2(jwt_t **jwt, const char *token, jwt_key_p_t key_provider)
 
 	/* Obtain the key. */
 	if (new->alg != JWT_ALG_NONE) {
-		ret = key_provider(new, &key);
-		if (ret)
-			goto decode_done;
-		ret = jwt_copy_key(new, key.jwt_key, key.jwt_key_len);
-		if (ret)
-			goto decode_done;
+		if ((ret = key_provider(new, &key))) {
+			jwt_free(new);
+			*jwt = NULL;
+			return ret;
+		}
 	}
 
-	ret = jwt_verify_head(new);
-	if (ret)
-		goto decode_done;
-
-	/* Check the signature, if needed. */
-	if (new->alg != JWT_ALG_NONE) {
-		ret = jwt_verify(new, token, payload_len,
-				 token + (payload_len + 1));
-	} else {
-		ret = 0;
-	}
-
-decode_done:
-	if (ret) {
-		jwt_free(new);
-		*jwt = NULL;
-	}
-
-	return ret;
+	return jwt_decode_complete(jwt, key.jwt_key, key.jwt_key_len, token, payload_len);
 }
 
 const char *jwt_get_grant(jwt_t *jwt, const char *grant)
