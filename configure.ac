@@ -1,5 +1,5 @@
 AC_PREREQ([2.61])
-AC_INIT([libjwt],[1.18.0],[https://github.com/benmcollins/libjwt/issues])
+AC_INIT([libjwt],[1.18.1],[https://github.com/benmcollins/libjwt/issues])
 AM_INIT_AUTOMAKE([foreign])
 LT_PREREQ([2.2])
 LT_INIT([])
