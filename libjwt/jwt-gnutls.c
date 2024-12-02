@@ -154,6 +154,7 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len, const char *str,
 
 	/* EC */
 	case JWT_ALG_ES256:
+	/* XXX case JWT_ALG_ES256K: */
 		alg = GNUTLS_DIG_SHA256;
 		pk_alg = GNUTLS_PK_EC;
 		break;
@@ -221,11 +222,11 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len, const char *str,
 	}
 
 	/* Check r and s size */
-	if (JWT_ALG_ES256)
+	if (jwt->alg == JWT_ALG_ES256 || jwt->alg == JWT_ALG_ES256K)
 		adj = 32;
-	if (JWT_ALG_ES384)
+	if (jwt->alg == JWT_ALG_ES384)
 		adj = 48;
-	if (JWT_ALG_ES512)
+	if (jwt->alg == JWT_ALG_ES512)
 		adj = 66;
 
 	if (r.size > adj)
@@ -315,6 +316,7 @@ int jwt_verify_sha_pem(jwt_t *jwt, const char *head, unsigned int head_len, cons
 
 	/* EC */
 	case JWT_ALG_ES256:
+	/* XXX case JWT_ALG_ES256K: */
 		alg = GNUTLS_SIGN_ECDSA_SHA256;
 		break;
 	case JWT_ALG_ES384:
@@ -337,7 +339,7 @@ int jwt_verify_sha_pem(jwt_t *jwt, const char *head, unsigned int head_len, cons
 		goto verify_clean_sig;
 	}
 
-	if (gnutls_pubkey_import(pubkey, &cert_dat, GNUTLS_X509_FMT_PEM)) {
+	if ((ret = gnutls_pubkey_import(pubkey, &cert_dat, GNUTLS_X509_FMT_PEM))) {
 		ret = EINVAL;
 		goto verify_clean_pubkey;
 	}
@@ -346,6 +348,7 @@ int jwt_verify_sha_pem(jwt_t *jwt, const char *head, unsigned int head_len, cons
 	 * is ESxxx. */
 	switch (jwt->alg) {
 	case JWT_ALG_ES256:
+	case JWT_ALG_ES256K:
 	case JWT_ALG_ES384:
 	case JWT_ALG_ES512:
 		/* XXX Gotta be a better way. */

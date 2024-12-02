@@ -154,20 +154,28 @@ jwt_verify_hmac_done:
 
 #define SIGN_ERROR(__err) { ret = __err; goto jwt_sign_sha_pem_done; }
 
-static int jwt_degree_for_key(EVP_PKEY *pkey)
+static int jwt_degree_for_key(EVP_PKEY *pkey, jwt_t *jwt)
 {
 	int degree = 0;
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
-	/* OpenSSL 3.0.0 and later has a new API for this. */
 	char groupNameBuffer[24] = {0};
 	size_t groupNameBufferLen = 0;
-	int curve_nid;
-	EC_GROUP *group;
 
 	if (!EVP_PKEY_get_group_name(pkey, groupNameBuffer, sizeof(groupNameBuffer), &groupNameBufferLen))
 		return -EINVAL;
 
 	groupNameBuffer[groupNameBufferLen] = '\0';
+
+	/* We only perform this check for ES256K. All others we just check
+	 * the degree (bits). */
+	if (jwt->alg == JWT_ALG_ES256K) {
+		if (strcmp(groupNameBuffer, "secp256k1"))
+			return -EINVAL;
+	}
+
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+	int curve_nid;
+	EC_GROUP *group;
+	/* OpenSSL 3.0.0 and later has a new API for this. */
 
 	curve_nid = OBJ_txt2nid(groupNameBuffer);
 	if (curve_nid == NID_undef)
@@ -196,6 +204,26 @@ static int jwt_degree_for_key(EVP_PKEY *pkey)
 
 	EC_KEY_free(ec_key);
 #endif
+
+	/* Final check for matching degree */
+	switch (jwt->alg) {
+	case JWT_ALG_ES256:
+	case JWT_ALG_ES256K:
+		if (degree != 256)
+			return -EINVAL;
+		break;
+	case JWT_ALG_ES384:
+		if (degree != 384)
+			return -EINVAL;
+		break;
+	case JWT_ALG_ES512:
+		/* This is not a typo. ES512 uses secp521r1 */
+		if (degree != 521)
+			return -EINVAL;
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	return degree;
 }
@@ -251,6 +279,7 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 
 	/* ECC */
 	case JWT_ALG_ES256:
+	case JWT_ALG_ES256K:
 		alg = EVP_sha256();
 		type = EVP_PKEY_EC;
 		break;
@@ -322,7 +351,7 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		unsigned char *raw_buf;
 
 		/* For EC we need to convert to a raw format of R/S. */
-		int degree = jwt_degree_for_key(pkey);
+		int degree = jwt_degree_for_key(pkey, jwt);
 		if (degree < 0)
 			SIGN_ERROR(-degree);
 
@@ -421,6 +450,7 @@ int jwt_verify_sha_pem(jwt_t *jwt, const char *head, unsigned int head_len, cons
 
 	/* ECC */
 	case JWT_ALG_ES256:
+	case JWT_ALG_ES256K:
 		alg = EVP_sha256();
 		type = EVP_PKEY_EC;
 		break;
@@ -466,7 +496,7 @@ int jwt_verify_sha_pem(jwt_t *jwt, const char *head, unsigned int head_len, cons
 		if (ec_sig == NULL)
 			VERIFY_ERROR(ENOMEM);
 
-		degree = jwt_degree_for_key(pkey);
+		degree = jwt_degree_for_key(pkey, jwt);
 		if (degree < 0)
 			VERIFY_ERROR(-degree);
 

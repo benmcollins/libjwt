@@ -36,11 +36,11 @@ static size_t key_len;
 /* NOTE: ES signing will generate a different signature every time, so can't
  * be simply string compared for verification like we do with RS. */
 
-static const char jwt_es256[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJpYXQ"
-	"iOjE0NzU5ODA1NDUsImlzcyI6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJYWFhYLVl"
-	"ZWVktWlpaWi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.3AA32Mn5dMuJXxe03mxJcT"
-	"fmif1eiv_doUCSVuMgny4DLKIZ3956SIGjeJpj3BSx2Lul7Zwy-PPuxyBwnL1jiWp7iw"
-	"PN9G9tV75ylfWvcwkF20bQA9m1vDbUIl8PIK8Q";
+static const char jwt_es256[] = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQ"
+	"iOjE0NzU5ODA1NDUsImlzcyI6ImZpbGVzLm1hY2xhcmEtbGxjLmNvbSIsInJlZiI6Ilh"
+	"YWFgtWVlZWS1aWlpaLUFBQUEtQ0NDQyIsInN1YiI6InVzZXIwIn0.IONoUPo6QhHwcx1"
+	"N1TD4DnrjvmB-9lSX6qrn_WPrh3DBum-qKP66MIF9tgymy7hCoU6dvUW8zKK0AyVH3iD"
+	"1uA";
 
 static const char jwt_es384[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzM4NCJ9.eyJpYXQ"
 	"iOjE0NzU5ODA1NDUsImlzcyI6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJYWFhYLVl"
@@ -50,9 +50,10 @@ static const char jwt_es384[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzM4NCJ9.eyJpYXQ"
 
 static const char jwt_es512[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzUxMiJ9.eyJpYXQ"
 	"iOjE0NzU5ODA1NDUsImlzcyI6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJYWFhYLVl"
-	"ZWVktWlpaWi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9._i6CCfwqgk9IEFbKjNL8Ki"
-	"tPT9NEnXn2-qCSq0UgqkZ3sY-R0cnzD-WzpsEA8QWC882Y-SWwN7qVxK9e45pHUy4jye"
-	"YKXJj3agq9tZ61V3TM-BjcnMkERsV37nDQcfom";
+	"ZWVktWlpaWi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.Abs-SriTqd9NAO-bJb-B3U"
+	"zF1W8JmoutfHQpMqJnkPHyasVVuKN-I-6RibSv-qxgTxuzlo0u5dCt4mOw7w8mgEnMAS"
+	"zsjm-NlOPUBjIUD9T592lse9OOF6TjPOQbijqeMc6qFZ8q5YhxvxBXHO6PuImkJpEWj4"
+	"Zda8lNTxqHol7vorg9";
 
 static const char jwt_es_invalid[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJpYXQ"
 	"iOjE0NzU5ODA1IAmCornholio6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJYWFhYLVl"
@@ -82,12 +83,12 @@ static void read_key(const char *key_file)
 	key[key_len] = '\0';
 }
 
-static void __verify_jwt(const char *jwt_str, const jwt_alg_t alg)
+static void __verify_jwt(const char *jwt_str, const jwt_alg_t alg, const char *file)
 {
 	jwt_t *jwt = NULL;
 	int ret = 0;
 
-	read_key("ec_key_secp384r1-pub.pem");
+	read_key(file);
 
 	ret = jwt_decode(&jwt, jwt_str, key, key_len);
 	ck_assert_int_eq(ret, 0);
@@ -98,7 +99,7 @@ static void __verify_jwt(const char *jwt_str, const jwt_alg_t alg)
 	jwt_free(jwt);
 }
 
-static void __test_alg_key(const jwt_alg_t alg)
+static void __test_alg_key(const jwt_alg_t alg, const char *file, const char *pub)
 {
 	jwt_t *jwt = NULL;
 	int ret = 0;
@@ -106,7 +107,7 @@ static void __test_alg_key(const jwt_alg_t alg)
 
 	ALLOC_JWT(&jwt);
 
-	read_key("ec_key_secp384r1.pem");
+	read_key(file);
 
 	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
 	ck_assert_int_eq(ret, 0);
@@ -126,7 +127,7 @@ static void __test_alg_key(const jwt_alg_t alg)
 	out = jwt_encode_str(jwt);
 	ck_assert_ptr_ne(out, NULL);
 
-	__verify_jwt(out, alg);
+	__verify_jwt(out, alg, pub);
 
 	jwt_free_str(out);
 	jwt_free(jwt);
@@ -134,37 +135,37 @@ static void __test_alg_key(const jwt_alg_t alg)
 
 START_TEST(test_jwt_encode_es256)
 {
-	__test_alg_key(JWT_ALG_ES256);
+	__test_alg_key(JWT_ALG_ES256, "ec_key_prime256v1.pem", "ec_key_prime256v1-pub.pem");
 }
 END_TEST
 
 START_TEST(test_jwt_verify_es256)
 {
-	__verify_jwt(jwt_es256, JWT_ALG_ES256);
+	__verify_jwt(jwt_es256, JWT_ALG_ES256, "ec_key_prime256v1-pub.pem");
 }
 END_TEST
 
 START_TEST(test_jwt_encode_es384)
 {
-	__test_alg_key(JWT_ALG_ES384);
+	__test_alg_key(JWT_ALG_ES384, "ec_key_secp384r1.pem", "ec_key_secp384r1-pub.pem");
 }
 END_TEST
 
 START_TEST(test_jwt_verify_es384)
 {
-	__verify_jwt(jwt_es384, JWT_ALG_ES384);
+	__verify_jwt(jwt_es384, JWT_ALG_ES384, "ec_key_secp384r1-pub.pem");
 }
 END_TEST
 
 START_TEST(test_jwt_encode_es512)
 {
-	__test_alg_key(JWT_ALG_ES512);
+	__test_alg_key(JWT_ALG_ES512, "ec_key_secp521r1.pem", "ec_key_secp521r1-pub.pem");
 }
 END_TEST
 
 START_TEST(test_jwt_verify_es512)
 {
-	__verify_jwt(jwt_es512, JWT_ALG_ES512);
+	__verify_jwt(jwt_es512, JWT_ALG_ES512, "ec_key_secp521r1-pub.pem");
 }
 END_TEST
 

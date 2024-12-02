@@ -678,6 +678,7 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 
 	/* ECC */
 	case JWT_ALG_ES256:
+	case JWT_ALG_ES256K:
 		alg = BCRYPT_SHA256_ALGORITHM;
 		isECDSA = 1;
 		break;
@@ -874,6 +875,7 @@ int jwt_verify_sha_pem(jwt_t *jwt, const char *head, const char *sig_b64)
 
 	/* ECC */
 	case JWT_ALG_ES256:
+	case JWT_ALG_ES256K:
 		alg = BCRYPT_SHA256_ALGORITHM;
 		isECDSA = 1;
 		break;
