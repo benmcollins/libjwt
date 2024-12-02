@@ -482,13 +482,10 @@ static int jwt_sign(jwt_t *jwt, char **out, unsigned int *len, const char *str, 
 	case JWT_ALG_RS384:
 	case JWT_ALG_RS512:
 
-#ifndef HAVE_OPENSSL
-	/* XXX These do not work right now on OpenSSL */
 	/* RSA-PSS */
 	case JWT_ALG_PS256:
 	case JWT_ALG_PS384:
 	case JWT_ALG_PS512:
-#endif
 
 	/* ECC */
 	case JWT_ALG_ES256:
@@ -517,13 +514,10 @@ static int jwt_verify(jwt_t *jwt, const char *head, unsigned int head_len, const
 	case JWT_ALG_RS384:
 	case JWT_ALG_RS512:
 
-#ifndef HAVE_OPENSSL
-	/* XXX These do not work right now on OpenSSL */
 	/* RSA-PSS */
 	case JWT_ALG_PS256:
 	case JWT_ALG_PS384:
 	case JWT_ALG_PS512:
-#endif
 
 	/* ECC */
 	case JWT_ALG_ES256:

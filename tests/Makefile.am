@@ -8,11 +8,8 @@ TESTS =			\
 	jwt_encode	\
 	jwt_rsa		\
 	jwt_ec		\
-	jwt_validate
-
-if !HAVE_OPENSSL
-TESTS += jwt_rsa_pss
-endif
+	jwt_validate	\
+	jwt_rsa_pss
 
 check_PROGRAMS = $(TESTS)
 

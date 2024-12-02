@@ -240,10 +240,9 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 	const EVP_MD *alg;
 	int type;
 	EVP_PKEY *pkey = NULL;
-	int pkey_type;
 	unsigned char *sig;
 	int ret = 0;
-	size_t slen, padding = 0;
+	size_t slen, is_pss = 0;
 
 	switch (jwt->alg) {
 	/* RSA */
@@ -264,17 +263,17 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 	case JWT_ALG_PS256:
 		alg = EVP_sha256();
 		type = EVP_PKEY_RSA_PSS;
-		padding = RSA_PKCS1_PSS_PADDING;
+		is_pss = 1;
 		break;
 	case JWT_ALG_PS384:
 		alg = EVP_sha384();
 		type = EVP_PKEY_RSA_PSS;
-		padding = RSA_PKCS1_PSS_PADDING;
+		is_pss = 1;
 		break;
 	case JWT_ALG_PS512:
 		alg = EVP_sha512();
 		type = EVP_PKEY_RSA_PSS;
-		padding = RSA_PKCS1_PSS_PADDING;
+		is_pss = 1;
 		break;
 
 	/* ECC */
@@ -307,8 +306,7 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 	if (pkey == NULL)
 		SIGN_ERROR(EINVAL);
 
-	pkey_type = EVP_PKEY_id(pkey);
-	if (pkey_type != type)
+	if (type != EVP_PKEY_id(pkey))
 		SIGN_ERROR(EINVAL);
 
 	mdctx = EVP_MD_CTX_create();
@@ -319,8 +317,12 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 	if (EVP_DigestSignInit(mdctx, &pkey_ctx, alg, NULL, pkey) != 1)
 		SIGN_ERROR(EINVAL);
 
-	if (padding > 0 && EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, padding) < 0)
-		SIGN_ERROR(EINVAL);
+	if (is_pss) {
+		if (EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, RSA_PKCS1_PSS_PADDING) < 0)
+			SIGN_ERROR(EINVAL);
+		if (EVP_PKEY_CTX_set_rsa_pss_saltlen(pkey_ctx, RSA_PSS_SALTLEN_DIGEST) < 0)
+			SIGN_ERROR(EINVAL);
+	}
 
 	/* Call update with the message */
 	if (EVP_DigestSignUpdate(mdctx, str, str_len) != 1)
@@ -340,7 +342,7 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 	if (EVP_DigestSignFinal(mdctx, sig, &slen) != 1)
 		SIGN_ERROR(EINVAL);
 
-	if (pkey_type != EVP_PKEY_EC) {
+	if (type != EVP_PKEY_EC) {
 		*out = jwt_malloc(slen);
 		if (*out == NULL)
 			SIGN_ERROR(ENOMEM);
@@ -410,11 +412,10 @@ int jwt_verify_sha_pem(jwt_t *jwt, const char *head, unsigned int head_len, cons
 	EVP_PKEY *pkey = NULL;
 	const EVP_MD *alg;
 	int type;
-	int pkey_type;
 	BIO *bufkey = NULL;
 	int ret = 0;
 	int slen;
-	size_t padding = 0;
+	int is_pss = 0;
 
 	switch (jwt->alg) {
 	/* RSA */
@@ -435,17 +436,17 @@ int jwt_verify_sha_pem(jwt_t *jwt, const char *head, unsigned int head_len, cons
 	case JWT_ALG_PS256:
 		alg = EVP_sha256();
 		type = EVP_PKEY_RSA_PSS;
-		padding = RSA_PKCS1_PSS_PADDING;
+		is_pss = 1;
 		break;
 	case JWT_ALG_PS384:
 		alg = EVP_sha384();
 		type = EVP_PKEY_RSA_PSS;
-		padding = RSA_PKCS1_PSS_PADDING;
+		is_pss = 1;
 		break;
 	case JWT_ALG_PS512:
 		alg = EVP_sha512();
 		type = EVP_PKEY_RSA_PSS;
-		padding = RSA_PKCS1_PSS_PADDING;
+		is_pss = 1;
 		break;
 
 	/* ECC */
@@ -482,12 +483,11 @@ int jwt_verify_sha_pem(jwt_t *jwt, const char *head, unsigned int head_len, cons
 	if (pkey == NULL)
 		VERIFY_ERROR(EINVAL);
 
-	pkey_type = EVP_PKEY_id(pkey);
-	if (pkey_type != type)
+	if (type != EVP_PKEY_id(pkey))
 		VERIFY_ERROR(EINVAL);
 
 	/* Convert EC sigs back to ASN1. */
-	if (pkey_type == EVP_PKEY_EC) {
+	if (type == EVP_PKEY_EC) {
 		unsigned int bn_len;
 		int degree;
 		unsigned char *p;
@@ -532,8 +532,12 @@ int jwt_verify_sha_pem(jwt_t *jwt, const char *head, unsigned int head_len, cons
 	if (EVP_DigestVerifyInit(mdctx, &pkey_ctx, alg, NULL, pkey) != 1)
 		VERIFY_ERROR(EINVAL);
 
-	if (padding > 0 && EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, padding) < 0)
-		VERIFY_ERROR(EINVAL);
+	if (is_pss) {
+		if (EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, RSA_PKCS1_PSS_PADDING) < 0)
+			VERIFY_ERROR(EINVAL);
+		if (EVP_PKEY_CTX_set_rsa_pss_saltlen(pkey_ctx, RSA_PSS_SALTLEN_DIGEST) < 0)
+			VERIFY_ERROR(EINVAL);
+	}
 
 	/* Call update with the message */
 	if (EVP_DigestVerifyUpdate(mdctx, head, head_len) != 1)
