@@ -1,4 +1,4 @@
-var modules =
+var topics =
 [
     [ "JWT Object Creation", "group__jwt__new.html", "group__jwt__new" ],
     [ "JWT Grant Manipulation", "group__jwt__grant.html", "group__jwt__grant" ],
