@@ -166,6 +166,13 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len, const char *str,
 		alg = GNUTLS_DIG_SHA512;
 		pk_alg = GNUTLS_PK_EC;
 		break;
+
+	/* EdDSA */
+	case JWT_ALG_EDDSA:
+		alg = GNUTLS_DIG_SHA512;
+		pk_alg = GNUTLS_PK_EDDSA_ED25519;
+		break;
+
 	default:
 		return EINVAL;
 	}
@@ -200,8 +207,50 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len, const char *str,
 		goto sign_clean_privkey;
 	}
 
-	/* RSA is very short. */
-	if (pk_alg == GNUTLS_PK_RSA || pk_alg == GNUTLS_PK_RSA_PSS) {
+	if (pk_alg == GNUTLS_PK_EC) {
+		/* Start EC handling. */
+		if ((ret = gnutls_decode_rs_value(&sig_dat, &r, &s))) {
+			ret = EINVAL;
+			goto sign_clean_privkey;
+		}
+
+		/* Check r and s size */
+		if (jwt->alg == JWT_ALG_ES256 || jwt->alg == JWT_ALG_ES256K)
+			adj = 32;
+		if (jwt->alg == JWT_ALG_ES384)
+			adj = 48;
+		if (jwt->alg == JWT_ALG_ES512)
+			adj = 66;
+
+		if (r.size > adj)
+			r_padding = r.size - adj;
+		else if (r.size < adj)
+			r_out_padding = adj - r.size;
+
+		if (s.size > adj)
+			s_padding = s.size - adj;
+		else if (s.size < adj)
+			s_out_padding = adj - s.size;
+
+		out_size = adj << 1;
+
+		*out = jwt_malloc(out_size);
+		if (*out == NULL) {
+			ret = ENOMEM;
+			goto sign_clean_privkey;
+		}
+		memset(*out, 0, out_size);
+
+		memcpy(*out + r_out_padding, r.data + r_padding, r.size - r_padding);
+		memcpy(*out + (r.size - r_padding + r_out_padding) + s_out_padding,
+		       s.data + s_padding, (s.size - s_padding));
+
+		*len = (r.size - r_padding + r_out_padding) +
+			(s.size - s_padding + s_out_padding);
+		gnutls_free(r.data);
+		gnutls_free(s.data);
+	} else {
+		/* All others that aren't EC */
 		*out = jwt_malloc(sig_dat.size);
 		if (*out == NULL) {
 			ret = ENOMEM;
@@ -211,53 +260,8 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len, const char *str,
 		/* Copy signature to out */
 		memcpy(*out, sig_dat.data, sig_dat.size);
 		*len = sig_dat.size;
-
-		goto sign_clean_and_exit;
 	}
 
-	/* Start EC handling. */
-	if ((ret = gnutls_decode_rs_value(&sig_dat, &r, &s))) {
-		ret = EINVAL;
-		goto sign_clean_privkey;
-	}
-
-	/* Check r and s size */
-	if (jwt->alg == JWT_ALG_ES256 || jwt->alg == JWT_ALG_ES256K)
-		adj = 32;
-	if (jwt->alg == JWT_ALG_ES384)
-		adj = 48;
-	if (jwt->alg == JWT_ALG_ES512)
-		adj = 66;
-
-	if (r.size > adj)
-		r_padding = r.size - adj;
-	else if (r.size < adj)
-		r_out_padding = adj - r.size;
-
-	if (s.size > adj)
-		s_padding = s.size - adj;
-	else if (s.size < adj)
-		s_out_padding = adj - s.size;
-
-	out_size = adj << 1;
-
-	*out = jwt_malloc(out_size);
-	if (*out == NULL) {
-		ret = ENOMEM;
-		goto sign_clean_privkey;
-	}
-	memset(*out, 0, out_size);
-
-	memcpy(*out + r_out_padding, r.data + r_padding, r.size - r_padding);
-	memcpy(*out + (r.size - r_padding + r_out_padding) + s_out_padding,
-	       s.data + s_padding, (s.size - s_padding));
-
-	*len = (r.size - r_padding + r_out_padding) +
-		(s.size - s_padding + s_out_padding);
-	gnutls_free(r.data);
-	gnutls_free(s.data);
-
-sign_clean_and_exit:
 	/* Clean and exit */
 	gnutls_free(sig_dat.data);
 
@@ -325,6 +329,12 @@ int jwt_verify_sha_pem(jwt_t *jwt, const char *head, unsigned int head_len, cons
 	case JWT_ALG_ES512:
 		alg = GNUTLS_SIGN_ECDSA_SHA512;
 		break;
+
+	/* EdDSA */
+	case JWT_ALG_EDDSA:
+		alg = GNUTLS_SIGN_EDDSA_ED25519;
+		break;
+
 	default:
 		return EINVAL;
 	}
@@ -382,7 +392,7 @@ int jwt_verify_sha_pem(jwt_t *jwt, const char *head, unsigned int head_len, cons
 		break;
 
 	default:
-		/* Use good old RSA signature verification. */
+		/* Use simple signature verification. */
 		sig_dat.size = sig_len;
 		sig_dat.data = sig;
 

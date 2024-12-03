@@ -288,6 +288,12 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		type = EVP_PKEY_EC;
 		break;
 
+	/* EdDSA */
+	case JWT_ALG_EDDSA:
+		alg = NULL;
+		type = EVP_PKEY_ED25519;
+		break;
+
 	default:
 		return EINVAL;
 	}
@@ -321,23 +327,16 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 			SIGN_ERROR(EINVAL);
 	}
 
-	/* Call update with the message */
-	if (EVP_DigestSignUpdate(mdctx, str, str_len) != 1)
-		SIGN_ERROR(EINVAL);
-
-	/* First, call EVP_DigestSignFinal with a NULL sig parameter to get length
-	 * of sig. Length is returned in slen */
-	if (EVP_DigestSignFinal(mdctx, NULL, &slen) != 1)
-		SIGN_ERROR(EINVAL);
+	/* Get the size of sig first */
+	EVP_DigestSign(mdctx, NULL, &slen, (const unsigned char *)str, str_len);
 
 	/* Allocate memory for signature based on returned size */
-	sig = alloca(slen);
+        sig = alloca(slen);
 	if (sig == NULL)
 		SIGN_ERROR(ENOMEM);
 
-	/* Get the signature */
-	if (EVP_DigestSignFinal(mdctx, sig, &slen) != 1)
-		SIGN_ERROR(EINVAL);
+	/* Actual signing */
+	EVP_DigestSign(mdctx, sig, &slen, (const unsigned char *)str, str_len);
 
 	if (type != EVP_PKEY_EC) {
 		*out = jwt_malloc(slen);
@@ -457,6 +456,12 @@ int jwt_verify_sha_pem(jwt_t *jwt, const char *head, unsigned int head_len, cons
 		type = EVP_PKEY_EC;
 		break;
 
+	/* EdDSA */
+	case JWT_ALG_EDDSA:
+		alg = NULL;
+		type = EVP_PKEY_ED25519;
+		break;
+
 	default:
 		return EINVAL;
 	}
@@ -532,12 +537,8 @@ int jwt_verify_sha_pem(jwt_t *jwt, const char *head, unsigned int head_len, cons
 			VERIFY_ERROR(EINVAL);
 	}
 
-	/* Call update with the message */
-	if (EVP_DigestVerifyUpdate(mdctx, head, head_len) != 1)
-		VERIFY_ERROR(EINVAL);
-
-	/* Now check the sig for validity. */
-	if (EVP_DigestVerifyFinal(mdctx, sig, slen) != 1)
+	/* One-shot update and verify */
+	if (EVP_DigestVerify(mdctx, sig, slen, (const unsigned char *)head, head_len) != 1)
 		VERIFY_ERROR(EINVAL);
 
 jwt_verify_sha_pem_done:
