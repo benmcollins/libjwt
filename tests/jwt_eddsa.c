@@ -33,9 +33,6 @@
 static unsigned char key[16384];
 static size_t key_len;
 
-/* NOTE: EdDSA signing will generate a different signature every time, so can't
- * be simply string compared for verification like we do with RS. */
-
 static const char jwt_eddsa[] = "eyJhbGciOiJFRERTQSIsInR5cCI6IkpXVCJ9.eyJpYX"
 	"QiOjE0NzU5ODA1NDUsImlzcyI6ImZpbGVzLm1hY2xhcmEtbGxjLmNvbSIsInJlZiI6I"
 	"lhYWFgtWVlZWS1aWlpaLUFBQUEtQ0NDQyIsInN1YiI6InVzZXIwIn0.19ip2DFFjaZ_"
@@ -118,13 +115,13 @@ static void __test_alg_key(const jwt_alg_t alg, const char *file, const char *pu
 
 START_TEST(test_jwt_encode_eddsa)
 {
-	__test_alg_key(JWT_ALG_EDDSA, "eddsa_key_edd25519.pem", "eddsa_key_edd25519-pub.pem");
+	__test_alg_key(JWT_ALG_EDDSA, "eddsa_key_ed25519.pem", "eddsa_key_ed25519-pub.pem");
 }
 END_TEST
 
 START_TEST(test_jwt_verify_eddsa)
 {
-	__verify_jwt(jwt_eddsa, JWT_ALG_EDDSA, "eddsa_key_edd25519-pub.pem");
+	__verify_jwt(jwt_eddsa, JWT_ALG_EDDSA, "eddsa_key_ed25519-pub.pem");
 }
 END_TEST
 
