@@ -328,15 +328,17 @@ int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 	}
 
 	/* Get the size of sig first */
-	EVP_DigestSign(mdctx, NULL, &slen, (const unsigned char *)str, str_len);
+	if (EVP_DigestSign(mdctx, NULL, &slen, (const unsigned char *)str, str_len) != 1)
+		SIGN_ERROR(EINVAL);
 
 	/* Allocate memory for signature based on returned size */
-        sig = alloca(slen);
+	sig = alloca(slen);
 	if (sig == NULL)
 		SIGN_ERROR(ENOMEM);
 
 	/* Actual signing */
-	EVP_DigestSign(mdctx, sig, &slen, (const unsigned char *)str, str_len);
+	if (EVP_DigestSign(mdctx, sig, &slen, (const unsigned char *)str, str_len) != 1)
+		SIGN_ERROR(EINVAL);
 
 	if (type != EVP_PKEY_EC) {
 		*out = jwt_malloc(slen);
