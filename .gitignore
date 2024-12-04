@@ -33,6 +33,7 @@ Makefile
 *.gcno
 /.vscode/*
 *~
+*.tmp
 
 # Generic ignores for cmake project
 /out/*
