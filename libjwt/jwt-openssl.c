@@ -154,56 +154,56 @@ jwt_verify_hmac_done:
 
 #define SIGN_ERROR(__err) { ret = __err; goto jwt_sign_sha_pem_done; }
 
-static int jwt_degree_for_key(EVP_PKEY *pkey, jwt_t *jwt)
+static size_t __degree_and_check(EVP_PKEY *pkey, jwt_t *jwt)
 {
-	int degree = 0;
-	char groupNameBuffer[24] = {0};
-	size_t groupNameBufferLen = 0;
+	size_t degree;
+	int curve_nid;
 
-	if (!EVP_PKEY_get_group_name(pkey, groupNameBuffer, sizeof(groupNameBuffer), &groupNameBufferLen))
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
+	const EC_GROUP *group;
+	const EC_KEY *ec_key;
+
+	ec_key = EVP_PKEY_get0_EC_KEY(pkey);
+	if (ec_key == NULL)
 		return -EINVAL;
 
-	groupNameBuffer[groupNameBufferLen] = '\0';
+	group = EC_KEY_get0_group(ec_key);
+	if (group == NULL)
+		return -EINVAL;
+
+	curve_nid = EC_GROUP_get_curve_name(group);
+	degree = EC_GROUP_get_degree(group);
+#else
+	EC_GROUP *group;
+	char curve_name[80];
+	size_t len;
+
+	if (!EVP_PKEY_get_group_name(pkey, curve_name, sizeof(curve_name), &len))
+		return -EINVAL;
+	curve_name[len] = '\0';
+
+	curve_nid = OBJ_txt2nid(curve_name);
+	if (curve_nid == NID_undef)
+		return -EINVAL;
+	group = EC_GROUP_new_by_curve_name(curve_nid);
+	if (group == NULL)
+		return -EINVAL;
+
+	degree = EC_GROUP_get_degree(group);
+	EC_GROUP_free(group);
+#endif
 
 	/* We only perform this check for ES256K. All others we just check
 	 * the degree (bits). */
-	if (jwt->alg == JWT_ALG_ES256K) {
-		if (strcmp(groupNameBuffer, "secp256k1"))
-			return -EINVAL;
-	}
-
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
-	int curve_nid;
-	EC_GROUP *group;
-	/* OpenSSL 3.0.0 and later has a new API for this. */
-
-	curve_nid = OBJ_txt2nid(groupNameBuffer);
-	if (curve_nid == NID_undef)
+	if (jwt->alg == JWT_ALG_ES256K && curve_nid != NID_secp256k1)
 		return -EINVAL;
 
-	group = EC_GROUP_new_by_curve_name(curve_nid);
-	if (group == NULL)
-		return -ENOMEM;
+	return degree;
+}
 
-	/* Get the degree of the curve */
-	degree = EC_GROUP_get_degree(group);
-
-	EC_GROUP_free(group);
-#else
-	EC_KEY *ec_key;
-
-	if (EVP_PKEY_id(pkey) != EVP_PKEY_EC)
-		return -EINVAL;
-
-	/* Get the actual ec_key */
-	ec_key = EVP_PKEY_get1_EC_KEY(pkey);
-	if (ec_key == NULL)
-		return -ENOMEM;
-
-	degree = EC_GROUP_get_degree(EC_KEY_get0_group(ec_key));
-
-	EC_KEY_free(ec_key);
-#endif
+static int jwt_degree_for_key(EVP_PKEY *pkey, jwt_t *jwt)
+{
+	size_t degree = __degree_and_check(pkey, jwt);
 
 	/* Final check for matching degree */
 	switch (jwt->alg) {
