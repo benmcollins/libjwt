@@ -152,7 +152,7 @@ jwt_verify_hmac_done:
 	return ret;
 }
 
-#define SIGN_ERROR(__err) { ret = __err; goto jwt_sign_sha_pem_done; }
+#define EC_ERROR(__err) { return -(__err); }
 
 static size_t __degree_and_check(EVP_PKEY *pkey, jwt_t *jwt)
 {
@@ -165,11 +165,11 @@ static size_t __degree_and_check(EVP_PKEY *pkey, jwt_t *jwt)
 
 	ec_key = EVP_PKEY_get0_EC_KEY(pkey);
 	if (ec_key == NULL)
-		return -EINVAL;
+		EC_ERROR(EINVAL);
 
 	group = EC_KEY_get0_group(ec_key);
 	if (group == NULL)
-		return -EINVAL;
+		EC_ERROR(EINVAL);
 
 	curve_nid = EC_GROUP_get_curve_name(group);
 	degree = EC_GROUP_get_degree(group);
@@ -179,15 +179,15 @@ static size_t __degree_and_check(EVP_PKEY *pkey, jwt_t *jwt)
 	size_t len;
 
 	if (!EVP_PKEY_get_group_name(pkey, curve_name, sizeof(curve_name), &len))
-		return -EINVAL;
+		EC_ERROR(EINVAL);
 	curve_name[len] = '\0';
 
 	curve_nid = OBJ_txt2nid(curve_name);
 	if (curve_nid == NID_undef)
-		return -EINVAL;
+		EC_ERROR(EINVAL);
 	group = EC_GROUP_new_by_curve_name(curve_nid);
 	if (group == NULL)
-		return -EINVAL;
+		EC_ERROR(EINVAL);
 
 	degree = EC_GROUP_get_degree(group);
 	EC_GROUP_free(group);
@@ -196,7 +196,7 @@ static size_t __degree_and_check(EVP_PKEY *pkey, jwt_t *jwt)
 	/* We only perform this check for ES256K. All others we just check
 	 * the degree (bits). */
 	if (jwt->alg == JWT_ALG_ES256K && curve_nid != NID_secp256k1)
-		return -EINVAL;
+		EC_ERROR(EINVAL);
 
 	return degree;
 }
@@ -227,6 +227,8 @@ static int jwt_degree_for_key(EVP_PKEY *pkey, jwt_t *jwt)
 
 	return degree;
 }
+
+#define SIGN_ERROR(__err) { ret = __err; goto jwt_sign_sha_pem_done; }
 
 int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		     const char *str, unsigned int str_len)
