@@ -8,6 +8,7 @@ jwt_ec
 jwt_header
 jwt_validate
 jwt_eddsa
+jwt_crypto
 *.log
 *.trs
 libjwt-*-coverage.info

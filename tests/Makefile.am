@@ -10,7 +10,8 @@ TESTS =			\
 	jwt_ec		\
 	jwt_validate	\
 	jwt_rsa_pss	\
-	jwt_eddsa
+	jwt_eddsa	\
+	jwt_crypto
 
 check_PROGRAMS = $(TESTS)
 
