@@ -30,6 +30,26 @@ struct jwt_valid {
 	unsigned int status;
 };
 
+/* Crypto operations */
+struct jwt_crypto_ops {
+	const char *name;
+	int (*sign_sha_hmac)(jwt_t *jwt, char **out, unsigned int *len,
+		const char *str, unsigned int str_len);
+	int (*verify_sha_hmac)(jwt_t *jwt, const char *head,
+		unsigned int head_len, const char *sig);
+	int (*sign_sha_pem)(jwt_t *jwt, char **out, unsigned int *len,
+		const char *str, unsigned int str_len);
+	int (*verify_sha_pem)(jwt_t *jwt, const char *head,
+		unsigned int head_len, const char *sig_b64);
+};
+
+#ifdef HAVE_OPENSSL
+extern struct jwt_crypto_ops jwt_openssl_ops;
+#endif
+#ifdef HAVE_GNUTLS
+extern struct jwt_crypto_ops jwt_gnutls_ops;
+#endif
+
 /* Memory allocators. */
 void *jwt_malloc(size_t size);
 void jwt_freemem(void *ptr);

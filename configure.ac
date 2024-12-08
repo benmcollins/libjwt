@@ -8,17 +8,37 @@ AC_CONFIG_HEADERS([libjwt/config.h])
 
 AC_SUBST([AM_CFLAGS], [-Wall])
 
-dnl Prefer OpenSSL unless asked to ignore it
-AC_ARG_WITH([openssl],
-	AS_HELP_STRING([--without-openssl], [Ignore presence of OpenSSL libraries and use GnuTLS]))
+AC_ARG_WITH([gnutls],
+	[AS_HELP_STRING([--with-gnutls],
+		[Support GnuTLS for crypto operations @<:@default=check@:>@])],
+	[],
+	[with_gnutls=check])
 
-AS_IF([test "x$with_openssl" != "xno"], [
-	PKG_CHECK_MODULES([OPENSSL], [openssl >= 0.9.8])
-	AM_CONDITIONAL([HAVE_OPENSSL], [true])
-], [
-	PKG_CHECK_MODULES([GNUTLS], [gnutls >= 3.6.0])
-	AM_CONDITIONAL([HAVE_OPENSSL], [false])
-])
+AC_ARG_WITH([openssl],
+	[AS_HELP_STRING([--with-openssl],
+		[Support OpenSSL for crypto operations @<:@default=check@:>@])],
+	[],
+	[with_openssl=check])
+
+
+AS_IF([test "x$with_gnutls" != xno],
+	[PKG_CHECK_MODULES([GNUTLS], [gnutls >= 3.6.0],
+	AM_CONDITIONAL([HAVE_GNUTLS], [true])
+	[HAVE_CRYPTO=true],
+	AS_IF([test "x$with_gnutls" != xcheck],
+		AC_MSG_FAILURE([--with-gnutls was given but GnuTLS not found])
+	))], AM_CONDITIONAL([HAVE_GNUTLS], [false]))
+
+AS_IF([test "x$with_openssl" != xno],
+	[PKG_CHECK_MODULES([OPENSSL], [openssl >= 0.9.8],
+        AM_CONDITIONAL([HAVE_OPENSSL], [true])
+	[HAVE_CRYPTO=true],
+        AS_IF([test "x$with_openssl" != xcheck],
+		AC_MSG_FAILURE([--with-openssl was given but OpenSSL not found])
+	))], AM_CONDITIONAL([HAVE_OPENSSL], [false]))
+
+AS_IF([test -z "$HAVE_CRYPTO"],
+	[AC_MSG_ERROR([no crypto library detected], [1])], [])
 
 AC_ARG_WITH([examples],
 	AS_HELP_STRING([--without-examples], [do not build example programs]),

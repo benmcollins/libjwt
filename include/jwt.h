@@ -1,4 +1,4 @@
-/* Copyright (C) 2015-2023 Ben Collins <bcollins@maclara-llc.com>
+/* Copyright (C) 2015-2024 Ben Collins <bcollins@maclara-llc.com>
    This file is part of the JWT C Library
 
    SPDX-License-Identifier:  MPL-2.0
@@ -99,6 +99,44 @@ typedef struct {
 
 /** Key provider - inspects the JWT to obtain the key used to verify the signature */
 typedef int (*jwt_key_p_t)(const jwt_t *, jwt_key_t *);
+
+
+/**
+ * @defgroup jwt_crypto JWT Crypto Operations
+ * Functions used to set and get which crypto operations are used
+ *
+ * LibJWT supports several crypto libaries, mainly OpenSSL and GnuTLS. By
+ * default, if enabled, OpenSSL is used.
+ *
+ * NOTE: Changing the crypto operations is not thread safe. You must
+ * protect changing them with some sort of lock, including locking
+ * around usage of them operations themselves.
+ *
+ * ENVIRONMENT: You can set JWT_CRYPTO to the default operations you
+ * wish to use. If JWT_CRYPTO is invalid, an error message will be
+ * printed to the console when LibJWT is loaded by the application.
+ * @{
+ */
+
+/**
+ * Retrieve the name of the current crypto operations being used.
+ *
+ * @return name of the crypto operation set
+ */
+const char *jwt_get_crypto_ops(void);
+
+/**
+ * Set the crypto operations to the named set.
+ *
+ * The opname is one of the available operators in the compiled version
+ * of LibJWT. Most times, this is either "openssl" or "gnutls".
+ *
+ * @param opname the name of the crypto operation to set
+ * @return 0 on success, valid errno otherwise.
+ */
+int jwt_set_crypto_ops(const char *opname);
+
+/** @} */
 
 /**
  * @defgroup jwt_new JWT Object Creation

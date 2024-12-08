@@ -17,6 +17,65 @@
 #include "base64.h"
 #include "config.h"
 
+/* Library init functionality */
+static struct jwt_crypto_ops *jwt_ops_available[] = {
+#ifdef HAVE_OPENSSL
+	&jwt_openssl_ops,
+#endif
+#ifdef HAVE_GNUTLS
+	&jwt_gnutls_ops,
+#endif
+	NULL,
+};
+
+#ifdef HAVE_OPENSSL
+static struct jwt_crypto_ops *jwt_ops = &jwt_openssl_ops;
+#else
+static struct jwt_crypto_ops *jwt_ops = &jwt_gnutls_ops;
+#endif
+
+const char *jwt_get_crypto_ops(void)
+{
+	if (jwt_ops == NULL)
+		return "(unknown)";
+
+	return jwt_ops->name;
+}
+
+int jwt_set_crypto_ops(const char *opname)
+{
+	int i;
+
+	/* The user asked for something, let's give it a try */
+	for (i = 0; jwt_ops_available[i] != NULL; i++) {
+		if (strcmp(jwt_ops_available[i]->name, opname))
+			continue;
+
+		jwt_ops = jwt_ops_available[i];
+		return 0;
+	}
+
+	return EINVAL;
+}
+
+__attribute__((constructor)) void jwt_init()
+{
+	const char *opname = getenv("JWT_CRYPTO");
+
+	/* By default, we choose the top spot */
+	if (opname == NULL || opname[0] == '\0') {
+		jwt_ops = jwt_ops_available[0];
+		return;
+	}
+
+	/* Attempt to set ops */
+	if (jwt_set_crypto_ops(opname)) {
+		jwt_ops = jwt_ops_available[0];
+		fprintf(stderr, "LibJWT: No such crypto ops [%s], falling back to [%s]\n",
+			opname, jwt_ops->name);
+	}
+}
+
 /* Number of elements in an array */
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
@@ -479,7 +538,7 @@ static int jwt_sign(jwt_t *jwt, char **out, unsigned int *len, const char *str, 
 	case JWT_ALG_HS256:
 	case JWT_ALG_HS384:
 	case JWT_ALG_HS512:
-		return jwt_sign_sha_hmac(jwt, out, len, str, str_len);
+		return jwt_ops->sign_sha_hmac(jwt, out, len, str, str_len);
 
 	/* RSA */
 	case JWT_ALG_RS256:
@@ -499,7 +558,7 @@ static int jwt_sign(jwt_t *jwt, char **out, unsigned int *len, const char *str, 
 
 	/* EdDSA */
 	case JWT_ALG_EDDSA:
-		return jwt_sign_sha_pem(jwt, out, len, str, str_len);
+		return jwt_ops->sign_sha_pem(jwt, out, len, str, str_len);
 
 	/* You wut, mate? */
 	default:
@@ -514,7 +573,7 @@ static int jwt_verify(jwt_t *jwt, const char *head, unsigned int head_len, const
 	case JWT_ALG_HS256:
 	case JWT_ALG_HS384:
 	case JWT_ALG_HS512:
-		return jwt_verify_sha_hmac(jwt, head, head_len, sig);
+		return jwt_ops->verify_sha_hmac(jwt, head, head_len, sig);
 
 	/* RSA */
 	case JWT_ALG_RS256:
@@ -534,7 +593,7 @@ static int jwt_verify(jwt_t *jwt, const char *head, unsigned int head_len, const
 
 	/* EdDSA */
 	case JWT_ALG_EDDSA:
-		return jwt_verify_sha_pem(jwt, head, head_len, sig);
+		return jwt_ops->verify_sha_pem(jwt, head, head_len, sig);
 
 	/* You wut, mate? */
 	default:

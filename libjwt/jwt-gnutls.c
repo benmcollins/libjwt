@@ -47,7 +47,8 @@ static int gnutls_decode_rs_value(const gnutls_datum_t *sig_value,
 /**
  * libjwt encryption/decryption function definitions
  */
-int jwt_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len, const char *str, unsigned int str_len)
+static int gnutls_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
+				const char *str, unsigned int str_len)
 {
 	int alg;
 
@@ -79,13 +80,14 @@ int jwt_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len, const char *str
 	return 0;
 }
 
-int jwt_verify_sha_hmac(jwt_t *jwt, const char *head, unsigned int head_len, const char *sig)
+static int gnutls_verify_sha_hmac(jwt_t *jwt, const char *head,
+				  unsigned int head_len, const char *sig)
 {
 	char *sig_check, *buf = NULL;
 	unsigned int len;
 	int ret = EINVAL;
 
-	if (!jwt_sign_sha_hmac(jwt, &sig_check, &len, head, head_len)) {
+	if (!gnutls_sign_sha_hmac(jwt, &sig_check, &len, head, head_len)) {
 		buf = alloca(len * 2);
 		jwt_Base64encode(buf, sig_check, len);
 		jwt_base64uri_encode(buf);
@@ -99,7 +101,8 @@ int jwt_verify_sha_hmac(jwt_t *jwt, const char *head, unsigned int head_len, con
 	return ret;
 }
 
-int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len, const char *str, unsigned int str_len)
+static int gnutls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
+			       const char *str, unsigned int str_len)
 {
 	/* For EC handling. */
 	int r_padding = 0, s_padding = 0, r_out_padding = 0,
@@ -279,7 +282,8 @@ sign_clean_key:
 	return ret;
 }
 
-int jwt_verify_sha_pem(jwt_t *jwt, const char *head, unsigned int head_len, const char *sig_b64)
+static int gnutls_verify_sha_pem(jwt_t *jwt, const char *head,
+				 unsigned int head_len, const char *sig_b64)
 {
 	gnutls_datum_t r, s;
 	gnutls_datum_t cert_dat = {
@@ -408,3 +412,12 @@ verify_clean_sig:
 
 	return ret;
 }
+
+/* Export our ops */
+struct jwt_crypto_ops jwt_gnutls_ops = {
+	.name			= "gnutls",
+	.sign_sha_hmac		= gnutls_sign_sha_hmac,
+	.verify_sha_hmac	= gnutls_verify_sha_hmac,
+	.sign_sha_pem		= gnutls_sign_sha_pem,
+	.verify_sha_pem		= gnutls_verify_sha_pem,
+};

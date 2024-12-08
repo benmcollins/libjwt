@@ -1,4 +1,4 @@
-/* Copyright (C) 2015-2023 Ben Collins <bcollins@maclara-llc.com>
+/* Copyright (C) 2015-2024 Ben Collins <bcollins@maclara-llc.com>
    This file is part of the JWT C Library
 
    SPDX-License-Identifier:  MPL-2.0
@@ -54,8 +54,8 @@ static int ECDSA_SIG_set0(ECDSA_SIG *sig, BIGNUM *r, BIGNUM *s)
 
 #endif
 
-int jwt_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
-		      const char *str, unsigned int str_len)
+static int openssl_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
+				 const char *str, unsigned int str_len)
 {
 	const EVP_MD *alg;
 
@@ -85,7 +85,8 @@ int jwt_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 	return 0;
 }
 
-int jwt_verify_sha_hmac(jwt_t *jwt, const char *head, unsigned int head_len, const char *sig)
+static int openssl_verify_sha_hmac(jwt_t *jwt, const char *head,
+				   unsigned int head_len, const char *sig)
 {
 	unsigned char res[EVP_MAX_MD_SIZE];
 	BIO *bmem = NULL, *b64 = NULL;
@@ -230,8 +231,8 @@ static int jwt_degree_for_key(EVP_PKEY *pkey, jwt_t *jwt)
 
 #define SIGN_ERROR(__err) { ret = __err; goto jwt_sign_sha_pem_done; }
 
-int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
-		     const char *str, unsigned int str_len)
+static int openssl_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
+				const char *str, unsigned int str_len)
 {
 	EVP_MD_CTX *mdctx = NULL;
 	EVP_PKEY_CTX *pkey_ctx = NULL;
@@ -401,7 +402,8 @@ jwt_sign_sha_pem_done:
 
 #define VERIFY_ERROR(__err) { ret = __err; goto jwt_verify_sha_pem_done; }
 
-int jwt_verify_sha_pem(jwt_t *jwt, const char *head, unsigned int head_len, const char *sig_b64)
+static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
+				  unsigned int head_len, const char *sig_b64)
 {
 	unsigned char *sig = NULL;
 	EVP_MD_CTX *mdctx = NULL;
@@ -559,3 +561,12 @@ jwt_verify_sha_pem_done:
 
 	return ret;
 }
+
+/* Export our ops */
+struct jwt_crypto_ops jwt_openssl_ops = {
+	.name			= "openssl",
+	.sign_sha_hmac		= openssl_sign_sha_hmac,
+	.verify_sha_hmac	= openssl_verify_sha_hmac,
+	.sign_sha_pem		= openssl_sign_sha_pem,
+	.verify_sha_pem		= openssl_verify_sha_pem,
+};

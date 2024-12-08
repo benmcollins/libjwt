@@ -13,8 +13,11 @@ libjwt_la_LIBADD = $(JANSSON_LIBS) $(OPENSSL_LIBS) $(GNUTLS_LIBS) $(CODE_COVERAG
 if HAVE_OPENSSL
 libjwt_la_SOURCES += jwt-openssl.c
 libjwt_la_CPPFLAGS += -DHAVE_OPENSSL
-else
+endif
+
+if HAVE_GNUTLS
 libjwt_la_SOURCES += jwt-gnutls.c
+libjwt_la_CPPFLAGS += -DHAVE_GNUTLS
 endif
 
 pkgconfiglibdir = $(libdir)/pkgconfig

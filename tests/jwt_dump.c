@@ -10,6 +10,8 @@
 
 #include <jwt.h>
 
+#include "jwt_tests.h"
+
 static void *test_malloc(size_t size)
 {
 	return malloc(size);
@@ -346,12 +348,12 @@ START_TEST(test_jwt_dump_str_alg_custom_typ_header)
 }
 END_TEST
 
-static Suite *libjwt_suite(void)
+static Suite *libjwt_suite(const char *title)
 {
 	Suite *s;
 	TCase *tc_core;
 
-	s = suite_create("LibJWT Dump");
+	s = suite_create(title);
 
 	tc_core = tcase_create("jwt_dump");
 
@@ -371,16 +373,30 @@ static Suite *libjwt_suite(void)
 
 int main(int argc, char *argv[])
 {
-	int number_failed;
+	int number_failed = 0;
 	Suite *s;
 	SRunner *sr;
+	int i;
 
-	s = libjwt_suite();
-	sr = srunner_create(s);
+        for (i = 0; jwt_test_ops[i] != NULL; i++) {
+		char *title;
+		const char *name = jwt_test_ops[i];
 
-	srunner_run_all(sr, CK_VERBOSE);
-	number_failed = srunner_ntests_failed(sr);
-	srunner_free(sr);
+		if (jwt_set_crypto_ops(name))
+			continue;
+
+		asprintf(&title, "LibJWT Dump - %s", jwt_test_ops[i]);
+
+		/* Set this because we fork */
+		setenv("JWT_CRYPTO", name, 1);
+
+		s = libjwt_suite(title);
+		sr = srunner_create(s);
+
+		srunner_run_all(sr, CK_VERBOSE);
+		number_failed += srunner_ntests_failed(sr);
+		srunner_free(sr);
+	}
 
 	return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
