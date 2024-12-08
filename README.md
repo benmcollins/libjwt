@@ -26,4 +26,6 @@ for macOS and Windows.
 - ``make all``: build library.
 - ``make check``: build and run test suite.
 - See INSTALL file for more details on GNU Auto tools and GNU Make.
-- Use the ``--without-openssl`` with ``./configure`` to use GnuTLS.
+- By default, it will build with OpenSSL and GnuTLS support if found. You can
+  exclude or force either one by using the ``--with-`` and ``--without-`` flags
+  to ``./configure``.
