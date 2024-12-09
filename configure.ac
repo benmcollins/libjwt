@@ -1,4 +1,4 @@
-AC_PREREQ([2.72])
+AC_PREREQ([2.61])
 AC_INIT([libjwt],[2.0.0],[https://github.com/benmcollins/libjwt/issues])
 AC_LANG([C])
 AM_INIT_AUTOMAKE([foreign subdir-objects])
