@@ -57,6 +57,8 @@ void jwt_freemem(void *ptr);
 /* Helper routines. */
 void jwt_base64uri_encode(char *str);
 void *jwt_b64_decode(const char *src, int *ret_len);
+int jwt_Base64encode(char *coded_dst, const char *plain_src, int len_plain_src);
+int jwt_Base64decode(char *plain_dst, const char *coded_src);
 
 /* These routines are implemented by the crypto backend. */
 int jwt_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,

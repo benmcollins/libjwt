@@ -14,7 +14,6 @@
 #include <jwt.h>
 
 #include "jwt-private.h"
-#include "base64.h"
 #include "config.h"
 
 /* Library init functionality */

@@ -50,6 +50,9 @@ AM_CONDITIONAL([BUILD_EXAMPLES], [test "x$with_examples" != "xno"])
 PKG_CHECK_MODULES([JANSSON], [jansson >= 2.0])
 PKG_CHECK_MODULES([CHECK], [check >= 0.9.4], [true], [true])
 
+AC_SEARCH_LIBS(base64_decode_value, b64,
+	AM_CONDITIONAL([HAVE_LIBB64], [true]), AM_CONDITIONAL([HAVE_LIBB64], [false]))
+
 AX_VALGRIND_CHECK
 
 AX_CODE_COVERAGE

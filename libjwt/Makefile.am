@@ -1,8 +1,8 @@
-EXTRA_DIST = base64.h jwt-private.h CMakeLists.txt
+EXTRA_DIST = jwt-private.h CMakeLists.txt
 
 lib_LTLIBRARIES = libjwt.la
 
-libjwt_la_SOURCES = jwt.c base64.c
+libjwt_la_SOURCES = jwt.c
 
 # http://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html
 libjwt_la_LDFLAGS = -version-info 12:6:10 $(OPENSSL_LDFLAGS) $(GNUTLS_LDFLAGS) $(JANSSON_LDFLAGS) -no-undefined
@@ -18,6 +18,12 @@ endif
 if HAVE_GNUTLS
 libjwt_la_SOURCES += jwt-gnutls.c
 libjwt_la_CPPFLAGS += -DHAVE_GNUTLS
+endif
+
+if HAVE_LIBB64
+libjwt_la_SOURCES += jwt-b64.c
+else
+libjwt_la_SOURCES += base64.c
 endif
 
 pkgconfiglibdir = $(libdir)/pkgconfig
