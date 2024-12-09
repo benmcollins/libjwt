@@ -16,14 +16,12 @@ addons:
     - libssl-dev
     - lcov
     - gnutls-dev
+    - libb64-dev
 before_install:
   - sudo pip install codecov
   - autoreconf -fi
 script:
-  - ./configure --without-openssl
-  - make check
-  - make distclean
-  - ./configure --enable-code-coverage
+  - ./configure --with-openssl --with-gnutls --enable-code-coverage
   - make check-code-coverage
 after_success:
   - codecov
