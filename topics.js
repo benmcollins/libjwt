@@ -1,5 +1,6 @@
 var topics =
 [
+    [ "JWT Crypto Operations", "group__jwt__crypto.html", "group__jwt__crypto" ],
     [ "JWT Object Creation", "group__jwt__new.html", "group__jwt__new" ],
     [ "JWT Grant Manipulation", "group__jwt__grant.html", "group__jwt__grant" ],
     [ "JWT Header Manipulation", "group__jwt__header.html", "group__jwt__header" ],

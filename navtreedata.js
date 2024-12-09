@@ -24,7 +24,7 @@
 */
 var NAVTREE =
 [
-  [ "libjwt-1.18.2", "index.html", [
+  [ "libjwt-2.0.0", "index.html", [
     [ "Topics", "topics.html", "topics" ],
     [ "Data Structures", "annotated.html", [
       [ "Data Structures", "annotated.html", "annotated_dup" ],
