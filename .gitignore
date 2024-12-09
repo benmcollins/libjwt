@@ -18,11 +18,11 @@ Makefile
 /config.status
 /ltmain.sh
 /libtool
-*/.deps/*
+**/.deps/**
 *.la
 *.lo
 *.o
-*/.libs/*
+**/.libs/**
 */config.h
 */config.h.in
 */config.h.in~
@@ -34,6 +34,7 @@ Makefile
 /.vscode/*
 *~
 *.tmp
+.dirstamp
 
 # Generic ignores for cmake project
 /out/*

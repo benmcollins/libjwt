@@ -1,5 +1,6 @@
-AC_PREREQ([2.61])
+AC_PREREQ([2.72])
 AC_INIT([libjwt],[2.0.0],[https://github.com/benmcollins/libjwt/issues])
+AC_LANG([C])
 AM_INIT_AUTOMAKE([foreign subdir-objects])
 LT_PREREQ([2.2])
 LT_INIT([])
@@ -50,8 +51,19 @@ AM_CONDITIONAL([BUILD_EXAMPLES], [test "x$with_examples" != "xno"])
 PKG_CHECK_MODULES([JANSSON], [jansson >= 2.0])
 PKG_CHECK_MODULES([CHECK], [check >= 0.9.4], [true], [true])
 
-AC_SEARCH_LIBS(base64_decode_value, b64,
-	AM_CONDITIONAL([HAVE_LIBB64], [true]), AM_CONDITIONAL([HAVE_LIBB64], [false]))
+AC_SEARCH_LIBS(base64_decode_value, b64, [TEST_B64=1],
+	AM_CONDITIONAL(HAVE_LIBB64, false))
+
+AC_MSG_CHECKING(if b64 library supports chars_per_line)
+AC_LINK_IFELSE([AC_LANG_SOURCE([[
+	#include "b64/cencode.h"
+	int main(void) {
+		base64_encodestate state;
+		state.chars_per_line = 0;
+		return 0;
+	]])],
+	[AM_CONDITIONAL(HAVE_LIBB64, true)] [AC_MSG_RESULT(yes)],
+	[AM_CONDITIONAL(HAVE_LIBB64, false)] [AC_MSG_RESULT(no)])
 
 AX_VALGRIND_CHECK
 
