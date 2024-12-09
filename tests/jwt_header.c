@@ -253,31 +253,5 @@ static Suite *libjwt_suite(const char *title)
 
 int main(int argc, char *argv[])
 {
-	int number_failed = 0;
-	Suite *s;
-	SRunner *sr;
-	int i;
-
-	for (i = 0; jwt_test_ops[i] != NULL; i++) {
-		char *title;
-		const char *name = jwt_test_ops[i];
-
-		if (jwt_set_crypto_ops(name))
-			continue;
-
-		if (asprintf(&title, "LibJWT Header - %s", jwt_test_ops[i]) < 1)
-			exit(1);
-
-		/* Set this because we fork */
-		setenv("JWT_CRYPTO", name, 1);
-
-		s = libjwt_suite(title);
-		sr = srunner_create(s);
-
-		srunner_run_all(sr, CK_VERBOSE);
-		number_failed += srunner_ntests_failed(sr);
-		srunner_free(sr);
-	}
-
-	return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
+	JWT_TEST_MAIN("LibJWT Header");
 }
