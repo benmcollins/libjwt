@@ -688,7 +688,8 @@ int main(int argc, char *argv[])
 		if (jwt_set_crypto_ops(name))
 			continue;
 
-		asprintf(&title, "LibJWT EC Sign/Verify - %s", jwt_test_ops[i]);
+		if (asprintf(&title, "LibJWT EC Sign/Verify - %s", jwt_test_ops[i]) < 1)
+			exit(1);
 
 		/* Set this because we fork */
 		setenv("JWT_CRYPTO", name, 1);

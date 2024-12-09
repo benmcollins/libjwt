@@ -265,7 +265,8 @@ int main(int argc, char *argv[])
 		if (jwt_set_crypto_ops(name))
 			continue;
 
-		asprintf(&title, "LibJWT Grant - %s", jwt_test_ops[i]);
+		if (asprintf(&title, "LibJWT Grant - %s", jwt_test_ops[i]) < 0)
+			exit(1);
 
 		/* Set this because we fork */
 		setenv("JWT_CRYPTO", name, 1);
