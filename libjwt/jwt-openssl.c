@@ -89,11 +89,9 @@ static int openssl_verify_sha_hmac(jwt_t *jwt, const char *head,
 				   unsigned int head_len, const char *sig)
 {
 	unsigned char res[EVP_MAX_MD_SIZE];
-	BIO *bmem = NULL, *b64 = NULL;
 	unsigned int res_len;
 	const EVP_MD *alg;
 	char *buf;
-	int len, ret = EINVAL;
 
 	switch (jwt->alg) {
 	case JWT_ALG_HS256:
@@ -109,48 +107,18 @@ static int openssl_verify_sha_hmac(jwt_t *jwt, const char *head,
 		return EINVAL;
 	}
 
-	b64 = BIO_new(BIO_f_base64());
-	if (b64 == NULL)
-		return ENOMEM;
-
-	bmem = BIO_new(BIO_s_mem());
-	if (bmem == NULL) {
-		BIO_free(b64);
+	buf = alloca(head_len + 1);
+	if (!buf) {
 		return ENOMEM;
 	}
-
-	BIO_push(b64, bmem);
-	BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
 
 	HMAC(alg, jwt->key, jwt->key_len,
 	     (const unsigned char *)head, head_len, res, &res_len);
 
-	BIO_write(b64, res, res_len);
-
-	(void)BIO_flush(b64);
-
-	len = BIO_pending(bmem);
-	if (len < 0)
-		goto jwt_verify_hmac_done;
-
-	buf = alloca(len + 1);
-	if (!buf) {
-		ret = ENOMEM;
-		goto jwt_verify_hmac_done;
-	}
-
-	len = BIO_read(bmem, buf, len);
-	buf[len] = '\0';
-
-	jwt_base64uri_encode(buf);
+	jwt_base64uri_encode(buf, (char *)res, res_len);
 
 	/* And now... */
-	ret = jwt_strcmp(buf, sig) ? EINVAL : 0;
-
-jwt_verify_hmac_done:
-	BIO_free_all(b64);
-
-	return ret;
+	return jwt_strcmp(buf, sig) ? EINVAL : 0;
 }
 
 #define EC_ERROR(__err) { return -(__err); }
@@ -472,7 +440,7 @@ static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 		return EINVAL;
 	}
 
-	sig = jwt_b64_decode(sig_b64, &slen);
+	sig = jwt_base64uri_decode(sig_b64, &slen);
 	if (sig == NULL)
 		VERIFY_ERROR(EINVAL);
 

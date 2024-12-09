@@ -1,6 +1,6 @@
 AC_PREREQ([2.61])
 AC_INIT([libjwt],[2.0.0],[https://github.com/benmcollins/libjwt/issues])
-AM_INIT_AUTOMAKE([foreign])
+AM_INIT_AUTOMAKE([foreign subdir-objects])
 LT_PREREQ([2.2])
 LT_INIT([])
 AC_CONFIG_MACRO_DIR([m4])

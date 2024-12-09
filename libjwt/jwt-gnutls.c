@@ -88,8 +88,12 @@ static int gnutls_verify_sha_hmac(jwt_t *jwt, const char *head,
 
 	if (!gnutls_sign_sha_hmac(jwt, &sig_check, &len, head, head_len)) {
 		buf = alloca(len * 2);
-		jwt_Base64encode(buf, sig_check, len);
-		jwt_base64uri_encode(buf);
+		if (buf == NULL) {
+			jwt_freemem(sig_check);
+			return EINVAL;
+		}
+
+		jwt_base64uri_encode(buf, sig_check, len);
 
 		if (!jwt_strcmp(sig, buf))
 			ret = 0;
@@ -342,7 +346,7 @@ static int gnutls_verify_sha_pem(jwt_t *jwt, const char *head,
 		return EINVAL;
 	}
 
-	sig = (unsigned char *)jwt_b64_decode(sig_b64, &sig_len);
+	sig = (unsigned char *)jwt_base64uri_decode(sig_b64, &sig_len);
 
 	if (sig == NULL)
 		return EINVAL;

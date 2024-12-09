@@ -54,22 +54,10 @@ extern struct jwt_crypto_ops jwt_gnutls_ops;
 void *jwt_malloc(size_t size);
 void jwt_freemem(void *ptr);
 
-/* Helper routines. */
-void jwt_base64uri_encode(char *str);
-void *jwt_b64_decode(const char *src, int *ret_len);
-int jwt_Base64encode(char *coded_dst, const char *plain_src, int len_plain_src);
-int jwt_Base64decode(char *plain_dst, const char *coded_src);
-
-/* These routines are implemented by the crypto backend. */
-int jwt_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
-		      const char *str, unsigned int str_len);
-
-int jwt_verify_sha_hmac(jwt_t *jwt, const char *head, unsigned int head_len, const char *sig);
-
-int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
-		     const char *str, unsigned int str_len);
-
-int jwt_verify_sha_pem(jwt_t *jwt, const char *head, unsigned int head_len, const char *sig_b64);
+/* Helper routines to handle base64url encoding without percent padding
+ * as defined in RFC-4648. */
+int jwt_base64uri_encode(char *dst, const char *plain, int plain_len);
+void *jwt_base64uri_decode(const char *src, int *ret_len);
 
 /* A time-safe strcmp function */
 int jwt_strcmp(const char *str1, const char *str2);

@@ -1,4 +1,4 @@
-EXTRA_DIST = jwt-private.h CMakeLists.txt
+EXTRA_DIST = jwt-private.h CMakeLists.txt b64/cencode.h b64/cdecode.h
 
 lib_LTLIBRARIES = libjwt.la
 
@@ -24,10 +24,8 @@ libjwt_la_SOURCES += jwt-gnutls.c
 libjwt_la_CPPFLAGS += -DHAVE_GNUTLS
 endif
 
-if HAVE_LIBB64
-libjwt_la_SOURCES += jwt-b64.c
-else
-libjwt_la_SOURCES += base64.c
+if !HAVE_LIBB64
+libjwt_la_SOURCES += b64/cdecode.c b64/cencode.c
 endif
 
 pkgconfiglibdir = $(libdir)/pkgconfig
