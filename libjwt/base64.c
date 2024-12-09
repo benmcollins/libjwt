@@ -84,8 +84,6 @@
 
 #include <string.h>
 
-#include "base64.h"
-
 /* aaaack but it's fast and const should make it shared text page. */
 static const unsigned char pr2six[256] =
 {
