@@ -105,12 +105,12 @@ typedef int (*jwt_key_p_t)(const jwt_t *, jwt_key_t *);
  * @defgroup jwt_crypto JWT Crypto Operations
  * Functions used to set and get which crypto operations are used
  *
- * LibJWT supports several crypto libaries, mainly OpenSSL and GnuTLS. By
- * default, if enabled, OpenSSL is used.
+ * LibJWT supports several crypto libaries, mainly "openssl" and "gnutls.
+ * By default, if enabled, "openssl" is used.
  *
  * NOTE: Changing the crypto operations is not thread safe. You must
  * protect changing them with some sort of lock, including locking
- * around usage of them operations themselves.
+ * around usage of the operations themselves.
  *
  * ENVIRONMENT: You can set JWT_CRYPTO to the default operations you
  * wish to use. If JWT_CRYPTO is invalid, an error message will be
