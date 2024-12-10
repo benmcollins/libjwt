@@ -24,19 +24,21 @@ AC_ARG_WITH([openssl],
 
 AS_IF([test "x$with_gnutls" != xno],
 	[PKG_CHECK_MODULES([GNUTLS], [gnutls >= 3.6.0],
-	AM_CONDITIONAL([HAVE_GNUTLS], [true])
+	[AM_CONDITIONAL([HAVE_GNUTLS], [true])]
+	[AC_DEFINE([HAVE_GNUTLS], [1], [GnuTLS Support])]
 	[HAVE_CRYPTO=true],
 	AS_IF([test "x$with_gnutls" != xcheck],
 		AC_MSG_FAILURE([--with-gnutls was given but GnuTLS not found])
-	))], AM_CONDITIONAL([HAVE_GNUTLS], [false]))
+	))], [AM_CONDITIONAL([HAVE_GNUTLS], [false])])
 
 AS_IF([test "x$with_openssl" != xno],
 	[PKG_CHECK_MODULES([OPENSSL], [openssl >= 0.9.8],
-        AM_CONDITIONAL([HAVE_OPENSSL], [true])
+        [AM_CONDITIONAL([HAVE_OPENSSL], [true])]
+	[AC_DEFINE([HAVE_OPENSSL], [1], [OpenSSL Support])]
 	[HAVE_CRYPTO=true],
         AS_IF([test "x$with_openssl" != xcheck],
 		AC_MSG_FAILURE([--with-openssl was given but OpenSSL not found])
-	))], AM_CONDITIONAL([HAVE_OPENSSL], [false]))
+	))], [AM_CONDITIONAL([HAVE_OPENSSL], [false])])
 
 AS_IF([test -z "$HAVE_CRYPTO"],
 	[AC_MSG_ERROR([no crypto library detected], [1])], [])
@@ -56,13 +58,14 @@ AC_SEARCH_LIBS(base64_decode_value, b64, [TEST_B64=1],
 
 AC_MSG_CHECKING(if b64 library supports chars_per_line)
 AC_LINK_IFELSE([AC_LANG_SOURCE([[
-	#include "b64/cencode.h"
+	#include <b64/cencode.h>
 	int main(void) {
 		base64_encodestate state;
 		state.chars_per_line = 0;
 		return 0;
 	]])],
-	[AM_CONDITIONAL(HAVE_LIBB64, true)] [AC_MSG_RESULT(yes)],
+	[AM_CONDITIONAL(HAVE_LIBB64, true)] [AC_MSG_RESULT(yes)]
+	[AC_DEFINE([HAVE_LIBB64], [1], [Use system libb64])],
 	[AM_CONDITIONAL(HAVE_LIBB64, false)] [AC_MSG_RESULT(no)])
 
 AX_VALGRIND_CHECK

@@ -18,7 +18,6 @@
 #include <jwt.h>
 
 #include "jwt-private.h"
-#include "config.h"
 
 /* Workaround to use GnuTLS 3.5 EC signature encode/decode functions that
  * are not public yet. */

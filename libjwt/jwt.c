@@ -13,11 +13,15 @@
 
 #include <jwt.h>
 
+#ifdef HAVE_LIBB64
 #include <b64/cencode.h>
 #include <b64/cdecode.h>
+#else
+#include "cencode.h"
+#include "cdecode.h"
+#endif
 
 #include "jwt-private.h"
-#include "config.h"
 
 /* Library init functionality */
 static struct jwt_crypto_ops *jwt_ops_available[] = {

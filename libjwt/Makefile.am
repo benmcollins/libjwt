@@ -1,4 +1,4 @@
-EXTRA_DIST = jwt-private.h CMakeLists.txt b64/cencode.h b64/cdecode.h
+EXTRA_DIST = jwt-private.h CMakeLists.txt cencode.h cdecode.h ccommon.h
 
 lib_LTLIBRARIES = libjwt.la
 
@@ -16,16 +16,14 @@ libjwt_la_LIBADD = $(JANSSON_LIBS) $(OPENSSL_LIBS) $(GNUTLS_LIBS) $(CODE_COVERAG
 
 if HAVE_OPENSSL
 libjwt_la_SOURCES += jwt-openssl.c
-libjwt_la_CPPFLAGS += -DHAVE_OPENSSL
 endif
 
 if HAVE_GNUTLS
 libjwt_la_SOURCES += jwt-gnutls.c
-libjwt_la_CPPFLAGS += -DHAVE_GNUTLS
 endif
 
 if !HAVE_LIBB64
-libjwt_la_SOURCES += b64/cdecode.c b64/cencode.c
+libjwt_la_SOURCES += cdecode.c cencode.c
 endif
 
 pkgconfiglibdir = $(libdir)/pkgconfig

@@ -16,7 +16,6 @@
 #include <jwt.h>
 
 #include "jwt-private.h"
-#include "config.h"
 
 /* Routines to support crypto in LibJWT using Windows crypto APIs. */
 
