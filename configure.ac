@@ -68,6 +68,10 @@ AC_LINK_IFELSE([AC_LANG_SOURCE([[
 	[AC_DEFINE([HAVE_LIBB64], [1], [Use system libb64])],
 	[AM_CONDITIONAL(HAVE_LIBB64, false)] [AC_MSG_RESULT(no)])
 
+AX_VALGRIND_DFLT([memcheck], [on])
+AX_VALGRIND_DFLT([helgrind], [off])
+AX_VALGRIND_DFLT([drd], [off])
+AX_VALGRIND_DFLT([sgcheck], [off])
 AX_VALGRIND_CHECK
 
 AX_CODE_COVERAGE
