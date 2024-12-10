@@ -483,7 +483,7 @@ void *jwt_base64uri_decode(const char *src, int *ret_len)
 	new[i] = '\0';
 
 	/* Now we have a standard base64 encoded string. */
-	buf = jwt_malloc(base64_decode_maxlength(len));
+	buf = jwt_malloc(base64_decode_maxlength(len) + 1);
 	if (buf == NULL)
 		return NULL;
 
