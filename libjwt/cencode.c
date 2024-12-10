@@ -7,6 +7,7 @@ For details, see http://sourceforge.net/projects/libb64
 
 #include "cencode.h"
 
+__attribute__ ((visibility ("hidden")))
 void base64_init_encodestate(base64_encodestate* state_in)
 {
 	state_in->step = step_A;
@@ -21,7 +22,7 @@ void base64_init_encodestate(base64_encodestate* state_in)
  *
  * Return encoded length, or 0 if encoded length + one additional null byte would exceed range of size_t
  */
-
+__attribute__ ((visibility ("hidden")))
 size_t base64_encode_length(size_t plain_len, base64_encodestate* state_in)
 {
 	size_t retmax = 0, retval;
@@ -57,6 +58,7 @@ size_t base64_encode_length(size_t plain_len, base64_encodestate* state_in)
 		return retval;
 }
 
+__attribute__ ((visibility ("hidden")))
 char base64_encode_value(signed char value_in)
 {
 	static const char* encoding = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -75,6 +77,7 @@ do						\
   state_in->stepcount++;			\
 } while(0);
 
+__attribute__ ((visibility ("hidden")))
 size_t base64_encode_block(const void* plaintext_in, const size_t length_in, char* code_out, base64_encodestate* state_in)
 {
 	const char* plainchar = plaintext_in;
@@ -142,6 +145,7 @@ size_t base64_encode_block(const void* plaintext_in, const size_t length_in, cha
 	return (size_t) (codechar - code_out);
 }
 
+__attribute__ ((visibility ("hidden")))
 size_t base64_encode_blockend(char* code_out, base64_encodestate* state_in)
 {
 	char* codechar = code_out;
