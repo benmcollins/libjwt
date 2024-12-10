@@ -53,6 +53,7 @@ AM_CONDITIONAL([BUILD_EXAMPLES], [test "x$with_examples" != "xno"])
 PKG_CHECK_MODULES([JANSSON], [jansson >= 2.0])
 PKG_CHECK_MODULES([CHECK], [check >= 0.9.4], [true], [true])
 
+dnl XXX Gotta remove -lb64 if the test below this fails
 AC_SEARCH_LIBS(base64_decode_value, b64, [TEST_B64=1],
 	AM_CONDITIONAL(HAVE_LIBB64, false))
 
