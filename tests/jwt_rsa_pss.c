@@ -160,36 +160,42 @@ static void __test_rsa_pss_encode(const char *priv_key_file,
 
 START_TEST(test_jwt_encode_ps256)
 {
+	SET_OPS();
 	__test_rsa_pss_encode(PS_KEY_PRIV, PS_KEY_PUB, JWT_ALG_PS256);
 }
 END_TEST
 
 START_TEST(test_jwt_encode_ps384)
 {
+	SET_OPS();
 	__test_rsa_pss_encode(PS_KEY_PRIV, PS_KEY_PUB, JWT_ALG_PS384);
 }
 END_TEST
 
 START_TEST(test_jwt_encode_ps512)
 {
+	SET_OPS();
 	__test_rsa_pss_encode(PS_KEY_PRIV, PS_KEY_PUB, JWT_ALG_PS512);
 }
 END_TEST
 
 START_TEST(test_jwt_verify_ps256)
 {
+	SET_OPS();
 	__verify_alg_key(PS_KEY_PUB, jwt_ps256_2048, JWT_ALG_PS256);
 }
 END_TEST
 
 START_TEST(test_jwt_verify_ps384)
 {
+	SET_OPS();
 	__verify_alg_key(PS_KEY_PUB, jwt_ps384_2048, JWT_ALG_PS384);
 }
 END_TEST
 
 START_TEST(test_jwt_verify_ps512)
 {
+	SET_OPS();
 	__verify_alg_key(PS_KEY_PUB, jwt_ps512_2048, JWT_ALG_PS512);
 }
 END_TEST
@@ -198,6 +204,8 @@ START_TEST(test_jwt_verify_invalid_rsa_pss)
 {
 	jwt_t *jwt = NULL;
 	int ret = 0;
+
+	SET_OPS();
 
 	read_key(PS_KEY_PUB);
 
@@ -211,18 +219,19 @@ static Suite *libjwt_suite(const char *title)
 {
 	Suite *s;
 	TCase *tc_core;
+	int i = ARRAY_SIZE(jwt_test_ops) - 1;
 
 	s = suite_create(title);
 
 	tc_core = tcase_create("jwt_rsa_pss");
 
-	tcase_add_test(tc_core, test_jwt_encode_ps256);
-	tcase_add_test(tc_core, test_jwt_encode_ps384);
-	tcase_add_test(tc_core, test_jwt_encode_ps512);
-	tcase_add_test(tc_core, test_jwt_verify_ps256);
-	tcase_add_test(tc_core, test_jwt_verify_ps384);
-	tcase_add_test(tc_core, test_jwt_verify_ps512);
-	tcase_add_test(tc_core,test_jwt_verify_invalid_rsa_pss);
+	tcase_add_loop_test(tc_core, test_jwt_encode_ps256, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_encode_ps384, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_encode_ps512, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_verify_ps256, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_verify_ps384, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_verify_ps512, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_verify_invalid_rsa_pss, 0, i);
 
 	tcase_set_timeout(tc_core, 120);
 

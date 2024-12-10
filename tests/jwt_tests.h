@@ -9,40 +9,41 @@
 #ifndef JWT_TESTS_H
 #define JWT_TESTS_H
 
+#include "config.h"
+
+#ifndef ARRAY_SIZE
+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
+#endif
+
 static const char *jwt_test_ops[] = {
+#ifdef HAVE_OPENSSL
 	"openssl",
+#endif
+#ifdef HAVE_GNUTLS
 	"gnutls",
+#endif
 	NULL
 };
 
-#define JWT_TEST_MAIN(__title) ({						\
-	int number_failed = 0;							\
-	int i;									\
-										\
-	for (i = 0; jwt_test_ops[i] != NULL; i++) {				\
-		SRunner *sr;							\
-		Suite *s;							\
-		char *title;							\
-		const char *name = jwt_test_ops[i];				\
-										\
-		if (jwt_set_crypto_ops(name))					\
-			continue;						\
-										\
-		if (asprintf(&title, __title " - %s", jwt_test_ops[i]) < 0)	\
-			exit(1);						\
-										\
-		/* Set this because we fork */					\
-		setenv("JWT_CRYPTO", name, 1);					\
-										\
-		s = libjwt_suite(title);					\
-		sr = srunner_create(s);						\
-										\
-		srunner_run_all(sr, CK_VERBOSE);				\
-		number_failed += srunner_ntests_failed(sr);			\
-		srunner_free(sr);						\
-	}									\
-										\
-	return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;		\
+#define JWT_TEST_MAIN(__title) ({					\
+	int number_failed = 0;						\
+	SRunner *sr;							\
+	Suite *s;							\
+									\
+	s = libjwt_suite(__title);					\
+	sr = srunner_create(s);						\
+									\
+	srunner_run_all(sr, CK_VERBOSE);				\
+	number_failed += srunner_ntests_failed(sr);			\
+	srunner_free(sr);						\
+									\
+	return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;	\
+})
+
+#define SET_OPS() ({							\
+	ck_assert_int_eq(jwt_set_crypto_ops(jwt_test_ops[_i]), 0);	\
+	const char *ops = jwt_get_crypto_ops();				\
+	ck_assert_str_eq(ops, jwt_test_ops[_i]);			\
 })
 
 #endif /* JWT_TESTS_H */

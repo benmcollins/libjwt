@@ -17,6 +17,8 @@ START_TEST(test_jwt_add_grant)
 	jwt_t *jwt = NULL;
 	int ret = 0;
 
+	SET_OPS();
+
 	ret = jwt_new(&jwt);
 	ck_assert_int_eq(ret, 0);
 	ck_assert_ptr_nonnull(jwt);
@@ -46,6 +48,8 @@ START_TEST(test_jwt_get_grant)
 	const char testval[] = "testing";
 	int ret = 0;
 
+	SET_OPS();
+
 	ret = jwt_new(&jwt);
 	ck_assert_int_eq(ret, 0);
 	ck_assert_ptr_nonnull(jwt);
@@ -66,6 +70,8 @@ START_TEST(test_jwt_add_grant_int)
 	jwt_t *jwt = NULL;
 	long val;
 	int ret = 0;
+
+	SET_OPS();
 
 	ret = jwt_new(&jwt);
 	ck_assert_int_eq(ret, 0);
@@ -89,6 +95,8 @@ START_TEST(test_jwt_add_grant_bool)
 	jwt_t *jwt = NULL;
 	int val;
 	int ret = 0;
+
+	SET_OPS();
 
 	ret = jwt_new(&jwt);
 	ck_assert_int_eq(ret, 0);
@@ -119,6 +127,8 @@ START_TEST(test_jwt_del_grants)
 	const char *val;
 	const char testval[] = "testing";
 	int ret = 0;
+
+	SET_OPS();
 
 	ret = jwt_new(&jwt);
 	ck_assert_int_eq(ret, 0);
@@ -159,6 +169,8 @@ START_TEST(test_jwt_grant_invalid)
 	int valbool = 0;
 	int ret = 0;
 
+	SET_OPS();
+
 	ret = jwt_new(&jwt);
 	ck_assert_int_eq(ret, 0);
 	ck_assert_ptr_nonnull(jwt);
@@ -196,6 +208,8 @@ START_TEST(test_jwt_grants_json)
 	char *json_val;
 	int ret = 0;
 
+	SET_OPS();
+
 	ret = jwt_new(&jwt);
 	ck_assert_int_eq(ret, 0);
 	ck_assert_ptr_nonnull(jwt);
@@ -231,18 +245,19 @@ static Suite *libjwt_suite(const char *title)
 {
 	Suite *s;
 	TCase *tc_core;
+	int i = ARRAY_SIZE(jwt_test_ops) - 1;
 
 	s = suite_create(title);
 
 	tc_core = tcase_create("jwt_grant");
 
-	tcase_add_test(tc_core, test_jwt_add_grant);
-	tcase_add_test(tc_core, test_jwt_add_grant_int);
-	tcase_add_test(tc_core, test_jwt_add_grant_bool);
-	tcase_add_test(tc_core, test_jwt_get_grant);
-	tcase_add_test(tc_core, test_jwt_del_grants);
-	tcase_add_test(tc_core, test_jwt_grant_invalid);
-	tcase_add_test(tc_core, test_jwt_grants_json);
+	tcase_add_loop_test(tc_core, test_jwt_add_grant, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_add_grant_int, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_add_grant_bool, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_get_grant, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_del_grants, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_grant_invalid, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_grants_json, 0, i);
 
 	tcase_set_timeout(tc_core, 30);
 

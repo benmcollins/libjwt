@@ -137,36 +137,42 @@ static void __test_alg_key(const jwt_alg_t alg, const char *file, const char *pu
 
 START_TEST(test_jwt_encode_es256)
 {
+	SET_OPS();
 	__test_alg_key(JWT_ALG_ES256, "ec_key_prime256v1.pem", "ec_key_prime256v1-pub.pem");
 }
 END_TEST
 
 START_TEST(test_jwt_verify_es256)
 {
+	SET_OPS();
 	__verify_jwt(jwt_es256, JWT_ALG_ES256, "ec_key_prime256v1-pub.pem");
 }
 END_TEST
 
 START_TEST(test_jwt_encode_es384)
 {
+	SET_OPS();
 	__test_alg_key(JWT_ALG_ES384, "ec_key_secp384r1.pem", "ec_key_secp384r1-pub.pem");
 }
 END_TEST
 
 START_TEST(test_jwt_verify_es384)
 {
+	SET_OPS();
 	__verify_jwt(jwt_es384, JWT_ALG_ES384, "ec_key_secp384r1-pub.pem");
 }
 END_TEST
 
 START_TEST(test_jwt_encode_es512)
 {
+	SET_OPS();
 	__test_alg_key(JWT_ALG_ES512, "ec_key_secp521r1.pem", "ec_key_secp521r1-pub.pem");
 }
 END_TEST
 
 START_TEST(test_jwt_verify_es512)
 {
+	SET_OPS();
 	__verify_jwt(jwt_es512, JWT_ALG_ES512, "ec_key_secp521r1-pub.pem");
 }
 END_TEST
@@ -176,6 +182,8 @@ START_TEST(test_jwt_encode_ec_with_rsa)
 	jwt_t *jwt = NULL;
 	int ret = 0;
 	char *out;
+
+	SET_OPS();
 
 	ALLOC_JWT(&jwt);
 
@@ -209,6 +217,8 @@ START_TEST(test_jwt_verify_invalid_token)
 	jwt_t *jwt = NULL;
 	int ret = 0;
 
+	SET_OPS();
+
 	read_key("ec_key_secp384r1.pem");
 
 	ret = jwt_decode(&jwt, jwt_es_invalid, key, JWT_ALG_ES256);
@@ -221,6 +231,8 @@ START_TEST(test_jwt_verify_invalid_alg)
 {
 	jwt_t *jwt = NULL;
 	int ret = 0;
+
+	SET_OPS();
 
 	read_key("ec_key_secp384r1.pem");
 
@@ -235,6 +247,8 @@ START_TEST(test_jwt_verify_invalid_cert)
 	jwt_t *jwt = NULL;
 	int ret = 0;
 
+	SET_OPS();
+
 	read_key("ec_key_secp521r1-pub.pem");
 
 	ret = jwt_decode(&jwt, jwt_es256, key, JWT_ALG_ES256);
@@ -247,6 +261,8 @@ START_TEST(test_jwt_verify_invalid_cert_file)
 {
 	jwt_t *jwt = NULL;
 	int ret = 0;
+
+	SET_OPS();
 
 	read_key("ec_key_invalid-pub.pem");
 
@@ -261,6 +277,8 @@ START_TEST(test_jwt_encode_invalid_key)
 	jwt_t *jwt = NULL;
 	int ret = 0;
 	char *out = NULL;
+
+	SET_OPS();
 
 	ALLOC_JWT(&jwt);
 
@@ -292,23 +310,24 @@ static Suite *libjwt_suite(const char *title)
 {
 	Suite *s;
 	TCase *tc_core;
+	int i = ARRAY_SIZE(jwt_test_ops) - 1;
 
 	s = suite_create(title);
 
 	tc_core = tcase_create("jwt_ec");
 
-	tcase_add_test(tc_core, test_jwt_encode_es256);
-	tcase_add_test(tc_core, test_jwt_verify_es256);
-	tcase_add_test(tc_core, test_jwt_encode_es384);
-	tcase_add_test(tc_core, test_jwt_verify_es384);
-	tcase_add_test(tc_core, test_jwt_encode_es512);
-	tcase_add_test(tc_core, test_jwt_verify_es512);
-	tcase_add_test(tc_core, test_jwt_encode_ec_with_rsa);
-	tcase_add_test(tc_core, test_jwt_verify_invalid_token);
-	tcase_add_test(tc_core, test_jwt_verify_invalid_alg);
-	tcase_add_test(tc_core, test_jwt_verify_invalid_cert);
-	tcase_add_test(tc_core, test_jwt_verify_invalid_cert_file);
-	tcase_add_test(tc_core, test_jwt_encode_invalid_key);
+	tcase_add_loop_test(tc_core, test_jwt_encode_es256, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_verify_es256, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_encode_es384, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_verify_es384, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_encode_es512, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_verify_es512, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_encode_ec_with_rsa, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_verify_invalid_token, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_verify_invalid_alg, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_verify_invalid_cert, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_verify_invalid_cert_file, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_encode_invalid_key, 0, i);
 
 	tcase_set_timeout(tc_core, 30);
 

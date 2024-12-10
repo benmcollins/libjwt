@@ -169,12 +169,14 @@ static void __verify_alg_key(const char *key_file, const char *jwt_str,
 
 START_TEST(test_jwt_encode_rs256)
 {
+	SET_OPS();
 	__test_alg_key("rsa_key_2048.pem", jwt_rs256_2048, JWT_ALG_RS256);
 }
 END_TEST
 
 START_TEST(test_jwt_verify_rs256)
 {
+	SET_OPS();
 	__verify_alg_key("rsa_key_2048-pub.pem", jwt_rs256_2048, JWT_ALG_RS256);
 }
 END_TEST
@@ -184,6 +186,8 @@ START_TEST(test_jwt_validate_rs256)
 	jwt_t *jwt = NULL;
 	jwt_valid_t *jwt_valid = NULL;
 	int ret = 0;
+
+	SET_OPS();
 
 	read_key("rsa_key_2048-pub.pem");
 
@@ -209,24 +213,28 @@ END_TEST
 
 START_TEST(test_jwt_encode_rs384)
 {
+	SET_OPS();
 	__test_alg_key("rsa_key_4096.pem", jwt_rs384_4096, JWT_ALG_RS384);
 }
 END_TEST
 
 START_TEST(test_jwt_verify_rs384)
 {
+	SET_OPS();
 	__verify_alg_key("rsa_key_4096-pub.pem", jwt_rs384_4096, JWT_ALG_RS384);
 }
 END_TEST
 
 START_TEST(test_jwt_encode_rs512)
 {
+	SET_OPS();
 	__test_alg_key("rsa_key_8192.pem", jwt_rs512_8192, JWT_ALG_RS512);
 }
 END_TEST
 
 START_TEST(test_jwt_verify_rs512)
 {
+	SET_OPS();
 	__verify_alg_key("rsa_key_8192-pub.pem", jwt_rs512_8192, JWT_ALG_RS512);
 }
 END_TEST
@@ -248,6 +256,7 @@ static const char jwt_rsa_i37[] = "eyJraWQiOiJkWUoxTDVnbWd0eDlWVU9xbVpyd2F6cW"
 
 START_TEST(test_jwt_verify_rsa_i37)
 {
+	SET_OPS();
 	__verify_alg_key("rsa_key_i37-pub.pem", jwt_rsa_i37, JWT_ALG_RS256);
 }
 END_TEST
@@ -257,6 +266,8 @@ START_TEST(test_jwt_encode_rsa_with_ec)
 	jwt_t *jwt = NULL;
 	int ret = 0;
 	char *out;
+
+	SET_OPS();
 
 	ALLOC_JWT(&jwt);
 
@@ -290,6 +301,8 @@ START_TEST(test_jwt_verify_invalid_token)
 	jwt_t *jwt = NULL;
 	int ret = 0;
 
+	SET_OPS();
+
 	read_key("rsa_key_2048.pem");
 
 	ret = jwt_decode(&jwt, jwt_rs256_invalid, key, JWT_ALG_RS512);
@@ -302,6 +315,8 @@ START_TEST(test_jwt_verify_invalid_alg)
 {
 	jwt_t *jwt = NULL;
 	int ret = 0;
+
+	SET_OPS();
 
 	read_key("rsa_key_2048.pem");
 
@@ -316,6 +331,8 @@ START_TEST(test_jwt_verify_invalid_cert)
 	jwt_t *jwt = NULL;
 	int ret = 0;
 
+	SET_OPS();
+
 	read_key("rsa_key_8192-pub.pem");
 
 	ret = jwt_decode(&jwt, jwt_rs256_2048, key, JWT_ALG_RS256);
@@ -328,6 +345,8 @@ START_TEST(test_jwt_verify_invalid_cert_file)
 {
 	jwt_t *jwt = NULL;
 	int ret = 0;
+
+	SET_OPS();
 
 	read_key("rsa_key_invalid-pub.pem");
 
@@ -342,6 +361,8 @@ START_TEST(test_jwt_encode_invalid_key)
 	jwt_t *jwt = NULL;
 	int ret = 0;
 	char *out = NULL;
+
+	SET_OPS();
 
 	ALLOC_JWT(&jwt);
 
@@ -373,25 +394,26 @@ static Suite *libjwt_suite(const char *title)
 {
 	Suite *s;
 	TCase *tc_core;
+	int i = ARRAY_SIZE(jwt_test_ops) - 1;
 
 	s = suite_create(title);
 
 	tc_core = tcase_create("jwt_rsa");
 
-	tcase_add_test(tc_core, test_jwt_encode_rs256);
-	tcase_add_test(tc_core, test_jwt_verify_rs256);
-	tcase_add_test(tc_core, test_jwt_validate_rs256);
-	tcase_add_test(tc_core, test_jwt_encode_rs384);
-	tcase_add_test(tc_core, test_jwt_verify_rs384);
-	tcase_add_test(tc_core, test_jwt_encode_rs512);
-	tcase_add_test(tc_core, test_jwt_verify_rs512);
-	tcase_add_test(tc_core, test_jwt_verify_rsa_i37);
-	tcase_add_test(tc_core, test_jwt_encode_rsa_with_ec);
-	tcase_add_test(tc_core, test_jwt_verify_invalid_token);
-	tcase_add_test(tc_core, test_jwt_verify_invalid_alg);
-	tcase_add_test(tc_core, test_jwt_verify_invalid_cert);
-	tcase_add_test(tc_core, test_jwt_verify_invalid_cert_file);
-	tcase_add_test(tc_core, test_jwt_encode_invalid_key);
+	tcase_add_loop_test(tc_core, test_jwt_encode_rs256, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_verify_rs256, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_validate_rs256, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_encode_rs384, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_verify_rs384, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_encode_rs512, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_verify_rs512, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_verify_rsa_i37, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_encode_rsa_with_ec, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_verify_invalid_token, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_verify_invalid_alg, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_verify_invalid_cert, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_verify_invalid_cert_file, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_encode_invalid_key, 0, i);
 
 	tcase_set_timeout(tc_core, 120);
 

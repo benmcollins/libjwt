@@ -20,9 +20,7 @@ START_TEST(test_jwt_ops)
 		const char *name = jwt_test_ops[i];
 		const char *test;
 
-		/* Would be nice if we could know what we were compiled with */
-                if (jwt_set_crypto_ops(name))
-                        continue;
+		ck_assert(!jwt_set_crypto_ops(name));
 
 		test = jwt_get_crypto_ops();
 		ck_assert_str_eq(test, name);
@@ -33,12 +31,12 @@ START_TEST(test_jwt_ops)
 }
 END_TEST
 
-static Suite *libjwt_suite(void)
+static Suite *libjwt_suite(const char *title)
 {
 	Suite *s;
 	TCase *tc_core;
 
-	s = suite_create("LibJWT Crypto Ops");
+	s = suite_create(title);
 
 	tc_core = tcase_create("jwt_crypto");
 
@@ -53,16 +51,5 @@ static Suite *libjwt_suite(void)
 
 int main(int argc, char *argv[])
 {
-	int number_failed;
-	Suite *s;
-	SRunner *sr;
-
-	s = libjwt_suite();
-	sr = srunner_create(s);
-
-	srunner_run_all(sr, CK_VERBOSE);
-	number_failed = srunner_ntests_failed(sr);
-	srunner_free(sr);
-
-	return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
+	JWT_TEST_MAIN("LibJWT Crypto Operations");
 }

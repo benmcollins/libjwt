@@ -117,12 +117,14 @@ static void __test_alg_key(const jwt_alg_t alg, const char *file, const char *pu
 
 START_TEST(test_jwt_encode_eddsa)
 {
+	SET_OPS();
 	__test_alg_key(JWT_ALG_EDDSA, "eddsa_key_ed25519.pem", "eddsa_key_ed25519-pub.pem");
 }
 END_TEST
 
 START_TEST(test_jwt_verify_eddsa)
 {
+	SET_OPS();
 	__verify_jwt(jwt_eddsa, JWT_ALG_EDDSA, "eddsa_key_ed25519-pub.pem");
 }
 END_TEST
@@ -132,6 +134,8 @@ START_TEST(test_jwt_encode_eddsa_with_rsa)
 	jwt_t *jwt = NULL;
 	int ret = 0;
 	char *out;
+
+	SET_OPS();
 
 	ALLOC_JWT(&jwt);
 
@@ -164,14 +168,15 @@ static Suite *libjwt_suite(const char *title)
 {
 	Suite *s;
 	TCase *tc_core;
+	int i = ARRAY_SIZE(jwt_test_ops) - 1;
 
 	s = suite_create(title);
 
 	tc_core = tcase_create("jwt_eddsa");
 
-	tcase_add_test(tc_core, test_jwt_encode_eddsa);
-	tcase_add_test(tc_core, test_jwt_verify_eddsa);
-	tcase_add_test(tc_core, test_jwt_encode_eddsa_with_rsa);
+	tcase_add_loop_test(tc_core, test_jwt_encode_eddsa, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_verify_eddsa, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_encode_eddsa_with_rsa, 0, i);
 
 	tcase_set_timeout(tc_core, 30);
 

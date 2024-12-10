@@ -58,6 +58,8 @@ START_TEST(test_jwt_validate_errno)
 	unsigned int ret = 0;
 	char *exc;
 
+	SET_OPS();
+
 	__setup_jwt();
 	ck_assert_ptr_nonnull(jwt);
 
@@ -92,6 +94,8 @@ START_TEST(test_jwt_valid_algorithm)
 	jwt_valid_t *jwt_valid = NULL;
 	unsigned int ret = 0;
 
+	SET_OPS();
+
 	__setup_jwt();
 
 	/* Matching algorithm is valid */
@@ -124,6 +128,8 @@ START_TEST(test_jwt_valid_require_grant)
 	unsigned int ret = 0;
 	const char *valstr = NULL;
 	int valnum = 0;
+
+	SET_OPS();
 
 	__setup_jwt();
 
@@ -181,6 +187,8 @@ START_TEST(test_jwt_valid_nonmatch_grant)
 	jwt_valid_t *jwt_valid = NULL;
 	unsigned int ret = 0;
 
+	SET_OPS();
+
 	__setup_jwt();
 
 	ret = jwt_valid_new(&jwt_valid, JWT_ALG_NONE);
@@ -228,6 +236,8 @@ START_TEST(test_jwt_valid_grant_bool)
 	int val;
 	unsigned int ret = 0;
 
+	SET_OPS();
+
 	ret = jwt_valid_new(&jwt_valid, JWT_ALG_NONE);
 	ck_assert_int_eq(ret, 0);
 	ck_assert_ptr_nonnull(jwt_valid);
@@ -257,6 +267,8 @@ START_TEST(test_jwt_valid_del_grants)
 	const char *val;
 	const char testval[] = "testing";
 	unsigned int ret = 0;
+
+	SET_OPS();
 
 	ret = jwt_valid_new(&jwt_valid, JWT_ALG_NONE);
 	ck_assert_int_eq(ret, 0);
@@ -297,6 +309,8 @@ START_TEST(test_jwt_valid_invalid_grant)
 	long valbool = 0;
 	unsigned int ret = 0;
 
+	SET_OPS();
+
 	ret = jwt_valid_new(&jwt_valid, JWT_ALG_NONE);
 	ck_assert_int_eq(ret, 0);
 	ck_assert_ptr_nonnull(jwt_valid);
@@ -327,6 +341,8 @@ START_TEST(test_jwt_valid_missing_grant)
 {
 	jwt_valid_t *jwt_valid = NULL;
 	unsigned int ret = 0;
+
+	SET_OPS();
 
 	__setup_jwt();
 
@@ -370,6 +386,8 @@ START_TEST(test_jwt_valid_not_before)
 	jwt_valid_t *jwt_valid = NULL;
 	unsigned int ret = 0;
 
+	SET_OPS();
+
 	__setup_jwt();
 	jwt_add_grant_int(jwt, "nbf", not_before);
 
@@ -399,6 +417,8 @@ START_TEST(test_jwt_valid_set_nbf_leeway)
 	jwt_valid_t *jwt_valid = NULL;
 	unsigned int ret = 0;
 
+	SET_OPS();
+
 	__setup_jwt();
 	ret = jwt_valid_new(&jwt_valid, JWT_ALG_NONE);
 	ck_assert_int_eq(ret, 0);
@@ -424,6 +444,8 @@ START_TEST(test_jwt_valid_not_before_leeway)
 {
 	jwt_valid_t *jwt_valid = NULL;
 	unsigned int ret = 0;
+
+	SET_OPS();
 
 	__setup_jwt();
 	jwt_add_grant_int(jwt, "nbf", not_before);
@@ -458,6 +480,8 @@ START_TEST(test_jwt_valid_expires)
 	jwt_valid_t *jwt_valid = NULL;
 	unsigned int ret = 0;
 
+	SET_OPS();
+
 	__setup_jwt();
 	jwt_add_grant_int(jwt, "exp", expires);
 
@@ -487,6 +511,8 @@ START_TEST(test_jwt_valid_set_exp_leeway)
 	jwt_valid_t *jwt_valid = NULL;
 	unsigned int ret = 0;
 
+	SET_OPS();
+
 	__setup_jwt();
 	ret = jwt_valid_new(&jwt_valid, JWT_ALG_NONE);
 	ck_assert_int_eq(ret, 0);
@@ -512,6 +538,8 @@ START_TEST(test_jwt_valid_expires_leeway)
 {
 	jwt_valid_t *jwt_valid = NULL;
 	unsigned int ret = 0;
+
+	SET_OPS();
 
 	__setup_jwt();
 	jwt_add_grant_int(jwt, "exp", expires);
@@ -545,6 +573,8 @@ START_TEST(test_jwt_valid_headers)
 {
 	jwt_valid_t *jwt_valid = NULL;
 	unsigned int ret = 0;
+
+	SET_OPS();
 
 	__setup_jwt();
 
@@ -610,6 +640,8 @@ START_TEST(test_jwt_valid_grants_json)
 	char *json_val;
 	unsigned int ret = 0;
 
+	SET_OPS();
+
 	ret = jwt_valid_new(&jwt_valid, JWT_ALG_NONE);
 	ck_assert_int_eq(ret, 0);
 	ck_assert_ptr_nonnull(jwt_valid);
@@ -645,27 +677,28 @@ static Suite *libjwt_suite(const char *title)
 {
 	Suite *s;
 	TCase *tc_core;
+	int i = ARRAY_SIZE(jwt_test_ops) - 1;
 
 	s = suite_create(title);
 
 	tc_core = tcase_create("jwt_validate");
 
-	tcase_add_test(tc_core, test_jwt_validate_errno);
-	tcase_add_test(tc_core, test_jwt_valid_algorithm);
-	tcase_add_test(tc_core, test_jwt_valid_require_grant);
-	tcase_add_test(tc_core, test_jwt_valid_nonmatch_grant);
-	tcase_add_test(tc_core, test_jwt_valid_invalid_grant);
-	tcase_add_test(tc_core, test_jwt_valid_missing_grant);
-	tcase_add_test(tc_core, test_jwt_valid_grant_bool);
-	tcase_add_test(tc_core, test_jwt_valid_grants_json);
-	tcase_add_test(tc_core, test_jwt_valid_del_grants);
-	tcase_add_test(tc_core, test_jwt_valid_not_before);
-	tcase_add_test(tc_core, test_jwt_valid_set_nbf_leeway);
-	tcase_add_test(tc_core, test_jwt_valid_not_before_leeway);
-	tcase_add_test(tc_core, test_jwt_valid_expires);
-	tcase_add_test(tc_core, test_jwt_valid_set_exp_leeway);
-	tcase_add_test(tc_core, test_jwt_valid_expires_leeway);
-	tcase_add_test(tc_core, test_jwt_valid_headers);
+	tcase_add_loop_test(tc_core, test_jwt_validate_errno, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_valid_algorithm, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_valid_require_grant, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_valid_nonmatch_grant, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_valid_invalid_grant, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_valid_missing_grant, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_valid_grant_bool, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_valid_grants_json, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_valid_del_grants, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_valid_not_before, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_valid_set_nbf_leeway, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_valid_not_before_leeway, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_valid_expires, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_valid_set_exp_leeway, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_valid_expires_leeway, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_valid_headers, 0, i);
 
 	tcase_set_timeout(tc_core, 30);
 

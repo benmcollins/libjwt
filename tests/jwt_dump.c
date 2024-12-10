@@ -39,6 +39,8 @@ START_TEST(test_alloc_funcs)
 	jwt_free_t f = NULL;
 	int ret;
 
+	SET_OPS();
+
 	jwt_get_alloc(&m, &r, &f);
 	ck_assert_ptr_null(m);
 	ck_assert_ptr_null(r);
@@ -59,6 +61,8 @@ START_TEST(test_jwt_dump_fp)
 	FILE *out;
 	jwt_t *jwt = NULL;
 	int ret = 0;
+
+	SET_OPS();
 
 	ret = test_set_alloc();
 	ck_assert_int_eq(ret, 0);
@@ -104,6 +108,8 @@ START_TEST(test_jwt_dump_str)
 	int ret = 0;
 	char *out;
 	const char *val = NULL;
+
+	SET_OPS();
 
 	ret = test_set_alloc();
 	ck_assert_int_eq(ret, 0);
@@ -169,6 +175,8 @@ START_TEST(test_jwt_dump_grants_str)
 	long timestamp = (long)time(NULL);
 	char buf[1024];
 
+	SET_OPS();
+
 	ret = test_set_alloc();
 	ck_assert_int_eq(ret, 0);
 
@@ -225,6 +233,8 @@ START_TEST(test_jwt_dump_str_alg_default_typ_header)
 	int ret = 0;
 	char *out;
 	const char *val = NULL;
+
+	SET_OPS();
 
 	ret = test_set_alloc();
 	ck_assert_int_eq(ret, 0);
@@ -287,6 +297,8 @@ START_TEST(test_jwt_dump_str_alg_custom_typ_header)
 	int ret = 0;
 	char *out;
 	const char *val = NULL;
+
+	SET_OPS();
 
 	ret = test_set_alloc();
 	ck_assert_int_eq(ret, 0);
@@ -352,17 +364,18 @@ static Suite *libjwt_suite(const char *title)
 {
 	Suite *s;
 	TCase *tc_core;
+	int i = ARRAY_SIZE(jwt_test_ops) - 1;
 
 	s = suite_create(title);
 
 	tc_core = tcase_create("jwt_dump");
 
-	tcase_add_test(tc_core, test_alloc_funcs);
-	tcase_add_test(tc_core, test_jwt_dump_fp);
-	tcase_add_test(tc_core, test_jwt_dump_str);
-	tcase_add_test(tc_core, test_jwt_dump_grants_str);
-	tcase_add_test(tc_core, test_jwt_dump_str_alg_default_typ_header);
-	tcase_add_test(tc_core, test_jwt_dump_str_alg_custom_typ_header);
+	tcase_add_loop_test(tc_core, test_alloc_funcs, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_dump_fp, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_dump_str, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_dump_grants_str, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_dump_str_alg_default_typ_header, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_dump_str_alg_custom_typ_header, 0, i);
 
 	tcase_set_timeout(tc_core, 30);
 
