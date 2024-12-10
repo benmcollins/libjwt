@@ -35,6 +35,7 @@ Makefile
 *~
 *.tmp
 .dirstamp
+.*.swp
 
 # Generic ignores for cmake project
 /out/*
