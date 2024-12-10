@@ -156,7 +156,7 @@ static int gnutls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 
 	/* EC */
 	case JWT_ALG_ES256:
-	/* XXX case JWT_ALG_ES256K: */
+	case JWT_ALG_ES256K:
 		alg = GNUTLS_DIG_SHA256;
 		pk_alg = GNUTLS_PK_EC;
 		break;
@@ -202,6 +202,10 @@ static int gnutls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		ret = EINVAL;
 		goto sign_clean_privkey;
 	}
+
+	/* XXX Get curve name for ES256K case and make sure it's secp256k1 */
+
+	/* XXX Get EC curve bits and make sure it matches ES* alg type */
 
 	/* Sign data */
 	if (gnutls_privkey_sign_data(privkey, alg, 0, &body_dat, &sig_dat)) {
@@ -323,7 +327,7 @@ static int gnutls_verify_sha_pem(jwt_t *jwt, const char *head,
 
 	/* EC */
 	case JWT_ALG_ES256:
-	/* XXX case JWT_ALG_ES256K: */
+	case JWT_ALG_ES256K:
 		alg = GNUTLS_SIGN_ECDSA_SHA256;
 		break;
 	case JWT_ALG_ES384:
