@@ -9,6 +9,7 @@ jwt_header
 jwt_validate
 jwt_eddsa
 jwt_crypto
+jwt_es256k
 *.log
 *.trs
 libjwt-*-coverage.info

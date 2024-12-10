@@ -6,34 +6,7 @@
 #include <errno.h>
 #include <time.h>
 
-#include <check.h>
-
-#include <jwt.h>
-
 #include "jwt_tests.h"
-
-/* Constant time to make tests consistent. */
-#define TS_CONST	1475980545L
-
-/* Macro to allocate a new JWT with checks. */
-#define ALLOC_JWT(__jwt) do {		\
-	int __ret = jwt_new(__jwt);	\
-	ck_assert_int_eq(__ret, 0);	\
-	ck_assert_ptr_ne(__jwt, NULL);	\
-} while(0)
-
-/* Older check doesn't have this. */
-#ifndef ck_assert_ptr_ne
-#define ck_assert_ptr_ne(X, Y) ck_assert(X != Y)
-#define ck_assert_ptr_eq(X, Y) ck_assert(X == Y)
-#endif
-
-#ifndef ck_assert_int_gt
-#define ck_assert_int_gt(X, Y) ck_assert(X > Y)
-#endif
-
-static unsigned char key[16384];
-static size_t key_len;
 
 static const char jwt_rs256_2048[] = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.ey"
 	"JpYXQiOjE0NzU5ODA1NDUsImlzcyI6ImZpbGVzLm1hY2xhcmEtbGxjLmNvbSIsInJlZi"
@@ -86,91 +59,10 @@ static const char jwt_rs256_invalid[] = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9"
 	".eyJpYXQiOjE0NzU5ODA1NDUsImlzcyI6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJ"
 	"YWFhYLVlZWVktWlpaWi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.IAmCornholio";
 
-static void read_key(const char *key_file)
-{
-	FILE *fp = fopen(key_file, "r");
-	char *key_path;
-	int ret = 0;
-
-	ret = asprintf(&key_path, KEYDIR "/%s", key_file);
-	ck_assert_int_gt(ret, 0);
-
-	fp = fopen(key_path, "r");
-	ck_assert_ptr_ne(fp, NULL);
-
-	jwt_free_str(key_path);
-
-	key_len = fread(key, 1, sizeof(key), fp);
-	ck_assert_int_ne(key_len, 0);
-
-	ck_assert_int_eq(ferror(fp), 0);
-
-	fclose(fp);
-
-	key[key_len] = '\0';
-}
-
-static void __test_alg_key(const char *key_file, const char *jwt_str,
-			   const jwt_alg_t alg)
-{
-	jwt_t *jwt = NULL;
-	int ret = 0;
-	char *out;
-
-	ALLOC_JWT(&jwt);
-
-	read_key(key_file);
-
-	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant(jwt, "sub", "user0");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_set_alg(jwt, alg, key, key_len);
-	ck_assert_int_eq(ret, 0);
-
-	out = jwt_encode_str(jwt);
-	ck_assert_ptr_ne(out, NULL);
-
-	ck_assert_str_eq(out, jwt_str);
-
-	jwt_free_str(out);
-	jwt_free(jwt);
-}
-
-static void __verify_alg_key(const char *key_file, const char *jwt_str,
-			     const jwt_alg_t alg)
-{
-	jwt_valid_t *jwt_valid = NULL;
-	jwt_t *jwt = NULL;
-	int ret = 0;
-
-	read_key(key_file);
-
-	ret = jwt_decode(&jwt, jwt_str, key, key_len);
-	ck_assert_int_eq(ret, 0);
-	ck_assert_ptr_nonnull(jwt);
-
-	jwt_valid_new(&jwt_valid, alg);
-
-	ret = jwt_validate(jwt, jwt_valid);
-	ck_assert_int_eq(JWT_VALIDATION_SUCCESS, ret);
-
-	jwt_valid_free(jwt_valid);
-	jwt_free(jwt);
-}
-
 START_TEST(test_jwt_encode_rs256)
 {
 	SET_OPS();
-	__test_alg_key("rsa_key_2048.pem", jwt_rs256_2048, JWT_ALG_RS256);
+	__compare_alg_key("rsa_key_2048.pem", jwt_rs256_2048, JWT_ALG_RS256);
 }
 END_TEST
 
@@ -214,7 +106,7 @@ END_TEST
 START_TEST(test_jwt_encode_rs384)
 {
 	SET_OPS();
-	__test_alg_key("rsa_key_4096.pem", jwt_rs384_4096, JWT_ALG_RS384);
+	__compare_alg_key("rsa_key_4096.pem", jwt_rs384_4096, JWT_ALG_RS384);
 }
 END_TEST
 
@@ -228,7 +120,7 @@ END_TEST
 START_TEST(test_jwt_encode_rs512)
 {
 	SET_OPS();
-	__test_alg_key("rsa_key_8192.pem", jwt_rs512_8192, JWT_ALG_RS512);
+	__compare_alg_key("rsa_key_8192.pem", jwt_rs512_8192, JWT_ALG_RS512);
 }
 END_TEST
 

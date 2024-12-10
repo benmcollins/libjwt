@@ -6,10 +6,6 @@
 #include <errno.h>
 #include <time.h>
 
-#include <check.h>
-
-#include <jwt.h>
-
 #include "jwt_tests.h"
 
 static void *test_malloc(size_t size)

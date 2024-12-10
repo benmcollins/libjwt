@@ -6,10 +6,6 @@
 #include <errno.h>
 #include <time.h>
 
-#include <check.h>
-
-#include <jwt.h>
-
 #include "jwt_tests.h"
 
 START_TEST(test_jwt_ops)

@@ -6,26 +6,7 @@
 #include <errno.h>
 #include <time.h>
 
-#include <check.h>
-
-#include <jwt.h>
-
 #include "jwt_tests.h"
-
-/* Constant time to make tests consistent. */
-#define TS_CONST	1475980545L
-
-/* Macro to allocate a new JWT with checks. */
-#define ALLOC_JWT(__jwt) do {		\
-	int __ret = jwt_new(__jwt);	\
-	ck_assert_int_eq(__ret, 0);	\
-	ck_assert_ptr_ne(__jwt, NULL);	\
-} while(0)
-
-/* Older check doesn't have this. */
-#ifndef ck_assert_ptr_ne
-#define ck_assert_ptr_ne(X, Y) ck_assert(X != Y)
-#endif
 
 START_TEST(test_jwt_encode_fp)
 {
