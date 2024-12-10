@@ -90,7 +90,8 @@ static int openssl_verify_sha_hmac(jwt_t *jwt, const char *head,
 	unsigned char res[EVP_MAX_MD_SIZE];
 	unsigned int res_len;
 	const EVP_MD *alg;
-	char *buf;
+	char *buf = NULL;
+	int ret;
 
 	switch (jwt->alg) {
 	case JWT_ALG_HS256:
@@ -106,18 +107,18 @@ static int openssl_verify_sha_hmac(jwt_t *jwt, const char *head,
 		return EINVAL;
 	}
 
-	buf = alloca(head_len + 1);
-	if (!buf) {
-		return ENOMEM;
-	}
-
 	HMAC(alg, jwt->key, jwt->key_len,
 	     (const unsigned char *)head, head_len, res, &res_len);
 
-	jwt_base64uri_encode(buf, (char *)res, res_len);
+	ret = jwt_base64uri_encode(&buf, (char *)res, res_len);
+	if (ret <= 0)
+		return -ret;
+
+	ret = jwt_strcmp(buf, sig) ? EINVAL : 0;
+	jwt_freemem(buf);
 
 	/* And now... */
-	return jwt_strcmp(buf, sig) ? EINVAL : 0;
+	return ret;
 }
 
 #define EC_ERROR(__err) { return -(__err); }

@@ -83,22 +83,19 @@ static int gnutls_verify_sha_hmac(jwt_t *jwt, const char *head,
 {
 	char *sig_check, *buf = NULL;
 	unsigned int len;
-	int ret = EINVAL;
+	int ret;
 
-	if (!gnutls_sign_sha_hmac(jwt, &sig_check, &len, head, head_len)) {
-		buf = alloca(len * 2);
-		if (buf == NULL) {
-			jwt_freemem(sig_check);
-			return EINVAL;
-		}
+	if (gnutls_sign_sha_hmac(jwt, &sig_check, &len, head, head_len))
+		return EINVAL;
 
-		jwt_base64uri_encode(buf, sig_check, len);
+	ret = jwt_base64uri_encode(&buf, sig_check, len);
+	if (ret <= 0 || buf == NULL)
+		return -ret;
 
-		if (!jwt_strcmp(sig, buf))
-			ret = 0;
+	ret = jwt_strcmp(sig, buf) ? EINVAL : 0;
 
-		jwt_freemem(sig_check);
-	}
+	jwt_freemem(buf);
+	jwt_freemem(sig_check);
 
 	return ret;
 }

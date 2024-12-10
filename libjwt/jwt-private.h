@@ -58,7 +58,7 @@ void jwt_freemem(void *ptr);
 
 /* Helper routines to handle base64url encoding without percent padding
  * as defined in RFC-4648. */
-int jwt_base64uri_encode(char *dst, const char *plain, int plain_len);
+int jwt_base64uri_encode(char **_dst, const char *plain, int plain_len);
 void *jwt_base64uri_decode(const char *src, int *ret_len);
 
 /* A time-safe strcmp function */
