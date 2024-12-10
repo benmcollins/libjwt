@@ -8,15 +8,21 @@
 
 #include "jwt_tests.h"
 
-static const char jwt_es256k[] = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQ"
-	"iOjE0NzU5ODA1NDUsImlzcyI6ImZpbGVzLm1hY2xhcmEtbGxjLmNvbSIsInJlZiI6Ilh"
-	"YWFgtWVlZWS1aWlpaLUFBQUEtQ0NDQyIsInN1YiI6InVzZXIwIn0.IONoUPo6QhHwcx1"
-	"N1TD4DnrjvmB-9lSX6qrn_WPrh3DBum-qKP66MIF9tgymy7hCoU6dvUW8zKK0AyVH3iD"
-	"1uA";
+static const char jwt_es256k[] = "eyJhbGciOiJFUzI1NksiLCJ0eXAiOiJKV1QifQ.e"
+	"yJpYXQiOjE0NzU5ODA1NDUsImlzcyI6ImZpbGVzLm1hY2xhcmEtbGxjLmNvbSIsIn"
+	"JlZiI6IlhYWFgtWVlZWS1aWlpaLUFBQUEtQ0NDQyIsInN1YiI6InVzZXIwIn0.u_E"
+	"sClxS3Z8AFYude9vRupmOZ35646zAgc1xgTf_g1ImJV_1B6kqrg0IS1ckHimgUjd4"
+	"-DBR1UMibSCdByZngw";
+
+#define SKIP_IF(opname) ({				\
+	if (!strcmp(opname, jwt_get_crypto_ops()))	\
+		return;					\
+})
 
 START_TEST(test_jwt_encode_es256k)
 {
 	SET_OPS();
+	SKIP_IF("gnutls");
 	__test_alg_key(JWT_ALG_ES256K, "ec_key_secp256k1.pem", "ec_key_secp256k1-pub.pem");
 }
 END_TEST
@@ -24,17 +30,20 @@ END_TEST
 START_TEST(test_jwt_verify_es256k)
 {
 	SET_OPS();
+	SKIP_IF("gnutls");
 	__verify_jwt(jwt_es256k, JWT_ALG_ES256K, "ec_key_secp256k1-pub.pem");
 }
 END_TEST
 
 START_TEST(test_jwt_encode_es256k_with_ec)
 {
+	SKIP_IF("gnutls");
 	jwt_t *jwt = NULL;
 	int ret = 0;
 	char *out;
 
 	SET_OPS();
+	SKIP_IF("gnutls");
 
 	ALLOC_JWT(&jwt);
 
