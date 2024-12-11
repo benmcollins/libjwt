@@ -1,2 +1,2 @@
 pem_to_jwk
-jwks-keyring.json
+*.json

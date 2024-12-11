@@ -8,7 +8,7 @@
 
 /* XXX BIG FAT WARNING: There's not much error checking here. */
 
-/* XXX: Also, requires OpenSSL v3. I wont accept patches lower versions. */
+/* XXX: Also, requires OpenSSL v3. I wont accept patches for lower versions. */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,6 +26,8 @@
 
 #include <jwt.h>
 #include <jwt-private.h>
+
+static int ec_count, rsa_count, eddsa_count, rsa_pss_count;
 
 static void print_openssl_errors_and_exit()
 {
@@ -83,7 +85,7 @@ static void get_one_bn(EVP_PKEY *pkey, const char *ossl_param,
 	BN_bn2bin(bn, bin);
 	BN_free(bn);
 
-	/* Convert */
+	/* Encode */
 	char *b64;
 	jwt_base64uri_encode(&b64, (char *)bin, len);
 	OPENSSL_free(bin);
@@ -101,7 +103,7 @@ static void get_one_string(EVP_PKEY *pkey, const char *ossl_param,
 	json_object_set_new(jwk, name, json_string(buf));
 }
 
-/* Retrieves and b64url encodes a single OSSL octet param and adds it to
+/* Retrieves and b64url-encodes a single OSSL octet param and adds it to
  * the JSON object as a string. */
 static void get_one_octet(EVP_PKEY *pkey, const char *ossl_param,
                           json_t *jwk, const char *name)
@@ -130,7 +132,7 @@ static void process_ec_key(EVP_PKEY *pkey, int priv, json_t *jwk)
 		get_one_bn(pkey, OSSL_PKEY_PARAM_PRIV_KEY, jwk, "d");
 }
 
-/* For EdDSA keys (OKP) */
+/* For EdDSA keys (EDDSA) */
 static void process_eddsa_key(EVP_PKEY *pkey, int priv, json_t *jwk)
 {
 	get_one_octet(pkey, OSSL_PKEY_PARAM_PUB_KEY, jwk, "x");
@@ -156,9 +158,9 @@ static void process_rsa_key(EVP_PKEY *pkey, int priv, json_t *jwk)
 	get_one_bn(pkey, OSSL_PKEY_PARAM_RSA_COEFFICIENT1, jwk, "qi");
 }
 
-json_t *parse_one_file(const char *file)
+static json_t *parse_one_file(const char *file)
 {
-	int priv = 0, type;
+	int priv = 0;
 	FILE *fp;
 	EVP_PKEY *pkey;
 	json_t *jwk, *ops;
@@ -196,26 +198,38 @@ json_t *parse_one_file(const char *file)
 	json_object_set_new(jwk, "key_ops", ops);
 
 	/* Process per key type params */
-	type = EVP_PKEY_get_base_id(pkey);
-
-	if (type == EVP_PKEY_RSA) {
+	switch (EVP_PKEY_get_base_id(pkey)) {
+	case EVP_PKEY_RSA:
 		json_object_set_new(jwk, "kty", json_string("RSA"));
 		process_rsa_key(pkey, priv, jwk);
-	} else if (type == EVP_PKEY_EC) {
+		rsa_count++;
+		break;
+
+	case EVP_PKEY_EC:
 		json_object_set_new(jwk, "kty", json_string("EC"));
 		process_ec_key(pkey, priv, jwk);
-	} else if (type == EVP_PKEY_ED25519) {
+		ec_count++;
+		break;
+
+	case EVP_PKEY_ED25519:
 		json_object_set_new(jwk, "kty", json_string("OKP"));
 		json_object_set_new(jwk, "crv", json_string("Ed25519"));
+		json_object_set_new(jwk, "alg", json_string("EDDSA"));
 		process_eddsa_key(pkey, priv, jwk);
-	} else if (type == EVP_PKEY_RSA_PSS) {
+		eddsa_count++;
+		break;
+
+	case EVP_PKEY_RSA_PSS:
 		/* XXX We need a way to designate this for PS alg only ???
 		 * For now, default to PS256. */
 		json_object_set_new(jwk, "kty", json_string("RSA"));
 		json_object_set_new(jwk, "alg", json_string("PS256"));
 		process_rsa_key(pkey, priv, jwk);
-	} else {
-		fprintf(stderr, "Skipped key type: %d\n", type);
+		rsa_pss_count++;
+		break;
+
+	default:
+		fprintf(stderr, "Skipped unknown key type: %s\n", file);
 	}
 
 	EVP_PKEY_free(pkey);
@@ -234,7 +248,7 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	fprintf(stderr, "Parsing %d files", argc - 1);
+	fprintf(stderr, "Parsing %d files (", argc - 1);
 
 	jwk_array = json_array();
 
@@ -243,8 +257,20 @@ int main(int argc, char **argv)
 		json_array_append_new(jwk_array, jwk);
 		fprintf(stderr, ".");
 	}
+	fprintf(stderr, ") done\n");
 
-	fprintf(stderr, "\nGenerating JWKS...");
+	fprintf(stderr, "Parse results:\n");
+	if (ec_count)
+		fprintf(stderr, "  EC     : %d\n", ec_count);
+	if (rsa_count)
+		fprintf(stderr, "  RSA    : %d\n", rsa_count);
+	if (rsa_pss_count)
+		fprintf(stderr, "  RSA-PSS: %d\n", rsa_pss_count);
+	if (eddsa_count)
+		fprintf(stderr, "  EdDSA  : %d\n", eddsa_count);
+	fprintf(stderr, "\n");
+
+	fprintf(stderr, "Generating JWKS...\n");
 
 	jwk_set = json_object();
 	json_object_set_new(jwk_set, "keys", jwk_array);
@@ -254,7 +280,5 @@ int main(int argc, char **argv)
 
 	free(jwk_str);
 
-	fprintf(stderr, "done.\n");
-
-        exit(EXIT_SUCCESS);
+	exit(EXIT_SUCCESS);
 }
