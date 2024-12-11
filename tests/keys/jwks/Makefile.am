@@ -1,5 +1,3 @@
-EXTRA_DIST = mk-keyring.rb
-
 bin_PROGRAMS = pem_to_jwk
 
 pem_to_jwk_SOURCES = pem_to_jwk.c

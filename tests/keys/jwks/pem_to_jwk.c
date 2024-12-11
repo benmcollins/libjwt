@@ -8,20 +8,32 @@
 
 /* XXX BIG FAT WARNING: There's not much error checking here. */
 
+/* XXX: Also, requires OpenSSL v3. I wont accept patches lower versions. */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include <openssl/pem.h>
 #include <openssl/evp.h>
 #include <openssl/bio.h>
 #include <openssl/rsa.h>
 #include <openssl/bn.h>
 #include <openssl/core_names.h>
+#include <openssl/err.h>
+
 #include <jansson.h>
+
 #include <jwt.h>
 #include <jwt-private.h>
 
-/* Get the number of bits and return the JWT alg type based
+static void print_openssl_errors_and_exit()
+{
+	ERR_print_errors_fp(stderr);
+	exit(EXIT_FAILURE);
+}
+
+/* Get the number of bits of an EC key and return the JWT alg type based
  * on the result. */
 static const char *ec_alg_type(EVP_PKEY *pkey)
 {
@@ -56,8 +68,8 @@ static const char *ec_alg_type(EVP_PKEY *pkey)
 	return "ES256";
 }
 
-/* Retrieves and b64url-encodes a single OSSL BIGNUM param
- * and adds it to the JSON object as a string. */
+/* Retrieves and b64url-encodes a single OSSL BIGNUM param and adds it to
+ * the JSON object as a string. */
 static void get_one_bn(EVP_PKEY *pkey, const char *ossl_param,
 		       json_t *jwk, const char *name)
 {
@@ -79,8 +91,7 @@ static void get_one_bn(EVP_PKEY *pkey, const char *ossl_param,
 	jwt_freemem(b64);
 }
 
-/* Retrieves a single OSSL string param and adds it to the
- * JSON object. */
+/* Retrieves a single OSSL string param and adds it to the  JSON object. */
 static void get_one_string(EVP_PKEY *pkey, const char *ossl_param,
 			   json_t *jwk, const char *name)
 {
@@ -90,8 +101,8 @@ static void get_one_string(EVP_PKEY *pkey, const char *ossl_param,
 	json_object_set_new(jwk, name, json_string(buf));
 }
 
-/* Retrieves and b64url encodes a single OSSL octet param
- * and adds it to the JSON object as a string. */
+/* Retrieves and b64url encodes a single OSSL octet param and adds it to
+ * the JSON object as a string. */
 static void get_one_octet(EVP_PKEY *pkey, const char *ossl_param,
                           json_t *jwk, const char *name)
 {
@@ -145,22 +156,14 @@ static void process_rsa_key(EVP_PKEY *pkey, int priv, json_t *jwk)
 	get_one_bn(pkey, OSSL_PKEY_PARAM_RSA_COEFFICIENT1, jwk, "qi");
 }
 
-int main(int argc, char **argv)
+json_t *parse_one_file(const char *file)
 {
 	int priv = 0, type;
 	FILE *fp;
-	const char *pem_file;
-	char *jwk_str;
 	EVP_PKEY *pkey;
 	json_t *jwk, *ops;
 
-	if (argc != 2) {
-		fprintf(stderr, "Usage: %s <PEM file>\n", argv[0]);
-		exit(EXIT_FAILURE);
-	}
-
-	pem_file = argv[1];
-	fp = fopen(pem_file, "r");
+	fp = fopen(file, "r");
 	if (!fp) {
 		perror("Error opening PEM file");
 		exit(EXIT_FAILURE);
@@ -177,8 +180,8 @@ int main(int argc, char **argv)
 	fclose(fp);
 
 	if (pkey == NULL) {
-		fprintf(stderr, "Error parsing key file");
-		exit(EXIT_FAILURE);
+		fprintf(stderr, "Error parsing key file\n");
+		print_openssl_errors_and_exit();
 	}
 
 	/* Setup json object */
@@ -217,12 +220,41 @@ int main(int argc, char **argv)
 
 	EVP_PKEY_free(pkey);
 
-	/* Print json in nice format */
-	jwk_str = json_dumps(jwk, JSON_INDENT(2));
+	return jwk;
+}
+
+int main(int argc, char **argv)
+{
+	json_t *jwk_set, *jwk_array, *jwk;
+	char *jwk_str;
+	int i;
+
+	if (argc < 2) {
+		fprintf(stderr, "Usage: %s <PEM file(s)>\n", argv[0]);
+		exit(EXIT_FAILURE);
+	}
+
+	fprintf(stderr, "Parsing %d files", argc - 1);
+
+	jwk_array = json_array();
+
+	for (i = 1; i < argc; i++) {
+		jwk = parse_one_file(argv[i]);
+		json_array_append_new(jwk_array, jwk);
+		fprintf(stderr, ".");
+	}
+
+	fprintf(stderr, "\nGenerating JWKS...");
+
+	jwk_set = json_object();
+	json_object_set_new(jwk_set, "keys", jwk_array);
+
+	jwk_str = json_dumps(jwk_set, JSON_INDENT(2));
 	printf("%s\n", jwk_str);
 
 	free(jwk_str);
-	json_decref(jwk);
 
-	exit(EXIT_SUCCESS);
+	fprintf(stderr, "done.\n");
+
+        exit(EXIT_SUCCESS);
 }
