@@ -7,11 +7,7 @@ def process_pem_files
 
   Dir.glob("../*.pem") do |file|
     next if file.include?("invalid")
-    if file.include?("rsa_key_")
-      jwk_array << JSON.parse(%x{./rsa_pem_to_jwk #{file}})
-    elsif file.include?("ec_key_")
-      jwk_array << JSON.parse(%x{./ec_pem_to_jwk #{file}})
-    end
+    jwk_array << JSON.parse(%x{./pem_to_jwk #{file}})
   end
 
   jwk_array
