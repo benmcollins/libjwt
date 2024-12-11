@@ -4,7 +4,7 @@ EXAMPLES =			\
 	jwtgen			\
 	jwtauth
 
-bin_PROGRAMS = $(EXAMPLES)
+noinst_PROGRAMS = $(EXAMPLES)
 
 jwtgen_SOURCES = main-gen.c
 jwtauth_SOURCES = main-auth.c
