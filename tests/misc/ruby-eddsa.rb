@@ -1,5 +1,7 @@
 #!/usr/bin/env ruby
 
+# Public domain, no copyright. Use at your own risk.
+
 # gem install jwt-eddsa
 require "jwt/eddsa"
 
