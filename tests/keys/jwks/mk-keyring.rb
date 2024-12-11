@@ -13,28 +13,19 @@
 
 require 'json'
 
-def process_pem_files
-  jwk_array = []
-  count = 0
-  puts "Processing PEM files..."
+jwk_list = []
 
-  Dir.glob("../*.pem") do |file|
-    next if file.include?("invalid")
-    jwk_array << JSON.parse(%x{./pem_to_jwk #{file}})
-    count += 1
-  end
-
-  puts "Converted #{count} PEM files into JWK format"
-
-  jwk_array
-end
-
-jwk_list = process_pem_files
 ec_count = 0
 rsa_count = 0
 eddsa_count = 0
 
-jwk_list.each do |jwk|
+puts "Processing PEM files..."
+
+Dir.glob("../*.pem") do |file|
+  next if file.include?("invalid")
+
+  jwk = JSON.parse(%x{./pem_to_jwk #{file}})
+
   case jwk['kty']
   when "EC"
     ec_count += 1
@@ -43,6 +34,8 @@ jwk_list.each do |jwk|
   when "OKP"
     eddsa_count += 1
   end
+
+  jwk_list << jwk
 end
 
 puts "EC:  #{ec_count}"
