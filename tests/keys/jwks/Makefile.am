@@ -1,0 +1,10 @@
+EXTRA_DIST = mk-keyring.rb
+
+bin_PROGRAMS = pem_to_jwk
+
+pem_to_jwk_SOURCES = pem_to_jwk.c
+
+AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/libjwt
+AM_CFLAGS = -Wall -D_GNU_SOURCE
+AM_LDFLAGS = -L$(top_builddir)/libjwt
+LDADD = -ljwt

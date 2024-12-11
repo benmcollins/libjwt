@@ -1,3 +1,11 @@
+/* Copyright (C) 2024 Ben Collins <bcollins@maclara-llc.com>
+   This file is part of the JWT C Library
+
+   SPDX-License-Identifier:  MPL-2.0
+   This Source Code Form is subject to the terms of the Mozilla Public
+   License, v. 2.0. If a copy of the MPL was not distributed with this
+   file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,46 +16,8 @@
 #include <openssl/bn.h>
 #include <openssl/core_names.h>
 #include <jansson.h>
-
-/* Base64 URL encoding */
-static char *base64_url_encode(const void *bin, size_t len)
-{
-	/* Setup base64 encoding */
-	BIO *b64 = BIO_new(BIO_f_base64());
-	BIO *mem = BIO_new(BIO_s_mem());
-	b64 = BIO_push(b64, mem);
-	BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
-
-	/* Write the data to the chain */
-	BIO_write(b64, bin, len);
-	BIO_flush(b64);
-
-	/* Get the result */
-	BUF_MEM *bptr;
-	BIO_get_mem_ptr(b64, &bptr);
-
-	char *output = OPENSSL_malloc(bptr->length + 1);
-	memcpy(output, bptr->data, bptr->length);
-	output[bptr->length] = '\0';
-
-	BIO_free_all(b64);
-
-	/* URL encoding */
-	for (char *p = output; *p; p++) {
-		if (*p == '+')
-			*p = '-';
-		else if (*p == '/')
-			*p = '_';
-	}
-
-	/* Truncate at '=' */
-	char *p = strchr(output, '=');
-	if (p)
-		*p = '\0';
-
-	/* Caller must free this */
-	return output;
-}
+#include <jwt.h>
+#include <jwt-private.h>
 
 /* Get the number of bits and return the JWT alg type based
  * on the result. */
@@ -56,9 +26,8 @@ static const char *ec_alg_type(EVP_PKEY *pkey)
 	int degree, curve_nid;
 	EC_GROUP *group;
 	char curve_name[256];
-	size_t len;
 
-	EVP_PKEY_get_group_name(pkey, curve_name, sizeof(curve_name), &len);
+	EVP_PKEY_get_group_name(pkey, curve_name, sizeof(curve_name), NULL);
 
 	curve_nid = OBJ_txt2nid(curve_name);
 
@@ -81,7 +50,7 @@ static const char *ec_alg_type(EVP_PKEY *pkey)
 	}
 
 	/* Just guess at this point */
-	fprintf(stderr, "Unexpected EC degree [%d]\n", degree);
+	fprintf(stderr, "Unexpected EC degree [%d], defaulting to ES256\n", degree);
 	return "ES256";
 }
 
@@ -101,10 +70,11 @@ static void get_one_bn(EVP_PKEY *pkey, const char *ossl_param,
 	BN_free(bn);
 
 	/* Convert */
-	char *b64 = base64_url_encode(bin, len);
+	char *b64;
+	jwt_base64uri_encode(&b64, (char *)bin, len);
 	OPENSSL_free(bin);
 	json_object_set_new(jwk, name, json_string(b64));
-	OPENSSL_free(b64);
+	jwt_freemem(b64);
 }
 
 /* Retrieves a single OSSL string param and adds it to the
@@ -126,16 +96,21 @@ static void get_one_octet(EVP_PKEY *pkey, const char *ossl_param,
 	unsigned char buf[256];
 	size_t len;
 	EVP_PKEY_get_octet_string_param(pkey, ossl_param, buf, sizeof(buf), &len);
-        char *b64 = base64_url_encode(buf, len);
+        char *b64;
+	jwt_base64uri_encode(&b64, (char *)buf, len);
 	json_object_set_new(jwk, name, json_string(b64));
-        OPENSSL_free(b64);
+        jwt_freemem(b64);
 }
 
 /* For ECC Keys (ES256, ES384, ES512) */
 static void process_ec_key(EVP_PKEY *pkey, int priv, json_t *jwk)
 {
+	const char *alg_type = ec_alg_type(pkey);
+
+	json_object_set_new(jwk, "alg", json_string(alg_type));
+
 	get_one_string(pkey, OSSL_PKEY_PARAM_GROUP_NAME, jwk, "crv");
-	json_object_set_new(jwk, "alg", json_string(ec_alg_type(pkey)));
+
 	get_one_bn(pkey, OSSL_PKEY_PARAM_EC_PUB_X, jwk, "x");
 	get_one_bn(pkey, OSSL_PKEY_PARAM_EC_PUB_Y, jwk, "y");
 	if (priv)
@@ -229,8 +204,10 @@ int main(int argc, char **argv)
 		json_object_set_new(jwk, "crv", json_string("Ed25519"));
 		process_eddsa_key(pkey, priv, jwk);
 	} else if (type == EVP_PKEY_RSA_PSS) {
-		/* XXX We need a way to designate this for PS only ??? */
+		/* XXX We need a way to designate this for PS alg only ???
+		 * For now, default to PS256. */
 		json_object_set_new(jwk, "kty", json_string("RSA"));
+		json_object_set_new(jwk, "alg", json_string("PS256"));
 		process_rsa_key(pkey, priv, jwk);
 	} else {
 		fprintf(stderr, "Skipped key type: %d\n", type);

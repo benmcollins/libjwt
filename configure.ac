@@ -96,6 +96,7 @@ AC_CONFIG_FILES([
 	libjwt/libjwt.pc
 	dist/Makefile
 	dist/libjwt.spec
+	tests/keys/jwks/Makefile
 ])
 
 AC_OUTPUT
