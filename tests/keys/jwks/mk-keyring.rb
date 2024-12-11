@@ -15,15 +15,42 @@ require 'json'
 
 def process_pem_files
   jwk_array = []
+  count = 0
+  puts "Processing PEM files..."
 
   Dir.glob("../*.pem") do |file|
     next if file.include?("invalid")
     jwk_array << JSON.parse(%x{./pem_to_jwk #{file}})
+    count += 1
   end
+
+  puts "Converted #{count} PEM files into JWK format"
 
   jwk_array
 end
 
-kr = { "keys" => process_pem_files }
+jwk_list = process_pem_files
+ec_count = 0
+rsa_count = 0
+eddsa_count = 0
 
-File.write("jwks-keyring.json", JSON.pretty_generate(kr))
+jwk_list.each do |jwk|
+  case jwk['kty']
+  when "EC"
+    ec_count += 1
+  when "RSA"
+    rsa_count += 1
+  when "OKP"
+    eddsa_count += 1
+  end
+end
+
+puts "EC:  #{ec_count}"
+puts "RSA: #{rsa_count}"
+puts "OKP: #{eddsa_count}"
+
+kr = { "keys" => jwk_list }
+
+out = "jwks-keyring.json"
+puts "Writing JWKS of all JWK keys to #{out}"
+File.write(out, JSON.pretty_generate(kr))
