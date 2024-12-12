@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 
 #include <openssl/pem.h>
 #include <openssl/evp.h>
@@ -419,6 +420,8 @@ int main(int argc, char **argv)
 	}
 
 	file = argv[1];
+
+	mkdir("pems", 0755);
 
 	fprintf(stderr, "Parsing %s\n", file);
 
