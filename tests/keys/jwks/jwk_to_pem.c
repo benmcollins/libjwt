@@ -304,6 +304,12 @@ static void process_rsa_jwk(json_t *jwk)
 	if (pkey == NULL)
 		jwt_exit();
 
+	/* XXX This doesn't work if, for example, we load a RSA-PSS key as
+	 * a RSA key. It doesn't break things for the PEM creation, but
+	 * it does mislabel thing. */
+	if (EVP_PKEY_get_id(pkey) == EVP_PKEY_RSA_PSS)
+		is_rsa_pss = 1;
+
 	EVP_PKEY_get_int_param(pkey, OSSL_PKEY_PARAM_BITS, &bits);
 	sprintf(bits_str, "%d", bits);
 
