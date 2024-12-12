@@ -140,6 +140,33 @@ static void set_one_octet(OSSL_PARAM_BLD *build, const char *ossl_name,
 	// XXX jwt_freemem(bin);
 }
 
+static void write_key_file(EVP_PKEY *pkey, const char *pre, const char *name,
+			   json_t *kid, int priv)
+{
+	char *file_name;
+	FILE *fp;
+
+	if (kid == NULL) {
+		asprintf(&file_name, "pems/%s-%s%s.pem", pre, name,
+			 priv ? "" : "-pub");
+	} else {
+		asprintf(&file_name, "pems/%s-%s_%s%s.pem", pre,
+			 name, json_string_value(kid),
+			  priv ? "" : "_pub");
+	}
+
+	fp = fopen(file_name, "wx");
+	if (fp == NULL) {
+		fprintf(stderr, "Could not overwrite '%s'\n", file_name);
+		return;
+	}
+
+	if (priv)
+		PEM_write_PrivateKey(fp, pkey, NULL, NULL, 0, NULL, NULL);
+	else
+		PEM_write_PUBKEY(fp, pkey);
+}
+
 /* For EdDSA keys (EDDSA) */
 static void process_eddsa_jwk(json_t *jwk)
 {
@@ -188,10 +215,7 @@ static void process_eddsa_jwk(json_t *jwk)
 	if (pkey == NULL)
 		jwt_exit();
 
-	if (priv)
-		PEM_write_PrivateKey(stdout, pkey, NULL, NULL, 0, NULL, NULL);
-	else
-		PEM_write_PUBKEY(stdout, pkey);
+	write_key_file(pkey, "eddsa", "ED25519", kid, priv);
 
 	eddsa_count++;
 }
@@ -206,6 +230,9 @@ static void process_rsa_jwk(json_t *jwk)
 	OSSL_PARAM *params;
 	EVP_PKEY *pkey = NULL;
 	EVP_PKEY_CTX *pctx = NULL;
+	const char *alg_str = NULL;
+	char bits_str[32];
+	int bits;
 
 	alg = json_object_get(jwk, "alg");
 	n = json_object_get(jwk, "n");
@@ -225,7 +252,7 @@ static void process_rsa_jwk(json_t *jwk)
 
 	/* Check alg to see if we can sniff RSA vs RSA-PSS */
 	if (alg) {
-		const char *alg_str = json_string_value(alg);
+		alg_str = json_string_value(alg);
 
 		if (alg_str[0] == 'P')
 			is_rsa_pss = 1;
@@ -276,10 +303,11 @@ static void process_rsa_jwk(json_t *jwk)
 	if (pkey == NULL)
 		jwt_exit();
 
-	if (priv)
-		PEM_write_PrivateKey(stdout, pkey, NULL, NULL, 0, NULL, NULL);
-	else
-		PEM_write_PUBKEY(stdout, pkey);
+	EVP_PKEY_get_int_param(pkey, OSSL_PKEY_PARAM_BITS, &bits);
+	sprintf(bits_str, "%d", bits);
+
+	write_key_file(pkey, is_rsa_pss ? "rsa-pss" : "rsa", bits_str,
+		       kid, priv);
 
 	if (is_rsa_pss)
 		rsa_pss_count++;
@@ -295,6 +323,7 @@ static void process_ec_jwk(json_t *jwk)
 	json_auto_t *crv, *x, *y, *d, *kid;
 	EVP_PKEY *pkey = NULL;
 	EVP_PKEY_CTX *pctx = NULL;
+	const char *crv_str;
 	int priv = 0;
 
 	crv = json_object_get(jwk, "crv");
@@ -308,6 +337,8 @@ static void process_ec_jwk(json_t *jwk)
 		fprintf(stderr, "Invalid EC key\n");
 		return;
 	}
+
+	crv_str = json_string_value(crv);
 
 	/* Only private keys contain this field */
 	if (d != NULL)
@@ -324,7 +355,7 @@ static void process_ec_jwk(json_t *jwk)
 	build = OSSL_PARAM_BLD_new();
 
 	set_one_string(build, OSSL_PKEY_PARAM_GROUP_NAME, crv);
-	set_ec_pub_key(build, x, y, json_string_value(crv));
+	set_ec_pub_key(build, x, y, crv_str);
 
 	if (priv)
 		set_one_bn(build, OSSL_PKEY_PARAM_PRIV_KEY, d);
@@ -342,10 +373,7 @@ static void process_ec_jwk(json_t *jwk)
 	if (pkey == NULL)
 		jwt_exit();
 
-	if (priv)
-		PEM_write_PrivateKey(stdout, pkey, NULL, NULL, 0, NULL, NULL);
-	else
-		PEM_write_PUBKEY(stdout, pkey);
+	write_key_file(pkey, "ec", crv_str, kid, priv);
 
 	ec_count++;
 }
