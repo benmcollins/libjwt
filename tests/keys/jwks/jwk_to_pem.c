@@ -28,6 +28,10 @@
 #include <jwt.h>
 #include <jwt-private.h>
 
+#ifndef EVP_PKEY_PRIVATE_KEY
+#define EVP_PKEY_PRIVATE_KEY EVP_PKEY_KEYPAIR
+#endif
+
 static int ec_count, rsa_count, eddsa_count, rsa_pss_count;
 
 static void print_openssl_errors_and_exit(const char *func, const int line)
@@ -143,7 +147,7 @@ static void process_eddsa_jwk(json_t *jwk)
 	OSSL_PARAM_BLD *build;
 	EVP_PKEY_CTX *pctx = NULL;
 	EVP_PKEY *pkey = NULL;
-	json_t *x, *d, *kid;
+	json_auto_t *x, *d, *kid;
 	int priv = 0;
 
 	x = json_object_get(jwk, "x");
@@ -189,10 +193,6 @@ static void process_eddsa_jwk(json_t *jwk)
 	else
 		PEM_write_PUBKEY(stdout, pkey);
 
-	json_decref(x);
-	json_decref(d);
-	json_decref(kid);
-
 	eddsa_count++;
 }
 
@@ -201,7 +201,7 @@ static void process_eddsa_jwk(json_t *jwk)
 static void process_rsa_jwk(json_t *jwk)
 {
 	OSSL_PARAM_BLD *build;
-	json_t *n, *e, *d, *p, *q, *dp, *dq, *qi, *kid, *alg;
+	json_auto_t *n, *e, *d, *p, *q, *dp, *dq, *qi, *kid, *alg;
 	int is_rsa_pss = 0, priv = 0;
 	OSSL_PARAM *params;
 	EVP_PKEY *pkey = NULL;
@@ -281,17 +281,6 @@ static void process_rsa_jwk(json_t *jwk)
 	else
 		PEM_write_PUBKEY(stdout, pkey);
 
-	json_decref(alg);
-	json_decref(n);
-	json_decref(e);
-	json_decref(d);
-	json_decref(p);
-	json_decref(q);
-	json_decref(dp);
-	json_decref(dq);
-	json_decref(qi);
-	json_decref(kid);
-
 	if (is_rsa_pss)
 		rsa_pss_count++;
 	else
@@ -303,7 +292,7 @@ static void process_ec_jwk(json_t *jwk)
 {
 	OSSL_PARAM *params;
 	OSSL_PARAM_BLD *build;
-	json_t *crv, *x, *y, *d, *kid;
+	json_auto_t *crv, *x, *y, *d, *kid;
 	EVP_PKEY *pkey = NULL;
 	EVP_PKEY_CTX *pctx = NULL;
 	int priv = 0;
@@ -358,12 +347,6 @@ static void process_ec_jwk(json_t *jwk)
 	else
 		PEM_write_PUBKEY(stdout, pkey);
 
-	json_decref(crv);
-	json_decref(x);
-	json_decref(y);
-	json_decref(d);
-	json_decref(kid);
-
 	ec_count++;
 }
 
@@ -371,7 +354,7 @@ static void process_one_jwk(json_t *jwk)
 {
 	static int count = 1;
 	const char *kty;
-	json_t *val;
+	json_auto_t *val;
 
 	val = json_object_get(jwk, "kty");
 	if (val == NULL || !json_is_string(val)) {
@@ -397,7 +380,7 @@ static void process_one_jwk(json_t *jwk)
 
 int main(int argc, char **argv)
 {
-	json_t *jwk_set, *jwk_array, *jwk;
+	json_auto_t *jwk_set, *jwk_array, *jwk;
 	json_error_t error;
 	char *file;
 	size_t i;
@@ -423,18 +406,13 @@ int main(int argc, char **argv)
 		/* Assume a single JSON Object for one JWK */
 		fprintf(stderr, "No keys found, processing as a single JWK\n");
 		process_one_jwk(jwk_set);
-		json_decref(jwk_set);
 		exit(EXIT_SUCCESS);
 	}
 
 	fprintf(stderr, "Found %lu 'keys' to process\n", json_array_size(jwk_array));
 	json_array_foreach(jwk_array, i, jwk) {
 		process_one_jwk(jwk);
-		json_decref(jwk);
 	}
-
-	json_decref(jwk_array);
-	json_decref(jwk_set);
 
 	fprintf(stderr, "Processing results:\n");
 	if (ec_count)
