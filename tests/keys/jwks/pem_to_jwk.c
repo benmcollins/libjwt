@@ -21,6 +21,7 @@
 #include <openssl/bn.h>
 #include <openssl/core_names.h>
 #include <openssl/err.h>
+#include <openssl/rand.h>
 
 #include <jansson.h>
 
@@ -33,6 +34,34 @@ static void print_openssl_errors_and_exit()
 {
 	ERR_print_errors_fp(stderr);
 	exit(EXIT_FAILURE);
+}
+
+static const char *uuidv4(void)
+{
+	uint8_t uuid_bytes[16];
+	static char uuid[37];
+
+	// Generate 16 random bytes
+	if (RAND_bytes(uuid_bytes, sizeof(uuid_bytes)) != 1) {
+		fprintf(stderr, "Error: Failed to generate random bytes.\n");
+		return NULL;
+	}
+
+	// Set the version to 4 (0100 in binary)
+	uuid_bytes[6] = (uuid_bytes[6] & 0x0F) | 0x40;
+
+	// Set the variant to RFC 4122 (10xx in binary)
+	uuid_bytes[8] = (uuid_bytes[8] & 0x3F) | 0x80;
+
+	// Format the UUID as a string
+	snprintf(uuid, sizeof(uuid),
+		"%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
+		uuid_bytes[0], uuid_bytes[1], uuid_bytes[2], uuid_bytes[3],
+		uuid_bytes[4], uuid_bytes[5], uuid_bytes[6], uuid_bytes[7],
+		uuid_bytes[8], uuid_bytes[9], uuid_bytes[10], uuid_bytes[11],
+		uuid_bytes[12], uuid_bytes[13], uuid_bytes[14], uuid_bytes[15]);
+
+	return uuid;
 }
 
 /* Get the number of bits of an EC key and return the JWT alg type based
@@ -196,6 +225,9 @@ static json_t *parse_one_file(const char *file)
 	if (priv)
 		json_array_append_new(ops, json_string("sign"));
 	json_object_set_new(jwk, "key_ops", ops);
+
+	/* Use uuidv4 for "kid" */
+	json_object_set_new(jwk, "kid", json_string(uuidv4()));
 
 	/* Process per key type params */
 	switch (EVP_PKEY_get_base_id(pkey)) {
