@@ -6,6 +6,8 @@
    License, v. 2.0. If a copy of the MPL was not distributed with this
    file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+/* TODO: Use LibJWT for most of this now that it has the functionality. */
+
 /* XXX BIG FAT WARNING: There's not much error checking here. */
 
 /* XXX: Also, requires OpenSSL v3. I wont accept patches for lower versions. */
@@ -424,7 +426,8 @@ static void __process_one_jwk(json_t *jwk)
 
 int main(int argc, char **argv)
 {
-	json_auto_t *jwk_set, *jwk_array, *jwk;
+	json_auto_t *jwk_set = NULL;
+	json_t *jwk_array, *jwk;
 	json_error_t error;
 	char *file;
 	size_t i;
