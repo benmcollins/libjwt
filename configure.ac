@@ -32,7 +32,7 @@ AS_IF([test "x$with_gnutls" != xno],
 	))], [AM_CONDITIONAL([HAVE_GNUTLS], [false])])
 
 AS_IF([test "x$with_openssl" != xno],
-	[PKG_CHECK_MODULES([OPENSSL], [openssl >= 0.9.8],
+	[PKG_CHECK_MODULES([OPENSSL], [openssl >= 1.1.0],
         [AM_CONDITIONAL([HAVE_OPENSSL], [true])]
 	[AC_DEFINE([HAVE_OPENSSL], [1], [OpenSSL Support])]
 	[HAVE_CRYPTO=true],
