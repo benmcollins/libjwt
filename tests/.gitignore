@@ -10,6 +10,10 @@ jwt_validate
 jwt_eddsa
 jwt_crypto
 jwt_es256k
+jwt_jwks
+jwt_jwks_errors
+jwt_jwks_ec
+jwt_jwks_rsa
 *.log
 *.trs
 libjwt-*-coverage.info

@@ -13,7 +13,10 @@ TESTS =			\
 	jwt_eddsa	\
 	jwt_crypto	\
 	jwt_es256k	\
-	jwt_jwks
+	jwt_jwks	\
+	jwt_jwks_errors	\
+	jwt_jwks_ec	\
+	jwt_jwks_rsa
 
 check_PROGRAMS = $(TESTS)
 
@@ -22,6 +25,6 @@ AM_CFLAGS = -Wall $(CHECK_CFLAGS) -DKEYDIR="\"$(srcdir)/keys\"" -D_GNU_SOURCE
 AM_LDFLAGS = -L$(top_builddir)/libjwt
 LDADD = -ljwt $(CHECK_LIBS)
 
-CODE_COVERAGE_IGNORE_PATTERN = 'cencode.*' 'cdecode.*'
+CODE_COVERAGE_IGNORE_PATTERN = '**/cencode.*' '**/cdecode.*' '/usr/**'
 @CODE_COVERAGE_RULES@
 @VALGRIND_CHECK_RULES@

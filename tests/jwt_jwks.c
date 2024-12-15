@@ -11,7 +11,7 @@
 #define JWKS_KEY_TEST(__name)				\
 START_TEST(test_jwks_##__name)				\
 {							\
-	/* SET_OPS(); */				\
+	SET_OPS();					\
 	__jwks_check(#__name ".json", #__name ".pem");	\
 }							\
 END_TEST
@@ -28,7 +28,6 @@ static void __jwks_check(const char *json, const char *pem)
 	ck_assert_ptr_nonnull(jwk_set);
 
 	ck_assert(!jwks_error(jwk_set));
-
 	item = jwks_item_get(jwk_set, 0);
 	ck_assert_ptr_nonnull(item);
 	ck_assert(!item->error);
@@ -70,7 +69,7 @@ START_TEST(test_jwks_keyring_load)
 	jwk_item_t *item;
 	int i;
 
-	//SET_OPS();
+	SET_OPS();
 
 	read_key("jwks_keyring.json");
 	jwk_set = jwks_create((char *)key);
@@ -83,6 +82,8 @@ START_TEST(test_jwks_keyring_load)
 		ck_assert(!item->error);
 
 	ck_assert_int_eq(i, 19);
+
+	ck_assert(jwks_item_free(jwk_set, 3));
 
 	jwks_free(jwk_set);
 }
