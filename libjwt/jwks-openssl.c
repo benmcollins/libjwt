@@ -146,40 +146,55 @@ static unsigned char *set_one_octet(OSSL_PARAM_BLD *build,
 	return bin;
 }
 
-static int pkey_to_pem(EVP_PKEY *pkey, jwk_item_t *item, int priv)
+static int pctx_to_pem(EVP_PKEY_CTX *pctx, OSSL_PARAM *params,
+		       jwk_item_t *item, int priv)
 {
-	BIO *bio = BIO_new(BIO_s_mem());
-	char *src, *dest;
+	BIO *bio = NULL;
+	EVP_PKEY *pkey = NULL;
+	char *src = NULL, *dest = NULL;
 	long len;
-	int ret;
+	int ret = -1;
+
+	ret = EVP_PKEY_fromdata(pctx, &pkey, EVP_PKEY_PRIVATE_KEY, params);
+
+	if (ret <= 0 || pkey == NULL) {
+		jwks_write_error(item, "Unable to create PEM from pkey");
+		goto cleanup_pem;
+	}
+
+	bio = BIO_new(BIO_s_mem());
+	if (bio == NULL) {
+		jwks_write_error(item, "Unable to allocate memory for PEM BIO");
+		goto cleanup_pem;
+	}
 
 	if (priv)
 		ret = PEM_write_bio_PrivateKey(bio, pkey, NULL, NULL, 0, NULL, NULL);
 	else
 		ret = PEM_write_bio_PUBKEY(bio, pkey);
 
-	EVP_PKEY_free(pkey);
-
 	if (!ret) {
-		BIO_free(bio);
 		jwks_write_error(item, "Internal error converting key to PEM");
-		return -1;
+		goto cleanup_pem;
 	}
 
 	len = BIO_get_mem_data(bio, &src);
 	dest = jwt_malloc(len + 1);
 	if (dest == NULL) {
-		BIO_free(bio);
 		jwks_write_error(item, "Error allocating memory for PEM");
-		return -1;
+		goto cleanup_pem;
 	}
 
 	memcpy(dest, src, len);
-	BIO_free(bio);
 	dest[len] = '\0';
 	item->pem = dest;
+	ret = 0;
 
-	return 0;
+cleanup_pem:
+	EVP_PKEY_free(pkey);
+	BIO_free(bio);
+
+	return ret;
 }
 
 /* For EdDSA keys (EDDSA) */
@@ -189,9 +204,9 @@ int process_eddsa_jwk(json_t *jwk, jwk_item_t *item)
 	OSSL_PARAM *params = NULL;
 	OSSL_PARAM_BLD *build = NULL;
 	EVP_PKEY_CTX *pctx = NULL;
-	EVP_PKEY *pkey = NULL;
 	json_t *x, *d;
 	int priv = 0;
+	int ret = -1;
 
 	/* EdDSA only need one or the other. */
 	x = json_object_get(jwk, "x");
@@ -242,14 +257,8 @@ int process_eddsa_jwk(json_t *jwk, jwk_item_t *item)
 		goto cleanup_eddsa;
 	}
 
-	/* Create EVP_PKEY from params */
-	if (priv)
-		EVP_PKEY_fromdata(pctx, &pkey, EVP_PKEY_PRIVATE_KEY, params);
-	else
-		EVP_PKEY_fromdata(pctx, &pkey, EVP_PKEY_PUBLIC_KEY, params);
-
-	if (pkey == NULL)
-		jwks_write_error(item, "Unable to create PEM from pkey");
+	/* Create PEM from params */
+	ret = pctx_to_pem(pctx, params, item, priv);
 
 cleanup_eddsa:
 	OSSL_PARAM_free(params);
@@ -258,10 +267,7 @@ cleanup_eddsa:
 	jwt_freemem(pub_bin);
 	jwt_freemem(priv_bin);
 
-	if (pkey == NULL)
-		return -1;
-
-	return pkey_to_pem(pkey, item, priv);
+	return ret;
 }
 
 /* For RSA keys (RS256, RS384, RS512). Also works for RSA-PSS
@@ -272,9 +278,8 @@ int process_rsa_jwk(json_t *jwk, jwk_item_t *item)
 	json_t *n, *e, *d, *p, *q, *dp, *dq, *qi, *alg;
 	BIGNUM *bn_n = NULL, *bn_e = NULL, *bn_d = NULL, *bn_p = NULL,
 		*bn_q = NULL, *bn_dp = NULL, *bn_dq = NULL, *bn_qi = NULL;
-	int is_rsa_pss = 0, priv = 0;
+	int is_rsa_pss = 0, priv = 0, ret = -1;
 	OSSL_PARAM *params = NULL;
-	EVP_PKEY *pkey = NULL;
 	EVP_PKEY_CTX *pctx = NULL;
 	const char *alg_str = NULL;
 
@@ -358,14 +363,8 @@ int process_rsa_jwk(json_t *jwk, jwk_item_t *item)
 		goto cleanup_rsa;
 	}
 
-	/* Create EVP_PKEY from params */
-	if (priv)
-		EVP_PKEY_fromdata(pctx, &pkey, EVP_PKEY_PRIVATE_KEY, params);
-	else
-		EVP_PKEY_fromdata(pctx, &pkey, EVP_PKEY_PUBLIC_KEY, params);
-
-	if (pkey == NULL)
-		jwks_write_error(item, "Error pkey from JWK data");
+	/* Create PEM from params */
+	ret = pctx_to_pem(pctx, params, item, priv);
 
 cleanup_rsa:
 	OSSL_PARAM_free(params);
@@ -381,10 +380,7 @@ cleanup_rsa:
 	BN_free(bn_dq);
 	BN_free(bn_qi);
 
-	if (pkey == NULL)
-		return -1;
-
-	return pkey_to_pem(pkey, item, priv);
+	return ret;
 }
 
 /* For EC Keys (ES256, ES384, ES512) */
@@ -393,11 +389,10 @@ int process_ec_jwk(json_t *jwk, jwk_item_t *item)
 	OSSL_PARAM *params = NULL;
 	OSSL_PARAM_BLD *build = NULL;
 	json_t *crv, *x, *y, *d;
-	EVP_PKEY *pkey = NULL;
 	EVP_PKEY_CTX *pctx = NULL;
 	const char *crv_str;
 	BIGNUM *bn = NULL;
-	int priv = 0;
+	int priv = 0, ret = -1;
 	void *pub_key = NULL;
 
 	crv = json_object_get(jwk, "crv");
@@ -456,14 +451,8 @@ int process_ec_jwk(json_t *jwk, jwk_item_t *item)
 		goto cleanup_ec;
 	}
 
-	/* Create EVP_PKEY from params */
-	if (priv)
-		EVP_PKEY_fromdata(pctx, &pkey, EVP_PKEY_PRIVATE_KEY, params);
-	else
-		EVP_PKEY_fromdata(pctx, &pkey, EVP_PKEY_PUBLIC_KEY, params);
-
-	if (pkey == NULL)
-                jwks_write_error(item, "Error generating pkey from context");
+	/* Create PEM from params */
+	ret = pctx_to_pem(pctx, params, item, priv);
 
 cleanup_ec:
 	OSSL_PARAM_free(params);
@@ -472,8 +461,5 @@ cleanup_ec:
 	EVP_PKEY_CTX_free(pctx);
 	BN_free(bn);
 
-	if (pkey == NULL)
-		return -1;
-
-	return pkey_to_pem(pkey, item, priv);
+	return ret;
 }
