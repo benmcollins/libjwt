@@ -10,11 +10,30 @@
 #include <string.h>
 #include <errno.h>
 
-
 #include <jwt.h>
 #include "jwt-private.h"
 
-#define trace() fprintf(stderr, "%s:%d\n", __func__, __LINE__);
+#ifndef HAVE_OPENSSL
+static const char not_implemented[] = "Requires OpenSSL 3";
+
+int process_eddsa_jwk(json_t *jwk, jwk_item_t *item)
+{
+	jwks_write_error(item, not_implemented);
+	return -1;
+}
+
+int process_rsa_jwk(json_t *jwk, jwk_item_t *item)
+{
+	jwks_write_error(item, not_implemented);
+	return -1;
+}
+
+int process_ec_jwk(json_t *jwk, jwk_item_t *item)
+{
+	jwks_write_error(item, not_implemented);
+	return -1;
+}
+#endif /* HAVE_OPENSSL */
 
 static void jwk_process_values(json_t *jwk, jwk_item_t *item)
 {

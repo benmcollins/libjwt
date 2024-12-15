@@ -9,6 +9,34 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <openssl/opensslv.h>
+#include <jwt.h>
+#include "jwt-private.h"
+
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
+
+static const char not_implemented[] = "Requires OpenSSL 3";
+
+int process_eddsa_jwk(json_t *jwk, jwk_item_t *item)
+{
+	jwks_write_error(item, not_implemented);
+	return -1;
+}
+
+int process_rsa_jwk(json_t *jwk, jwk_item_t *item)
+{
+	jwks_write_error(item, not_implemented);
+	return -1;
+}
+
+int process_ec_jwk(json_t *jwk, jwk_item_t *item)
+{
+	jwks_write_error(item, not_implemented);
+	return -1;
+}
+
+#else /* OpenSSL 3 */
+
 #include <openssl/pem.h>
 #include <openssl/evp.h>
 #include <openssl/bio.h>
@@ -17,13 +45,6 @@
 #include <openssl/core_names.h>
 #include <openssl/err.h>
 #include <openssl/param_build.h>
-
-#include <jwt.h>
-#include "jwt-private.h"
-
-#ifndef EVP_PKEY_PRIVATE_KEY
-#define EVP_PKEY_PRIVATE_KEY EVP_PKEY_KEYPAIR
-#endif
 
 /* Sets a param for the public EC key */
 static void *set_ec_pub_key(OSSL_PARAM_BLD *build, json_t *jx, json_t *jy,
@@ -155,7 +176,7 @@ static int pctx_to_pem(EVP_PKEY_CTX *pctx, OSSL_PARAM *params,
 	long len;
 	int ret = -1;
 
-	ret = EVP_PKEY_fromdata(pctx, &pkey, EVP_PKEY_PRIVATE_KEY, params);
+	ret = EVP_PKEY_fromdata(pctx, &pkey, EVP_PKEY_KEYPAIR, params);
 
 	if (ret <= 0 || pkey == NULL) {
 		jwks_write_error(item, "Unable to create PEM from pkey");
@@ -463,3 +484,5 @@ cleanup_ec:
 
 	return ret;
 }
+
+#endif /* OpenSSL 3 */
