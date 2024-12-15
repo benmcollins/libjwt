@@ -13,13 +13,8 @@
 
 #include <jwt.h>
 
-#ifdef HAVE_LIBB64
-#include <b64/cencode.h>
-#include <b64/cdecode.h>
-#else
-#include "cencode.h"
-#include "cdecode.h"
-#endif
+/* https://github.com/zhicheng/base64 */
+#include "base64.h"
 
 #include "jwt-private.h"
 
@@ -450,7 +445,6 @@ static int get_js_bool(json_t *js, const char *key)
 
 void *jwt_base64uri_decode(const char *src, int *ret_len)
 {
-	base64_decodestate state;
 	void *buf;
 	char *new;
 	int len, i, z;
@@ -487,15 +481,13 @@ void *jwt_base64uri_decode(const char *src, int *ret_len)
 	len = i;
 
 	/* Now we have a standard base64 encoded string. */
-	buf = jwt_malloc(base64_decode_maxlength(len) + 1);
+	buf = jwt_malloc(BASE64_DECODE_OUT_SIZE(len) + 1);
 	if (buf == NULL) {
 		jwt_freemem(new);
 		return NULL;
 	}
 
-	base64_init_decodestate(&state);
-	*ret_len = base64_decode_block(new, len, buf, &state);
-
+	*ret_len = base64_decode(new, len, buf);
 	jwt_freemem(new);
 
 	if (*ret_len <= 0) {
@@ -529,22 +521,16 @@ static json_t *jwt_base64uri_decode_to_json(char *src)
 
 int jwt_base64uri_encode(char **_dst, const char *plain, int plain_len)
 {
-	base64_encodestate state;
 	int len, i;
 	char *dst;
 
-	base64_init_encodestate(&state);
-	/* Ensure no newlines are emitted into the string */
-	state.chars_per_line = 0;
-
-	len = base64_encode_length(plain_len, &state);
+	len = BASE64_ENCODE_OUT_SIZE(plain_len);
 	dst = jwt_malloc(len + 1);
 	if (dst == NULL)
 		return -ENOMEM;
 
 	/* First, a normal base64 encoding */
-	len = base64_encode_block(plain, plain_len, dst, &state);
-	len += base64_encode_blockend(dst + len, &state);
+	len = base64_encode((const unsigned char *)plain, plain_len, dst);
 	if (len <= 0) {
 		jwt_freemem(dst);
 		return 0;
