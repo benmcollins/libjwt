@@ -12,16 +12,17 @@ TESTS =			\
 	jwt_rsa_pss	\
 	jwt_eddsa	\
 	jwt_crypto	\
-	jwt_es256k	\
-	jwt_jwks	\
-	jwt_jwks_errors	\
-	jwt_jwks_ec	\
-	jwt_jwks_rsa
+	jwt_es256k
+
+# JWKS tests are OpenSSL 3 only
+if HAVE_OPENSSL
+TESTS += jwt_jwks jwt_jwks_errors jwt_jwks_ec jwt_jwks_rsa
+endif
 
 check_PROGRAMS = $(TESTS)
 
-AM_CPPFLAGS = -I$(top_srcdir)/include
-AM_CFLAGS = -Wall $(CHECK_CFLAGS) -DKEYDIR="\"$(srcdir)/keys\"" -D_GNU_SOURCE
+AM_CPPFLAGS = -I$(top_srcdir)/include $(OPENSSL_INCLUDES)
+AM_CFLAGS = -Wall $(CHECK_CFLAGS) -DKEYDIR="\"$(srcdir)/keys\"" -D_GNU_SOURCE $(OPENSSL_CFLAGS)
 AM_LDFLAGS = -L$(top_builddir)/libjwt
 LDADD = -ljwt $(CHECK_LIBS)
 

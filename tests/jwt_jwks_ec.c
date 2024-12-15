@@ -8,8 +8,16 @@
 
 #include "jwt_tests.h"
 
+#include <openssl/opensslconf.h>
+
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#define openssl_check()
+#else
+#define openssl_check() return;
+#endif
+
 START_TEST(test_jwks_ec_pub_missing)
-{
+{ openssl_check();
 	const char *json = "{\"kty\":\"EC\"}";
 	jwk_set_t *jwk_set = NULL;
 	jwk_item_t *item;
@@ -33,7 +41,7 @@ START_TEST(test_jwks_ec_pub_missing)
 END_TEST
 
 START_TEST(test_jwks_ec_pub_bad_type)
-{
+{ openssl_check();
 	const char *json = "{\"kty\":\"EC\",\"crv\":\"prime6v1\",\"x\":\"sd+#(@#($(ada\",\"y\":1}";
 	jwk_set_t *jwk_set = NULL;
 	jwk_item_t *item;
@@ -57,7 +65,7 @@ START_TEST(test_jwks_ec_pub_bad_type)
 END_TEST
 
 START_TEST(test_jwks_ec_pub_bad64)
-{
+{ openssl_check();
 	const char *json = "{\"kty\":\"EC\",\"crv\":\"prime6v1\",\"x\":\"\",\"y\":\"asaad\"}";
 	jwk_set_t *jwk_set = NULL;
 	jwk_item_t *item;
@@ -81,7 +89,7 @@ START_TEST(test_jwks_ec_pub_bad64)
 END_TEST
 
 START_TEST(test_jwks_ec_pub_bad_points)
-{
+{ openssl_check();
 	const char *json = "{\"kty\":\"EC\",\"crv\":\"prime256v1\",\"x\":\"YmFkdmFsdWUK\",\"y\":\"YmFkdmFsdWUK\"}";
 	jwk_set_t *jwk_set = NULL;
 	jwk_item_t *item;

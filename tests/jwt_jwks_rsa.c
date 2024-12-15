@@ -8,8 +8,16 @@
 
 #include "jwt_tests.h"
 
+#include <openssl/opensslconf.h>
+
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#define openssl_check()
+#else
+#define openssl_check() return;
+#endif
+
 START_TEST(test_jwks_rsa_pub_missing)
-{
+{ openssl_check();
 	const char *json = "{\"kty\":\"RSA\"}";
 	jwk_set_t *jwk_set = NULL;
 	jwk_item_t *item;
@@ -33,7 +41,7 @@ START_TEST(test_jwks_rsa_pub_missing)
 END_TEST
 
 START_TEST(test_jwks_rsa_pub_bad_type)
-{
+{ openssl_check();
 	const char *json = "{\"kty\":\"RSA\",\"n\":\"YmFkdmFsdWUK\",\"e\":1}";
 	jwk_set_t *jwk_set = NULL;
 	jwk_item_t *item;
@@ -57,7 +65,7 @@ START_TEST(test_jwks_rsa_pub_bad_type)
 END_TEST
 
 START_TEST(test_jwks_rsa_pub_bad64)
-{
+{ openssl_check();
 	const char *json = "{\"kty\":\"RSA\",\"n\":\"\",\"e\":\"asaadaaaaaa\"}";
 	jwk_set_t *jwk_set = NULL;
 	jwk_item_t *item;
@@ -81,7 +89,7 @@ START_TEST(test_jwks_rsa_pub_bad64)
 END_TEST
 
 START_TEST(test_jwks_rsa_pub_binary64)
-{
+{ openssl_check();
 	const char *json = "{\"kty\":\"RSA\",\"n\":"
 		"\"2fyxRFHaYP2a4pbdTK/s9x4YWV7qAWwJMXMkbRmy51w\","
 		"\"e\":\"2fyxRFHaYP2a4pbdTK/s9x4YWV7qAWwJMXMkbRmy51w\"}";
@@ -105,7 +113,7 @@ START_TEST(test_jwks_rsa_pub_binary64)
 END_TEST
 
 START_TEST(test_jwks_rsa_priv_missing)
-{
+{ openssl_check();
 	const char *json = "{\"kty\":\"RSA\",\"n\":\"YmFkdmFsdWUK\","
 		"\"e\":\"YmFkdmFsdWUK\",\"d\":\"YmFkdmFsdWUK\"}";
 	jwk_set_t *jwk_set = NULL;
@@ -130,7 +138,7 @@ START_TEST(test_jwks_rsa_priv_missing)
 END_TEST
 
 START_TEST(test_jwks_rsa_priv_bad64)
-{
+{ openssl_check();
 	const char *json = "{\"kty\":\"RSA\",\"n\":\"YmFkdmFsdWUK\","
 		"\"e\":\"YmFkdmFsdWUK\",\"d\":"
 		"\"2fyxRFHaYP2a4pbdTK/s9x4YWV7qAWwJMXMkbRmy51w\","
@@ -166,7 +174,7 @@ static Suite *libjwt_suite(const char *title)
 
 	tc_core = tcase_create("jwt_jwks_rsa");
 
-	/* EC specific error path tests */
+	/* RSA specific error path tests */
 	tcase_add_loop_test(tc_core, test_jwks_rsa_pub_missing, 0, i);
 	tcase_add_loop_test(tc_core, test_jwks_rsa_pub_bad64, 0, i);
 	tcase_add_loop_test(tc_core, test_jwks_rsa_pub_bad_type, 0, i);

@@ -8,9 +8,17 @@
 
 #include "jwt_tests.h"
 
+#include <openssl/opensslconf.h>
+
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#define openssl_check()
+#else
+#define openssl_check() return;
+#endif
+
 #define JWKS_KEY_TEST(__name)				\
 START_TEST(test_jwks_##__name)				\
-{							\
+{ openssl_check();					\
 	SET_OPS();					\
 	__jwks_check(#__name ".json", #__name ".pem");	\
 }							\
@@ -64,7 +72,7 @@ JWKS_KEY_TEST(rsa_pss_key_2048);
 JWKS_KEY_TEST(rsa_pss_key_2048_pub);
 
 START_TEST(test_jwks_keyring_load)
-{
+{ openssl_check();
 	jwk_set_t *jwk_set = NULL;
 	jwk_item_t *item;
 	int i;
@@ -98,6 +106,7 @@ static Suite *libjwt_suite(const char *title)
 	s = suite_create(title);
 
 	tc_core = tcase_create("jwt_jwks");
+
 	tcase_add_loop_test(tc_core, test_jwks_ec_key_prime256v1, 0, i);
 	tcase_add_loop_test(tc_core, test_jwks_ec_key_prime256v1_pub, 0, i);
 	tcase_add_loop_test(tc_core, test_jwks_ec_key_secp256k1, 0, i);
