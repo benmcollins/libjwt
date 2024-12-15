@@ -146,19 +146,26 @@ static void write_key_file(EVP_PKEY *pkey, const char *pre, const char *name,
 {
 	char *file_name;
 	FILE *fp;
+	int ret;
 
 	if (kid == NULL) {
-		asprintf(&file_name, "pems/%s-%s%s.pem", pre, name,
-			 priv ? "" : "-pub");
+		ret = asprintf(&file_name, "pems/%s-%s%s.pem", pre, name,
+			       priv ? "" : "-pub");
 	} else {
-		asprintf(&file_name, "pems/%s-%s_%s%s.pem", pre,
-			 name, json_string_value(kid),
-			  priv ? "" : "_pub");
+		ret = asprintf(&file_name, "pems/%s-%s_%s%s.pem", pre,
+			       name, json_string_value(kid),
+			       priv ? "" : "_pub");
+	}
+
+	if (ret < 0) {
+		fprintf(stderr, "Memory error writing file\n");
+		return;
 	}
 
 	fp = fopen(file_name, "wx");
 	if (fp == NULL) {
 		fprintf(stderr, "Could not overwrite '%s'\n", file_name);
+		free(file_name);
 		return;
 	}
 
@@ -166,10 +173,12 @@ static void write_key_file(EVP_PKEY *pkey, const char *pre, const char *name,
 		PEM_write_PrivateKey(fp, pkey, NULL, NULL, 0, NULL, NULL);
 	else
 		PEM_write_PUBKEY(fp, pkey);
+
+	free(file_name);
 }
 
 /* For EdDSA keys (EDDSA) */
-static void process_eddsa_jwk(json_t *jwk)
+static void __process_eddsa_jwk(json_t *jwk)
 {
 	OSSL_PARAM *params;
 	OSSL_PARAM_BLD *build;
@@ -223,7 +232,7 @@ static void process_eddsa_jwk(json_t *jwk)
 
 /* For RSA keys (RS256, RS384, RS512). Also works for RSA-PSS
  * (PS256, PS384, PS512) */
-static void process_rsa_jwk(json_t *jwk)
+static void __process_rsa_jwk(json_t *jwk)
 {
 	OSSL_PARAM_BLD *build;
 	json_auto_t *n, *e, *d, *p, *q, *dp, *dq, *qi, *kid, *alg;
@@ -323,7 +332,7 @@ static void process_rsa_jwk(json_t *jwk)
 }
 
 /* For EC Keys (ES256, ES384, ES512) */
-static void process_ec_jwk(json_t *jwk)
+static void __process_ec_jwk(json_t *jwk)
 {
 	OSSL_PARAM *params;
 	OSSL_PARAM_BLD *build;
@@ -385,7 +394,7 @@ static void process_ec_jwk(json_t *jwk)
 	ec_count++;
 }
 
-static void process_one_jwk(json_t *jwk)
+static void __process_one_jwk(json_t *jwk)
 {
 	static int count = 1;
 	const char *kty;
@@ -400,11 +409,11 @@ static void process_one_jwk(json_t *jwk)
 	kty = json_string_value(val);
 
 	if (!strcmp(kty, "EC")) {
-		process_ec_jwk(jwk);
+		__process_ec_jwk(jwk);
 	} else if (!strcmp(kty, "RSA")) {
-		process_rsa_jwk(jwk);
+		__process_rsa_jwk(jwk);
 	} else if (!strcmp(kty, "OKP")) {
-		process_eddsa_jwk(jwk);
+		__process_eddsa_jwk(jwk);
 	} else {
 		fprintf(stderr, "Unknown JWK key type %s\n", kty);
 		return;
@@ -442,13 +451,13 @@ int main(int argc, char **argv)
 	if (jwk_array == NULL) {
 		/* Assume a single JSON Object for one JWK */
 		fprintf(stderr, "No keys found, processing as a single JWK\n");
-		process_one_jwk(jwk_set);
+		__process_one_jwk(jwk_set);
 		exit(EXIT_SUCCESS);
 	}
 
 	fprintf(stderr, "Found %lu 'keys' to process\n", json_array_size(jwk_array));
 	json_array_foreach(jwk_array, i, jwk) {
-		process_one_jwk(jwk);
+		__process_one_jwk(jwk);
 	}
 
 	fprintf(stderr, "Processing results:\n");
