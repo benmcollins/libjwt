@@ -164,9 +164,10 @@ static void process_ec_key(EVP_PKEY *pkey, int priv, json_t *jwk)
 /* For EdDSA keys (EDDSA) */
 static void process_eddsa_key(EVP_PKEY *pkey, int priv, json_t *jwk)
 {
-	get_one_octet(pkey, OSSL_PKEY_PARAM_PUB_KEY, jwk, "x");
 	if (priv)
 		get_one_octet(pkey, OSSL_PKEY_PARAM_PRIV_KEY, jwk, "d");
+	else
+		get_one_octet(pkey, OSSL_PKEY_PARAM_PUB_KEY, jwk, "x");
 }
 
 /* For RSA keys (RS256, RS384, RS512). Also works for RSA-PSS

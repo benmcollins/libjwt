@@ -186,21 +186,22 @@ static void __process_eddsa_jwk(json_t *jwk)
 	OSSL_PARAM_BLD *build;
 	EVP_PKEY_CTX *pctx = NULL;
 	EVP_PKEY *pkey = NULL;
-	json_auto_t *x, *d, *kid;
+	json_t *x, *d, *kid;
 	int priv = 0;
 
 	x = json_object_get(jwk, "x");
 	d = json_object_get(jwk, "d");
 	kid = json_object_get(jwk, "kid");
 
-	if (x == NULL) {
+	if (d != NULL) {
+		priv = 1;
+	} else if (x != NULL) {
+		priv = 0;
+	} else {
 		fprintf(stderr, "Invalid EdDSA key\n");
 		return;
 	}
 
-	if (d != NULL)
-		priv = 1;
-	
 	pctx = EVP_PKEY_CTX_new_from_name(NULL, "ED25519", NULL);
 	if (pctx == NULL)
 		jwt_exit();
@@ -210,9 +211,10 @@ static void __process_eddsa_jwk(json_t *jwk)
 
 	build = OSSL_PARAM_BLD_new();
 
-	set_one_octet(build, OSSL_PKEY_PARAM_PUB_KEY, x);
 	if (priv)
 		set_one_octet(build, OSSL_PKEY_PARAM_PRIV_KEY, d);
+	else
+		set_one_octet(build, OSSL_PKEY_PARAM_PUB_KEY, x);
 
 	params = OSSL_PARAM_BLD_to_param(build);
 
@@ -237,7 +239,7 @@ static void __process_eddsa_jwk(json_t *jwk)
 static void __process_rsa_jwk(json_t *jwk)
 {
 	OSSL_PARAM_BLD *build;
-	json_auto_t *n, *e, *d, *p, *q, *dp, *dq, *qi, *kid, *alg;
+	json_t *n, *e, *d, *p, *q, *dp, *dq, *qi, *kid, *alg;
 	int is_rsa_pss = 0, priv = 0;
 	OSSL_PARAM *params;
 	EVP_PKEY *pkey = NULL;
@@ -338,7 +340,7 @@ static void __process_ec_jwk(json_t *jwk)
 {
 	OSSL_PARAM *params;
 	OSSL_PARAM_BLD *build;
-	json_auto_t *crv, *x, *y, *d, *kid;
+	json_t *crv, *x, *y, *d, *kid;
 	EVP_PKEY *pkey = NULL;
 	EVP_PKEY_CTX *pctx = NULL;
 	const char *crv_str;
@@ -400,7 +402,7 @@ static void __process_one_jwk(json_t *jwk)
 {
 	static int count = 1;
 	const char *kty;
-	json_auto_t *val;
+	json_t *val;
 
 	val = json_object_get(jwk, "kty");
 	if (val == NULL || !json_is_string(val)) {

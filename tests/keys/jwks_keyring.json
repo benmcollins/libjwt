@@ -125,7 +125,6 @@
       "kty": "OKP",
       "crv": "Ed25519",
       "alg": "EDDSA",
-      "x": "HUj-14kN6N4i5qNVkfEhwKiCf-tSrvRHstQdtV8a5QM",
       "d": "XY5oUZqGWVZhX7J09hG-rRnAKXiw1g_aBh-Bc52KZ_Y"
     },
     {
