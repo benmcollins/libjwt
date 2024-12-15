@@ -80,6 +80,30 @@ START_TEST(test_jwks_rsa_pub_bad64)
 }
 END_TEST
 
+START_TEST(test_jwks_rsa_pub_binary64)
+{
+	const char *json = "{\"kty\":\"RSA\",\"n\":"
+		"\"2fyxRFHaYP2a4pbdTK/s9x4YWV7qAWwJMXMkbRmy51w\","
+		"\"e\":\"2fyxRFHaYP2a4pbdTK/s9x4YWV7qAWwJMXMkbRmy51w\"}";
+	jwk_set_t *jwk_set = NULL;
+	jwk_item_t *item;
+
+	SET_OPS();
+
+	jwk_set = jwks_create(json);
+
+	ck_assert_ptr_nonnull(jwk_set);
+	ck_assert(!jwks_error(jwk_set));
+
+	item = jwks_item_get(jwk_set, 0);
+	ck_assert_ptr_nonnull(item);
+	ck_assert_ptr_nonnull(item->pem);
+	ck_assert_int_eq(item->error, 0);
+
+	jwks_free(jwk_set);
+}
+END_TEST
+
 START_TEST(test_jwks_rsa_priv_missing)
 {
 	const char *json = "{\"kty\":\"RSA\",\"n\":\"YmFkdmFsdWUK\","
@@ -108,8 +132,9 @@ END_TEST
 START_TEST(test_jwks_rsa_priv_bad64)
 {
 	const char *json = "{\"kty\":\"RSA\",\"n\":\"YmFkdmFsdWUK\","
-		"\"e\":\"YmFkdmFsdWUK\",\"d\":\"\",\"p\":\"\",\"q\":\"\","
-		"\"dp\":\"\",\"dq\":\"\",\"qi\":\"\"}";
+		"\"e\":\"YmFkdmFsdWUK\",\"d\":"
+		"\"2fyxRFHaYP2a4pbdTK/s9x4YWV7qAWwJMXMkbRmy51w\","
+		"\"p\":\"\",\"q\":\"=\",\"dp\":\"\",\"dq\":\"\",\"qi\":\"\"}";
 	jwk_set_t *jwk_set = NULL;
 	jwk_item_t *item;
 	const char exp[] = "Error decoding priv components";
@@ -145,6 +170,7 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, test_jwks_rsa_pub_missing, 0, i);
 	tcase_add_loop_test(tc_core, test_jwks_rsa_pub_bad64, 0, i);
 	tcase_add_loop_test(tc_core, test_jwks_rsa_pub_bad_type, 0, i);
+	tcase_add_loop_test(tc_core, test_jwks_rsa_pub_binary64, 0, i);
 	tcase_add_loop_test(tc_core, test_jwks_rsa_priv_missing, 0, i);
 	tcase_add_loop_test(tc_core, test_jwks_rsa_priv_bad64, 0, i);
 
