@@ -1,0 +1,14 @@
+    {
+      "use": "sig",
+      "key_ops": [
+        "verify",
+        "sign"
+      ],
+      "kid": "0e8d6d95-27e8-45b7-b2b1-f0ca95f378ef",
+      "kty": "EC",
+      "alg": "ES256K",
+      "crv": "secp256k1",
+      "x": "7xdE1j-vQLoWBnhP7Mn70yNhPDCO6pytCqMJTeJ7_90",
+      "y": "795Zo2s891l9E7Jb57g9CEvRVGk_LJ7Hy0ixzGcV8UE",
+      "d": "zTih0G_1ZdZupZhb7SgOyqsoe2dudSWNPtM4Vt2OYJk"
+    }

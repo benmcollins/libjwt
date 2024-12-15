@@ -1,0 +1,18 @@
+{
+  "keys": [
+    {
+      "use": "sig",
+      "key_ops": [
+        "verify",
+        "sign"
+      ],
+      "kid": "6fd54644-c491-4800-9676-cd823ef5aefc",
+      "kty": "EC",
+      "alg": "ES512",
+      "crv": "secp521r1",
+      "x": "_axE26pXWXesAjcTP_2Tfe4EcF4A3LuqgpIFzrftiztViq0-5deUvfcxuPIFk-ANVinlAOzgZWpFS0kheI7KJAY",
+      "y": "3fOHn5ZTU08AAjau0CoZe9GSPUC4cnSy1nqetiKBW0YpBvhaY5FXnngvfHUHdmkFSVLCS6N-LXoi_dm0Fbo6snE",
+      "d": "p6rxb2PoAISjCCTxpTQOxv5arJ_N6Xibr0eyOAnlWcVk34m1W5323_6TcPGTtFQgEX9TWjNcp9W8HIuIyRdLnsI"
+    }
+  ]
+}

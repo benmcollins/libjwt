@@ -1,0 +1,16 @@
+{
+  "keys": [
+    {
+      "use": "sig",
+      "key_ops": [
+        "verify"
+      ],
+      "kid": "7da8d800-65ae-458f-af82-f692c478605f",
+      "kty": "EC",
+      "alg": "ES384",
+      "crv": "secp384r1",
+      "x": "omxC9ycc8AkXSwWQpu1kN5Fmgy_sD_KJqN3tlSZmUEZ3w3c6KYJfK97PMOSZQaUd",
+      "y": "eydBoq_IOglQQOj8zLqubq5IpaaUiDQ50eJg79PvXuLiVUH98cBL_o8sDVB_sGzz"
+    }
+  ]
+}
