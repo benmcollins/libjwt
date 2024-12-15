@@ -178,6 +178,15 @@ int jwks_item_add(jwk_set_t *jwk_set, jwk_item_t *item);
 int jwks_error(jwk_set_t *jwk_set);
 
 /**
+ * Retrieve an error message from a jwk_set. Note, a zero
+ * length string is valid if jwos_error() returns non-zero.
+ *
+ * @param jwk_set An existing jwk_set_t
+ * @return NULL on error, valid string otherwise
+ */
+const char *jwks_error_msg(jwk_set_t *jwk_set);
+
+/**
  * Return the index'th jwk_item in the jwk_set
  *
  * Allows you to obtain the raw jwk_item. NOTE, this is not a copy

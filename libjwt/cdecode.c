@@ -104,5 +104,6 @@ size_t base64_decode_block(const char* code_in, const size_t length_in, void* pl
 		}
 	}
 	/* control should not reach here */
-	return (size_t) (plainchar - (char *) plaintext_out);
+	return 0;
+	//return (size_t) (plainchar - (char *) plaintext_out);
 }

@@ -13,8 +13,16 @@
 
 #include <jansson.h>
 #include <time.h>
+#include <stdarg.h>
 
 #include "ll.h"
+
+#define jwks_write_error(__obj, __args...)			\
+({								\
+	snprintf(__obj->error_msg, sizeof(__obj->error_msg),	\
+		 ##__args);					\
+	item->error = 1;					\
+})
 
 struct jwt {
 	jwt_alg_t alg;

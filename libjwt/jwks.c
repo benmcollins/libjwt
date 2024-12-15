@@ -29,9 +29,8 @@ static jwk_item_t *jwk_process_one(jwk_set_t *jwk_set, json_t *jwk)
 
 	item = jwt_malloc(sizeof(*item));
 	if (item == NULL) {
-		snprintf(jwk_set->error_msg, sizeof(jwk_set->error_msg),
-			 "Error allocating memory for jwk_item_t");
-		jwk_set->error = 1;
+		jwks_write_error(jwk_set,
+			"Error allocating memory for jwk_item_t");
 		return NULL;
 	}
 
@@ -39,9 +38,7 @@ static jwk_item_t *jwk_process_one(jwk_set_t *jwk_set, json_t *jwk)
 
 	val = json_object_get(jwk, "kty");
 	if (val == NULL || !json_is_string(val)) {
-		snprintf(item->error_msg, sizeof(item->error_msg),
-			 "Invalid JWK: missing kty value");
-		item->error = 1;
+		jwks_write_error(item, "Invalid JWK: missing kty value");
 		return item;
 	}
 
@@ -54,9 +51,7 @@ static jwk_item_t *jwk_process_one(jwk_set_t *jwk_set, json_t *jwk)
 	} else if (!strcmp(kty, "OKP")) {
 		process_eddsa_jwk(jwk, item);
 	} else {
-		snprintf(item->error_msg, sizeof(item->error_msg),
-			 "Unknown kty type '%s'", kty);
-		item->error = 1;
+		jwks_write_error(item, "Unknown kty type '%s'", kty);
 		return item;
 	}
 
@@ -71,8 +66,6 @@ jwk_item_t *jwks_item_get(jwk_set_t *jwk_set, size_t index)
 	int i = 0;
 
 	list_for_each_entry(item, &jwk_set->head, node) {
-		if (i > index)
-			return NULL;
 		if (i == index)
 			return item->item;
 		i++;
@@ -84,6 +77,11 @@ jwk_item_t *jwks_item_get(jwk_set_t *jwk_set, size_t index)
 int jwks_error(jwk_set_t *jwk_set)
 {
 	return jwk_set->error ? 1 : 0;
+}
+
+const char *jwks_error_msg(jwk_set_t *jwk_set)
+{
+	return jwk_set->error_msg;
 }
 
 int jwks_item_add(jwk_set_t *jwk_set, jwk_item_t *item)
@@ -111,8 +109,6 @@ int jwks_item_free(jwk_set_t *jwk_set, size_t index)
         int i = 0;
 
 	list_for_each_entry(list_item, &jwk_set->head, node) {
-		if (i > index)
-			return 0;
 		if (i == index) {
 			todel = list_item;
 			break;
