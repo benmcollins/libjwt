@@ -14,6 +14,8 @@
 #include <jansson.h>
 #include <time.h>
 
+#include "ll.h"
+
 struct jwt {
 	jwt_alg_t alg;
 	unsigned char *key;
@@ -32,6 +34,19 @@ struct jwt_valid {
 	unsigned int status;
 };
 
+/* Yes, this is a bit of overhead, but it keeps me from having to
+ * expose list.h in jwt.h. */
+typedef struct jwk_list_item {
+	ll_t node;
+	jwk_item_t *item;
+} jwk_list_item_t;
+
+struct jwk_set {
+	ll_t head;
+	int error;
+	char error_msg[256];
+};
+
 /* Crypto operations */
 struct jwt_crypto_ops {
 	const char *name;
@@ -44,6 +59,11 @@ struct jwt_crypto_ops {
 	int (*verify_sha_pem)(jwt_t *jwt, const char *head,
 		unsigned int head_len, const char *sig_b64);
 };
+
+/* Functions provided by crypto to convert a JWK to a usable item */
+int process_eddsa_jwk(json_t *jwk, jwk_item_t *item);
+int process_rsa_jwk(json_t *jwk, jwk_item_t *item);
+int process_ec_jwk(json_t *jwk, jwk_item_t *item);
 
 #ifdef HAVE_OPENSSL
 extern struct jwt_crypto_ops jwt_openssl_ops;

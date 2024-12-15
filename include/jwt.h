@@ -52,6 +52,9 @@ typedef struct jwt jwt_t;
 /** Opaque JWT validation object. */
 typedef struct jwt_valid jwt_valid_t;
 
+/** Opaque JWK set object. */
+typedef struct jwk_set jwk_set_t;
+
 /** JWT algorithm types. */
 typedef enum jwt_alg {
 	JWT_ALG_NONE = 0,
@@ -71,6 +74,35 @@ typedef enum jwt_alg {
 	JWT_ALG_EDDSA,
 	JWT_ALG_TERM
 } jwt_alg_t;
+
+/* JWK Algorithm use types. The ops above are preferred. */
+typedef enum {
+	JWK_ALG_USE_NONE = 0,
+	JWK_ALG_USE_SIGN,
+	JWK_ALG_USE_ENC,
+} jwk_alg_use_t;
+
+/** JWK item */
+typedef struct jwk_item {
+	char *pem;
+	int error;
+	char error_msg[256];
+	jwt_alg_t alg_list[8];
+	unsigned short alg_ops;
+	jwk_alg_use_t use;
+	char kid[256];
+} jwk_item_t;
+
+/* JWK Algorithm op types. */
+#define JWK_ALG_OP_NONE		0x0000
+#define JWK_ALG_OP_SIGN		0x0001
+#define JWK_ALG_OP_VERIFY	0x0002
+#define JWK_ALG_OP_ENCRYPT	0x0004
+#define JWK_ALG_OP_DECRYPT	0x0008
+#define JWK_ALG_OP_WRAP		0x0010
+#define JWK_ALG_OP_UNWRAP	0x0020
+#define JWK_ALG_OP_DERIVE_KEY	0x0040
+#define JWK_ALG_OP_DERIVE_BITS	0x0080
 
 #define JWT_ALG_INVAL JWT_ALG_TERM
 
@@ -100,6 +132,96 @@ typedef struct {
 /** Key provider - inspects the JWT to obtain the key used to verify the signature */
 typedef int (*jwt_key_p_t)(const jwt_t *, jwt_key_t *);
 
+/**
+ * @defgroup jwk JWT operations for JWK and JWKS
+ * Functions to handle JWK in JSON for use in validating JWT objects
+ * @{
+ */
+
+/**
+ * Create a new JWKS object for later use in validating JWTs.
+ *
+ * This function expects a JSON string either as a single object
+ * for one JWK or as an array of objects under a key of "keys" (as
+ * defined in JWKS specifications).
+ * 
+ * If non-NULL is returned, you should then check to make sure there
+ * is no error with jwks_error(). There may be errors on individual
+ * JWK items in the set. You can check if there are any with
+ * jwks_error_any().
+ *
+ * @param jwk_json_str JSON string representation of a single key
+ *   or array of "keys". If NULL is passed, an empty jwk_set_t is
+ *   created.
+ * @return A valid jwt_set_t on success. On failure, either NULL
+ *   or a jwt_set_t with error set. NULL generally means ENOMEM.
+ */
+jwk_set_t *jwks_create(const char *jwk_json_str);
+
+/**
+ * Add a jwk_item_t to an existing jwk_set_t
+ *
+ * @param jwk_set An existing jwk_set_t
+ * @param item A JWK item to add to the set
+ * @return 0 on success, valid errno otherwise.
+ */
+int jwks_item_add(jwk_set_t *jwk_set, jwk_item_t *item);
+
+/**
+ * Check if there is an error within the jwk_set
+ *
+ * To get a string describing the error, use jwks_error_str.
+ *
+ * @param jwk_set An existing jwk_set_t
+ * @return 0 if no error exists, 1 if it does exists.
+ */
+int jwks_error(jwk_set_t *jwk_set);
+
+/**
+ * Return the index'th jwk_item in the jwk_set
+ *
+ * Allows you to obtain the raw jwk_item. NOTE, this is not a copy
+ * of the item, so any changes to it will be reflected to it in the
+ * jwk_set. This also means if the jwk_set is freed, then this data
+ * is freed and cannot be used.
+ *
+ * It's also worth pointing out that the index of a specific jwk_item
+ * in a jwk_set can and will change if items are added or removed
+ * from the jwk_set.
+ *
+ * @param jwk_set An existing jwk_set_t
+ * @param index Index of the jwk_set
+ * @return 0 if no error exists, 1 if it does exists.
+ */
+jwk_item_t *jwks_item_get(jwk_set_t *jwk_set, size_t index);
+
+/**
+ * Free all memory associated with a jwt_set_t, including any
+ * jwk_item_t in the set
+ *
+ * @param jwk_set An existing jwk_set_t
+ */
+void jwks_free(jwk_set_t *jwk_set);
+
+/**
+ * Free all memory associated with the nth jwt_item_t in a jwk_set
+ *
+ * @param jwk_set A JWKS object
+ * @param index the position of the item in the index
+ * @return 0 if no item was was deleted (found), 1 if it was
+ */
+int jwks_item_free(jwk_set_t *jwk_set, size_t index);
+
+/**
+ * Free all memory associated with alljwt_item_t in a jwk_set. The
+ * jwk_set becomes an empty set.
+ *
+ * @param jwk_set A JWKS object
+ * @return The numbner of items deleted
+ */
+int jwks_item_free_all(jwk_set_t *jwk_set);
+
+/** @} */
 
 /**
  * @defgroup jwt_crypto JWT Crypto Operations

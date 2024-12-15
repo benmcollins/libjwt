@@ -15,7 +15,7 @@ libjwt_la_CFLAGS = $(JANSSON_CFLAGS) $(OPENSSL_CFLAGS) $(GNUTLS_CFLAGS) $(CODE_C
 libjwt_la_LIBADD = $(JANSSON_LIBS) $(OPENSSL_LIBS) $(GNUTLS_LIBS) $(CODE_COVERAGE_LDFLAGS)
 
 if HAVE_OPENSSL
-libjwt_la_SOURCES += jwt-openssl.c
+libjwt_la_SOURCES += jwt-openssl.c jwks-openssl.c jwks.c
 endif
 
 if HAVE_GNUTLS
