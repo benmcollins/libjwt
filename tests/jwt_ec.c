@@ -37,42 +37,42 @@ static const char jwt_es_invalid[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJpY
 START_TEST(test_jwt_encode_es256)
 {
 	SET_OPS();
-	__test_alg_key(JWT_ALG_ES256, "ec_key_prime256v1.pem", "ec_key_prime256v1-pub.pem");
+	__test_alg_key(JWT_ALG_ES256, "ec_key_prime256v1.pem", "ec_key_prime256v1_pub.pem");
 }
 END_TEST
 
 START_TEST(test_jwt_verify_es256)
 {
 	SET_OPS();
-	__verify_jwt(jwt_es256, JWT_ALG_ES256, "ec_key_prime256v1-pub.pem");
+	__verify_jwt(jwt_es256, JWT_ALG_ES256, "ec_key_prime256v1_pub.pem");
 }
 END_TEST
 
 START_TEST(test_jwt_encode_es384)
 {
 	SET_OPS();
-	__test_alg_key(JWT_ALG_ES384, "ec_key_secp384r1.pem", "ec_key_secp384r1-pub.pem");
+	__test_alg_key(JWT_ALG_ES384, "ec_key_secp384r1.pem", "ec_key_secp384r1_pub.pem");
 }
 END_TEST
 
 START_TEST(test_jwt_verify_es384)
 {
 	SET_OPS();
-	__verify_jwt(jwt_es384, JWT_ALG_ES384, "ec_key_secp384r1-pub.pem");
+	__verify_jwt(jwt_es384, JWT_ALG_ES384, "ec_key_secp384r1_pub.pem");
 }
 END_TEST
 
 START_TEST(test_jwt_encode_es512)
 {
 	SET_OPS();
-	__test_alg_key(JWT_ALG_ES512, "ec_key_secp521r1.pem", "ec_key_secp521r1-pub.pem");
+	__test_alg_key(JWT_ALG_ES512, "ec_key_secp521r1.pem", "ec_key_secp521r1_pub.pem");
 }
 END_TEST
 
 START_TEST(test_jwt_verify_es512)
 {
 	SET_OPS();
-	__verify_jwt(jwt_es512, JWT_ALG_ES512, "ec_key_secp521r1-pub.pem");
+	__verify_jwt(jwt_es512, JWT_ALG_ES512, "ec_key_secp521r1_pub.pem");
 }
 END_TEST
 
@@ -86,8 +86,6 @@ START_TEST(test_jwt_encode_ec_with_rsa)
 
 	ALLOC_JWT(&jwt);
 
-	read_key("rsa_key_4096.pem");
-
 	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
 	ck_assert_int_eq(ret, 0);
 
@@ -100,7 +98,9 @@ START_TEST(test_jwt_encode_ec_with_rsa)
 	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
 	ck_assert_int_eq(ret, 0);
 
+	read_key("rsa_key_4096.pem");
 	ret = jwt_set_alg(jwt, JWT_ALG_ES384, key, key_len);
+	free_key();
 	ck_assert_int_eq(ret, 0);
 
 	out = jwt_encode_str(jwt);
@@ -119,8 +119,8 @@ START_TEST(test_jwt_verify_invalid_token)
 	SET_OPS();
 
 	read_key("ec_key_secp384r1.pem");
-
 	ret = jwt_decode(&jwt, jwt_es_invalid, key, JWT_ALG_ES256);
+	free_key();
 	ck_assert_int_ne(ret, 0);
 	ck_assert_ptr_eq(jwt, NULL);
 }
@@ -134,8 +134,8 @@ START_TEST(test_jwt_verify_invalid_alg)
 	SET_OPS();
 
 	read_key("ec_key_secp384r1.pem");
-
 	ret = jwt_decode(&jwt, jwt_es256, key, JWT_ALG_ES512);
+	free_key();
 	ck_assert_int_ne(ret, 0);
 	ck_assert_ptr_eq(jwt, NULL);
 }
@@ -148,9 +148,9 @@ START_TEST(test_jwt_verify_invalid_cert)
 
 	SET_OPS();
 
-	read_key("ec_key_secp521r1-pub.pem");
-
+	read_key("ec_key_secp521r1_pub.pem");
 	ret = jwt_decode(&jwt, jwt_es256, key, JWT_ALG_ES256);
+	free_key();
 	ck_assert_int_ne(ret, 0);
 	ck_assert_ptr_eq(jwt, NULL);
 }
@@ -163,9 +163,9 @@ START_TEST(test_jwt_verify_invalid_cert_file)
 
 	SET_OPS();
 
-	read_key("ec_key_invalid-pub.pem");
-
+	read_key("ec_key_invalid_pub.pem");
 	ret = jwt_decode(&jwt, jwt_es256, key, JWT_ALG_ES256);
+	free_key();
 	ck_assert_int_ne(ret, 0);
 	ck_assert_ptr_eq(jwt, NULL);
 }
@@ -181,8 +181,6 @@ START_TEST(test_jwt_encode_invalid_key)
 
 	ALLOC_JWT(&jwt);
 
-	read_key("ec_key_invalid.pem");
-
 	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
 	ck_assert_int_eq(ret, 0);
 
@@ -195,7 +193,9 @@ START_TEST(test_jwt_encode_invalid_key)
 	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
 	ck_assert_int_eq(ret, 0);
 
+	read_key("ec_key_invalid.pem");
 	ret = jwt_set_alg(jwt, JWT_ALG_ES512, key, key_len);
+	free_key();
 	ck_assert_int_eq(ret, 0);
 
 	out = jwt_encode_str(jwt);

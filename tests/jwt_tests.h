@@ -65,7 +65,7 @@ static const char *jwt_test_ops[] = {
 	ck_assert_str_eq(ops, jwt_test_ops[_i]);			\
 })
 
-__attribute__((unused)) static unsigned char key[16384];
+__attribute__((unused)) static unsigned char *key;
 __attribute__((unused)) static size_t key_len;
 
 __attribute__((unused))
@@ -75,15 +75,27 @@ static void read_key(const char *key_file)
 	char *key_path;
 	int ret = 0;
 
+	/* This can cause cascading failures if CK_FORK=no */
+	ck_assert_ptr_null(key);
+	ck_assert_int_eq(key_len, 0);
+
 	ret = asprintf(&key_path, KEYDIR "/%s", key_file);
 	ck_assert_int_gt(ret, 0);
 
 	fp = fopen(key_path, "r");
-	ck_assert_ptr_ne(fp, NULL);
+	free(key_path);
+	ck_assert_ptr_nonnull(fp);
 
-	jwt_free_str(key_path);
+	ret = fseek(fp, 0, SEEK_END);
+	ck_assert_int_eq(ret, 0);
 
-	key_len = fread(key, 1, sizeof(key), fp);
+	key_len = ftell(fp);
+	key = malloc(key_len + 1);
+	ck_assert_ptr_nonnull(key);
+
+	rewind(fp);
+
+	key_len = fread(key, 1, key_len, fp);
 	ck_assert_int_ne(key_len, 0);
 
 	ck_assert_int_eq(ferror(fp), 0);
@@ -94,14 +106,22 @@ static void read_key(const char *key_file)
 }
 
 __attribute__((unused))
+static void free_key(void)
+{
+	free(key);
+	key = NULL;
+	key_len = 0;
+}
+
+__attribute__((unused))
 static void __verify_jwt(const char *jwt_str, const jwt_alg_t alg, const char *file)
 {
 	jwt_t *jwt = NULL;
 	int ret = 0;
 
 	read_key(file);
-
 	ret = jwt_decode(&jwt, jwt_str, key, key_len);
+	free_key();
 	ck_assert_int_eq(ret, 0);
 	ck_assert_ptr_ne(jwt, NULL);
 
@@ -119,8 +139,6 @@ static void __test_alg_key(const jwt_alg_t alg, const char *file, const char *pu
 
 	ALLOC_JWT(&jwt);
 
-	read_key(file);
-
 	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
 	ck_assert_int_eq(ret, 0);
 
@@ -133,7 +151,9 @@ static void __test_alg_key(const jwt_alg_t alg, const char *file, const char *pu
 	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
 	ck_assert_int_eq(ret, 0);
 
+	read_key(file);
 	ret = jwt_set_alg(jwt, alg, key, key_len);
+	free_key();
 	ck_assert_int_eq(ret, 0);
 
 	out = jwt_encode_str(jwt);
@@ -154,8 +174,8 @@ static void __verify_alg_key(const char *key_file, const char *jwt_str,
 	int ret = 0;
 
 	read_key(key_file);
-
 	ret = jwt_decode(&jwt, jwt_str, key, key_len);
+	free_key();
 	ck_assert_int_eq(ret, 0);
 	ck_assert_ptr_nonnull(jwt);
 
@@ -178,8 +198,6 @@ static void __compare_alg_key(const char *key_file, const char *jwt_str,
 
 	ALLOC_JWT(&jwt);
 
-	read_key(key_file);
-
 	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
 	ck_assert_int_eq(ret, 0);
 
@@ -192,7 +210,9 @@ static void __compare_alg_key(const char *key_file, const char *jwt_str,
 	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
 	ck_assert_int_eq(ret, 0);
 
+	read_key(key_file);
 	ret = jwt_set_alg(jwt, alg, key, key_len);
+	free_key();
 	ck_assert_int_eq(ret, 0);
 
 	out = jwt_encode_str(jwt);

@@ -44,9 +44,9 @@ static const char jwt_ps256_2048_invalid[] = "eyJhbGciOiJQUzI1NiIsInR5cCI6Ikp"
 	"in5dRQ75Lg3rr1W8Xmx2zRrFKZALsEwGMhRL7e-x46mt6KF1UlwTYAW6FYoKTrrW62sH"
 	"OgpgvsIwhE93RfCmJ_xvZNkKrqnB6RxfpHEbZYTS8iAI3va2S8IBEL_pH-2etsr1fqAg";
 
-#define RSA_PSS_KEY_PRE "rsa-pss_key_2048"
+#define RSA_PSS_KEY_PRE "rsa_pss_key_2048"
 #define PS_KEY_PRIV RSA_PSS_KEY_PRE ".pem"
-#define PS_KEY_PUB RSA_PSS_KEY_PRE "-pub.pem"
+#define PS_KEY_PUB RSA_PSS_KEY_PRE "_pub.pem"
 
 static void __test_rsa_pss_encode(const char *priv_key_file,
 				  const char *pub_key_file,
@@ -57,8 +57,6 @@ static void __test_rsa_pss_encode(const char *priv_key_file,
 	char *out;
 
 	ALLOC_JWT(&jwt);
-
-	read_key(priv_key_file);
 
 	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
 	ck_assert_int_eq(ret, 0);
@@ -72,7 +70,9 @@ static void __test_rsa_pss_encode(const char *priv_key_file,
 	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
 	ck_assert_int_eq(ret, 0);
 
+	read_key(priv_key_file);
 	ret = jwt_set_alg(jwt, alg, key, key_len);
+	free_key();
 	ck_assert_int_eq(ret, 0);
 
 	out = jwt_encode_str(jwt);
@@ -134,8 +134,8 @@ START_TEST(test_jwt_verify_invalid_rsa_pss)
 	SET_OPS();
 
 	read_key(PS_KEY_PUB);
-
 	ret = jwt_decode(&jwt, jwt_ps256_2048_invalid, key, key_len);
+	free_key();
 	ck_assert_int_ne(ret, 0);
 	ck_assert_ptr_eq(jwt, NULL);
 }

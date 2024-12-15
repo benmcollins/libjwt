@@ -23,7 +23,7 @@ START_TEST(test_jwt_encode_es256k)
 {
 	SET_OPS();
 	SKIP_IF("gnutls");
-	__test_alg_key(JWT_ALG_ES256K, "ec_key_secp256k1.pem", "ec_key_secp256k1-pub.pem");
+	__test_alg_key(JWT_ALG_ES256K, "ec_key_secp256k1.pem", "ec_key_secp256k1_pub.pem");
 }
 END_TEST
 
@@ -31,7 +31,7 @@ START_TEST(test_jwt_verify_es256k)
 {
 	SET_OPS();
 	SKIP_IF("gnutls");
-	__verify_jwt(jwt_es256k, JWT_ALG_ES256K, "ec_key_secp256k1-pub.pem");
+	__verify_jwt(jwt_es256k, JWT_ALG_ES256K, "ec_key_secp256k1_pub.pem");
 }
 END_TEST
 
@@ -47,8 +47,6 @@ START_TEST(test_jwt_encode_es256k_with_ec)
 
 	ALLOC_JWT(&jwt);
 
-	read_key("ec_key_prime256v1.pem");
-
 	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
 	ck_assert_int_eq(ret, 0);
 
@@ -61,7 +59,9 @@ START_TEST(test_jwt_encode_es256k_with_ec)
 	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
 	ck_assert_int_eq(ret, 0);
 
+	read_key("ec_key_prime256v1.pem");
 	ret = jwt_set_alg(jwt, JWT_ALG_ES256K, key, key_len);
+	free_key();
 	ck_assert_int_eq(ret, 0);
 
 	out = jwt_encode_str(jwt);

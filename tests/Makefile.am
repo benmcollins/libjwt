@@ -12,7 +12,8 @@ TESTS =			\
 	jwt_rsa_pss	\
 	jwt_eddsa	\
 	jwt_crypto	\
-	jwt_es256k
+	jwt_es256k	\
+	jwt_jwks
 
 check_PROGRAMS = $(TESTS)
 
