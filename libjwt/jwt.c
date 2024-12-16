@@ -391,7 +391,7 @@ static const char *get_js_string(json_t *js, const char *key)
 
 	js_val = json_object_get(js, key);
 	if (js_val) {
-		if (json_typeof(js_val) == JSON_STRING)
+		if (json_is_string(js_val))
 			val = json_string_value(js_val);
 		else
 			errno = EINVAL;
@@ -409,7 +409,7 @@ static long get_js_int(json_t *js, const char *key)
 
 	js_val = json_object_get(js, key);
 	if (js_val) {
-		if (json_typeof(js_val) == JSON_INTEGER)
+		if (json_is_integer(js_val))
 			val = (long)json_integer_value(js_val);
 		else
 			errno = EINVAL;
@@ -657,7 +657,7 @@ static int jwt_parse_head(jwt_t *jwt, char *head)
 
 	alg = get_js_string(jwt->headers, "alg");
 	jwt->alg = jwt_str_alg(alg);
-	if (jwt->alg == JWT_ALG_INVAL)
+	if (jwt->alg >= JWT_ALG_INVAL)
 		return EINVAL;
 
 	return 0;

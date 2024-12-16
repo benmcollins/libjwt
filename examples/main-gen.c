@@ -68,7 +68,7 @@ int main(int argc, char *argv[])
 
 		case 'a':
 			opt_alg = jwt_str_alg(optarg);
-			if (opt_alg == JWT_ALG_INVAL) {
+			if (opt_alg >= JWT_ALG_INVAL) {
 				fprintf(stderr, "%s is not supported algorithm, using RS256\n", optarg);
 				opt_alg = JWT_ALG_RS256;
 			}
