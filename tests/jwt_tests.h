@@ -26,15 +26,19 @@
 /* Constant time to make tests consistent. */
 #define TS_CONST	1475980545L
 
+typedef struct {
+	const char *name;
+	jwt_crypto_provider_t type;
+} jwt_test_op_t;
+
 __attribute__((unused))
-static const char *jwt_test_ops[] = {
+static jwt_test_op_t jwt_test_ops[] = {
 #ifdef HAVE_OPENSSL
-	"openssl",
+	{ .name = "openssl", .type = JWT_CRYPTO_OPS_OPENSSL },
 #endif
 #ifdef HAVE_GNUTLS
-	"gnutls",
+	{ .name ="gnutls", .type = JWT_CRYPTO_OPS_GNUTLS },
 #endif
-	NULL
 };
 
 /* Macro to allocate a new JWT with checks. */
@@ -59,21 +63,23 @@ static const char *jwt_test_ops[] = {
 	return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;	\
 })
 
-#define SET_OPS() ({							\
-	ck_assert_int_eq(jwt_set_crypto_ops(jwt_test_ops[_i]), 0);	\
-	const char *ops = jwt_get_crypto_ops();				\
-	ck_assert_str_eq(ops, jwt_test_ops[_i]);			\
+#define SET_OPS() ({						\
+	int r = jwt_set_crypto_ops(jwt_test_ops[_i].name);	\
+	ck_assert_int_eq(r, 0);					\
+	const char *ops = jwt_get_crypto_ops();			\
+	ck_assert_str_eq(ops, jwt_test_ops[_i].name);		\
 })
 
-#define SET_OPS_JWK() ({				\
-	SET_OPS();					\
-	if (!jwt_crypto_ops_supports_jwk()) {		\
-		errno = 0;				\
-		jwk_set_t *jwks = jwks_create(NULL);	\
-		ck_assert_ptr_null(jwks);		\
-		ck_assert_int_eq(errno, ENOSYS);	\
-		return;					\
-	}						\
+#define SET_OPS_JWK() ({					\
+	int r = jwt_set_crypto_ops_t(jwt_test_ops[_i].type);	\
+	ck_assert_int_eq(r, 0);					\
+	if (!jwt_crypto_ops_supports_jwk()) {			\
+		errno = 0;					\
+		jwk_set_t *jwks = jwks_create(NULL);		\
+		ck_assert_ptr_null(jwks);			\
+		ck_assert_int_eq(errno, ENOSYS);		\
+		return;						\
+	}							\
 })
 
 __attribute__((unused)) static unsigned char *key;

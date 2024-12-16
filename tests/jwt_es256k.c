@@ -76,7 +76,7 @@ static Suite *libjwt_suite(const char *title)
 {
 	Suite *s;
 	TCase *tc_core;
-	int i = ARRAY_SIZE(jwt_test_ops) - 1;
+	int i = ARRAY_SIZE(jwt_test_ops);
 
 	s = suite_create(title);
 

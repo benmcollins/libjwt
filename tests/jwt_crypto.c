@@ -12,18 +12,25 @@ START_TEST(test_jwt_ops)
 {
 	int i;
 
-	for (i = 0; jwt_test_ops[i] != NULL; i++) {
-		const char *name = jwt_test_ops[i];
-		const char *test;
+	for (i = 0; i < ARRAY_SIZE(jwt_test_ops); i++) {
+		jwt_test_op_t *op = &jwt_test_ops[i];
+		const char *name;
+		jwt_crypto_provider_t type;
 
-		ck_assert(!jwt_set_crypto_ops(name));
+		ck_assert(!jwt_set_crypto_ops(op->name));
 
-		test = jwt_get_crypto_ops();
-		ck_assert_str_eq(test, name);
+		name = jwt_get_crypto_ops();
+		ck_assert_str_eq(name, op->name);
+
+		ck_assert(!jwt_set_crypto_ops_t(op->type));
+
+		type = jwt_get_crypto_ops_t();
+		ck_assert_int_eq(type, op->type);
 	}
 
 	/* Assert that this fails */
 	ck_assert(jwt_set_crypto_ops("ALWAYS FAIL"));
+	ck_assert(jwt_set_crypto_ops_t((jwt_crypto_provider_t)919192));
 }
 END_TEST
 
