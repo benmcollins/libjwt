@@ -263,13 +263,14 @@ JWT_EXPORT const char *jwks_error_msg(jwk_set_t *jwk_set);
  * jwk_set. This also means if the jwk_set is freed, then this data
  * is freed and cannot be used.
  *
- * It's also worth pointing out that the index of a specific jwk_item
- * in a jwk_set can and will change if items are added or removed
- * from the jwk_set.
- *
  * @param jwk_set An existing jwk_set_t
  * @param index Index of the jwk_set
  * @return 0 if no error exists, 1 if it does exists.
+ *
+ * @remark It's also worth pointing out that the index of a specific
+ *     jwk_item in a jwk_set can and will change if items are added or
+ *     removed.
+ * from the jwk_set.
  */
 JWT_EXPORT jwk_item_t *jwks_item_get(jwk_set_t *jwk_set, size_t index);
 
@@ -308,14 +309,14 @@ JWT_EXPORT int jwks_item_free_all(jwk_set_t *jwk_set);
  * LibJWT supports several crypto libaries, mainly "openssl" and "gnutls".
  * By default, if enabled, "openssl" is used.
  *
- * WARNING: Changing the crypto operations is not thread safe. You must
- * protect changing them with some sort of lock, including locking
- * around usage of the operations themselves. Ideally, you should only
- * perform this at the start of your application before using any of
- * LibJWTs functions. Failing to follow this guide can lead to crashes
- * in certain situations.
+ * @warning Changing the crypto operations is not thread safe. You must
+ *   protect changing them with some sort of lock, including locking
+ *   around usage of the operations themselves. Ideally, you should only
+ *   perform this at the start of your application before using any of
+ *   LibJWTs functions. Failing to follow this guide can lead to crashes
+ *   in certain situations.
  *
- * ENVIRONMENT: You can set JWT_CRYPTO to the default operations you
+ * @remark ENVIRONMENT: You can set JWT_CRYPTO to the default operations you
  * wish to use. If JWT_CRYPTO is invalid, an error message will be
  * printed to the console when LibJWT is loaded by the application.
  * @{
@@ -371,14 +372,13 @@ JWT_EXPORT int jwt_crypto_ops_supports_jwk(void);
  * Functions used to create and destroy JWT objects.
  *
  * Generally, one would use the jwt_new() function to create an object
- * from scratch and jwt_decode() to create and verify and object from an
- * existing token.
+ * from scratch and jwt_decode() to verify an object from an existing token.
  *
- * Note, when using RSA keys (e.g. with RS256), the key is expected to be
- * a private key in PEM format. If the RSA private key requires a passphrase,
- * the default is to request it on the command line from stdin. However,
- * you can override this using OpenSSL's default_passwd routines. For
- * example, using SSL_CTX_set_default_passwd_cb().
+ * @remark When using RSA keys (e.g. with RS256), the key is expected to be
+ *   a private key in PEM format. If the RSA private key requires a passphrase,
+ *   the default is to request it on the command line from stdin. However,
+ *   you can override this using OpenSSL's default_passwd routines. For
+ *   example, using SSL_CTX_set_default_passwd_cb().
  * @{
  */
 
@@ -420,6 +420,8 @@ JWT_EXPORT int jwt_new(jwt_t **jwt);
  *
  * @warning You should not assume that decoding means your JWT is verified.
  *     You should check the resulting jwt_t for proper algorithm and grants.
+ *     Specifically, you should verify that the alg set in the header is the
+ *     one you are expecting by calling jwt_get_alg(jwt) after decoding.
  */
 JWT_EXPORT int jwt_decode(jwt_t **jwt, const char *token,
 	                 const unsigned char *key, int key_len);
@@ -484,10 +486,10 @@ JWT_EXPORT jwt_t *jwt_dup(jwt_t *jwt);
  *     for.
  * @return Returns a string for the value, or NULL when not found.
  *
- * Note, this will only return grants with JSON string values. Use
- * jwt_get_grants_json() to get the JSON representation of more complex
- * values (e.g. arrays) or use jwt_get_grant_int() to get simple integer
- * values.
+ * @remark This will only return grants with JSON string values. Use
+ *   jwt_get_grants_json() to get the JSON representation of more complex
+ *   values (e.g. arrays) or use jwt_get_grant_int() to get simple integer
+ *   values.
  */
 JWT_EXPORT const char *jwt_get_grant(jwt_t *jwt, const char *grant);
 
@@ -503,9 +505,9 @@ JWT_EXPORT const char *jwt_get_grant(jwt_t *jwt, const char *grant);
  * @return Returns an int for the value. Sets errno to ENOENT when not
  * found.
  *
- * Note, this will only return grants with JSON integer values. Use
- * jwt_get_grants_json() to get the JSON representation of more complex
- * values (e.g. arrays) or use jwt_get_grant() to get string values.
+ * @remark This will only return grants with JSON integer values. Use
+ *   jwt_get_grants_json() to get the JSON representation of more complex
+ *   values (e.g. arrays) or use jwt_get_grant() to get string values.
  */
 JWT_EXPORT long jwt_get_grant_int(jwt_t *jwt, const char *grant);
 
@@ -521,9 +523,9 @@ JWT_EXPORT long jwt_get_grant_int(jwt_t *jwt, const char *grant);
  * @return Returns a boolean for the value. Sets errno to ENOENT when not
  * found.
  *
- * Note, this will only return grants with JSON boolean values. Use
- * jwt_get_grants_json() to get the JSON representation of more complex
- * values (e.g. arrays) or use jwt_get_grant() to get string values.
+ * @remark This will only return grants with JSON boolean values. Use
+ *   jwt_get_grants_json() to get the JSON representation of more complex
+ *   values (e.g. arrays) or use jwt_get_grant() to get string values.
  */
 JWT_EXPORT int jwt_get_grant_bool(jwt_t *jwt, const char *grant);
 
@@ -556,9 +558,9 @@ JWT_EXPORT char *jwt_get_grants_json(jwt_t *jwt, const char *grant);
  *     an empty string, but cannot be NULL.
  * @return Returns 0 on success, valid errno otherwise.
  *
- * Note, this only allows for string based grants. If you wish to add
- * integer grants, then use jwt_add_grant_int(). If you wish to add more
- * complex grants (e.g. an array), then use jwt_add_grants_json().
+ * @remark This only allows for string based grants. If you wish to add
+ *   integer grants, then use jwt_add_grant_int(). If you wish to add more
+ *   complex grants (e.g. an array), then use jwt_add_grants_json().
  */
 JWT_EXPORT int jwt_add_grant(jwt_t *jwt, const char *grant, const char *val);
 
@@ -575,9 +577,9 @@ JWT_EXPORT int jwt_add_grant(jwt_t *jwt, const char *grant, const char *val);
  * @param val int containing the value to be saved for grant.
  * @return Returns 0 on success, valid errno otherwise.
  *
- * Note, this only allows for integer based grants. If you wish to add
- * string grants, then use jwt_add_grant(). If you wish to add more
- * complex grants (e.g. an array), then use jwt_add_grants_json().
+ * @remark This only allows for integer based grants. If you wish to add
+ *   string grants, then use jwt_add_grant(). If you wish to add more
+ *   complex grants (e.g. an array), then use jwt_add_grants_json().
  */
 JWT_EXPORT int jwt_add_grant_int(jwt_t *jwt, const char *grant, long val);
 
@@ -594,9 +596,9 @@ JWT_EXPORT int jwt_add_grant_int(jwt_t *jwt, const char *grant, long val);
  * @param val boolean containing the value to be saved for grant.
  * @return Returns 0 on success, valid errno otherwise.
  *
- * Note, this only allows for boolean based grants. If you wish to add
- * string grants, then use jwt_add_grant(). If you wish to add more
- * complex grants (e.g. an array), then use jwt_add_grants_json().
+ * @remark This only allows for boolean based grants. If you wish to add
+ *   string grants, then use jwt_add_grant(). If you wish to add more
+ *   complex grants (e.g. an array), then use jwt_add_grants_json().
  */
 JWT_EXPORT int jwt_add_grant_bool(jwt_t *jwt, const char *grant, int val);
 
@@ -648,10 +650,10 @@ JWT_EXPORT int jwt_del_grants(jwt_t *jwt, const char *grant);
  *     for.
  * @return Returns a string for the value, or NULL when not found.
  *
- * Note, this will only return headers with JSON string values. Use
- * jwt_get_header_json() to get the JSON representation of more complex
- * values (e.g. arrays) or use jwt_get_header_int() to get simple integer
- * values.
+ * @remark This will only return headers with JSON string values. Use
+ *   jwt_get_header_json() to get the JSON representation of more complex
+ *   values (e.g. arrays) or use jwt_get_header_int() to get simple integer
+ *   values.
  */
 JWT_EXPORT const char *jwt_get_header(jwt_t *jwt, const char *header);
 
@@ -667,9 +669,9 @@ JWT_EXPORT const char *jwt_get_header(jwt_t *jwt, const char *header);
  * @return Returns an int for the value. Sets errno to ENOENT when not
  * found.
  *
- * Note, this will only return headers with JSON integer values. Use
- * jwt_get_header_json() to get the JSON representation of more complex
- * values (e.g. arrays) or use jwt_get_header() to get string values.
+ * @remark This will only return headers with JSON integer values. Use
+ *   jwt_get_header_json() to get the JSON representation of more complex
+ *   values (e.g. arrays) or use jwt_get_header() to get string values.
  */
 JWT_EXPORT long jwt_get_header_int(jwt_t *jwt, const char *header);
 
@@ -685,9 +687,9 @@ JWT_EXPORT long jwt_get_header_int(jwt_t *jwt, const char *header);
  * @return Returns a boolean for the value. Sets errno to ENOENT when not
  * found.
  *
- * Note, this will only return headers with JSON boolean values. Use
- * jwt_get_header_json() to get the JSON representation of more complex
- * values (e.g. arrays) or use jwt_get_header() to get string values.
+ * @remark This will only return headers with JSON boolean values. Use
+ *   jwt_get_header_json() to get the JSON representation of more complex
+ *   values (e.g. arrays) or use jwt_get_header() to get string values.
  */
 JWT_EXPORT int jwt_get_header_bool(jwt_t *jwt, const char *header);
 
@@ -720,9 +722,9 @@ JWT_EXPORT char *jwt_get_headers_json(jwt_t *jwt, const char *header);
  *     an empty string, but cannot be NULL.
  * @return Returns 0 on success, valid errno otherwise.
  *
- * Note, this only allows for string based headers. If you wish to add
- * integer headers, then use jwt_add_header_int(). If you wish to add more
- * complex headers (e.g. an array), then use jwt_add_headers_json().
+ * @remark This only allows for string based headers. If you wish to add
+ *   integer headers, then use jwt_add_header_int(). If you wish to add more
+ *   complex headers (e.g. an array), then use jwt_add_headers_json().
  */
 JWT_EXPORT int jwt_add_header(jwt_t *jwt, const char *header, const char *val);
 
@@ -739,9 +741,9 @@ JWT_EXPORT int jwt_add_header(jwt_t *jwt, const char *header, const char *val);
  * @param val int containing the value to be saved for header.
  * @return Returns 0 on success, valid errno otherwise.
  *
- * Note, this only allows for integer based headers. If you wish to add
- * string headers, then use jwt_add_header(). If you wish to add more
- * complex headers (e.g. an array), then use jwt_add_headers_json().
+ * @remark This only allows for integer based headers. If you wish to add
+ *   string headers, then use jwt_add_header(). If you wish to add more
+ *   complex headers (e.g. an array), then use jwt_add_headers_json().
  */
 JWT_EXPORT int jwt_add_header_int(jwt_t *jwt, const char *header, long val);
 
@@ -758,9 +760,9 @@ JWT_EXPORT int jwt_add_header_int(jwt_t *jwt, const char *header, long val);
  * @param val boolean containing the value to be saved for header.
  * @return Returns 0 on success, valid errno otherwise.
  *
- * Note, this only allows for boolean based headers. If you wish to add
- * string headers, then use jwt_add_header(). If you wish to add more
- * complex headers (e.g. an array), then use jwt_add_headers_json().
+ * @remark This only allows for boolean based headers. If you wish to add
+ *   string headers, then use jwt_add_header(). If you wish to add more
+ *   complex headers (e.g. an array), then use jwt_add_headers_json().
  */
 JWT_EXPORT int jwt_add_header_bool(jwt_t *jwt, const char *header, int val);
 
@@ -809,11 +811,11 @@ JWT_EXPORT int jwt_del_headers(jwt_t *jwt, const char *header);
  * not compute the signature or encryption (if such an algorithm were being
  * used).
  *
- * Note, this may change the content of JWT header if algorithm is set
- * on the JWT object. If algorithm is set (jwt_set_alg was called
- * on the jwt object) then dumping JWT attempts to append 'typ' header.
- * If the 'typ' header already exists, then it is left untouched,
- * otherwise it is added with default value of "JWT".
+ * @remark This may change the content of JWT header if algorithm is set
+ *   on the JWT object. If algorithm is set (jwt_set_alg was called
+ *   on the jwt object) then dumping JWT attempts to append 'typ' header.
+ *   If the 'typ' header already exists, then it is left untouched,
+ *   otherwise it is added with default value of "JWT".
  *
  * @param jwt Pointer to a JWT object.
  * @param fp Valid FILE pointer to write data to.
@@ -829,11 +831,11 @@ JWT_EXPORT int jwt_dump_fp(jwt_t *jwt, FILE *fp, int pretty);
  * Similar to jwt_dump_fp() except that a string is returned. The string
  * must be freed by the caller.
  *
- * Note, this may change the content of JWT header if algorithm is set
- * on the JWT object. If algorithm is set (jwt_set_alg was called
- * on the jwt object) then dumping JWT attempts to append 'typ' header.
- * If the 'typ' header already exists, then it is left untouched,
- * otherwise it is added with default value of "JWT".
+ * @remark This may change the content of JWT header if algorithm is set
+ *   on the JWT object. If algorithm is set (jwt_set_alg was called
+ *   on the jwt object) then dumping JWT attempts to append 'typ' header.
+ *   If the 'typ' header already exists, then it is left untouched,
+ *   otherwise it is added with default value of "JWT".
  *
  * @param jwt Pointer to a JWT object.
  * @param pretty Enables better visual formatting of output. Generally only
@@ -1119,7 +1121,7 @@ JWT_EXPORT const char *jwt_valid_get_grant(jwt_valid_t *jwt_valid, const char *g
  * @param val int containing the value to be saved for grant.
  * @return Returns 0 on success, valid errno otherwise.
  *
- * Note, this only allows for integer based grants. If you wish to add
+ * @remark This only allows for integer based grants. If you wish to add
  * string grants, then use jwt_valid_add_grant(). If you wish to add more
  * complex grants (e.g. an array), then use jwt_valid_add_grants_json().
  */
@@ -1137,7 +1139,7 @@ JWT_EXPORT int jwt_valid_add_grant_int(jwt_valid_t *jwt_valid, const char *grant
  * @return Returns an int for the value. Sets errno to ENOENT when not
  * found.
  *
- * Note, this will only return grants with JSON integer values. Use
+ * @remark This will only return grants with JSON integer values. Use
  * jwt_valid_get_grants_json() to get the JSON representation of more complex
  * values (e.g. arrays) or use jwt_valid_get_grant() to get string values.
  */
@@ -1156,7 +1158,7 @@ JWT_EXPORT long jwt_valid_get_grant_int(jwt_valid_t *jwt_valid, const char *gran
  * @param val boolean containing the value to be saved for grant.
  * @return Returns 0 on success, valid errno otherwise.
  *
- * Note, this only allows for boolean based grants. If you wish to add
+ * @remark This only allows for boolean based grants. If you wish to add
  * string grants, then use jwt_valid_add_grant(). If you wish to add more
  * complex grants (e.g. an array), then use jwt_valid_add_grants_json().
  */
@@ -1174,7 +1176,7 @@ JWT_EXPORT int jwt_valid_add_grant_bool(jwt_valid_t *jwt_valid, const char *gran
  * @return Returns a boolean for the value. Sets errno to ENOENT when not
  * found.
  *
- * Note, this will only return grants with JSON boolean values. Use
+ * @remark This will only return grants with JSON boolean values. Use
  * jwt_valid_get_grants_json() to get the JSON representation of more complex
  * values (e.g. arrays) or use jwt_valid_get_grant() to get string values.
  */
@@ -1273,7 +1275,7 @@ JWT_EXPORT int jwt_valid_set_headers(jwt_valid_t *jwt_valid, int hdr);
  * The returned string must be freed by the caller. If you changed the allocation
  * method using jwt_set_alloc, then you must use jwt_free_str() to free the memory.
  *
- * Note: This string is currently en-US ASCII only. Language support will come in the
+ * @remark This string is currently en-US ASCII only. Language support will come in the
  * future.
  *
  * @param exceptions Integer containing the exception flags.
