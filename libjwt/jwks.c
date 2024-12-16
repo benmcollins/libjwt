@@ -121,13 +121,13 @@ static jwk_item_t *jwk_process_one(jwk_set_t *jwk_set, json_t *jwk)
 
 	if (!strcmp(kty, "EC")) {
 		item->kty = JWK_KEY_TYPE_EC;
-		process_ec_jwk(jwk, item);
+		jwt_ops->process_ec(jwk, item);
 	} else if (!strcmp(kty, "RSA")) {
 		item->kty = JWK_KEY_TYPE_RSA;
-		process_rsa_jwk(jwk, item);
+		jwt_ops->process_rsa(jwk, item);
 	} else if (!strcmp(kty, "OKP")) {
 		item->kty = JWK_KEY_TYPE_OKP;
-		process_eddsa_jwk(jwk, item);
+		jwt_ops->process_eddsa(jwk, item);
 	} else {
 		jwks_write_error(item, "Unknown or unsupported kty type '%s'", kty);
 		return item;
@@ -200,7 +200,7 @@ int jwks_item_free(jwk_set_t *jwk_set, size_t index)
 	item = todel->item;
 
 	/* Let the crypto ops clean their stuff up. */
-	process_item_free(item);
+	jwt_ops->process_item_free(item);
 
 	/* A few non-crypto specific things. */
 	jwt_freemem(item->kid);
@@ -237,6 +237,11 @@ jwk_set_t *jwks_create(const char *jwk_json_str)
 	jwk_set_t *jwk_set;
 	jwk_item_t *jwk_item;
 	size_t i;
+
+	if (!jwt_crypto_ops_supports_jwk()) {
+		errno = ENOSYS;
+		return NULL;
+	}
 
 	errno = 0;
 
@@ -283,30 +288,3 @@ jwk_set_t *jwks_create(const char *jwk_json_str)
 
 	return jwk_set;
 }
-
-#ifndef HAVE_OPENSSL
-static const char not_implemented[] = "Requires OpenSSL 3";
-
-int process_eddsa_jwk(json_t *jwk, jwk_item_t *item)
-{
-	jwks_write_error(item, not_implemented);
-	return -1;
-}
-
-int process_rsa_jwk(json_t *jwk, jwk_item_t *item)
-{
-	jwks_write_error(item, not_implemented);
-	return -1;
-}
-
-int process_ec_jwk(json_t *jwk, jwk_item_t *item)
-{
-	jwks_write_error(item, not_implemented);
-	return -1;
-}
-
-void process_item_free(jwk_item_t *item)
-{
-	return;
-}
-#endif /* HAVE_OPENSSL */

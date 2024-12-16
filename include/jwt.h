@@ -81,7 +81,7 @@ typedef enum {
 	JWK_CRYPTO_OPS_NONE,
 	JWK_CRYPTO_OPS_OPENSSL,
 	JWK_CRYPTO_OPS_GNUTLS,
-} jwk_crypto_provider_t;
+} jwt_crypto_provider_t;
 
 /* The different JWK kty values we understand. */
 typedef enum {
@@ -110,7 +110,7 @@ typedef struct jwk_item {
 	char *pem;
 
 	/* The crypto provider that parsed this key. */
-	jwk_crypto_provider_t provider;
+	jwt_crypto_provider_t provider;
 	/* Data internal to the crypto ops provider that parsed this key.
 	 * It should not be used or modified except by the original
 	 * provider. For example, OpenSSL uses this to store the EVP_PKEY.
@@ -231,6 +231,15 @@ JWT_EXPORT int jwks_item_add(jwk_set_t *jwk_set, jwk_item_t *item);
 JWT_EXPORT int jwks_error(jwk_set_t *jwk_set);
 
 /**
+ * Check if there is an error within the jwk_set and any of
+ * the jwk_item_t in the set.
+ *
+ * @param jwk_set An existing jwk_set_t
+ * @return 0 if no error exists, 1 if any exists.
+ */
+JWT_EXPORT int jwks_error_any(jwk_set_t *jwk_set);
+
+/**
  * Retrieve an error message from a jwk_set. Note, a zero
  * length string is valid if jwos_error() returns non-zero.
  *
@@ -289,12 +298,15 @@ JWT_EXPORT int jwks_item_free_all(jwk_set_t *jwk_set);
  * @defgroup jwt_crypto JWT Crypto Operations
  * Functions used to set and get which crypto operations are used
  *
- * LibJWT supports several crypto libaries, mainly "openssl" and "gnutls.
+ * LibJWT supports several crypto libaries, mainly "openssl" and "gnutls".
  * By default, if enabled, "openssl" is used.
  *
- * NOTE: Changing the crypto operations is not thread safe. You must
+ * WARNING: Changing the crypto operations is not thread safe. You must
  * protect changing them with some sort of lock, including locking
- * around usage of the operations themselves.
+ * around usage of the operations themselves. Ideally, you should only
+ * perform this at the start of your application before using any of
+ * LibJWTs functions. Failing to follow this guide can lead to crashes
+ * in certain situations.
  *
  * ENVIRONMENT: You can set JWT_CRYPTO to the default operations you
  * wish to use. If JWT_CRYPTO is invalid, an error message will be
@@ -310,6 +322,13 @@ JWT_EXPORT int jwks_item_free_all(jwk_set_t *jwk_set);
 JWT_EXPORT const char *jwt_get_crypto_ops(void);
 
 /**
+ * Retrieve the type of the current crypto operations being used.
+ *
+ * @return jwt_crypto_provider_t of the crypto operation set
+ */
+JWT_EXPORT jwt_crypto_provider_t jwt_get_crypto_ops_t(void);
+
+/**
  * Set the crypto operations to the named set.
  *
  * The opname is one of the available operators in the compiled version
@@ -319,6 +338,24 @@ JWT_EXPORT const char *jwt_get_crypto_ops(void);
  * @return 0 on success, valid errno otherwise.
  */
 JWT_EXPORT int jwt_set_crypto_ops(const char *opname);
+
+/**
+ * Set the crypto operations to a jwt_crypto_provider_t type
+ *
+ * The same as jwt_set_crypto_ops(), but uses the type as opname
+ *
+ * @param opname A valid jwt_crypto_provider_t type
+ * @return 0 on success, valid errno otherwise.
+ */
+JWT_EXPORT int jwt_set_crypto_ops_t(jwt_crypto_provider_t opname);
+
+/**
+ * Check if the current crypto operations support JWK usage
+ *
+ * @return 1 if it does, 0 if not
+ */
+JWT_EXPORT int jwt_crypto_ops_supports_jwk(void);
+
 
 /** @} */
 

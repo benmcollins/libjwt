@@ -8,22 +8,14 @@
 
 #include "jwt_tests.h"
 
-#include <openssl/opensslconf.h>
-
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
-#define openssl_check()
-#else
-#define openssl_check() return;
-#endif
-
 START_TEST(test_jwks_rsa_pub_missing)
-{ openssl_check();
+{
 	const char *json = "{\"kty\":\"RSA\"}";
 	jwk_set_t *jwk_set = NULL;
 	jwk_item_t *item;
 	const char exp[] = "Missing required RSA component: n or e";
 
-	SET_OPS();
+	SET_OPS_JWK();
 
 	jwk_set = jwks_create(json);
 
@@ -41,13 +33,13 @@ START_TEST(test_jwks_rsa_pub_missing)
 END_TEST
 
 START_TEST(test_jwks_rsa_pub_bad_type)
-{ openssl_check();
+{
 	const char *json = "{\"kty\":\"RSA\",\"n\":\"YmFkdmFsdWUK\",\"e\":1}";
 	jwk_set_t *jwk_set = NULL;
 	jwk_item_t *item;
 	const char exp[] = "Error decoding pub components";
 
-	SET_OPS();
+	SET_OPS_JWK();
 
 	jwk_set = jwks_create(json);
 
@@ -65,13 +57,13 @@ START_TEST(test_jwks_rsa_pub_bad_type)
 END_TEST
 
 START_TEST(test_jwks_rsa_pub_bad64)
-{ openssl_check();
+{
 	const char *json = "{\"kty\":\"RSA\",\"n\":\"\",\"e\":\"asaadaaaaaa\"}";
 	jwk_set_t *jwk_set = NULL;
 	jwk_item_t *item;
 	const char exp[] = "Error decoding pub components";
 
-	SET_OPS();
+	SET_OPS_JWK();
 
 	jwk_set = jwks_create(json);
 
@@ -89,14 +81,14 @@ START_TEST(test_jwks_rsa_pub_bad64)
 END_TEST
 
 START_TEST(test_jwks_rsa_pub_binary64)
-{ openssl_check();
+{
 	const char *json = "{\"kty\":\"RSA\",\"n\":"
 		"\"2fyxRFHaYP2a4pbdTK/s9x4YWV7qAWwJMXMkbRmy51w\","
 		"\"e\":\"2fyxRFHaYP2a4pbdTK/s9x4YWV7qAWwJMXMkbRmy51w\"}";
 	jwk_set_t *jwk_set = NULL;
 	jwk_item_t *item;
 
-	SET_OPS();
+	SET_OPS_JWK();
 
 	jwk_set = jwks_create(json);
 
@@ -113,14 +105,14 @@ START_TEST(test_jwks_rsa_pub_binary64)
 END_TEST
 
 START_TEST(test_jwks_rsa_priv_missing)
-{ openssl_check();
+{
 	const char *json = "{\"kty\":\"RSA\",\"n\":\"YmFkdmFsdWUK\","
 		"\"e\":\"YmFkdmFsdWUK\",\"d\":\"YmFkdmFsdWUK\"}";
 	jwk_set_t *jwk_set = NULL;
 	jwk_item_t *item;
 	const char exp[] = "Some priv key components exist, but some are missing";
 
-	SET_OPS();
+	SET_OPS_JWK();
 
 	jwk_set = jwks_create(json);
 
@@ -138,7 +130,7 @@ START_TEST(test_jwks_rsa_priv_missing)
 END_TEST
 
 START_TEST(test_jwks_rsa_priv_bad64)
-{ openssl_check();
+{
 	const char *json = "{\"kty\":\"RSA\",\"n\":\"YmFkdmFsdWUK\","
 		"\"e\":\"YmFkdmFsdWUK\",\"d\":"
 		"\"2fyxRFHaYP2a4pbdTK/s9x4YWV7qAWwJMXMkbRmy51w\","
@@ -147,7 +139,7 @@ START_TEST(test_jwks_rsa_priv_bad64)
 	jwk_item_t *item;
 	const char exp[] = "Error decoding priv components";
 
-	SET_OPS();
+	SET_OPS_JWK();
 
 	jwk_set = jwks_create(json);
 

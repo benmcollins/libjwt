@@ -530,11 +530,28 @@ jwt_verify_sha_pem_done:
 	return ret;
 }
 
+int openssl_process_eddsa(json_t *jwk, jwk_item_t *item);
+int openssl_process_rsa(json_t *jwk, jwk_item_t *item);
+int openssl_process_ec(json_t *jwk, jwk_item_t *item);
+void openssl_process_item_free(jwk_item_t *item);
+
 /* Export our ops */
 struct jwt_crypto_ops jwt_openssl_ops = {
 	.name			= "openssl",
+	.provider		= JWK_CRYPTO_OPS_OPENSSL,
+
 	.sign_sha_hmac		= openssl_sign_sha_hmac,
 	.verify_sha_hmac	= openssl_verify_sha_hmac,
 	.sign_sha_pem		= openssl_sign_sha_pem,
 	.verify_sha_pem		= openssl_verify_sha_pem,
+
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+	.jwk_implemented	= 1,
+#else
+	.jwk_implemented	= 0,
+#endif
+	.process_eddsa		= openssl_process_eddsa,
+	.process_rsa		= openssl_process_rsa,
+	.process_ec		= openssl_process_ec,
+	.process_item_free	= openssl_process_item_free,
 };

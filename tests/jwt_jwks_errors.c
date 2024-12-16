@@ -8,21 +8,13 @@
 
 #include "jwt_tests.h"
 
-#include <openssl/opensslconf.h>
-
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
-#define openssl_check()
-#else
-#define openssl_check() return;
-#endif
-
 START_TEST(test_jwks_bad_json)
-{ openssl_check();
+{
 	const char *json = "INVALID";
 	jwk_set_t *jwk_set = NULL;
 	const char *msg;
 
-	SET_OPS();
+	SET_OPS_JWK();
 
 	jwk_set = jwks_create(json);
 
@@ -38,14 +30,14 @@ START_TEST(test_jwks_bad_json)
 END_TEST
 
 START_TEST(test_jwks_unknown_kty)
-{ openssl_check();
+{
 	const char *json = "{\"kty\":\"INVALID\"}";
 	jwk_set_t *jwk_set = NULL;
 	jwk_item_t *item;
 	const char exp[] = "Unknown or unsupported kty type";
 	int ret;
 
-	SET_OPS();
+	SET_OPS_JWK();
 
 	jwk_set = jwks_create(json);
 
@@ -64,14 +56,14 @@ START_TEST(test_jwks_unknown_kty)
 END_TEST
 
 START_TEST(test_jwks_missing_kty)
-{ openssl_check();
+{
 	const char *json = "{\"NOT-kty\":\"INVALID\"}";
 	jwk_set_t *jwk_set = NULL;
 	jwk_item_t *item;
 	const char exp[] = "Invalid JWK: missing kty value";
 	int ret;
 
-	SET_OPS();
+	SET_OPS_JWK();
 
 	jwk_set = jwks_create(json);
 
@@ -90,11 +82,11 @@ START_TEST(test_jwks_missing_kty)
 END_TEST
 
 START_TEST(test_jwks_empty)
-{ openssl_check();
+{
 	jwk_set_t *jwk_set = NULL;
 	jwk_item_t *item = NULL;
 
-	SET_OPS();
+	SET_OPS_JWK();
 
 	jwk_set = jwks_create(NULL);
 
@@ -109,12 +101,12 @@ START_TEST(test_jwks_empty)
 END_TEST
 
 START_TEST(test_jwks_item_add)
-{ openssl_check();
+{
 	jwk_set_t *jwk_set = NULL;
 	jwk_item_t *item, *test;
 	int ret;
 
-	SET_OPS();
+	SET_OPS_JWK();
 
 	jwk_set = jwks_create(NULL);
 

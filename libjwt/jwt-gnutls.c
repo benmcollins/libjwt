@@ -416,11 +416,25 @@ verify_clean_sig:
 	return ret;
 }
 
+int gnutls_process_eddsa(json_t *jwk, jwk_item_t *item);
+int gnutls_process_rsa(json_t *jwk, jwk_item_t *item);
+int gnutls_process_ec(json_t *jwk, jwk_item_t *item);
+void gnutls_process_item_free(jwk_item_t *item);
+
 /* Export our ops */
 struct jwt_crypto_ops jwt_gnutls_ops = {
 	.name			= "gnutls",
+	.provider		= JWK_CRYPTO_OPS_OPENSSL,
+
 	.sign_sha_hmac		= gnutls_sign_sha_hmac,
 	.verify_sha_hmac	= gnutls_verify_sha_hmac,
 	.sign_sha_pem		= gnutls_sign_sha_pem,
 	.verify_sha_pem		= gnutls_verify_sha_pem,
+
+	/* Needs to be implemented */
+	.jwk_implemented	= 0,
+	.process_eddsa		= gnutls_process_eddsa,
+	.process_rsa		= gnutls_process_rsa,
+	.process_ec		= gnutls_process_ec,
+	.process_item_free	= gnutls_process_item_free,
 };

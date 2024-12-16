@@ -19,7 +19,7 @@ libjwt_la_SOURCES += jwt-openssl.c jwks-openssl.c
 endif
 
 if HAVE_GNUTLS
-libjwt_la_SOURCES += jwt-gnutls.c
+libjwt_la_SOURCES += jwt-gnutls.c jwks-gnutls.c
 endif
 
 pkgconfiglibdir = $(libdir)/pkgconfig

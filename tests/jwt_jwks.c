@@ -8,19 +8,11 @@
 
 #include "jwt_tests.h"
 
-#include <openssl/opensslconf.h>
-
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
-#define openssl_check()
-#else
-#define openssl_check() return;
-#endif
-
 #define JWKS_KEY_TEST(__name)				\
 START_TEST(test_jwks_##__name)				\
-{ openssl_check();					\
-	SET_OPS();					\
-	__jwks_check(#__name ".json", #__name ".pem");	\
+{							\
+	SET_OPS_JWK();					\
+       __jwks_check(#__name ".json", #__name ".pem");	\
 }							\
 END_TEST
 
@@ -72,12 +64,12 @@ JWKS_KEY_TEST(rsa_pss_key_2048);
 JWKS_KEY_TEST(rsa_pss_key_2048_pub);
 
 START_TEST(test_jwks_keyring_load)
-{ openssl_check();
+{
 	jwk_set_t *jwk_set = NULL;
 	jwk_item_t *item;
 	int i;
 
-	SET_OPS();
+	SET_OPS_JWK();
 
 	read_key("jwks_keyring.json");
 	jwk_set = jwks_create((char *)key);

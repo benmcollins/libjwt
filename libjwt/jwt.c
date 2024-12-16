@@ -30,9 +30,11 @@ static struct jwt_crypto_ops *jwt_ops_available[] = {
 };
 
 #ifdef HAVE_OPENSSL
-static struct jwt_crypto_ops *jwt_ops = &jwt_openssl_ops;
+struct jwt_crypto_ops *jwt_ops = &jwt_openssl_ops;
+#elif defined HAVE_GNUTLS
+struct jwt_crypto_ops *jwt_ops = &jwt_gnutls_ops;
 #else
-static struct jwt_crypto_ops *jwt_ops = &jwt_gnutls_ops;
+#error No crypto ops providers are enabled
 #endif
 
 const char *jwt_get_crypto_ops(void)
@@ -41,6 +43,30 @@ const char *jwt_get_crypto_ops(void)
 		return "(unknown)";
 
 	return jwt_ops->name;
+}
+
+jwt_crypto_provider_t jwt_get_crypto_ops_t(void)
+{
+	if (jwt_ops == NULL)
+		return JWK_CRYPTO_OPS_NONE;
+
+	return jwt_ops->provider;
+}
+
+int jwt_set_crypto_ops_t(jwt_crypto_provider_t opname)
+{
+	int i;
+
+	/* The user asked for something, let's give it a try */
+	for (i = 0; jwt_ops_available[i] != NULL; i++) {
+		if (jwt_ops_available[i]->provider != opname)
+			continue;
+
+		jwt_ops = jwt_ops_available[i];
+		return 0;
+	}
+
+	return EINVAL;
 }
 
 int jwt_set_crypto_ops(const char *opname)
@@ -59,7 +85,13 @@ int jwt_set_crypto_ops(const char *opname)
 	return EINVAL;
 }
 
-__attribute__((constructor)) void jwt_init()
+int jwt_crypto_ops_supports_jwk(void)
+{
+	return jwt_ops->jwk_implemented ? 1 : 0;
+}
+
+__attribute__((constructor))
+void jwt_init()
 {
 	const char *opname = getenv("JWT_CRYPTO");
 

@@ -65,6 +65,17 @@ static const char *jwt_test_ops[] = {
 	ck_assert_str_eq(ops, jwt_test_ops[_i]);			\
 })
 
+#define SET_OPS_JWK() ({				\
+	SET_OPS();					\
+	if (!jwt_crypto_ops_supports_jwk()) {		\
+		errno = 0;				\
+		jwk_set_t *jwks = jwks_create(NULL);	\
+		ck_assert_ptr_null(jwks);		\
+		ck_assert_int_eq(errno, ENOSYS);	\
+		return;					\
+	}						\
+})
+
 __attribute__((unused)) static unsigned char *key;
 __attribute__((unused)) static size_t key_len;
 

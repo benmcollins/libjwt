@@ -17,6 +17,8 @@
 
 #include "ll.h"
 
+extern struct jwt_crypto_ops *jwt_ops;
+
 #define jwks_write_error(__obj, __fmt, __args...)		\
 ({								\
 	snprintf(__obj->error_msg, sizeof(__obj->error_msg),	\
@@ -58,6 +60,9 @@ struct jwk_set {
 /* Crypto operations */
 struct jwt_crypto_ops {
 	const char *name;
+	jwt_crypto_provider_t provider;
+
+	/* Signing/Verifying */
 	int (*sign_sha_hmac)(jwt_t *jwt, char **out, unsigned int *len,
 		const char *str, unsigned int str_len);
 	int (*verify_sha_hmac)(jwt_t *jwt, const char *head,
@@ -66,13 +71,14 @@ struct jwt_crypto_ops {
 		const char *str, unsigned int str_len);
 	int (*verify_sha_pem)(jwt_t *jwt, const char *head,
 		unsigned int head_len, const char *sig_b64);
-};
 
-/* Functions provided by crypto to convert a JWK to a usable item */
-int process_eddsa_jwk(json_t *jwk, jwk_item_t *item);
-int process_rsa_jwk(json_t *jwk, jwk_item_t *item);
-int process_ec_jwk(json_t *jwk, jwk_item_t *item);
-void process_item_free(jwk_item_t *item);
+	/* Parsing a JWK to prepare it for use */
+	int jwk_implemented;
+	int (*process_eddsa)(json_t *jwk, jwk_item_t *item);
+	int (*process_rsa)(json_t *jwk, jwk_item_t *item);
+	int (*process_ec)(json_t *jwk, jwk_item_t *item);
+	void (*process_item_free)(jwk_item_t *item);
+};
 
 #ifdef HAVE_OPENSSL
 extern struct jwt_crypto_ops jwt_openssl_ops;
