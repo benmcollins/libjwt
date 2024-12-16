@@ -42,7 +42,7 @@ START_TEST(test_jwks_unknown_kty)
 	const char *json = "{\"kty\":\"INVALID\"}";
 	jwk_set_t *jwk_set = NULL;
 	jwk_item_t *item;
-	const char exp[] = "Unknown kty type";
+	const char exp[] = "Unknown or unsupported kty type";
 	int ret;
 
 	SET_OPS();
