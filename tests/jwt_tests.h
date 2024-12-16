@@ -39,6 +39,9 @@ static jwt_test_op_t jwt_test_ops[] = {
 #ifdef HAVE_GNUTLS
 	{ .name ="gnutls", .type = JWT_CRYPTO_OPS_GNUTLS },
 #endif
+#ifdef HAVE_MBEDTLS
+	{ .name ="mbedtls", .type = JWT_CRYPTO_OPS_MBEDTLS },
+#endif
 };
 
 /* Macro to allocate a new JWT with checks. */

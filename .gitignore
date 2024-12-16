@@ -46,6 +46,7 @@ Makefile
 !/m4/ax_code_coverage.m4
 !/m4/ax_valgrind_check.m4
 !/m4/jwt_weak_alias.m4
+!/m4/mbedtls.m4
 /doxygen-doc/*
 /libjwt/libjwt.pc
 /dist/libjwt.spec

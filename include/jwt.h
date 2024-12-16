@@ -81,6 +81,7 @@ typedef enum {
 	JWT_CRYPTO_OPS_NONE,
 	JWT_CRYPTO_OPS_OPENSSL,
 	JWT_CRYPTO_OPS_GNUTLS,
+	JWT_CRYPTO_OPS_MBEDTLS,
 } jwt_crypto_provider_t;
 
 /* The different JWK kty values we understand. */

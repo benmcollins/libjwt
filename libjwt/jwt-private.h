@@ -86,6 +86,9 @@ extern struct jwt_crypto_ops jwt_openssl_ops;
 #ifdef HAVE_GNUTLS
 extern struct jwt_crypto_ops jwt_gnutls_ops;
 #endif
+#ifdef HAVE_MBEDTLS
+extern struct jwt_crypto_ops jwt_mbedtls_ops;
+#endif
 
 /* Memory allocators. */
 void *jwt_malloc(size_t size);

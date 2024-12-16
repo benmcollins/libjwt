@@ -26,13 +26,18 @@ static struct jwt_crypto_ops *jwt_ops_available[] = {
 #ifdef HAVE_GNUTLS
 	&jwt_gnutls_ops,
 #endif
+#ifdef HAVE_MBEDTLS
+	&jwt_mbedtls_ops,
+#endif
 	NULL,
 };
 
-#ifdef HAVE_OPENSSL
+#if defined HAVE_OPENSSL
 struct jwt_crypto_ops *jwt_ops = &jwt_openssl_ops;
 #elif defined HAVE_GNUTLS
 struct jwt_crypto_ops *jwt_ops = &jwt_gnutls_ops;
+#elif defined HAVE_MBEDTLS
+struct jwt_crypto_ops *jwt_ops = &jwt_mbedtls_ops;
 #else
 #error No crypto ops providers are enabled
 #endif

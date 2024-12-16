@@ -21,6 +21,13 @@ AC_ARG_WITH([openssl],
 	[],
 	[with_openssl=check])
 
+AC_ARG_WITH([mbedtls],
+        [AS_HELP_STRING([--with-mbedtls],
+                [Support MBedTLS for crypto operations @<:@default=no@:>@])],
+        [],
+        [with_openssl=no])
+
+CHECK_MBEDTLS
 
 AS_IF([test "x$with_gnutls" != xno],
 	[PKG_CHECK_MODULES([GNUTLS], [gnutls >= 3.6.0],
