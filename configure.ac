@@ -21,7 +21,7 @@ AC_ARG_WITH([openssl],
 	[],
 	[with_openssl=check])
 
-[AM_CONDITIONAL([HAVE_GNUTLS], [false])]
+AM_CONDITIONAL([HAVE_GNUTLS], [false])
 AS_IF([test "x$with_gnutls" != xno],
 	[PKG_CHECK_MODULES([GNUTLS], [gnutls >= 3.6.0],
 	[AM_CONDITIONAL([HAVE_GNUTLS], [true])]
@@ -31,7 +31,7 @@ AS_IF([test "x$with_gnutls" != xno],
 		AC_MSG_FAILURE([--with-gnutls was given but GnuTLS not found])
 	))])
 
-[AM_CONDITIONAL([HAVE_OPENSSL], [false])]
+AM_CONDITIONAL([HAVE_OPENSSL], [false])
 AS_IF([test "x$with_openssl" != xno],
 	[PKG_CHECK_MODULES([OPENSSL], [openssl >= 1.1.0],
         [AM_CONDITIONAL([HAVE_OPENSSL], [true])]
