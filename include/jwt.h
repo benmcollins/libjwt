@@ -72,39 +72,91 @@ typedef enum jwt_alg {
 	JWT_ALG_PS512,
 	JWT_ALG_ES256K,
 	JWT_ALG_EDDSA,
-	JWT_ALG_TERM
 } jwt_alg_t;
 
-/* JWK Algorithm use types. The ops above are preferred. */
+#define JWT_ALG_INVAL (JWT_ALG_EDDSA + 1)
+
+/* Different providers for crypto operations. */
 typedef enum {
-	JWK_ALG_USE_NONE = 0,
-	JWK_ALG_USE_SIGN,
-	JWK_ALG_USE_ENC,
-} jwk_alg_use_t;
+	JWK_CRYPTO_OPS_NONE,
+	JWK_CRYPTO_OPS_OPENSSL,
+	JWK_CRYPTO_OPS_GNUTLS,
+} jwk_crypto_provider_t;
+
+/* The different JWK kty values we understand. */
+typedef enum {
+	JWK_KEY_TYPE_NONE = 0,
+	JWK_KEY_TYPE_EC,
+	JWK_KEY_TYPE_RSA,
+	JWK_KEY_TYPE_OKP,
+} jwk_key_type_t;
+
+/* JWK Public Key Use types. */
+typedef enum {
+	JWK_PUB_KEY_USE_NONE = 0,
+	JWK_PUB_KEY_USE_SIG,
+	JWK_PUB_KEY_USE_ENC,
+} jwk_pub_key_use_t;
 
 /** JWK item */
 typedef struct jwk_item {
+	/* Required type. */
+	jwk_key_type_t kty;
+
+	/* nil terminated string representation of the key in PEM format.
+	 * Each crypto ops provider should attempt to provide this so
+	 * if the user of LibJWT wants to use one ops provider for JWKS
+	 * parsing, but another for JWT operations, they can do so. */
 	char *pem;
+
+	/* The crypto provider that parsed this key. */
+	jwk_crypto_provider_t provider;
+	/* Data internal to the crypto ops provider that parsed this key.
+	 * It should not be used or modified except by the original
+	 * provider. For example, OpenSSL uses this to store the EVP_PKEY.
+	 * The provider is responsible for freeing this via callback when
+	 * this item is freed. */
+	void *provider_data;
+	/* Set to 1 if the key is a private key (or a key pair). The
+	 * crypto provider should make a best effort to set this. */
+	int is_private_key;
+	/* If the kty is EC or OKP, this should be set to the curve name
+	 * by the crypto provider, if 'crv' is present, or the crypto
+	 * provider can deduce it after parsing the JWK. */
+	char curve[256];
+	/* If possible, the crypto provider should set this to the number of
+	 * cryptographic bits in the key (e.g. 256 for prime256v1 EC key, or
+	 * 4096 for an RSA key with 4096 bit 'e'). */
+	size_t bits;
+
+	/* Stores error state related to this item. If error is set, this
+	 * item will not be used for JWT operations. */
 	int error;
 	char error_msg[256];
-	jwt_alg_t alg_list[8];
-	unsigned short alg_ops;
-	jwk_alg_use_t use;
-	char kid[256];
+
+	/* Public key use. */
+	jwk_pub_key_use_t use;
+	/* The different key ops this key can be used for. */
+	unsigned short key_ops;
+	/* The alg this key can be used for. */
+	jwt_alg_t alg;
+
+	/* Provided by the JWK, used for JWT operations to match a key
+	 * to a token. */
+	char *kid;
 } jwk_item_t;
 
-/* JWK Algorithm op types. */
-#define JWK_ALG_OP_NONE		0x0000
-#define JWK_ALG_OP_SIGN		0x0001
-#define JWK_ALG_OP_VERIFY	0x0002
-#define JWK_ALG_OP_ENCRYPT	0x0004
-#define JWK_ALG_OP_DECRYPT	0x0008
-#define JWK_ALG_OP_WRAP		0x0010
-#define JWK_ALG_OP_UNWRAP	0x0020
-#define JWK_ALG_OP_DERIVE_KEY	0x0040
-#define JWK_ALG_OP_DERIVE_BITS	0x0080
-
-#define JWT_ALG_INVAL JWT_ALG_TERM
+/* JWK op types, bitwise flags. */
+#define JWK_KEY_OP_NONE		0x0000
+#define JWK_KEY_OP_SIGN		0x0001
+#define JWK_KEY_OP_VERIFY	0x0002
+#define JWK_KEY_OP_ENCRYPT	0x0004
+#define JWK_KEY_OP_DECRYPT	0x0008
+#define JWK_KEY_OP_WRAP		0x0010
+#define JWK_KEY_OP_UNWRAP	0x0020
+#define JWK_KEY_OP_DERIVE_KEY	0x0040
+#define JWK_KEY_OP_DERIVE_BITS	0x0080
+typedef unsigned short		jwk_key_op_t;
 
 /** JWT Validation exception types. These are bit values. */
 #define JWT_VALIDATION_SUCCESS		0x0000
@@ -156,7 +208,7 @@ typedef int (*jwt_key_p_t)(const jwt_t *, jwt_key_t *);
  * @return A valid jwt_set_t on success. On failure, either NULL
  *   or a jwt_set_t with error set. NULL generally means ENOMEM.
  */
-jwk_set_t *jwks_create(const char *jwk_json_str);
+JWT_EXPORT jwk_set_t *jwks_create(const char *jwk_json_str);
 
 /**
  * Add a jwk_item_t to an existing jwk_set_t
@@ -165,7 +217,7 @@ jwk_set_t *jwks_create(const char *jwk_json_str);
  * @param item A JWK item to add to the set
  * @return 0 on success, valid errno otherwise.
  */
-int jwks_item_add(jwk_set_t *jwk_set, jwk_item_t *item);
+JWT_EXPORT int jwks_item_add(jwk_set_t *jwk_set, jwk_item_t *item);
 
 /**
  * Check if there is an error within the jwk_set
@@ -175,7 +227,7 @@ int jwks_item_add(jwk_set_t *jwk_set, jwk_item_t *item);
  * @param jwk_set An existing jwk_set_t
  * @return 0 if no error exists, 1 if it does exists.
  */
-int jwks_error(jwk_set_t *jwk_set);
+JWT_EXPORT int jwks_error(jwk_set_t *jwk_set);
 
 /**
  * Retrieve an error message from a jwk_set. Note, a zero
@@ -184,7 +236,7 @@ int jwks_error(jwk_set_t *jwk_set);
  * @param jwk_set An existing jwk_set_t
  * @return NULL on error, valid string otherwise
  */
-const char *jwks_error_msg(jwk_set_t *jwk_set);
+JWT_EXPORT const char *jwks_error_msg(jwk_set_t *jwk_set);
 
 /**
  * Return the index'th jwk_item in the jwk_set
@@ -202,7 +254,7 @@ const char *jwks_error_msg(jwk_set_t *jwk_set);
  * @param index Index of the jwk_set
  * @return 0 if no error exists, 1 if it does exists.
  */
-jwk_item_t *jwks_item_get(jwk_set_t *jwk_set, size_t index);
+JWT_EXPORT jwk_item_t *jwks_item_get(jwk_set_t *jwk_set, size_t index);
 
 /**
  * Free all memory associated with a jwt_set_t, including any
@@ -210,7 +262,7 @@ jwk_item_t *jwks_item_get(jwk_set_t *jwk_set, size_t index);
  *
  * @param jwk_set An existing jwk_set_t
  */
-void jwks_free(jwk_set_t *jwk_set);
+JWT_EXPORT void jwks_free(jwk_set_t *jwk_set);
 
 /**
  * Free all memory associated with the nth jwt_item_t in a jwk_set
@@ -219,7 +271,7 @@ void jwks_free(jwk_set_t *jwk_set);
  * @param index the position of the item in the index
  * @return 0 if no item was was deleted (found), 1 if it was
  */
-int jwks_item_free(jwk_set_t *jwk_set, size_t index);
+JWT_EXPORT int jwks_item_free(jwk_set_t *jwk_set, size_t index);
 
 /**
  * Free all memory associated with alljwt_item_t in a jwk_set. The
@@ -228,7 +280,7 @@ int jwks_item_free(jwk_set_t *jwk_set, size_t index);
  * @param jwk_set A JWKS object
  * @return The numbner of items deleted
  */
-int jwks_item_free_all(jwk_set_t *jwk_set);
+JWT_EXPORT int jwks_item_free_all(jwk_set_t *jwk_set);
 
 /** @} */
 
@@ -254,7 +306,7 @@ int jwks_item_free_all(jwk_set_t *jwk_set);
  *
  * @return name of the crypto operation set
  */
-const char *jwt_get_crypto_ops(void);
+JWT_EXPORT const char *jwt_get_crypto_ops(void);
 
 /**
  * Set the crypto operations to the named set.
@@ -265,7 +317,7 @@ const char *jwt_get_crypto_ops(void);
  * @param opname the name of the crypto operation to set
  * @return 0 on success, valid errno otherwise.
  */
-int jwt_set_crypto_ops(const char *opname);
+JWT_EXPORT int jwt_set_crypto_ops(const char *opname);
 
 /** @} */
 

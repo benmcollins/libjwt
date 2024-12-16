@@ -13,31 +13,87 @@
 #include <jwt.h>
 #include "jwt-private.h"
 
-#ifndef HAVE_OPENSSL
-static const char not_implemented[] = "Requires OpenSSL 3";
-
-int process_eddsa_jwk(json_t *jwk, jwk_item_t *item)
+/* RFC-7517 4.3 */
+static jwk_key_op_t jwk_key_op_j(json_t *j_op)
 {
-	jwks_write_error(item, not_implemented);
-	return -1;
-}
+	const char *op;
 
-int process_rsa_jwk(json_t *jwk, jwk_item_t *item)
-{
-	jwks_write_error(item, not_implemented);
-	return -1;
-}
+	if (!j_op || !json_is_string(j_op))
+		return JWK_KEY_OP_NONE;
 
-int process_ec_jwk(json_t *jwk, jwk_item_t *item)
-{
-	jwks_write_error(item, not_implemented);
-	return -1;
+	op = json_string_value(j_op);
+
+	if (op == NULL)
+		return JWK_KEY_OP_NONE;
+
+	if (!strcmp(op, "sign"))
+		return JWK_KEY_OP_SIGN;
+	else if (!strcmp(op, "verify"))
+		return JWK_KEY_OP_VERIFY;
+	else if (!strcmp(op, "encrypt"))
+		return JWK_KEY_OP_ENCRYPT;
+	else if (!strcmp(op, "decrypt"))
+		return JWK_KEY_OP_DECRYPT;
+	else if (!strcmp(op, "wrapKey"))
+		return JWK_KEY_OP_WRAP;
+	else if (!strcmp(op, "unwrapKey"))
+		return JWK_KEY_OP_UNWRAP;
+	else if (!strcmp(op, "deriveKey"))
+		return JWK_KEY_OP_DERIVE_KEY;
+	else if (!strcmp(op, "deriveBits"))
+		return JWK_KEY_OP_DERIVE_BITS;
+
+	/* Ignore all others as the spec says other values may be used. */
+
+	return JWK_KEY_OP_NONE;
 }
-#endif /* HAVE_OPENSSL */
 
 static void jwk_process_values(json_t *jwk, jwk_item_t *item)
 {
-	/* TODO Setup alg_list, ops, use, and kid. */
+	json_t *j_use, *j_ops_a, *j_kid, *j_alg;
+
+	/* Start with the ALG (4.4). */
+	j_alg = json_object_get(jwk, "alg");
+	if (j_alg && json_is_string(j_alg))
+		item->alg = jwt_str_alg(json_string_value(j_alg));
+
+	/* Check for use (4.2). */
+	j_use = json_object_get(jwk, "use");
+	if (j_use && json_is_string(j_use)) {
+		const char *use = json_string_value(j_use);
+		if (!strcmp(use, "sig"))
+			item->use = JWK_PUB_KEY_USE_SIG;
+		else if (!strcmp(use, "enc"))
+			item->use = JWK_PUB_KEY_USE_ENC;
+	}
+
+	/* Check for key_ops (4.3). */
+	j_ops_a = json_object_get(jwk, "key_ops");
+	if (j_ops_a && json_is_array(j_ops_a)) {
+		json_t *j_op;
+		int i;
+
+		json_array_foreach(j_ops_a, i, j_op) {
+			item->key_ops |= jwk_key_op_j(j_op);
+		}
+	}
+
+	/* Key ID (4.5). */
+	j_kid = json_object_get(jwk, "kid");
+	if (j_kid && json_is_string(j_kid)) {
+		const char *kid = json_string_value(j_kid);
+		int len = strlen(kid);
+
+		if (len) {
+			item->kid = jwt_malloc(len + 1);
+			if (item->kid == NULL) {
+				jwks_write_error(item,
+					"Error allocating memory for kid");
+			} else {
+				strcpy(item->kid, kid);
+			}
+		}
+	}
 }
 
 static jwk_item_t *jwk_process_one(jwk_set_t *jwk_set, json_t *jwk)
@@ -64,13 +120,16 @@ static jwk_item_t *jwk_process_one(jwk_set_t *jwk_set, json_t *jwk)
 	kty = json_string_value(val);
 
 	if (!strcmp(kty, "EC")) {
+		item->kty = JWK_KEY_TYPE_EC;
 		process_ec_jwk(jwk, item);
 	} else if (!strcmp(kty, "RSA")) {
+		item->kty = JWK_KEY_TYPE_RSA;
 		process_rsa_jwk(jwk, item);
 	} else if (!strcmp(kty, "OKP")) {
+		item->kty = JWK_KEY_TYPE_OKP;
 		process_eddsa_jwk(jwk, item);
 	} else {
-		jwks_write_error(item, "Unknown kty type '%s'", kty);
+		jwks_write_error(item, "Unknown or unsupported kty type '%s'", kty);
 		return item;
 	}
 
@@ -139,9 +198,16 @@ int jwks_item_free(jwk_set_t *jwk_set, size_t index)
 		return 0;
 
 	item = todel->item;
+
+	/* Let the crypto ops clean their stuff up. */
+	process_item_free(item);
+
+	/* A few non-crypto specific things. */
+	jwt_freemem(item->kid);
 	list_del(&todel->node);
+
+	/* Free the container and the item itself. */
 	jwt_freemem(list_item);
-	jwt_freemem(item->pem);
 	jwt_freemem(item);
 
 	return 1;
@@ -217,3 +283,30 @@ jwk_set_t *jwks_create(const char *jwk_json_str)
 
 	return jwk_set;
 }
+
+#ifndef HAVE_OPENSSL
+static const char not_implemented[] = "Requires OpenSSL 3";
+
+int process_eddsa_jwk(json_t *jwk, jwk_item_t *item)
+{
+	jwks_write_error(item, not_implemented);
+	return -1;
+}
+
+int process_rsa_jwk(json_t *jwk, jwk_item_t *item)
+{
+	jwks_write_error(item, not_implemented);
+	return -1;
+}
+
+int process_ec_jwk(json_t *jwk, jwk_item_t *item)
+{
+	jwks_write_error(item, not_implemented);
+	return -1;
+}
+
+void process_item_free(jwk_item_t *item)
+{
+	return;
+}
+#endif /* HAVE_OPENSSL */

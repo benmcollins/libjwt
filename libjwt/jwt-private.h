@@ -17,10 +17,10 @@
 
 #include "ll.h"
 
-#define jwks_write_error(__obj, __args...)			\
+#define jwks_write_error(__obj, __fmt, __args...)		\
 ({								\
 	snprintf(__obj->error_msg, sizeof(__obj->error_msg),	\
-		 ##__args);					\
+		 __fmt, ##__args);				\
 	item->error = 1;					\
 })
 
@@ -72,6 +72,7 @@ struct jwt_crypto_ops {
 int process_eddsa_jwk(json_t *jwk, jwk_item_t *item);
 int process_rsa_jwk(json_t *jwk, jwk_item_t *item);
 int process_ec_jwk(json_t *jwk, jwk_item_t *item);
+void process_item_free(jwk_item_t *item);
 
 #ifdef HAVE_OPENSSL
 extern struct jwt_crypto_ops jwt_openssl_ops;
