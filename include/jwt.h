@@ -93,7 +93,7 @@ typedef enum {
 
 /* JWK Public Key Use types. */
 typedef enum {
-	JWK_PUB_KEY_USE_NONE = 0,
+	JWK_PUB_KEY_USE_ANY = 0,
 	JWK_PUB_KEY_USE_SIG,
 	JWK_PUB_KEY_USE_ENC,
 } jwk_pub_key_use_t;
@@ -148,6 +148,7 @@ typedef struct jwk_item {
 
 /* JWK op types, bitwise flags. */
 #define JWK_KEY_OP_NONE		0x0000
+#define JWK_KEY_OP_ANY		JWK_KEY_OP_NONE
 #define JWK_KEY_OP_SIGN		0x0001
 #define JWK_KEY_OP_VERIFY	0x0002
 #define JWK_KEY_OP_ENCRYPT	0x0004
