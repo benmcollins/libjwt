@@ -111,19 +111,26 @@ typedef struct jwk_item {
 
 	/* The crypto provider that parsed this key. */
 	jwt_crypto_provider_t provider;
+
 	/* Data internal to the crypto ops provider that parsed this key.
+	 *
 	 * It should not be used or modified except by the original
-	 * provider. For example, OpenSSL uses this to store the EVP_PKEY.
+	 * provider. For example, OpenSSL uses this to store the EVP_PKEY
+	 * so it can be used immediately for crypto operations.
+	 *
 	 * The provider is responsible for freeing this via callback when
 	 * this item is freed. */
 	void *provider_data;
+
 	/* Set to 1 if the key is a private key (or a key pair). The
 	 * crypto provider should make a best effort to set this. */
 	int is_private_key;
+
 	/* If the kty is EC or OKP, this should be set to the curve name
 	 * by the crypto provider, if 'crv' is present, or the crypto
 	 * provider can deduce it after parsing the JWK. */
 	char curve[256];
+
 	/* If possible, the crypto provider should set this to the number of
 	 * cryptographic bits in the key (e.g. 256 for prime256v1 EC key, or
 	 * 4096 for an RSA key with 4096 bit 'e'). */
