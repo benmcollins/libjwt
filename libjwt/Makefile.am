@@ -5,8 +5,8 @@ lib_LTLIBRARIES = libjwt.la
 libjwt_la_SOURCES = jwt.c jwks.c base64.c
 
 # SONAME History
-# v1.12.0 => v1.12.1      0 => 1
-# v1.14.0 => v1.15.0      1 => 2
+# v1.12.1      0 => 1
+# v1.15.0      1 => 2
 # http://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html
 
 libjwt_la_LDFLAGS = -version-info 13:1:11 $(OPENSSL_LDFLAGS) $(GNUTLS_LDFLAGS) $(JANSSON_LDFLAGS) -no-undefined
