@@ -25,9 +25,7 @@ AC_ARG_WITH([mbedtls],
         [AS_HELP_STRING([--with-mbedtls],
                 [Support MBedTLS for crypto operations @<:@default=no@:>@])],
         [],
-        [with_openssl=no])
-
-CHECK_MBEDTLS
+        [with_mbedtls=no])
 
 AS_IF([test "x$with_gnutls" != xno],
 	[PKG_CHECK_MODULES([GNUTLS], [gnutls >= 3.6.0],
@@ -47,11 +45,13 @@ AS_IF([test "x$with_openssl" != xno],
 		AC_MSG_FAILURE([--with-openssl was given but OpenSSL not found])
 	))], [AM_CONDITIONAL([HAVE_OPENSSL], [false])])
 
+CHECK_MBEDTLS
+
 AS_IF([test -z "$HAVE_CRYPTO"],
 	[AC_MSG_ERROR([no crypto library detected], [1])], [])
 
 AC_ARG_WITH([examples],
-	AS_HELP_STRING([--without-examples], [do not build example programs]),
+	AS_HELP_STRING([--with-examples], [do not build example programs]),
 	[],
 	[with_examples=yes])
 
