@@ -78,9 +78,9 @@ typedef enum jwt_alg {
 
 /* Different providers for crypto operations. */
 typedef enum {
-	JWK_CRYPTO_OPS_NONE,
-	JWK_CRYPTO_OPS_OPENSSL,
-	JWK_CRYPTO_OPS_GNUTLS,
+	JWT_CRYPTO_OPS_NONE,
+	JWT_CRYPTO_OPS_OPENSSL,
+	JWT_CRYPTO_OPS_GNUTLS,
 } jwt_crypto_provider_t;
 
 /* The different JWK kty values we understand. */

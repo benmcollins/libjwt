@@ -538,7 +538,7 @@ void openssl_process_item_free(jwk_item_t *item);
 /* Export our ops */
 struct jwt_crypto_ops jwt_openssl_ops = {
 	.name			= "openssl",
-	.provider		= JWK_CRYPTO_OPS_OPENSSL,
+	.provider		= JWT_CRYPTO_OPS_OPENSSL,
 
 	.sign_sha_hmac		= openssl_sign_sha_hmac,
 	.verify_sha_hmac	= openssl_verify_sha_hmac,

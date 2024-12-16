@@ -162,7 +162,7 @@ static int pctx_to_pem(EVP_PKEY_CTX *pctx, OSSL_PARAM *params,
 	}
 
 	item->provider_data = pkey;
-	item->provider = JWK_CRYPTO_OPS_OPENSSL;
+	item->provider = JWT_CRYPTO_OPS_OPENSSL;
 
 	bio = BIO_new(BIO_s_mem());
 	if (bio == NULL) {
@@ -470,7 +470,7 @@ cleanup_ec:
 
 void openssl_process_item_free(jwk_item_t *item)
 {
-	if (item == NULL || item->provider != JWK_CRYPTO_OPS_OPENSSL)
+	if (item == NULL || item->provider != JWT_CRYPTO_OPS_OPENSSL)
 		return;
 
 	EVP_PKEY_free(item->provider_data);
@@ -478,7 +478,7 @@ void openssl_process_item_free(jwk_item_t *item)
 
 	item->pem = NULL;
 	item->provider_data = NULL;
-	item->provider = JWK_CRYPTO_OPS_NONE;
+	item->provider = JWT_CRYPTO_OPS_NONE;
 }
 
 #else /* OpenSSL 3 */

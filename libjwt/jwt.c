@@ -48,7 +48,7 @@ const char *jwt_get_crypto_ops(void)
 jwt_crypto_provider_t jwt_get_crypto_ops_t(void)
 {
 	if (jwt_ops == NULL)
-		return JWK_CRYPTO_OPS_NONE;
+		return JWT_CRYPTO_OPS_NONE;
 
 	return jwt_ops->provider;
 }
