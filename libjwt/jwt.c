@@ -80,7 +80,7 @@ int jwt_set_crypto_ops(const char *opname)
 
 	/* The user asked for something, let's give it a try */
 	for (i = 0; jwt_ops_available[i] != NULL; i++) {
-		if (strcmp(jwt_ops_available[i]->name, opname))
+		if (jwt_strcmp(jwt_ops_available[i]->name, opname))
 			continue;
 
 		jwt_ops = jwt_ops_available[i];
@@ -248,35 +248,35 @@ jwt_alg_t jwt_str_alg(const char *alg)
 	if (alg == NULL)
 		return JWT_ALG_INVAL;
 
-	if (!strcmp(alg, "none"))
+	if (!jwt_strcmp(alg, "none"))
 		return JWT_ALG_NONE;
-	else if (!strcmp(alg, "HS256"))
+	else if (!jwt_strcmp(alg, "HS256"))
 		return JWT_ALG_HS256;
-	else if (!strcmp(alg, "HS384"))
+	else if (!jwt_strcmp(alg, "HS384"))
 		return JWT_ALG_HS384;
-	else if (!strcmp(alg, "HS512"))
+	else if (!jwt_strcmp(alg, "HS512"))
 		return JWT_ALG_HS512;
-	else if (!strcmp(alg, "RS256"))
+	else if (!jwt_strcmp(alg, "RS256"))
 		return JWT_ALG_RS256;
-	else if (!strcmp(alg, "RS384"))
+	else if (!jwt_strcmp(alg, "RS384"))
 		return JWT_ALG_RS384;
-	else if (!strcmp(alg, "RS512"))
+	else if (!jwt_strcmp(alg, "RS512"))
 		return JWT_ALG_RS512;
-	else if (!strcmp(alg, "ES256"))
+	else if (!jwt_strcmp(alg, "ES256"))
 		return JWT_ALG_ES256;
-	else if (!strcmp(alg, "ES256K"))
+	else if (!jwt_strcmp(alg, "ES256K"))
 		return JWT_ALG_ES256K;
-	else if (!strcmp(alg, "ES384"))
+	else if (!jwt_strcmp(alg, "ES384"))
 		return JWT_ALG_ES384;
-	else if (!strcmp(alg, "ES512"))
+	else if (!jwt_strcmp(alg, "ES512"))
 		return JWT_ALG_ES512;
-	else if (!strcmp(alg, "PS256"))
+	else if (!jwt_strcmp(alg, "PS256"))
 		return JWT_ALG_PS256;
-	else if (!strcmp(alg, "PS384"))
+	else if (!jwt_strcmp(alg, "PS384"))
 		return JWT_ALG_PS384;
-	else if (!strcmp(alg, "PS512"))
+	else if (!jwt_strcmp(alg, "PS512"))
 		return JWT_ALG_PS512;
-	else if (!strcmp(alg, "EDDSA"))
+	else if (!jwt_strcmp(alg, "EDDSA"))
 		return JWT_ALG_EDDSA;
 
 	return JWT_ALG_INVAL;
@@ -1696,13 +1696,13 @@ unsigned int jwt_validate(jwt_t *jwt, jwt_valid_t *jwt_valid)
 	/* Validate replicated issuer */
 	jwt_hdr_str = get_js_string(jwt->headers, "iss");
 	jwt_body_str = get_js_string(jwt->grants, "iss");
-	if (jwt_hdr_str && jwt_body_str && strcmp(jwt_hdr_str, jwt_body_str))
+	if (jwt_hdr_str && jwt_body_str && jwt_strcmp(jwt_hdr_str, jwt_body_str))
 		jwt_valid->status |= JWT_VALIDATION_ISS_MISMATCH;
 
 	/* Validate replicated subject */
 	jwt_hdr_str = get_js_string(jwt->headers, "sub");
 	jwt_body_str = get_js_string(jwt->grants, "sub");
-	if (jwt_hdr_str && jwt_body_str && strcmp(jwt_hdr_str, jwt_body_str))
+	if (jwt_hdr_str && jwt_body_str && jwt_strcmp(jwt_hdr_str, jwt_body_str))
 		jwt_valid->status |= JWT_VALIDATION_SUB_MISMATCH;
 
 	/* Validate replicated audience (might be array or string) */

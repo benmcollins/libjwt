@@ -356,14 +356,10 @@ static int openssl_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 	}
 
 jwt_sign_sha_pem_done:
-	if (bufkey)
-		BIO_free(bufkey);
-	if (pkey)
-		EVP_PKEY_free(pkey);
-	if (mdctx)
-		EVP_MD_CTX_destroy(mdctx);
-	if (ec_sig)
-		ECDSA_SIG_free(ec_sig);
+	BIO_free(bufkey);
+	EVP_PKEY_free(pkey);
+	EVP_MD_CTX_destroy(mdctx);
+	ECDSA_SIG_free(ec_sig);
 
 	return ret;
 }

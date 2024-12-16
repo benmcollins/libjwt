@@ -26,21 +26,21 @@ static jwk_key_op_t jwk_key_op_j(json_t *j_op)
 	if (op == NULL)
 		return JWK_KEY_OP_NONE;
 
-	if (!strcmp(op, "sign"))
+	if (!jwt_strcmp(op, "sign"))
 		return JWK_KEY_OP_SIGN;
-	else if (!strcmp(op, "verify"))
+	else if (!jwt_strcmp(op, "verify"))
 		return JWK_KEY_OP_VERIFY;
-	else if (!strcmp(op, "encrypt"))
+	else if (!jwt_strcmp(op, "encrypt"))
 		return JWK_KEY_OP_ENCRYPT;
-	else if (!strcmp(op, "decrypt"))
+	else if (!jwt_strcmp(op, "decrypt"))
 		return JWK_KEY_OP_DECRYPT;
-	else if (!strcmp(op, "wrapKey"))
+	else if (!jwt_strcmp(op, "wrapKey"))
 		return JWK_KEY_OP_WRAP;
-	else if (!strcmp(op, "unwrapKey"))
+	else if (!jwt_strcmp(op, "unwrapKey"))
 		return JWK_KEY_OP_UNWRAP;
-	else if (!strcmp(op, "deriveKey"))
+	else if (!jwt_strcmp(op, "deriveKey"))
 		return JWK_KEY_OP_DERIVE_KEY;
-	else if (!strcmp(op, "deriveBits"))
+	else if (!jwt_strcmp(op, "deriveBits"))
 		return JWK_KEY_OP_DERIVE_BITS;
 
 	/* Ignore all others as the spec says other values may be used. */
@@ -61,9 +61,9 @@ static void jwk_process_values(json_t *jwk, jwk_item_t *item)
 	j_use = json_object_get(jwk, "use");
 	if (j_use && json_is_string(j_use)) {
 		const char *use = json_string_value(j_use);
-		if (!strcmp(use, "sig"))
+		if (!jwt_strcmp(use, "sig"))
 			item->use = JWK_PUB_KEY_USE_SIG;
-		else if (!strcmp(use, "enc"))
+		else if (!jwt_strcmp(use, "enc"))
 			item->use = JWK_PUB_KEY_USE_ENC;
 	}
 
@@ -119,13 +119,13 @@ static jwk_item_t *jwk_process_one(jwk_set_t *jwk_set, json_t *jwk)
 
 	kty = json_string_value(val);
 
-	if (!strcmp(kty, "EC")) {
+	if (!jwt_strcmp(kty, "EC")) {
 		item->kty = JWK_KEY_TYPE_EC;
 		jwt_ops->process_ec(jwk, item);
-	} else if (!strcmp(kty, "RSA")) {
+	} else if (!jwt_strcmp(kty, "RSA")) {
 		item->kty = JWK_KEY_TYPE_RSA;
 		jwt_ops->process_rsa(jwk, item);
-	} else if (!strcmp(kty, "OKP")) {
+	} else if (!jwt_strcmp(kty, "OKP")) {
 		item->kty = JWK_KEY_TYPE_OKP;
 		jwt_ops->process_eddsa(jwk, item);
 	} else {
