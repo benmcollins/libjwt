@@ -1,108 +1,114 @@
 cmake_minimum_required (VERSION 3.7...3.15)
 
-set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+project(LibJWT VERSION 2.1.0 LANGUAGES C)
 
-if (${CMAKE_VERSION} VERSION_LESS 3.14.7 AND ${CMAKE_GENERATOR} STREQUAL "Visual Studio 16 2019")
-	message(FATAL_ERROR "Please update your version of CMake to version 3.14.7 or greater in order to use Visual Studio 2019")
-endif()
+add_library(jwt SHARED libjwt/jwt.c libjwt/jwks.c libjwt/base64.c)
 
-if (MSVC)
-	set (CMAKE_SYSTEM_VERSION 8.1 CACHE TYPE INTERNAL FORCE)
+include_directories(${CMAKE_SOURCE_DIR}/include)
+
+find_package(PkgConfig REQUIRED)
+
+pkg_check_modules(GNUTLS gnutls>=3.6.0)
+pkg_check_modules(OPENSSL openssl>=1.1.0)
+pkg_check_modules(JANSSON jansson>=2.0 REQUIRED)
+pkg_check_modules(CHECK check)
+
+target_link_libraries(jwt ${JANSSON_LIBRARIES})
+target_include_directories(jwt PRIVATE
+	${JANSSON_INCLUDE_DIRS})
+
+if (GNUTLS_FOUND)
+        add_definitions(-DHAVE_GNUTLS)
+	target_link_libraries(jwt ${GNUTLS_LIBRARIES})
+	target_include_directories(jwt PRIVATE
+		${GNUTLS_INCLUDE_DIRS})
+	target_sources(jwt PRIVATE libjwt/jwt-gnutls.c libjwt/jwks-gnutls.c)
 endif ()
 
-project (jwt)
-
-string(REPLACE "\\" "/" CMAKE_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX})
-
-option (ENABLE_DEBUG_INFO_IN_RELEASE "Enable adding debug info to release build." OFF)
-option (ENABLE_LTO "Enable link time optimizations." OFF)
-option (BUILD_EXAMPLES "Build example projects." ON)
-
-if (MSVC)
-	option (STATIC_RUNTIME "Link runtome library statically." OFF)
+if (OPENSSL_FOUND)
+	add_definitions(-DHAVE_OPENSSL)
+	target_link_libraries(jwt ${OPENSSL_LIBRARIES})
+	target_include_directories(jwt PRIVATE
+		${OPENSSL_INCLUDE_DIRS})
+	target_sources(jwt PRIVATE libjwt/jwt-openssl.c libjwt/jwks-openssl.c)
 endif ()
 
-if (UNIX)
-	option (BUILD_TESTS "Build test projects." OFF)
-endif ()
+target_include_directories(jwt PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
 
-if (APPLE)
-	add_definitions(-DNO_WEAK_ALIASES)
-endif ()
-include_directories (include)
+# Define versioning for the library
+set_target_properties(jwt PROPERTIES
+    VERSION ${PROJECT_VERSION}
+    SOVERSION 2
+)
 
-if (MSVC)
-	set (CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /Ox")
-endif ()
+add_definitions(-D_GNU_SOURCE)
+add_definitions(-DKEYDIR=\"${CMAKE_SOURCE_DIR}/tests/keys\")
 
-if (STATIC_RUNTIME)
-	set (CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /MTd")
-	set (CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /MT")
-	set (CMAKE_C_FLAGS_MINSIZEREL "${CMAKE_C_FLAGS_MINSIZEREL} /MT")
-	set (CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} /MT")
-endif ()
+install(DIRECTORY include/ DESTINATION include)
 
-if (ENABLE_DEBUG_INFO_IN_RELEASE)
-	if (MSVC)
-		set (CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /Zi")
-		set (CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /DEBUG /OPT:REF /OPT:ICF")
-		set (CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} /DEBUG /OPT:REF /OPT:ICF")
-	else ()
-		set (CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -g")
-	endif ()
-endif ()
+# Installation rules
+install(TARGETS jwt
+	EXPORT LibJWTTargets
+	ARCHIVE DESTINATION lib
+	LIBRARY DESTINATION lib
+	RUNTIME DESTINATION bin
+)
 
-if (ENABLE_LTO)
-	if (MSVC)
-		set (CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /GL")
-		set (CMAKE_C_FLAGS_MINSIZEREL "${CMAKE_C_FLAGS_MINSIZEREL} /GL")
-		set (CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} /GL")
+# Install headers
+install(DIRECTORY include/ DESTINATION include)
 
-		set (CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /LTCG")
-		set (CMAKE_EXE_LINKER_FLAGS_MINSIZEREL "${CMAKE_EXE_LINKER_FLAGS_MINSIZEREL} /LTCG")
-		set (CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO} /LTCG")
+install(EXPORT LibJWTTargets
+	FILE LibJWTConfig.cmake
+	NAMESPACE LibJWT::
+	DESTINATION lib/cmake/LibJWT
+)
 
-		set (CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} /LTCG")
-		set (CMAKE_SHARED_LINKER_FLAGS_MINSIZEREL "${CMAKE_SHARED_LINKER_FLAGS_MINSIZEREL} /LTCG")
-		set (CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO} /LTCG")
-	endif ()
-endif ()
+if (CHECK_FOUND)
+	enable_testing()
+	add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND})
 
-add_subdirectory (libjwt)
+	set (TARGET_NAMES jwt_dump jwt_ec jwt_encode jwt_grant jwt_header jwt_new
+		jwt_rsa jwt_validate jwt_rsa_pss jwt_eddsa jwt_crypto jwt_es256k)
 
-if (${BUILD_EXAMPLES})
-	add_subdirectory (examples)
-endif()
+	foreach (TARGET_NAME ${TARGET_NAMES})
+		add_executable(${TARGET_NAME} tests/${TARGET_NAME}.c)
+		target_link_libraries(${TARGET_NAME} PRIVATE jwt)
+		target_link_libraries(${TARGET_NAME} PRIVATE ${CHECK_LIBRARIES})
+		target_include_directories(${TARGET_NAME} PRIVATE ${CHECK_INCLUDE_DIRS})
+		add_test(NAME ${TARGET_NAME} COMMAND ${TARGET_NAME})
+	endforeach ()
 
-if (${BUILD_TESTS})
-	add_subdirectory (tests)
-endif ()
+	if(ENABLE_COVERAGE)
+		if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+			message(STATUS "Code coverage enabled")
+			add_compile_options(--coverage -O0 -g)
+			add_link_options(--coverage)
+		else()
+			message(FATAL_ERROR "Code coverage only supported with GCC or Clang")
+		endif()
 
+		find_program(LCOV lcov)
+		find_program(GENHTML genhtml)
 
-# extract version from configure.ac
-FILE(READ "${CMAKE_CURRENT_SOURCE_DIR}/configure.ac" configure_ac_contents)
-STRING(REGEX REPLACE ";" "\\\\;" configure_ac_contents "${configure_ac_contents}")
-STRING(REGEX REPLACE "\n" ";" configure_ac_contents "${configure_ac_contents}")
-foreach(configure_ac_line ${configure_ac_contents})
-	if("${configure_ac_line}" MATCHES "^[ ]*AC_INIT")
-		string(REGEX MATCH "[0-9]+\.[0-9]+\.[0-9]+" version_string "${configure_ac_line}")
-		message(STATUS "version from configure.ac: '${version_string}'")
-		break()
+		if(LCOV AND GENHTML)
+			add_custom_target(coverage
+			COMMAND ${LCOV} --capture --directory . --output-file
+				coverage.info --rc lcov_branch_coverage=1
+			COMMAND ${LCOV} --remove coverage.info '*/tests/*'
+				'*/usr/include/*' --output-file coverage.info
+				--rc lcov_branch_coverage=1
+			COMMAND ${GENHTML} coverage.info --output-directory coverage
+				--rc lcov_branch_coverage=1
+			COMMAND ${CMAKE_COMMAND} -E echo
+				"Coverage report generated in" 
+				${CMAKE_BINARY_DIR}/coverage/index.html
+			DEPENDS ${TARGET_NAMES}
+			)
+		else()
+			message(WARNING "lcov or genhtml missing")
+		endif()
 	endif()
-endforeach()
-
-set(INCLUDE_INSTALL_DIR include/)
-set(LIB_INSTALL_DIR lib/)
-set(LIBJWT_VERSION ${version_string})
-include(CMakePackageConfigHelpers)
-configure_package_config_file(cmake/libjwtConfig.cmake.in
-  ${CMAKE_CURRENT_BINARY_DIR}/libjwtConfig.cmake
-  INSTALL_DESTINATION ${LIB_INSTALL_DIR}/libjwt/cmake
-  PATH_VARS INCLUDE_INSTALL_DIR)
-write_basic_package_version_file(
-  ${CMAKE_CURRENT_BINARY_DIR}/libjwtConfigVersion.cmake
-  VERSION ${LIBJWT_VERSION}
-  COMPATIBILITY SameMajorVersion )
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libjwtConfig.cmake
-              ${CMAKE_CURRENT_BINARY_DIR}/libjwtConfigVersion.cmake
-        DESTINATION ${LIB_INSTALL_DIR}/libjwt/cmake )
+endif()

@@ -473,7 +473,7 @@ static int is_public_key_pem(unsigned char* key, int key_len)
 
 #define SIGN_HMAC_ERROR(__err) { ret = __err; goto jwt_sign_sha_hmac_done; }
 
-int jwt_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
+static int wincrypt_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 		      const char *str)
 {
 	int ret = EINVAL;
@@ -583,7 +583,7 @@ jwt_sign_sha_hmac_done:
 
 #define VERIFY_HMAC_ERROR(__err) { ret = __err; goto jwt_verify_hmac_done; }
 
-int jwt_verify_sha_hmac(jwt_t *jwt, const char *head, const char *sig)
+static int wincrypt_verify_sha_hmac(jwt_t *jwt, const char *head, const char *sig)
 {
 	int ret;
 	char* pbHash = NULL;
@@ -637,7 +637,7 @@ jwt_verify_hmac_done:
 
 #define SIGN_PEM_ERROR(__err) { ret = __err; goto jwt_sign_sha_pem_done; }
 
-int jwt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
+static int wincrypt_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		     const char *str)
 {
 	int ret = EINVAL;
@@ -837,7 +837,7 @@ jwt_sign_sha_pem_done:
 
 #define VERIFY_PEM_ERROR(__err) { ret = __err; goto jwt_verify_sha_pem_done; }
 
-int jwt_verify_sha_pem(jwt_t *jwt, const char *head, const char *sig_b64)
+static int wincrypt_verify_sha_pem(jwt_t *jwt, const char *head, const char *sig_b64)
 {
 	int ret = EINVAL;
 	LPCWSTR alg;
@@ -1013,3 +1013,26 @@ jwt_verify_sha_pem_done:
 
 	return ret;
 }
+
+int wincrypt_process_eddsa(json_t *jwk, jwk_item_t *item);
+int wincrypt_process_rsa(json_t *jwk, jwk_item_t *item);
+int wincrypt_process_ec(json_t *jwk, jwk_item_t *item);
+void wincrypt_process_item_free(jwk_item_t *item);
+
+/* Export our ops */
+struct jwt_crypto_ops jwt_gnutls_ops = {
+	.name			= "wincrypt",
+	.provider		= JWT_CRYPTO_OPS_WINCRYPT,
+
+	.sign_sha_hmac		= wincrypt_sign_sha_hmac,
+	.verify_sha_hmac	= wincrypt_verify_sha_hmac,
+	.sign_sha_pem		= wincrypt_sign_sha_pem,
+	.verify_sha_pem		= wincrypt_verify_sha_pem,
+
+	/* Needs to be implemented */
+	.jwk_implemented	= 0,
+	.process_eddsa		= wincrypt_process_eddsa,
+	.process_rsa		= wincrypt_process_rsa,
+	.process_ec		= wincrypt_process_ec,
+	.process_item_free	= wincrypt_process_item_free,
+};

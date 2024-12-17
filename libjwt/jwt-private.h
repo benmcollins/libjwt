@@ -9,7 +9,9 @@
 #ifndef JWT_PRIVATE_H
 #define JWT_PRIVATE_H
 
+#ifdef HAVE_CONFIG_H
 #include "config.h"
+#endif
 
 #include <jansson.h>
 #include <time.h>

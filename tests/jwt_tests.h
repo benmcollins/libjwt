@@ -6,7 +6,9 @@
 #include <jwt.h>
 #include <check.h>
 
+#ifdef HAVE_CONFIG_H
 #include "config.h"
+#endif
 
 /* Compatibility with older libCheck versions */
 /* Older check doesn't have this. */
