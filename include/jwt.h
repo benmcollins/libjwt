@@ -422,10 +422,10 @@ JWT_EXPORT int jwt_new(jwt_t **jwt);
  * @warning You should not assume that decoding means your JWT is verified.
  *     You should check the resulting jwt_t for proper algorithm and grants.
  *     Specifically, you should verify that the alg set in the header is the
- *     one you are expecting by calling jwt_get_alg(jwt) after decoding.
+ *     one you are expecting after decoding. See jwt_get_alg below.
  */
 JWT_EXPORT int jwt_decode(jwt_t **jwt, const char *token,
-	                 const unsigned char *key, int key_len);
+			  const unsigned char *key, int key_len);
 
 /**
  * Like jwt_decode(), but the key will be obtained via the key provider.
@@ -927,6 +927,11 @@ JWT_EXPORT int jwt_set_alg(jwt_t *jwt, jwt_alg_t alg, const unsigned char *key, 
  * Get the jwt_alg_t set for this JWT object.
  *
  * Returns the jwt_alg_t type for this JWT object.
+ *
+ * @warning This is the alg for the jwt_t object and NOT the one that may
+ * be set in the header. This is a programatic check to see what LibJWT
+ * Will use to encode the object into a JWT. To see what is embedded in
+ * the header, use jwt_get_header(jwt, "alg") instead.
  *
  * @param jwt Pointer to a JWT object.
  * @returns Returns a jwt_alg_t type for this object.
