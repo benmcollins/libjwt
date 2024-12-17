@@ -21,6 +21,7 @@ pkg_check_modules(CHECK check>=0.9.4)
 
 add_library(jwt SHARED)
 add_library(jwt_static STATIC)
+set_target_properties(jwt_static PROPERTIES OUTPUT_NAME jwt)
 
 target_sources(jwt PRIVATE libjwt/jwt.c libjwt/jwks.c libjwt/base64.c)
 
@@ -87,6 +88,12 @@ install(TARGETS jwt
 	ARCHIVE DESTINATION lib
 	LIBRARY DESTINATION lib
 	RUNTIME DESTINATION bin
+)
+
+# Install Static library
+install(TARGETS jwt_static
+        EXPORT ${LIBJWT_PROJECT}StaticTargets
+        ARCHIVE DESTINATION lib
 )
 
 install(EXPORT ${LIBJWT_PROJECT}Targets
