@@ -131,6 +131,8 @@ if (CHECK_FOUND)
 
 		setup_target_for_coverage_lcov(
 			NAME coverage
+			OUTPUT "${PROJECT_NAME}-${PROJECT_VERSION}-coverage"
+			TITLE "${PROJECT_NAME}-${PROJECT_VERSION} Code Coverage"
 			EXECUTABLE ctest -j ${PROCESSOR_COUNT}
 			DEPENDENCIES ${TARGET_NAMES}
 			EXCLUDE "tests/*" "**/ll.h" "/usr/**")

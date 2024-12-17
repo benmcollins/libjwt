@@ -237,7 +237,7 @@ endif()
 function(setup_target_for_coverage_lcov)
 
     set(options NO_DEMANGLE SONARQUBE)
-    set(oneValueArgs BASE_DIRECTORY NAME)
+    set(oneValueArgs BASE_DIRECTORY NAME OUTPUT TITLE)
     set(multiValueArgs EXCLUDE EXECUTABLE EXECUTABLE_ARGS DEPENDENCIES LCOV_ARGS GENHTML_ARGS)
     cmake_parse_arguments(Coverage "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
@@ -304,7 +304,7 @@ function(setup_target_for_coverage_lcov)
     # Generate HTML output
     set(LCOV_GEN_HTML_CMD
         ${GENHTML_PATH} ${GENHTML_EXTRA_ARGS} ${Coverage_GENHTML_ARGS} -o
-        ${Coverage_NAME} ${Coverage_NAME}.info
+	${Coverage_OUTPUT} --title ${Coverage_TITLE}  ${Coverage_NAME}.info
     )
     if(${Coverage_SONARQUBE})
         # Generate SonarQube output
@@ -392,7 +392,7 @@ function(setup_target_for_coverage_lcov)
     # Show info where to find the report
     add_custom_command(TARGET ${Coverage_NAME} POST_BUILD
         COMMAND true;
-        COMMENT "Ouput: file://${CMAKE_BINARY_DIR}/${Coverage_NAME}/index.html"
+	COMMENT "file://${CMAKE_BINARY_DIR}/${Coverage_OUTPUT}/index.html"
     )
 
 endfunction() # setup_target_for_coverage_lcov
