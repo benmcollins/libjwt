@@ -5,14 +5,19 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 include(AutoToolsVersion)
 
 project(${LIBJWT_PROJECT} VERSION ${LIBJWT_VERSION} LANGUAGES C)
+set(CMAKE_C_FLAGS -Wall)
 
 # Find all the things we need for the library
 find_package(PkgConfig REQUIRED)
 
+pkg_check_modules(JANSSON jansson>=2.0 REQUIRED)
+
+# Need at least one of these
 pkg_check_modules(GNUTLS gnutls>=3.6.0)
 pkg_check_modules(OPENSSL openssl>=1.1.0)
-pkg_check_modules(JANSSON jansson>=2.0 REQUIRED)
-pkg_check_modules(CHECK check)
+
+# Tests and coverage depend on this, but optional
+pkg_check_modules(CHECK check>=0.9.4)
 
 add_library(jwt libjwt/jwt.c libjwt/jwks.c libjwt/base64.c)
 include_directories(${CMAKE_SOURCE_DIR}/include)
