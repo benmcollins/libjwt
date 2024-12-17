@@ -1,25 +1,41 @@
-Summary:            JSON Web Token (C implementation)
+%bcond_with    gnutls
+%bcond_without openssl
+%bcond_with    check
+%bcond_with    coverage
+%bcond_with    docs
+
+Summary:            LibJWT: A C implementation of JSON Web Token and JSON Web Key (Set)
 Name:               libjwt
 Version:            @VERSION@
 Release:            0%{?dist}
 License:            MPLv2.0
 Group:              Development/Tools
-Source:             https://github.com/benmcollins/libjwt/archive/v%{version}.tar.gz
+Source:             https://github.com/benmcollins/libjwt/releases/download/v%{version}/libjwt-%{version}.tar.bz2
 URL:                https://github.com/benmcollins/libjwt
-BuildRequires:      make libtool automake
-BuildRequires:      gcc doxygen
-BuildRequires:      pkgconfig(openssl) >= 0.9.8
-BuildRequires:      pkgconfig(jansson)
-%if 0%{?rhel} >= 8
-BuildRequires:      check
+
+BuildRequires:      pkgconfig(jansson) >= 2.0
+BuildRequires:      make autoconf libtool automake
+
+%if %{with openssl}
+BuildRequires:      pkgconfig(openssl) >= 1.1.0
+%endif
+%if %{with gnutls}
+BuildRequires:      pkgconfig(gnutls) >= 3.6.0
+%endif
+%if %{with docs}
+BuildRequires:      doxygen
+%endif
+%if %{with check}
+BuildRequires:      pkgconfig(check) >= 0.9.4
 %endif
 
-
 %description
-JSON Web Tokens are an open, industry standard RFC 7519 method for representing
+JSON Web Tokens are an open industry standard RFC 7519 method for representing
 claims securely between two parties. This package is a C library implementing
-JWT functionality. It supports HS256/384/512, RS256/384/512 and ES256/384/512 
-digest algorithms.
+JWT functionality. It supports HS256/384/512, RS256/384/512, ES256/384/512,
+PS256/384/512, EdDSA, and ES256K algorithms.
+
+In addition, it supports impporting and using JWK and JWKS for keys.
 
 
 %package devel
@@ -31,31 +47,28 @@ Requires:           %{name}%{?_isa} = %{version}-%{release}
 Development files for the JWT C library.
 
 
-%package devel-docs
-Summary:            JSON Web Token (C implementation) development kit documentation
-Group:              Development/Libraries
-
-%description devel-docs
-Development documentation files for the JWT C library.
-
 %prep
-%autosetup -n %{name}-%{version}
+%setup -q
 
 %build
-autoreconf -i
+test -e configure || autoreconf -fi
+# We could set the --with/out configure args for the options set above,
+# but we'll just let things get detected
 %configure
-make all doxygen-doc
+make %{?_smp_mflags}
 
 
 %install
-make install DESTDIR=%{buildroot}
-mkdir -p %{buildroot}%{_datadir}/%{name}
-cp -r doxygen-doc/html %{buildroot}%{_datadir}/%{name}
+rm -rf $RPM_BUILD_ROOT
+make install DESTDIR=$RPM_BUILD_ROOT
 
-%if 0%{?rhel} >= 8
+%if %{with check}
 %check
-make check
+make %{?make_test_opts} check
 %endif
+
+%clean
+rm -rf $RPM_BUILD_ROOT
 
 %post
 /sbin/ldconfig
@@ -64,19 +77,26 @@ make check
 /sbin/ldconfig
 
 %files
-%{_libdir}/*.so.*
-%{_bindir}/*
+%doc README.md
+%if "%{_host_os}" == "darwin"
+%{_libdir}/lib*.*.dylib
+%else
+%{_libdir}/lib*.so.*
+%endif
 
 %files devel
-%{_libdir}/*.so
-%{_libdir}/*.la
-%{_libdir}/*.a
+%doc
+%if "%{_host_os}" == "darwin"
+%{_libdir}/lib*.dylib
+%else
+%{_libdir}/lib*.so
+%endif
+%{_libdir}/lib*.a
 %{_libdir}/pkgconfig/*.pc
 %{_includedir}/*
 
-%files devel-docs
-%{_datadir}/*
-
 %changelog
+* Tue Dec 17 2024 Ben Collins <bcollins@ubuntu.com> - 2.1.0-0
+- Updated
 * Tue Nov 12 2019 Julien Courtat <julien.courtat@aqsacom.com> - 1.11.0-0
 - Initial packaging

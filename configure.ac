@@ -31,14 +31,14 @@ AC_SUBST([AM_CFLAGS], [-Wall])
 AC_ARG_WITH([gnutls],
 	[AS_HELP_STRING([--with-gnutls],
 		[Support GnuTLS for crypto operations @<:@default=check@:>@])],
-	[],
-	[with_gnutls=check])
+	[RPMB_GNUTLS="--without gnutls"],
+	[with_gnutls=check] [RPMB_GNUTLS="--without gnutls"])
 
 AC_ARG_WITH([openssl],
 	[AS_HELP_STRING([--with-openssl],
 		[Support OpenSSL for crypto operations @<:@default=check@:>@])],
-	[],
-	[with_openssl=check])
+	[RPMB_OPENSSL="--without openssl"],
+	[with_openssl=check] [RPMB_OPENSSL="--without openssl"])
 
 AC_ARG_WITH([mbedtls],
         [AS_HELP_STRING([--with-mbedtls],
@@ -50,7 +50,7 @@ AS_IF([test "x$with_gnutls" != xno],
 	[PKG_CHECK_MODULES([GNUTLS], [gnutls >= 3.6.0],
 	[AM_CONDITIONAL([HAVE_GNUTLS], [true])]
 	[AC_DEFINE([HAVE_GNUTLS], [1], [GnuTLS Support])]
-	[HAVE_CRYPTO=true],
+	[HAVE_CRYPTO=true] [RPMB_GNUTLS="--with gnutls"],
 	AS_IF([test "x$with_gnutls" != xcheck],
 		AC_MSG_FAILURE([--with-gnutls was given but GnuTLS not found])
 	))], [AM_CONDITIONAL([HAVE_GNUTLS], [false])])
@@ -59,7 +59,7 @@ AS_IF([test "x$with_openssl" != xno],
 	[PKG_CHECK_MODULES([OPENSSL], [openssl >= 1.1.0],
         [AM_CONDITIONAL([HAVE_OPENSSL], [true])]
 	[AC_DEFINE([HAVE_OPENSSL], [1], [OpenSSL Support])]
-	[HAVE_CRYPTO=true],
+	[HAVE_CRYPTO=true] [RPMB_OPENSSL="--with openssl"],
         AS_IF([test "x$with_openssl" != xcheck],
 		AC_MSG_FAILURE([--with-openssl was given but OpenSSL not found])
 	))], [AM_CONDITIONAL([HAVE_OPENSSL], [false])])
@@ -67,17 +67,20 @@ AS_IF([test "x$with_openssl" != xno],
 CHECK_MBEDTLS
 
 AS_IF([test -z "$HAVE_CRYPTO"],
-	[AC_MSG_ERROR([no crypto library detected], [1])], [])
+	[AC_MSG_ERROR([No crypto library detected], [1])], [])
 
 AC_ARG_WITH([examples],
-	AS_HELP_STRING([--with-examples], [do not build example programs]),
-	[],
-	[with_examples=yes])
+	AS_HELP_STRING([--with-examples], [Build example programs @<:@default=no@:>@]),
+	[AM_CONDITIONAL([BUILD_EXAMPLES],[true])],
+	[AM_CONDITIONAL([BUILD_EXAMPLES],[false])])
 
 AM_CONDITIONAL([BUILD_EXAMPLES], [test "x$with_examples" != "xno"])
 
 PKG_CHECK_MODULES([JANSSON], [jansson >= 2.0])
-PKG_CHECK_MODULES([CHECK], [check >= 0.9.4], [true], [true])
+PKG_CHECK_MODULES([CHECK], [check >= 0.9.4],
+	[RPMB_CHECK="--with check"],[RPMB_CHECK="--without check"])
+
+AC_SUBST([RPMBUILD_OPTS],["$RPMB_OPENSSL $RPMB_GNUTLS $RPMB_CHECK"])
 
 dnl Valgrind defaults
 AX_VALGRIND_DFLT([memcheck], [on])
