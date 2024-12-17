@@ -1,4 +1,4 @@
-EXTRA_DIST = CMakeLists.txt keys jwt_tests.h
+EXTRA_DIST = jwt_tests.h keys/*.json keys/*.pem misc/*.rb
 
 TESTS =			\
 	jwt_new		\

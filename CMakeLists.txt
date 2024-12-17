@@ -19,6 +19,8 @@ pkg_check_modules(OPENSSL openssl>=1.1.0)
 pkg_check_modules(JANSSON jansson>=2.0 REQUIRED)
 pkg_check_modules(CHECK check)
 
+find_package(Doxygen)
+
 target_link_libraries(jwt PRIVATE ${JANSSON_LINK_LIBRARIES})
 target_include_directories(jwt PRIVATE
 	${JANSSON_INCLUDE_DIRS})
@@ -78,6 +80,13 @@ install(EXPORT LibJWTTargets
 	DESTINATION lib/cmake/LibJWT
 )
 
+if(DOXYGEN_FOUND)
+	doxygen_add_docs(doxygen-doc
+		${CMAKE_SOURCE_DIR}/include/jwt.h
+		COMMENT "Generating API documentation with Doxygen")
+	set(DOXYGEN_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/html")
+endif()
+
 if (CHECK_FOUND)
 	enable_testing()
 
@@ -108,6 +117,6 @@ if (CHECK_FOUND)
 			NAME coverage
 			EXECUTABLE ctest -j ${PROCESSOR_COUNT}
 			DEPENDENCIES ${TARGET_NAMES}
-			EXCLUDE "tests/*" "*.h")
+			EXCLUDE "tests/*" "**/ll.h" "/usr/**")
 	endif()
 endif()

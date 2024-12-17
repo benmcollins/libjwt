@@ -1,5 +1,3 @@
-EXTRA_DIST = CMakeLists.txt
-
 EXAMPLES =			\
 	jwtgen			\
 	jwtauth

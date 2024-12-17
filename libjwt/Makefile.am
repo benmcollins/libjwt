@@ -1,4 +1,4 @@
-EXTRA_DIST = jwt-private.h CMakeLists.txt cencode.h cdecode.h ccommon.h
+EXTRA_DIST = jwt-private.h base64.h ll.h
 
 lib_LTLIBRARIES = libjwt.la
 
