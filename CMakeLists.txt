@@ -19,7 +19,11 @@ pkg_check_modules(OPENSSL openssl>=1.1.0)
 # Tests and coverage depend on this, but optional
 pkg_check_modules(CHECK check>=0.9.4)
 
-add_library(jwt libjwt/jwt.c libjwt/jwks.c libjwt/base64.c)
+add_library(jwt SHARED)
+add_library(jwt_static STATIC)
+
+target_sources(jwt PRIVATE libjwt/jwt.c libjwt/jwks.c libjwt/base64.c)
+
 include_directories(${CMAKE_SOURCE_DIR}/include)
 
 target_link_libraries(jwt PRIVATE ${JANSSON_LINK_LIBRARIES})
@@ -50,6 +54,15 @@ endif()
 if (NOT HAVE_CRYPTO)
 	message(FATAL_ERROR "No crypto support detected")
 endif()
+
+# Setup the static library by copying shared lib
+get_target_property(STATIC_LINK_LIBRARIES jwt LINK_LIBRARIES)
+get_target_property(STATIC_INCLUDE_DIRECTORIES jwt INCLUDE_DIRECTORIES)
+get_target_property(STATIC_SOURCES jwt SOURCES)
+
+target_sources(jwt_static PRIVATE ${STATIC_SOURCES})
+target_link_libraries(jwt_static PRIVATE ${STATIC_LINK_LIBRARIES})
+target_include_directories(jwt_static PRIVATE ${STATIC_INCLUDE_DIRECTORIES})
 
 target_include_directories(jwt PUBLIC
 	$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>

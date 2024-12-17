@@ -9,7 +9,5 @@ Description: JWT C Library
 Version: @PACKAGE_VERSION@
 
 Cflags: -I${includedir}
-# Requires: @pc_req_public@
-# Requires.private: @pc_req_private@
 Libs: -L${libdir} -ljwt
 Libs.private: @JANSSON_LIBS@ @OPENSSL_LIBS@ @GNUTLS_LIBS@
