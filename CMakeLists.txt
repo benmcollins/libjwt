@@ -80,34 +80,11 @@ if (CHECK_FOUND)
 		add_test(NAME ${TARGET_NAME} COMMAND ${TARGET_NAME})
 	endforeach ()
 
-	if(ENABLE_COVERAGE)
-		if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
-			message(STATUS "Code coverage enabled")
-			add_compile_options(--coverage -O0 -g)
-			add_link_options(--coverage)
-		else()
-			message(FATAL_ERROR "Code coverage only supported with GCC or Clang")
-		endif()
+	#include(${CMAKE_SOURCE_DIR}/cmake/CodeCoverage.cmake)
+	#append_coverage_compiler_flags_to_target(jwt)
 
-		find_program(LCOV lcov)
-		find_program(GENHTML genhtml)
-
-		if(LCOV AND GENHTML)
-			add_custom_target(coverage
-			COMMAND ${LCOV} --capture --directory . --output-file
-				coverage.info --rc lcov_branch_coverage=1
-			COMMAND ${LCOV} --remove coverage.info '*/tests/*'
-				'*/usr/include/*' --output-file coverage.info
-				--rc lcov_branch_coverage=1
-			COMMAND ${GENHTML} coverage.info --output-directory coverage
-				--rc lcov_branch_coverage=1
-			COMMAND ${CMAKE_COMMAND} -E echo
-				"Coverage report generated in" 
-				${CMAKE_BINARY_DIR}/coverage/index.html
-			DEPENDS ${TARGET_NAMES}
-			)
-		else()
-			message(WARNING "lcov or genhtml missing")
-		endif()
-	endif()
+	#setup_target_for_coverage_lcov(
+	#	NAME coverage
+	#	EXECUTABLE ${TARGET_NAMES})
+	#link_libraries(-lgcov)
 endif()
