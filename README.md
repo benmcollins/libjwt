@@ -29,3 +29,16 @@ for macOS and Windows.
 - By default, it will build with OpenSSL and GnuTLS support if found. You can
   exclude or force either one by using the ``--with-`` and ``--without-`` flags
   to ``./configure``.
+
+**With CMake:**
+- ``mkdir build``
+- ``cd build``
+- ``cmake ..``
+- ``make``
+
+If you have libcheck installed, both targets will compile the test suite
+(``check`` target on autoconf, ``test`` target on cmake).
+
+If you ``--enable-code-coverage`` on autoconf or ``-DENABLE_COVERAGE=1``
+on cmake, you cam also run ``check-code-coverage`` or ``coverage``
+respectively.
