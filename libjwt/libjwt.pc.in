@@ -1,12 +1,15 @@
 prefix=@prefix@
-exec_prefix=@exec_prefix@
-libdir=@libdir@
-includedir=@includedir@
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include
 
 Name: @PACKAGE_NAME@
+URL: https://github.com/benmcollins/libjwt
 Description: JWT C Library
 Version: @PACKAGE_VERSION@
 
 Cflags: -I${includedir}
+# Requires: @pc_req_public@
+# Requires.private: @pc_req_private@
 Libs: -L${libdir} -ljwt
-Libs.private: @JANSSON_LIBS@ @OPENSSL_LIBS@
+Libs.private: @JANSSON_LIBS@ @OPENSSL_LIBS@ @GNUTLS_LIBS@
