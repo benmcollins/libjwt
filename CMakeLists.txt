@@ -13,13 +13,13 @@ pkg_check_modules(OPENSSL openssl>=1.1.0)
 pkg_check_modules(JANSSON jansson>=2.0 REQUIRED)
 pkg_check_modules(CHECK check)
 
-target_link_libraries(jwt ${JANSSON_LIBRARIES})
+target_link_libraries(jwt PRIVATE ${JANSSON_LINK_LIBRARIES})
 target_include_directories(jwt PRIVATE
 	${JANSSON_INCLUDE_DIRS})
 
 if (GNUTLS_FOUND)
         add_definitions(-DHAVE_GNUTLS)
-	target_link_libraries(jwt ${GNUTLS_LIBRARIES})
+	target_link_libraries(jwt PRIVATE ${GNUTLS_LINK_LIBRARIES})
 	target_include_directories(jwt PRIVATE
 		${GNUTLS_INCLUDE_DIRS})
 	target_sources(jwt PRIVATE libjwt/jwt-gnutls.c libjwt/jwks-gnutls.c)
@@ -27,7 +27,7 @@ endif ()
 
 if (OPENSSL_FOUND)
 	add_definitions(-DHAVE_OPENSSL)
-	target_link_libraries(jwt ${OPENSSL_LIBRARIES})
+	target_link_libraries(jwt PRIVATE ${OPENSSL_LINK_LIBRARIES})
 	target_include_directories(jwt PRIVATE
 		${OPENSSL_INCLUDE_DIRS})
 	target_sources(jwt PRIVATE libjwt/jwt-openssl.c libjwt/jwks-openssl.c)
@@ -68,7 +68,6 @@ install(EXPORT LibJWTTargets
 
 if (CHECK_FOUND)
 	enable_testing()
-	add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND})
 
 	set (TARGET_NAMES jwt_dump jwt_ec jwt_encode jwt_grant jwt_header jwt_new
 		jwt_rsa jwt_validate jwt_rsa_pss jwt_eddsa jwt_crypto jwt_es256k)
@@ -76,7 +75,7 @@ if (CHECK_FOUND)
 	foreach (TARGET_NAME ${TARGET_NAMES})
 		add_executable(${TARGET_NAME} tests/${TARGET_NAME}.c)
 		target_link_libraries(${TARGET_NAME} PRIVATE jwt)
-		target_link_libraries(${TARGET_NAME} PRIVATE ${CHECK_LIBRARIES})
+		target_link_libraries(${TARGET_NAME} PRIVATE ${CHECK_LINK_LIBRARIES})
 		target_include_directories(${TARGET_NAME} PRIVATE ${CHECK_INCLUDE_DIRS})
 		add_test(NAME ${TARGET_NAME} COMMAND ${TARGET_NAME})
 	endforeach ()

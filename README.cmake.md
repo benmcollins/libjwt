@@ -13,4 +13,4 @@ Build Instructions for CMake
 
 3. Run tests.
 
-	make check
+	make test
