@@ -930,7 +930,7 @@ JWT_EXPORT int jwt_set_alg(jwt_t *jwt, jwt_alg_t alg, const unsigned char *key, 
  *
  * @warning This is the alg for the jwt_t object and NOT the one that may
  * be set in the header. This is a programatic check to see what LibJWT
- * Will use to encode the object into a JWT. To see what is embedded in
+ * will use to encode the object into a JWT. To see what is embedded in
  * the header, use jwt_get_header(jwt, "alg") instead.
  *
  * @param jwt Pointer to a JWT object.

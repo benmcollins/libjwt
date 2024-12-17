@@ -1,11 +1,30 @@
+dnl This sets it for Autconf and CMake
+m4_define([major_version], [2])
+m4_define([minor_version], [1])
+m4_define([micro_version], [0])
+m4_define([libjwt_version], [major_version.minor_version.micro_version])
+
+dnl SONAME History
+dnl v1.12.1      0 => 1
+dnl v1.15.0      1 => 2
+dnl http://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html
+m4_define([so_current],		[13])
+m4_define([so_revision],	[1])
+m4_define([so_age],		[11])
+m4_define([libjwt_version_info], [so_current:so_revision:so_age])
+
+m4_define([libjwt_project], [LibJWT])
+
 AC_PREREQ([2.61])
-AC_INIT([libjwt],[2.1.0],[https://github.com/benmcollins/libjwt/issues])
+AC_INIT([libjwt_project],[libjwt_version],[https://github.com/benmcollins/libjwt/issues])
 AC_LANG([C])
 AM_INIT_AUTOMAKE([foreign subdir-objects])
 LT_PREREQ([2.2])
 LT_INIT([])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADERS([libjwt/config.h])
+
+AC_SUBST([libjwt_version_info], [libjwt_version_info])
 
 AC_SUBST([AM_CFLAGS], [-Wall])
 
