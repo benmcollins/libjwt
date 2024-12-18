@@ -89,6 +89,71 @@ START_TEST(test_jwks_keyring_load)
 }
 END_TEST
 
+START_TEST(test_jwks_key_op_all_types)
+{
+	jwk_key_op_t key_ops = JWK_KEY_OP_SIGN | JWK_KEY_OP_VERIFY |
+		JWK_KEY_OP_ENCRYPT | JWK_KEY_OP_DECRYPT | JWK_KEY_OP_WRAP |
+		JWK_KEY_OP_UNWRAP | JWK_KEY_OP_DERIVE_KEY |
+		JWK_KEY_OP_DERIVE_BITS;
+
+	jwk_set_t *jwk_set = NULL;
+	jwk_item_t *item;
+
+	SET_OPS_JWK();
+
+	read_key("jwks_test-1.json");
+	jwk_set = jwks_create((char *)key);
+	free_key();
+
+	ck_assert_ptr_nonnull(jwk_set);
+	ck_assert(!jwks_error(jwk_set));
+
+	item = jwks_item_get(jwk_set, 0);
+	ck_assert_ptr_nonnull(item);
+	ck_assert(!item->error);
+
+	ck_assert_int_eq(item->key_ops, key_ops);
+
+	jwks_free(jwk_set);
+}
+END_TEST
+
+START_TEST(test_jwks_key_op_bad_type)
+{
+	jwk_set_t *jwk_set = NULL;
+	jwk_item_t *item;
+	const char *msg = "JWK has an invalid value in key_op";
+	const char *kid = "264265c2-4ef0-4751-adbd-9739550afe5b";
+
+	SET_OPS_JWK();
+
+	read_key("jwks_test-2.json");
+	jwk_set = jwks_create((char *)key);
+	free_key();
+
+	ck_assert_ptr_nonnull(jwk_set);
+	ck_assert(!jwks_error(jwk_set));
+
+	item = jwks_item_get(jwk_set, 0);
+	ck_assert_ptr_nonnull(item);
+
+	/* One item had a bad type (numeric). */
+	ck_assert(item->error);
+	ck_assert_str_eq(item->error_msg, msg);
+
+	/* Only these ops set. */
+	ck_assert_int_eq(item->key_ops,
+		JWK_KEY_OP_VERIFY | JWK_KEY_OP_DERIVE_BITS);
+
+	ck_assert_int_eq(item->use, JWK_PUB_KEY_USE_ENC);
+
+	/* Check this key ID. */
+	ck_assert_str_eq(item->kid, kid);
+
+	jwks_free(jwk_set);
+}
+END_TEST
+
 static Suite *libjwt_suite(const char *title)
 {
 	Suite *s;
@@ -99,6 +164,7 @@ static Suite *libjwt_suite(const char *title)
 
 	tc_core = tcase_create("jwt_jwks");
 
+	/* Testing individual keys */
 	tcase_add_loop_test(tc_core, test_jwks_ec_key_prime256v1, 0, i);
 	tcase_add_loop_test(tc_core, test_jwks_ec_key_prime256v1_pub, 0, i);
 	tcase_add_loop_test(tc_core, test_jwks_ec_key_secp256k1, 0, i);
@@ -118,7 +184,13 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, test_jwks_rsa_key_i37_pub, 0, i);
 	tcase_add_loop_test(tc_core, test_jwks_rsa_pss_key_2048, 0, i);
 	tcase_add_loop_test(tc_core, test_jwks_rsa_pss_key_2048_pub, 0, i);
+
+	/* Load a whole keyring of all of the above. */
 	tcase_add_loop_test(tc_core, test_jwks_keyring_load, 0, i);
+
+	/* Some coverage attempts. */
+	tcase_add_loop_test(tc_core, test_jwks_key_op_all_types, 0, i);
+	tcase_add_loop_test(tc_core, test_jwks_key_op_bad_type, 0, i);
 
 	tcase_set_timeout(tc_core, 30);
 

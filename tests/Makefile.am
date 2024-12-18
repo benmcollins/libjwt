@@ -1,4 +1,4 @@
-EXTRA_DIST = jwt_tests.h keys/*.json keys/*.pem misc/*.rb
+EXTRA_DIST = jwt_tests.h keys/*.json keys/*.pem misc/*.rb test-env.sh
 
 TESTS =			\
 	jwt_new		\
@@ -29,3 +29,7 @@ LDADD = -ljwt $(CHECK_LIBS)
 CODE_COVERAGE_IGNORE_PATTERN = '/usr/**' '**/ll.h'
 @CODE_COVERAGE_RULES@
 @VALGRIND_CHECK_RULES@
+
+AM_TESTS_ENVIRONMENT =			\
+	export TEST="$$f";		\
+	. $(srcdir)/test-env.sh;

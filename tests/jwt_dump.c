@@ -28,6 +28,14 @@ static int test_set_alloc(void)
 	return jwt_set_alloc(test_malloc, test_realloc, test_free);
 }
 
+START_TEST(test_jwt_crypto_ops)
+{
+	const char *msg = getenv("JWT_CRYPTO");
+
+	ck_assert_str_eq(msg, "NONEXISTENT");
+}
+END_TEST
+
 START_TEST(test_alloc_funcs)
 {
 	jwt_malloc_t m = NULL;
@@ -366,6 +374,7 @@ static Suite *libjwt_suite(const char *title)
 
 	tc_core = tcase_create("jwt_dump");
 
+	tcase_add_test(tc_core, test_jwt_crypto_ops);
 	tcase_add_loop_test(tc_core, test_alloc_funcs, 0, i);
 	tcase_add_loop_test(tc_core, test_jwt_dump_fp, 0, i);
 	tcase_add_loop_test(tc_core, test_jwt_dump_str, 0, i);

@@ -10,6 +10,15 @@
 #include "config.h"
 #endif
 
+#ifndef ARRAY_SIZE
+#  ifdef __GNUC__
+#    define ARRAY_SIZE(__arr) (sizeof(__arr) / sizeof((__arr)[0]) + \
+        __builtin_types_compatible_p(typeof(__arr), typeof(&(__arr)[0])) * 0)
+#  else
+#    define ARRAY_SIZE(__arr) (sizeof(__arr) / sizeof((__arr)[0]))
+#  endif
+#endif
+
 /* Compatibility with older libCheck versions */
 /* Older check doesn't have this. */
 #ifndef ck_assert_ptr_ne
@@ -19,10 +28,6 @@
 
 #ifndef ck_assert_int_gt
 #define ck_assert_int_gt(X, Y) ck_assert(X > Y)
-#endif
-
-#ifndef ARRAY_SIZE
-#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
 #endif
 
 /* Constant time to make tests consistent. */
