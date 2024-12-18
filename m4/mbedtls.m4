@@ -30,7 +30,7 @@ check|yes)
 	if test "$have_mbedtls" = "yes" ; then
 		AC_DEFINE(HAVE_MBEDTLS, 1, [Define if the system has mbedtls])
 		AM_CONDITIONAL([HAVE_MBEDTLS], [true])
-		HAVE_CRYPTO=true
+		have_crypto=yes
 	elif test "$with_mbedtls" = "yes" ; then
 		AC_MSG_ERROR([--with-mbedtls was given but MBedTLS not found])
 	fi

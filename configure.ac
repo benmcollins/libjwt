@@ -28,53 +28,69 @@ AC_SUBST([libjwt_version_info], [libjwt_version_info])
 
 AC_SUBST([AM_CFLAGS], [-Wall])
 
+[RPMB_GNUTLS="--without gnutls"]
+[RPMB_OPENSSL="--without openssl"]
+
 AC_ARG_WITH([gnutls],
 	[AS_HELP_STRING([--with-gnutls],
 		[Support GnuTLS for crypto operations @<:@default=check@:>@])],
-	[RPMB_GNUTLS="--without gnutls"],
-	[with_gnutls=check] [RPMB_GNUTLS="--without gnutls"])
+	[], [with_gnutls=check])
 
 AC_ARG_WITH([openssl],
 	[AS_HELP_STRING([--with-openssl],
 		[Support OpenSSL for crypto operations @<:@default=check@:>@])],
-	[RPMB_OPENSSL="--without openssl"],
-	[with_openssl=check] [RPMB_OPENSSL="--without openssl"])
+	[], [with_openssl=check])
 
 AC_ARG_WITH([mbedtls],
         [AS_HELP_STRING([--with-mbedtls],
                 [Support MBedTLS for crypto operations @<:@default=no@:>@])],
-        [],
-        [with_mbedtls=no])
-
-AS_IF([test "x$with_gnutls" != xno],
-	[PKG_CHECK_MODULES([GNUTLS], [gnutls >= 3.6.0],
-	[AM_CONDITIONAL([HAVE_GNUTLS], [true])]
-	[AC_DEFINE([HAVE_GNUTLS], [1], [GnuTLS Support])]
-	[HAVE_CRYPTO=true] [RPMB_GNUTLS="--with gnutls"],
-	AS_IF([test "x$with_gnutls" != xcheck],
-		AC_MSG_FAILURE([--with-gnutls was given but GnuTLS not found])
-	))], [AM_CONDITIONAL([HAVE_GNUTLS], [false])])
+        [], [with_mbedtls=no])
 
 AS_IF([test "x$with_openssl" != xno],
 	[PKG_CHECK_MODULES([OPENSSL], [openssl >= 1.1.0],
-        [AM_CONDITIONAL([HAVE_OPENSSL], [true])]
+		[have_openssl=yes],
+		[AS_IF([test "x$with_openssl" != xcheck],
+			AC_MSG_FAILURE([--with-openssl was given but OpenSSL not found])
+		)])])
+
+AS_IF([test "x$with_gnutls" != xno],
+	[PKG_CHECK_MODULES([GNUTLS], [gnutls >= 3.6.0],
+		[have_gnutls=yes],
+		[AS_IF([test "x$with_gnutls" != xcheck],
+			AC_MSG_FAILURE([--with-gnutls was given but GnuTLS not found])
+		)])])
+
+AS_IF([test "x$have_gnutls" = xyes],
+	dnl We got it
+	[AC_DEFINE([HAVE_GNUTLS], [1], [GnuTLS Support])]
+	[AM_CONDITIONAL([HAVE_GNUTLS], [true])]
+	[have_crypto=yes]
+	[RPMB_GNUTLS="--without gnutls"],
+
+	dnl We don't
+	[AM_CONDITIONAL([HAVE_GNUTLS], [false])]
+)
+
+AS_IF([test "x$have_openssl" = xyes],
+	dnl We got it
 	[AC_DEFINE([HAVE_OPENSSL], [1], [OpenSSL Support])]
-	[HAVE_CRYPTO=true] [RPMB_OPENSSL="--with openssl"],
-        AS_IF([test "x$with_openssl" != xcheck],
-		AC_MSG_FAILURE([--with-openssl was given but OpenSSL not found])
-	))], [AM_CONDITIONAL([HAVE_OPENSSL], [false])])
+	[AM_CONDITIONAL([HAVE_OPENSSL], [true])]
+	[have_crypto=yes]
+	[RPMB_OPENSSL="--without openssl"],
+
+	dnl We don't
+	[AM_CONDITIONAL([HAVE_OPENSSL], [false])]
+)
 
 CHECK_MBEDTLS
 
-AS_IF([test -z "$HAVE_CRYPTO"],
-	[AC_MSG_ERROR([No crypto library detected], [1])], [])
+AS_IF([test "x$have_crypto" = x],
+	[AC_MSG_ERROR([No crypto library detected])])
 
 AC_ARG_WITH([examples],
 	AS_HELP_STRING([--with-examples], [Build example programs @<:@default=no@:>@]),
 	[AM_CONDITIONAL([BUILD_EXAMPLES],[true])],
 	[AM_CONDITIONAL([BUILD_EXAMPLES],[false])])
-
-AM_CONDITIONAL([BUILD_EXAMPLES], [test "x$with_examples" != "xno"])
 
 PKG_CHECK_MODULES([JANSSON], [jansson >= 2.0])
 PKG_CHECK_MODULES([CHECK], [check >= 0.9.4],

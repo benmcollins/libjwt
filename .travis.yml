@@ -1,27 +1,50 @@
-dist: jammy
 language: c
+os: linux
+dist: jammy
+arch: amd64
 
-os:
- - linux
-arch:
- - amd64
+jobs:
+  include:
+    - name: "Build with CMake"
+      env: BUILD_SYSTEM=cmake
+    - name: "Build with Autotools"
+      env: BUILD_SYSTEM=autotools
  
 compiler:
   - gcc
+
 addons:
   apt:
     packages:
-    - libjansson-dev
-    - check
-    - libssl-dev
-    - lcov
-    - gnutls-dev
-    - libb64-dev
+      - autoconf
+      - automake
+      - libtool
+      - cmake
+      - libjansson-dev
+      - libssl-dev
+      - libgnutls28-dev
+      - check
+      - valgrind
+
 before_install:
   - sudo pip install codecov
   - autoreconf -fi
+
 script:
-  - ./configure --with-openssl --with-gnutls --enable-code-coverage
-  - make check-code-coverage
-after_success:
-  - codecov
+  - if [ "$BUILD_SYSTEM" = "cmake" ]; then
+      mkdir -p build && cd build;
+      cmake -DWITH_GNUTLS=1 -DWITH_OPENSSL=1 ..;
+      make;
+    fi
+  - if [ "$BUILD_SYSTEM" = "autotools" ]; then
+      mkdir abuild && cd abuild;
+      ./configure ----with-openssl --with-gnutls --enable-code-coverage --enable-valgrind;
+      make;
+      make check-valgrind;
+      make check-code-coverage;
+      codecov;
+    fi
+
+branches:
+  only:
+    - master
