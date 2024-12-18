@@ -1,7 +1,9 @@
 ![LibJWT - The C JWT Library](https://github.com/user-attachments/assets/8ca53c64-df33-4c2b-b799-0864a48d89cb)
 ---
 
+<a href="https://jwt.io/libraries#:~:text=/libjwt">
 <img alt="View on JWT.IO" align="right" src="http://jwt.io/img/badge.svg">
+</a>
 
 [![Build Status](https://app.travis-ci.com/benmcollins/libjwt.svg?branch=master)](https://app.travis-ci.com/github/benmcollins/libjwt)
 [![codecov](https://codecov.io/gh/benmcollins/libjwt/graph/badge.svg?token=MhCaZ8cpwQ)](https://codecov.io/gh/benmcollins/libjwt)
