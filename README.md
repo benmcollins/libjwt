@@ -1,15 +1,28 @@
-![LibJWT Logo](https://user-images.githubusercontent.com/320303/33439880-82406da4-d5bc-11e7-8959-6d53553c1984.png)
+![LibJWT](https://github.com/user-attachments/assets/d486f8c1-4025-4018-8d95-bf8753d9662f)
 
-# JWT C Library
-
-[![Build Status](https://app.travis-ci.com/benmcollins/libjwt.svg?branch=master)](https://app.travis-ci.com/github/benmcollins/libjwt) [![codecov](https://codecov.io/gh/benmcollins/libjwt/graph/badge.svg?token=MhCaZ8cpwQ)](https://codecov.io/gh/benmcollins/libjwt)
+# The JWT C Library +JWK +JWKS
 
 [![View on JWT.IO](http://jwt.io/img/badge.svg)](https://jwt.io)
 
-## Build Requirements
+[![Build Status](https://app.travis-ci.com/benmcollins/libjwt.svg?branch=master)](https://app.travis-ci.com/github/benmcollins/libjwt) [![codecov](https://codecov.io/gh/benmcollins/libjwt/graph/badge.svg?token=MhCaZ8cpwQ)](https://codecov.io/gh/benmcollins/libjwt)
 
-- https://github.com/akheron/jansson
-- OpenSSL or GnuTLS
+## Build Prerequisites
+
+### Required
+
+- [JANSSON](https://github.com/akheron/jansson) (>= 2.0)
+
+### Atleast one of these
+
+- OpenSSL (>= 1.1.0)
+- GnuTLS (>= 3.4.0)
+
+**NOTE:** OpenSSL >= 3.0 is required for JWK and JWKS support
+
+### Optional
+
+- [Check Library](https://github.com/libcheck/check/issues) for unit testing
+- Doxygen
 
 ## Documentation
 
@@ -18,7 +31,7 @@
 ## Pre-built Packages
 
 LibJWT is available in most Linux distributions as well as through [Homebrew](https://brew.sh/)
-for macOS and Windows.
+for Linux, macOS, and Windows.
 
 ## Build Instructions
 
@@ -40,5 +53,5 @@ If you have libcheck installed, both targets will compile the test suite
 (``check`` target on autoconf, ``test`` target on cmake).
 
 If you ``--enable-code-coverage`` on autoconf or ``-DENABLE_COVERAGE=1``
-on cmake, you cam also run ``check-code-coverage`` or ``coverage``
+on cmake, for the targets of ``check-code-coverage`` or ``coverage``
 respectively.
