@@ -26,7 +26,7 @@
 #include <jansson.h>
 
 #include <jwt.h>
-#include <jwt-private.h>
+#include "jwt-private.h"
 
 static int ec_count, rsa_count, eddsa_count, rsa_pss_count;
 

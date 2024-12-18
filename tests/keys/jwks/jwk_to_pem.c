@@ -17,9 +17,8 @@ static void write_key_file(jwk_item_t *item)
 {
 	const char *pre, *name;
 	int priv = item->is_private_key;;
-	char *file_name;
+	char file_name[BUFSIZ];
 	FILE *fp;
-	int ret;
 
 	if (item->error || !item->pem)
 		return;
@@ -52,29 +51,21 @@ static void write_key_file(jwk_item_t *item)
 	}
 
 	if (item->kid == NULL) {
-		ret = asprintf(&file_name, "pems/%s_%s%s.pem", pre, name,
-			       priv ? "" : "_pub");
+		snprintf(file_name, sizeof(file_name), "pems/%s_%s%s.pem",
+			 pre, name, priv ? "" : "_pub");
 	} else {
-		ret = asprintf(&file_name, "pems/%s_%s_%s%s.pem", pre,
-			       name, item->kid, priv ? "" : "_pub");
-	}
-
-	if (ret < 0) {
-		fprintf(stderr, "Memory error writing file\n");
-		return;
+		snprintf(file_name, sizeof(file_name), "pems/%s_%s_%s%s.pem",
+			 pre, name, item->kid, priv ? "" : "_pub");
 	}
 
 	fp = fopen(file_name, "wx");
 	if (fp == NULL) {
 		fprintf(stderr, "Could not overwrite '%s'\n", file_name);
-		free(file_name);
 		return;
 	}
 
 	fputs(item->pem, fp);
 	fclose(fp);
-
-	free(file_name);
 }
 
 int main(int argc, char **argv)
