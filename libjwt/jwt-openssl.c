@@ -25,34 +25,6 @@
 
 /* Routines to support crypto in LibJWT using OpenSSL. */
 
-/* Functions to make libjwt backward compatible with OpenSSL version < 1.1.0
- * See https://wiki.openssl.org/index.php/1.1_API_Changes
- */
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-
-static void ECDSA_SIG_get0(const ECDSA_SIG *sig, const BIGNUM **pr, const BIGNUM **ps)
-{
-	if (pr != NULL)
-		*pr = sig->r;
-	if (ps != NULL)
-		*ps = sig->s;
-}
-
-static int ECDSA_SIG_set0(ECDSA_SIG *sig, BIGNUM *r, BIGNUM *s)
-{
-	if (r == NULL || s == NULL)
-		return 0;
-
-	BN_clear_free(sig->r);
-	BN_clear_free(sig->s);
-	sig->r = r;
-	sig->s = s;
-
-	return 1;
-}
-
-#endif
-
 static int openssl_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 				 const char *str, unsigned int str_len)
 {
@@ -75,7 +47,7 @@ static int openssl_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 
 	*out = jwt_malloc(EVP_MAX_MD_SIZE);
 	if (*out == NULL)
-		return ENOMEM;
+		return ENOMEM; // LCOV_EXCL_LINE
 
 	HMAC(alg, jwt->key, jwt->key_len,
 	     (const unsigned char *)str, str_len, (unsigned char *)*out,
@@ -123,10 +95,9 @@ static int openssl_verify_sha_hmac(jwt_t *jwt, const char *head,
 
 #define EC_ERROR(__err) { return -(__err); }
 
-static size_t __degree_and_check(EVP_PKEY *pkey, jwt_t *jwt)
+static int __degree_and_check(EVP_PKEY *pkey, jwt_t *jwt)
 {
-	size_t degree;
-	int curve_nid;
+	int degree, curve_nid;
 
 #if OPENSSL_VERSION_NUMBER < 0x30000000L
 	const EC_GROUP *group;
@@ -172,29 +143,84 @@ static size_t __degree_and_check(EVP_PKEY *pkey, jwt_t *jwt)
 
 static int jwt_degree_for_key(EVP_PKEY *pkey, jwt_t *jwt)
 {
-	size_t degree = __degree_and_check(pkey, jwt);
+	int degree = __degree_and_check(pkey, jwt);
+
+	if (degree < 0)
+		return degree;
 
 	/* Final check for matching degree */
 	switch (jwt->alg) {
 	case JWT_ALG_ES256:
 	case JWT_ALG_ES256K:
 		if (degree != 256)
-			return -EINVAL;
+			EC_ERROR(EINVAL);
 		break;
 	case JWT_ALG_ES384:
 		if (degree != 384)
-			return -EINVAL;
+			EC_ERROR(EINVAL);
 		break;
 	case JWT_ALG_ES512:
 		/* This is not a typo. ES512 uses secp521r1 */
 		if (degree != 521)
-			return -EINVAL;
+			EC_ERROR(EINVAL);
 		break;
 	default:
-		return -EINVAL;
+		EC_ERROR(EINVAL);
 	}
 
 	return degree;
+}
+
+static int jwt_ec_d2i(jwt_t *jwt, char **out, unsigned int *len,
+		      unsigned char *sig, unsigned int slen,
+		      EVP_PKEY *pkey)
+{
+	unsigned int bn_len, r_len, s_len, buf_len;
+	ECDSA_SIG *ec_sig = NULL;
+	const BIGNUM *ec_sig_r;
+	const BIGNUM *ec_sig_s;
+	unsigned char *buf;
+	int degree;
+
+	degree = jwt_degree_for_key(pkey, jwt);
+	if (degree < 0)
+		return -degree;
+
+	/* Get the sig from the DER encoded version. */
+	ec_sig = d2i_ECDSA_SIG(NULL, (const unsigned char **)&sig, slen);
+	if (ec_sig == NULL)
+		return ENOMEM; // LCOV_EXCL_LINE
+
+	ECDSA_SIG_get0(ec_sig, &ec_sig_r, &ec_sig_s);
+	r_len = BN_num_bytes(ec_sig_r);
+	s_len = BN_num_bytes(ec_sig_s);
+	bn_len = (degree + 7) / 8;
+	if ((r_len > bn_len) || (s_len > bn_len)) {
+		ECDSA_SIG_free(ec_sig);
+		return EINVAL;
+	}
+
+	buf_len = 2 * bn_len;
+	buf = jwt_malloc(buf_len);
+	if (buf == NULL) {
+		// LCOV_EXCL_START
+		ECDSA_SIG_free(ec_sig);
+		return ENOMEM;
+		// LCOV_EXCL_STOP
+	}
+
+	/* Pad the bignums with leading zeroes. Ends up looking sort
+	 * of like this "0000rrrrrrrSSSSS". */
+	memset(buf, 0, buf_len);
+	BN_bn2bin(ec_sig_r, buf + (bn_len - r_len));
+	BN_bn2bin(ec_sig_s, buf + (buf_len - s_len));
+
+	ECDSA_SIG_free(ec_sig);
+
+	*out = (char *)buf;
+	*len = buf_len;
+
+	return 0;
 }
 
 #define SIGN_ERROR(__err) { ret = __err; goto jwt_sign_sha_pem_done; }
@@ -204,14 +230,11 @@ static int openssl_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 {
 	EVP_MD_CTX *mdctx = NULL;
 	EVP_PKEY_CTX *pkey_ctx = NULL;
-	ECDSA_SIG *ec_sig = NULL;
-	const BIGNUM *ec_sig_r = NULL;
-	const BIGNUM *ec_sig_s = NULL;
 	BIO *bufkey = NULL;
 	const EVP_MD *alg;
 	int type;
 	EVP_PKEY *pkey = NULL;
-	unsigned char *sig;
+	unsigned char *sig = NULL;
 	int ret = 0;
 	size_t slen;
 
@@ -271,7 +294,7 @@ static int openssl_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 
 	bufkey = BIO_new_mem_buf(jwt->key, jwt->key_len);
 	if (bufkey == NULL)
-		SIGN_ERROR(ENOMEM);
+		SIGN_ERROR(ENOMEM); // LCOV_EXCL_LINE
 
 	/* This uses OpenSSL's default passphrase callback if needed. The
 	 * library caller can override this in many ways, all of which are
@@ -285,12 +308,13 @@ static int openssl_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 
 	mdctx = EVP_MD_CTX_create();
 	if (mdctx == NULL)
-		SIGN_ERROR(ENOMEM);
+		SIGN_ERROR(ENOMEM); // LCOV_EXCL_LINE
 
 	/* Initialize the DigestSign operation using alg */
 	if (EVP_DigestSignInit(mdctx, &pkey_ctx, alg, NULL, pkey) != 1)
 		SIGN_ERROR(EINVAL);
 
+	/* Required for RSA-PSS */
 	if (type == EVP_PKEY_RSA_PSS) {
 		if (EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, RSA_PKCS1_PSS_PADDING) < 0)
 			SIGN_ERROR(EINVAL);
@@ -303,63 +327,35 @@ static int openssl_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		SIGN_ERROR(EINVAL);
 
 	/* Allocate memory for signature based on returned size */
-	sig = alloca(slen);
+	sig = jwt_malloc(slen);
 	if (sig == NULL)
-		SIGN_ERROR(ENOMEM);
+		SIGN_ERROR(ENOMEM); // LCOV_EXCL_LINE
 
 	/* Actual signing */
 	if (EVP_DigestSign(mdctx, sig, &slen, (const unsigned char *)str, str_len) != 1)
 		SIGN_ERROR(EINVAL);
 
-	if (type != EVP_PKEY_EC) {
-		*out = jwt_malloc(slen);
-		if (*out == NULL)
-			SIGN_ERROR(ENOMEM);
-		memcpy(*out, sig, slen);
-		*len = slen;
-	} else {
-		unsigned int bn_len, r_len, s_len, buf_len;
-		unsigned char *raw_buf;
-
+	if (type == EVP_PKEY_EC) {
 		/* For EC we need to convert to a raw format of R/S. */
-		int degree = jwt_degree_for_key(pkey, jwt);
-		if (degree < 0)
-			SIGN_ERROR(-degree);
+		ret = jwt_ec_d2i(jwt, out, len, sig, slen, pkey);
 
-		/* Get the sig from the DER encoded version. */
-		ec_sig = d2i_ECDSA_SIG(NULL, (const unsigned char **)&sig, slen);
-		if (ec_sig == NULL)
-			SIGN_ERROR(ENOMEM);
-
-		ECDSA_SIG_get0(ec_sig, &ec_sig_r, &ec_sig_s);
-		r_len = BN_num_bytes(ec_sig_r);
-		s_len = BN_num_bytes(ec_sig_s);
-		bn_len = (degree + 7) / 8;
-		if ((r_len > bn_len) || (s_len > bn_len))
-			SIGN_ERROR(EINVAL);
-
-		buf_len = 2 * bn_len;
-		raw_buf = alloca(buf_len);
-		if (raw_buf == NULL)
-			SIGN_ERROR(ENOMEM);
-
-		/* Pad the bignums with leading zeroes. */
-		memset(raw_buf, 0, buf_len);
-		BN_bn2bin(ec_sig_r, raw_buf + bn_len - r_len);
-		BN_bn2bin(ec_sig_s, raw_buf + buf_len - s_len);
-
-		*out = jwt_malloc(buf_len);
-		if (*out == NULL)
-			SIGN_ERROR(ENOMEM);
-		memcpy(*out, raw_buf, buf_len);
-		*len = buf_len;
+		/* jwt_ec_d2i has updated the out and len pointers on
+		 * success. Either way, we're done with this buffer. */
+		jwt_freemem(sig);
+		sig = NULL;
+	} else {
+		/* Everything else, just pass back the original sig. */
+		*out = (char *)sig;
+		*len = slen;
 	}
 
 jwt_sign_sha_pem_done:
+	if (ret)
+		jwt_freemem(sig);
+
 	BIO_free(bufkey);
 	EVP_PKEY_free(pkey);
 	EVP_MD_CTX_destroy(mdctx);
-	ECDSA_SIG_free(ec_sig);
 
 	return ret;
 }
@@ -442,7 +438,7 @@ static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 
 	bufkey = BIO_new_mem_buf(jwt->key, jwt->key_len);
 	if (bufkey == NULL)
-		VERIFY_ERROR(ENOMEM);
+		VERIFY_ERROR(ENOMEM); // LCOV_EXCL_LINE
 
 	/* This uses OpenSSL's default passphrase callback if needed. The
 	 * library caller can override this in many ways, all of which are
@@ -462,7 +458,7 @@ static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 
 		ec_sig = ECDSA_SIG_new();
 		if (ec_sig == NULL)
-			VERIFY_ERROR(ENOMEM);
+			VERIFY_ERROR(ENOMEM); // LCOV_EXCL_LINE
 
 		degree = jwt_degree_for_key(pkey, jwt);
 		if (degree < 0)
@@ -478,12 +474,13 @@ static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 			VERIFY_ERROR(EINVAL);
 
 		ECDSA_SIG_set0(ec_sig, ec_sig_r, ec_sig_s);
-		jwt_freemem(sig);
 
 		slen = i2d_ECDSA_SIG(ec_sig, NULL);
-		sig = jwt_malloc(slen);
+
+		/* Reset this with the new information. */
+		sig = jwt_realloc(sig, slen);
 		if (sig == NULL)
-			VERIFY_ERROR(ENOMEM);
+			VERIFY_ERROR(ENOMEM); // LCOV_EXCL_LINE
 
 		p = sig;
 		slen = i2d_ECDSA_SIG(ec_sig, &p);
@@ -494,7 +491,7 @@ static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 
 	mdctx = EVP_MD_CTX_create();
 	if (mdctx == NULL)
-		VERIFY_ERROR(ENOMEM);
+		VERIFY_ERROR(ENOMEM); // LCOV_EXCL_LINE
 
 	/* Initialize the DigestVerify operation using alg */
 	if (EVP_DigestVerifyInit(mdctx, &pkey_ctx, alg, NULL, pkey) != 1)
@@ -512,16 +509,11 @@ static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 		VERIFY_ERROR(EINVAL);
 
 jwt_verify_sha_pem_done:
-	if (bufkey)
-		BIO_free(bufkey);
-	if (pkey)
-		EVP_PKEY_free(pkey);
-	if (mdctx)
-		EVP_MD_CTX_destroy(mdctx);
-	if (sig)
-		jwt_freemem(sig);
-	if (ec_sig)
-		ECDSA_SIG_free(ec_sig);
+	BIO_free(bufkey);
+	EVP_PKEY_free(pkey);
+	EVP_MD_CTX_destroy(mdctx);
+	jwt_freemem(sig);
+	ECDSA_SIG_free(ec_sig);
 
 	return ret;
 }

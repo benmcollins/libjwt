@@ -45,7 +45,7 @@ struct jwt_crypto_ops *jwt_ops = &jwt_mbedtls_ops;
 const char *jwt_get_crypto_ops(void)
 {
 	if (jwt_ops == NULL)
-		return "(unknown)";
+		return "(unknown)"; // LCOV_EXCL_LINE
 
 	return jwt_ops->name;
 }
@@ -53,7 +53,7 @@ const char *jwt_get_crypto_ops(void)
 jwt_crypto_provider_t jwt_get_crypto_ops_t(void)
 {
 	if (jwt_ops == NULL)
-		return JWT_CRYPTO_OPS_NONE;
+		return JWT_CRYPTO_OPS_NONE; // LCOV_EXCL_LINE
 
 	return jwt_ops->provider;
 }
@@ -114,9 +114,6 @@ void jwt_init()
 	}
 }
 
-/* Number of elements in an array */
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
-
 static jwt_malloc_t pfn_malloc = NULL;
 static jwt_realloc_t pfn_realloc = NULL;
 static jwt_free_t pfn_free = NULL;
@@ -129,7 +126,7 @@ void *jwt_malloc(size_t size)
 	return malloc(size);
 }
 
-static void *jwt_realloc(void *ptr, size_t size)
+void *jwt_realloc(void *ptr, size_t size)
 {
 	if (pfn_realloc)
 		return pfn_realloc(ptr, size);
@@ -153,7 +150,7 @@ static char *jwt_strdup(const char *str)
 	len = strlen(str);
 	result = (char *)jwt_malloc(len + 1);
 	if (!result)
-		return NULL;
+		return NULL; // LCOV_EXCL_LINE
 
 	memcpy(result, str, len);
 	result[len] = '\0';
@@ -187,22 +184,6 @@ int jwt_strcmp(const char *str1, const char *str2)
 	ret |= len1 ^ len2;
 
 	return ret;
-}
-
-static void *jwt_calloc(size_t nmemb, size_t size)
-{
-	size_t total_size;
-	void *ptr;
-
-	total_size = nmemb * size;
-	if (!total_size)
-		return NULL;
-
-	ptr = jwt_malloc(total_size);
-	if (ptr)
-		memset(ptr, 0, total_size);
-
-	return ptr;
 }
 
 const char *jwt_alg_str(jwt_alg_t alg)
@@ -316,7 +297,7 @@ int jwt_set_alg(jwt_t *jwt, jwt_alg_t alg, const unsigned char *key, int len)
 
 		jwt->key = jwt_malloc(len);
 		if (!jwt->key)
-			return ENOMEM;
+			return ENOMEM; // LCOV_EXCL_LINE
 
 		memcpy(jwt->key, key, len);
 	}
@@ -339,23 +320,27 @@ int jwt_new(jwt_t **jwt)
 
 	*jwt = jwt_malloc(sizeof(jwt_t));
 	if (!*jwt)
-		return ENOMEM;
+		return ENOMEM; // LCOV_EXCL_LINE
 
 	memset(*jwt, 0, sizeof(jwt_t));
 
 	(*jwt)->grants = json_object();
 	if (!(*jwt)->grants) {
+		// LCOV_EXCL_START
 		jwt_freemem(*jwt);
 		*jwt = NULL;
 		return ENOMEM;
+		// LCOV_EXCL_STOP
 	}
 
 	(*jwt)->headers = json_object();
 	if (!(*jwt)->headers) {
+		// LCOV_EXCL_START
 		json_decref((*jwt)->grants);
 		jwt_freemem(*jwt);
 		*jwt = NULL;
 		return ENOMEM;
+		// LCOV_EXCL_STOP
 	}
 
 	return 0;
@@ -387,8 +372,10 @@ jwt_t *jwt_dup(jwt_t *jwt)
 
 	new = jwt_malloc(sizeof(jwt_t));
 	if (!new) {
+		// LCOV_EXCL_START
 		errno = ENOMEM;
 		return NULL;
+		// LCOV_EXCL_STOP
 	}
 
 	memset(new, 0, sizeof(jwt_t));
@@ -397,8 +384,10 @@ jwt_t *jwt_dup(jwt_t *jwt)
 		new->alg = jwt->alg;
 		new->key = jwt_malloc(jwt->key_len);
 		if (!new->key) {
+			// LCOV_EXCL_START
 			errno = ENOMEM;
 			goto dup_fail;
+			// LCOV_EXCL_STOP
 		}
 		memcpy(new->key, jwt->key, jwt->key_len);
 		new->key_len = jwt->key_len;
@@ -406,11 +395,11 @@ jwt_t *jwt_dup(jwt_t *jwt)
 
 	new->grants = json_deep_copy(jwt->grants);
 	if (!new->grants)
-		errno = ENOMEM;
+		errno = ENOMEM; // LCOV_EXCL_LINE
 
 	new->headers = json_deep_copy(jwt->headers);
 	if (!new->headers)
-		errno = ENOMEM;
+		errno = ENOMEM; // LCOV_EXCL_LINE
 
 dup_fail:
 	if (errno) {
@@ -495,7 +484,7 @@ void *jwt_base64uri_decode(const char *src, int *ret_len)
 	 * to 3 '=' characters to replace the missing padding. */
 	new = jwt_malloc(len + 4);
 	if (!new)
-		return NULL;
+		return NULL; // LCOV_EXCL_LINE
 
 	for (i = 0; i < len; i++) {
 		switch (src[i]) {
@@ -520,8 +509,10 @@ void *jwt_base64uri_decode(const char *src, int *ret_len)
 	/* Now we have a standard base64 encoded string. */
 	buf = jwt_malloc(BASE64_DECODE_OUT_SIZE(len) + 1);
 	if (buf == NULL) {
+		// LCOV_EXCL_START
 		jwt_freemem(new);
 		return NULL;
+		// LCOV_EXCL_STOP
 	}
 
 	*ret_len = base64_decode(new, len, buf);
@@ -545,7 +536,7 @@ static json_t *jwt_base64uri_decode_to_json(char *src)
 	buf = jwt_base64uri_decode(src, &len);
 
 	if (buf == NULL)
-		return NULL;
+		return NULL; // LCOV_EXCL_LINE
 
 	buf[len] = '\0';
 
@@ -564,7 +555,7 @@ int jwt_base64uri_encode(char **_dst, const char *plain, int plain_len)
 	len = BASE64_ENCODE_OUT_SIZE(plain_len);
 	dst = jwt_malloc(len + 1);
 	if (dst == NULL)
-		return -ENOMEM;
+		return -ENOMEM; // LCOV_EXCL_LINE
 
 	/* First, a normal base64 encoding */
 	len = base64_encode((const unsigned char *)plain, plain_len, dst);
@@ -734,7 +725,7 @@ static int jwt_parse(jwt_t **jwt, const char *token, unsigned int *len)
 	head = jwt_strdup(token);
 
 	if (!head)
-		return ENOMEM;
+		return ENOMEM; // LCOV_EXCL_LINE
 
 	/* Find the components. */
 	for (body = head; body[0] != '.'; body++) {
@@ -783,7 +774,7 @@ static int jwt_copy_key(jwt_t *jwt, const unsigned char *key, int key_len)
 	if (key_len) {
 		jwt->key = jwt_malloc(key_len);
 		if (jwt->key == NULL)
-			return ENOMEM;
+			return ENOMEM; // LCOV_EXCL_LINE
 		memcpy(jwt->key, key, key_len);
 		jwt->key_len = key_len;
 	}
@@ -1127,13 +1118,22 @@ static int __append_str(char **buf, const char *str)
 {
 	char *new;
 
-	if (*buf == NULL)
-		new = jwt_calloc(1, strlen(str) + 1);
-	else
-		new = jwt_realloc(*buf, strlen(*buf) + strlen(str) + 1);
+	if (str == NULL || str[0] == '\0')
+		return 0;
 
-	if (new == NULL)
-		return ENOMEM;
+	if (*buf == NULL) {
+		new = jwt_malloc(strlen(str) + 1);
+		if (new)
+			new[0] = '\0';
+	} else {
+		new = jwt_realloc(*buf, strlen(*buf) + strlen(str) + 1);
+	}
+
+	if (new == NULL) {
+		jwt_freemem(*buf);
+		*buf = NULL;
+		return 1;
+	}
 
 	strcat(new, str);
 
@@ -1142,10 +1142,9 @@ static int __append_str(char **buf, const char *str)
 	return 0;
 }
 
-#define APPEND_STR(__buf, __str) do {		\
-	int ret = __append_str(__buf, __str);	\
-	if (ret)				\
-		return ret;			\
+#define APPEND_STR(__buf, __str) do {	\
+	if (__append_str(__buf, __str))	\
+		return ENOMEM;		\
 } while (0)
 
 static int write_js(const json_t *js, char **buf, int pretty)
@@ -1178,7 +1177,6 @@ static int jwt_write_head(jwt_t *jwt, char **buf, int pretty)
 	int ret = 0;
 
 	if (jwt->alg != JWT_ALG_NONE) {
-
 		/* Only add default 'typ' header if it has not been defined,
 		 * allowing for any value of it. This allows for signaling
 		 * of application specific extensions to JWT, such as PASSporT,
@@ -1318,9 +1316,11 @@ static int jwt_encode(jwt_t *jwt, char **out)
 	/* Allocate enough to reuse as b64 buffer. */
 	buf = jwt_malloc(head_len + body_len + 2);
 	if (buf == NULL) {
+		// LCOV_EXCL_START
 		jwt_freemem(head);
 		jwt_freemem(body);
 		return ENOMEM;
+		// LCOV_EXCL_STOP
 	}
 
 	strcpy(buf, head);
@@ -1433,7 +1433,7 @@ int jwt_valid_new(jwt_valid_t **jwt_valid, jwt_alg_t alg)
 
 	*jwt_valid = jwt_malloc(sizeof(jwt_valid_t));
 	if (!*jwt_valid)
-		return ENOMEM;
+		return ENOMEM; // LCOV_EXCL_LINE
 
 	memset(*jwt_valid, 0, sizeof(jwt_valid_t));
 	(*jwt_valid)->alg = alg;

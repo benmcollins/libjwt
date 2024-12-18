@@ -19,6 +19,15 @@
 
 #include "ll.h"
 
+#ifndef ARRAY_SIZE
+#  ifdef __GNUC__
+#    define ARRAY_SIZE(__arr) (sizeof(__arr) / sizeof((__arr)[0]) + \
+	__builtin_types_compatible_p(typeof(__arr), typeof(&(__arr)[0])) * 0)
+#  else
+#    define ARRAY_SIZE(__arr) (sizeof(__arr) / sizeof((__arr)[0]))
+#  endif
+#endif
+
 extern struct jwt_crypto_ops *jwt_ops;
 
 #define jwks_write_error(__obj, __fmt, __args...)		\
@@ -95,6 +104,7 @@ extern struct jwt_crypto_ops jwt_mbedtls_ops;
 /* Memory allocators. */
 void *jwt_malloc(size_t size);
 void jwt_freemem(void *ptr);
+void *jwt_realloc(void *ptr, size_t size);
 
 /* Helper routines to handle base64url encoding without percent padding
  * as defined in RFC-4648. */

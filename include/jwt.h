@@ -165,6 +165,7 @@ typedef struct jwk_item {
 #define JWK_KEY_OP_UNWRAP	0x0020
 #define JWK_KEY_OP_DERIVE_KEY	0x0040
 #define JWK_KEY_OP_DERIVE_BITS	0x0080
+#define JWK_KEY_OP_INVALID	0xffff
 typedef unsigned short		jwk_key_op_t;
 
 /** JWT Validation exception types. These are bit values. */

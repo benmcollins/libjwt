@@ -19,12 +19,12 @@ static jwk_key_op_t jwk_key_op_j(json_t *j_op)
 	const char *op;
 
 	if (!j_op || !json_is_string(j_op))
-		return JWK_KEY_OP_NONE;
+		return JWK_KEY_OP_INVALID;
 
 	op = json_string_value(j_op);
 
 	if (op == NULL)
-		return JWK_KEY_OP_NONE;
+		return JWK_KEY_OP_INVALID;
 
 	if (!jwt_strcmp(op, "sign"))
 		return JWK_KEY_OP_SIGN;
@@ -44,7 +44,6 @@ static jwk_key_op_t jwk_key_op_j(json_t *j_op)
 		return JWK_KEY_OP_DERIVE_BITS;
 
 	/* Ignore all others as the spec says other values may be used. */
-
 	return JWK_KEY_OP_NONE;
 }
 
@@ -74,7 +73,14 @@ static void jwk_process_values(json_t *jwk, jwk_item_t *item)
 		int i;
 
 		json_array_foreach(j_ops_a, i, j_op) {
-			item->key_ops |= jwk_key_op_j(j_op);
+			jwk_key_op_t op = jwk_key_op_j(j_op);
+
+			if (op == JWK_KEY_OP_INVALID) {
+				jwks_write_error(item,
+					"JWK has an invalid value in key_op");
+			} else {
+				item->key_ops |= op;
+			}
 		}
 	}
 
@@ -87,8 +93,10 @@ static void jwk_process_values(json_t *jwk, jwk_item_t *item)
 		if (len) {
 			item->kid = jwt_malloc(len + 1);
 			if (item->kid == NULL) {
+				// LCOV_EXCL_START
 				jwks_write_error(item,
 					"Error allocating memory for kid");
+				// LCOV_EXCL_STOP
 			} else {
 				strcpy(item->kid, kid);
 			}
@@ -104,9 +112,11 @@ static jwk_item_t *jwk_process_one(jwk_set_t *jwk_set, json_t *jwk)
 
 	item = jwt_malloc(sizeof(*item));
 	if (item == NULL) {
+		// LCOV_EXCL_START
 		jwks_write_error(jwk_set,
 			"Error allocating memory for jwk_item_t");
 		return NULL;
+		// LCOV_EXCL_STOP
 	}
 
 	memset(item, 0, sizeof(*item));
@@ -171,7 +181,7 @@ int jwks_item_add(jwk_set_t *jwk_set, jwk_item_t *item)
 
 	new = jwt_malloc(sizeof(*new));
 	if (new == NULL)
-		return ENOMEM;
+		return ENOMEM; // LCOV_EXCL_LINE
 
 	new->item = item;
 
@@ -248,8 +258,10 @@ jwk_set_t *jwks_create(const char *jwk_json_str)
 	jwk_set = jwt_malloc(sizeof *jwk_set);
 	if (jwk_set == NULL) {
 		/* Yes, malloc(3) will set this, but just in case. */
+		// LCOV_EXCL_START
 		errno = ENOMEM;
 		return NULL;
+		// LCOV_EXCL_STOP
 	}
 
 	memset(jwk_set, 0, sizeof(*jwk_set));
