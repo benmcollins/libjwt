@@ -15,7 +15,7 @@
 
 ### Atleast one of these, you can use both
 - OpenSSL (>= 1.1.0)
-- GnuTLS (>= 3.4.0)
+- GnuTLS (>= 3.6.0)
 
 **NOTE:** OpenSSL >= 3.0 is required for JWK and JWKS support
 

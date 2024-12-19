@@ -19,31 +19,8 @@
 
 #include "jwt-private.h"
 
-/* Workaround to use GnuTLS 3.5 EC signature encode/decode functions that
- * are not public yet. */
-#if GNUTLS_VERSION_MAJOR == 3 && GNUTLS_VERSION_MINOR == 5
-extern int _gnutls_encode_ber_rs_raw(gnutls_datum_t *sig_value,
-				     const gnutls_datum_t *r,
-				     const gnutls_datum_t *s);
-extern int _gnutls_decode_ber_rs_raw(const gnutls_datum_t *sig_value,
-				     gnutls_datum_t *r, gnutls_datum_t *s);
-
-static int gnutls_encode_rs_value(gnutls_datum_t *sig_value,
-				  const gnutls_datum_t *r,
-				  const gnutls_datum_t *s)
-{
-	return _gnutls_encode_ber_rs_raw(sig_value, r, s);
-}
-
-static int gnutls_decode_rs_value(const gnutls_datum_t *sig_value,
-				  gnutls_datum_t *r, gnutls_datum_t *s)
-{
-	return _gnutls_decode_ber_rs_raw(sig_value, r, s);
-}
-#endif /* End of pre-3.6 work-arounds. */
-
 /**
- * libjwt encryption/decryption function definitions
+ * libjwt Cryptographic Signature/Verification function definitions
  */
 static int gnutls_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 				const char *str, unsigned int str_len)
