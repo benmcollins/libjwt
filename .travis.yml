@@ -14,33 +14,40 @@ addons:
     - libssl-dev
     - gnutls-dev
     - check
-    - valgrind
 
 jobs:
   include:
     - name: "Build with CMake"
       script:
+      - set -e
       - mkdir -p build
       - cd build
       - cmake -DWITH_GNUTLS=1 -DWITH_OPENSSL=1 ..
       - make
+      - make test
 
     - name: "Build with Autotools"
       script:
+      - set -e
       - autoreconf -fi
       - mkdir -p build
       - cd build
       -  ../configure --with-openssl --with-gnutls
       - make
+      - make check
 
     - name: "Unit Tests, Code Coverage, Memcheck"
       before_install:
       - sudo pip install codecov
+      - sudo apt-get install valgrind lcov genhtml doxygen
       script:
+      - set -e
       - autoreconf -fi
       - mkdir build
       - cd build
-      -  ../configure --with-openssl --with-gnutls --enable-code-coverage --enable-valgrind
+      - ../configure --with-openssl --with-gnutls --enable-code-coverage --enable-valgrind
       - make
       - make check-valgrind
       - make check-code-coverage
+      after_success:
+      - codecov
