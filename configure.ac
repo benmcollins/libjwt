@@ -18,7 +18,7 @@ m4_define([libjwt_project], [LibJWT])
 AC_PREREQ([2.61])
 AC_INIT([libjwt_project],[libjwt_version],[https://github.com/benmcollins/libjwt/issues])
 AC_LANG([C])
-AM_INIT_AUTOMAKE([foreign subdir-objects])
+AM_INIT_AUTOMAKE([foreign subdir-objects dist-bzip2])
 LT_PREREQ([2.2])
 LT_INIT([])
 AC_CONFIG_MACRO_DIR([m4])
@@ -65,7 +65,7 @@ AS_IF([test "x$have_gnutls" = xyes],
 	[AC_DEFINE([HAVE_GNUTLS], [1], [GnuTLS Support])]
 	[AM_CONDITIONAL([HAVE_GNUTLS], [true])]
 	[have_crypto=yes]
-	[RPMB_GNUTLS="--without gnutls"],
+	[RPMB_GNUTLS="--with gnutls"],
 
 	dnl We don't
 	[AM_CONDITIONAL([HAVE_GNUTLS], [false])]
@@ -76,7 +76,7 @@ AS_IF([test "x$have_openssl" = xyes],
 	[AC_DEFINE([HAVE_OPENSSL], [1], [OpenSSL Support])]
 	[AM_CONDITIONAL([HAVE_OPENSSL], [true])]
 	[have_crypto=yes]
-	[RPMB_OPENSSL="--without openssl"],
+	[RPMB_OPENSSL="--with openssl"],
 
 	dnl We don't
 	[AM_CONDITIONAL([HAVE_OPENSSL], [false])]
@@ -122,10 +122,11 @@ AC_CONFIG_FILES([
 	include/Makefile
 	libjwt/Makefile
 	examples/Makefile
-	tests/Makefile
 	libjwt/libjwt.pc
 	dist/Makefile
 	dist/libjwt.spec
+	tests/Makefile
+	tests/keys/Makefile
 	tests/keys/jwks/Makefile
 ])
 

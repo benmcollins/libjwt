@@ -1,4 +1,6 @@
-EXTRA_DIST = jwt_tests.h keys/*.json keys/*.pem misc/*.rb test-env.sh
+EXTRA_DIST = jwt_tests.h test-env.sh misc/ruby-eddsa.rb
+
+SUBDIRS = keys
 
 TESTS =			\
 	jwt_new		\
@@ -26,7 +28,7 @@ AM_CFLAGS = -Wall $(CHECK_CFLAGS) -DKEYDIR="\"$(srcdir)/keys\"" -D_GNU_SOURCE
 AM_LDFLAGS = -L$(top_builddir)/libjwt
 LDADD = -ljwt $(CHECK_LIBS)
 
-CODE_COVERAGE_IGNORE_PATTERN = '/usr/**' '**/ll.h'
+CODE_COVERAGE_EXTRACT_PATTERN = "libjwt/*.c"
 @CODE_COVERAGE_RULES@
 @VALGRIND_CHECK_RULES@
 

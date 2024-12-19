@@ -1,15 +1,12 @@
-VERSION=@VERSION@
+clean-local:
+	rm -rf $(builddir)/rpmbuild
 
-CLEANFILES=libjwt.spec
+$(top_builddir)/$(PACKAGE)-$(VERSION).tar.bz2:
+	$(MAKE) -C $(top_builddir) dist-bzip2
 
-rpmcheck:
-	rpmlint -i libjwt.spec
+$(builddir)/rpmbuild/SOURCES/$(PACKAGE)-$(VERSION).tar.bz2: $(top_builddir)/$(PACKAGE)-$(VERSION).tar.bz2
+	$(MKDIR_P) $(builddir)/rpmbuild/{SOURCES,SPECS,RPMS,SRPMS,BUILD}
+	$(INSTALL) $< $@
 
-rpm-prep: rpmbuild/SOURCES/libjwt-${VERSION}.tar.bz2
-
-rpmbuild/SOURCES/libjwt-${VERSION}.tar.bz2:
-	mkdir -p rpmbuild/{SOURCES,SPECS,RPMS,SRPMS,BUILD}
-	(cd ${abs_top_srcdir} && git archive --format=tar --prefix=libjwt-${VERSION}/ master) | bzip2 > $@
-
-rpm: rpm-prep
-	rpmbuild @RPMBUILD_OPTS@ -ba --define "_topdir $(PWD)/rpmbuild" libjwt.spec
+rpm: libjwt.spec $(builddir)/rpmbuild/SOURCES/$(PACKAGE)-$(VERSION).tar.bz2
+	rpmbuild @RPMBUILD_OPTS@ -ba --define "_topdir $(builddir)/rpmbuild" libjwt.spec

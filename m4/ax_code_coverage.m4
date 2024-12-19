@@ -159,7 +159,7 @@ AC_DEFUN([AX_CODE_COVERAGE],[
 #    genhtml instance. (Default: based on $CODE_COVERAGE_BRANCH_COVERAGE)
 #  - CODE_COVERAGE_GENHTML_OPTIONS: Extra options to pass to the genhtml
 #    instance. (Default: $CODE_COVERAGE_GENHTML_OPTIONS_DEFAULT)
-#  - CODE_COVERAGE_IGNORE_PATTERN: Extra glob pattern of files to ignore
+#  - CODE_COVERAGE_EXTRACT_PATTERN: Glob pattern of files to keep
 #
 # The generated report will be titled using the $(PACKAGE_NAME) and
 # $(PACKAGE_VERSION). In order to add the current git hash to the title,
@@ -182,7 +182,7 @@ CODE_COVERAGE_GENHTML_OPTIONS_DEFAULT ?=\
 $(if $(CODE_COVERAGE_BRANCH_COVERAGE),\
 --rc genhtml_branch_coverage=$(CODE_COVERAGE_BRANCH_COVERAGE))
 CODE_COVERAGE_GENHTML_OPTIONS ?= $(CODE_COVERAGE_GENHTML_OPTIONS_DEFAULTS)
-CODE_COVERAGE_IGNORE_PATTERN ?=
+CODE_COVERAGE_EXTRACT_PATTERN ?= $(top_srcdir)
 
 code_coverage_v_lcov_cap = $(code_coverage_v_lcov_cap_$(V))
 code_coverage_v_lcov_cap_ = $(code_coverage_v_lcov_cap_$(AM_DEFAULT_VERBOSITY))
@@ -190,8 +190,8 @@ code_coverage_v_lcov_cap_0 = @echo "  LCOV   --capture"\
  $(CODE_COVERAGE_OUTPUT_FILE);
 code_coverage_v_lcov_ign = $(code_coverage_v_lcov_ign_$(V))
 code_coverage_v_lcov_ign_ = $(code_coverage_v_lcov_ign_$(AM_DEFAULT_VERBOSITY))
-code_coverage_v_lcov_ign_0 = @echo "  LCOV   --remove /tmp/*"\
- $(CODE_COVERAGE_IGNORE_PATTERN);
+code_coverage_v_lcov_ign_0 = @echo "  LCOV   --extract "\
+ $(CODE_COVERAGE_EXTRACT_PATTERN);
 code_coverage_v_genhtml = $(code_coverage_v_genhtml_$(V))
 code_coverage_v_genhtml_ = $(code_coverage_v_genhtml_$(AM_DEFAULT_VERBOSITY))
 code_coverage_v_genhtml_0 = @echo "  GEN   " $(CODE_COVERAGE_OUTPUT_DIRECTORY);
@@ -215,7 +215,7 @@ endif
 code-coverage-capture: code-coverage-capture-hook
 ifeq ($(CODE_COVERAGE_ENABLED),yes)
 	$(code_coverage_v_lcov_cap)$(LCOV) $(code_coverage_quiet) $(addprefix --directory ,$(CODE_COVERAGE_DIRECTORY)) --capture --output-file "$(CODE_COVERAGE_OUTPUT_FILE).tmp" --test-name "$(call code_coverage_sanitize,$(PACKAGE_NAME)-$(PACKAGE_VERSION))" --no-checksum --compat-libtool $(CODE_COVERAGE_LCOV_SHOPTS) $(CODE_COVERAGE_LCOV_OPTIONS)
-	$(code_coverage_v_lcov_ign)$(LCOV) $(code_coverage_quiet) $(addprefix --directory ,$(CODE_COVERAGE_DIRECTORY)) --remove "$(CODE_COVERAGE_OUTPUT_FILE).tmp" --ignore-errors unused "/tmp/*" $(CODE_COVERAGE_IGNORE_PATTERN) --output-file "$(CODE_COVERAGE_OUTPUT_FILE)" $(CODE_COVERAGE_LCOV_SHOPTS) $(CODE_COVERAGE_LCOV_RMOPTS)
+	$(code_coverage_v_lcov_ign)$(LCOV) $(code_coverage_quiet) $(addprefix --directory ,$(CODE_COVERAGE_DIRECTORY)) --extract "$(CODE_COVERAGE_OUTPUT_FILE).tmp" $(CODE_COVERAGE_EXTRACT_PATTERN) --output-file "$(CODE_COVERAGE_OUTPUT_FILE)" $(CODE_COVERAGE_LCOV_SHOPTS) $(CODE_COVERAGE_LCOV_RMOPTS)
 	-@rm -f $(CODE_COVERAGE_OUTPUT_FILE).tmp
 	$(code_coverage_v_genhtml)LANG=C $(GENHTML) $(code_coverage_quiet) --output-directory "$(CODE_COVERAGE_OUTPUT_DIRECTORY)" --title "$(PACKAGE_NAME)-$(PACKAGE_VERSION) Code Coverage" --legend --show-details "$(CODE_COVERAGE_OUTPUT_FILE)" $(CODE_COVERAGE_GENHTML_OPTIONS)
 	@echo "file://$(abs_builddir)/$(CODE_COVERAGE_OUTPUT_DIRECTORY)/index.html"

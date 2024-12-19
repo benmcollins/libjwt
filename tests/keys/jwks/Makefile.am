@@ -1,4 +1,6 @@
-noinst_PROGRAMS = pem_to_jwk jwk_to_pem
+if HAVE_OPENSSL
+EXTRA_PROGRAMS = pem_to_jwk jwk_to_pem
+endif
 
 AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/libjwt $(OPENSSL_INCLUDES)
 AM_CFLAGS = -Wall -D_GNU_SOURCE $(JANSSON_CFLAGS) $(OPENSSL_CFLAGS) -g
