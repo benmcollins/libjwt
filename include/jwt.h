@@ -8,7 +8,7 @@
 
 /**
  * @file jwt.h
- * @brief JWT C Library
+ * @brief The C JSON Web Token Library +JWK + JWKS
  */
 
 #ifndef JWT_H
@@ -195,181 +195,6 @@ typedef struct {
 typedef int (*jwt_key_p_t)(const jwt_t *, jwt_key_t *);
 
 /**
- * @defgroup jwk JWT operations for JWK and JWKS
- * Functions to handle JWK in JSON for use in validating JWT objects
- * @{
- */
-
-/**
- * Create a new JWKS object for later use in validating JWTs.
- *
- * This function expects a JSON string either as a single object
- * for one JWK or as an array of objects under a key of "keys" (as
- * defined in JWKS specifications).
- * 
- * If non-NULL is returned, you should then check to make sure there
- * is no error with jwks_error(). There may be errors on individual
- * JWK items in the set. You can check if there are any with
- * jwks_error_any().
- *
- * @param jwk_json_str JSON string representation of a single key
- *   or array of "keys". If NULL is passed, an empty jwk_set_t is
- *   created.
- * @return A valid jwt_set_t on success. On failure, either NULL
- *   or a jwt_set_t with error set. NULL generally means ENOMEM.
- */
-JWT_EXPORT jwk_set_t *jwks_create(const char *jwk_json_str);
-
-/**
- * Add a jwk_item_t to an existing jwk_set_t
- *
- * @param jwk_set An existing jwk_set_t
- * @param item A JWK item to add to the set
- * @return 0 on success, valid errno otherwise.
- */
-JWT_EXPORT int jwks_item_add(jwk_set_t *jwk_set, jwk_item_t *item);
-
-/**
- * Check if there is an error within the jwk_set
- *
- * To get a string describing the error, use jwks_error_str.
- *
- * @param jwk_set An existing jwk_set_t
- * @return 0 if no error exists, 1 if it does exists.
- */
-JWT_EXPORT int jwks_error(jwk_set_t *jwk_set);
-
-/**
- * Check if there is an error within the jwk_set and any of
- * the jwk_item_t in the set.
- *
- * @param jwk_set An existing jwk_set_t
- * @return 0 if no error exists, 1 if any exists.
- */
-JWT_EXPORT int jwks_error_any(jwk_set_t *jwk_set);
-
-/**
- * Retrieve an error message from a jwk_set. Note, a zero
- * length string is valid if jwos_error() returns non-zero.
- *
- * @param jwk_set An existing jwk_set_t
- * @return NULL on error, valid string otherwise
- */
-JWT_EXPORT const char *jwks_error_msg(jwk_set_t *jwk_set);
-
-/**
- * Return the index'th jwk_item in the jwk_set
- *
- * Allows you to obtain the raw jwk_item. NOTE, this is not a copy
- * of the item, so any changes to it will be reflected to it in the
- * jwk_set. This also means if the jwk_set is freed, then this data
- * is freed and cannot be used.
- *
- * @param jwk_set An existing jwk_set_t
- * @param index Index of the jwk_set
- * @return 0 if no error exists, 1 if it does exists.
- *
- * @remark It's also worth pointing out that the index of a specific
- *     jwk_item in a jwk_set can and will change if items are added or
- *     removed.
- * from the jwk_set.
- */
-JWT_EXPORT jwk_item_t *jwks_item_get(jwk_set_t *jwk_set, size_t index);
-
-/**
- * Free all memory associated with a jwt_set_t, including any
- * jwk_item_t in the set
- *
- * @param jwk_set An existing jwk_set_t
- */
-JWT_EXPORT void jwks_free(jwk_set_t *jwk_set);
-
-/**
- * Free all memory associated with the nth jwt_item_t in a jwk_set
- *
- * @param jwk_set A JWKS object
- * @param index the position of the item in the index
- * @return 0 if no item was was deleted (found), 1 if it was
- */
-JWT_EXPORT int jwks_item_free(jwk_set_t *jwk_set, size_t index);
-
-/**
- * Free all memory associated with alljwt_item_t in a jwk_set. The
- * jwk_set becomes an empty set.
- *
- * @param jwk_set A JWKS object
- * @return The numbner of items deleted
- */
-JWT_EXPORT int jwks_item_free_all(jwk_set_t *jwk_set);
-
-/** @} */
-
-/**
- * @defgroup jwt_crypto JWT Crypto Operations
- * Functions used to set and get which crypto operations are used
- *
- * LibJWT supports several crypto libaries, mainly "openssl" and "gnutls".
- * By default, if enabled, "openssl" is used.
- *
- * @warning Changing the crypto operations is not thread safe. You must
- *   protect changing them with some sort of lock, including locking
- *   around usage of the operations themselves. Ideally, you should only
- *   perform this at the start of your application before using any of
- *   LibJWTs functions. Failing to follow this guide can lead to crashes
- *   in certain situations.
- *
- * @remark ENVIRONMENT: You can set JWT_CRYPTO to the default operations you
- * wish to use. If JWT_CRYPTO is invalid, an error message will be
- * printed to the console when LibJWT is loaded by the application.
- * @{
- */
-
-/**
- * Retrieve the name of the current crypto operations being used.
- *
- * @return name of the crypto operation set
- */
-JWT_EXPORT const char *jwt_get_crypto_ops(void);
-
-/**
- * Retrieve the type of the current crypto operations being used.
- *
- * @return jwt_crypto_provider_t of the crypto operation set
- */
-JWT_EXPORT jwt_crypto_provider_t jwt_get_crypto_ops_t(void);
-
-/**
- * Set the crypto operations to the named set.
- *
- * The opname is one of the available operators in the compiled version
- * of LibJWT. Most times, this is either "openssl" or "gnutls".
- *
- * @param opname the name of the crypto operation to set
- * @return 0 on success, valid errno otherwise.
- */
-JWT_EXPORT int jwt_set_crypto_ops(const char *opname);
-
-/**
- * Set the crypto operations to a jwt_crypto_provider_t type
- *
- * The same as jwt_set_crypto_ops(), but uses the type as opname
- *
- * @param opname A valid jwt_crypto_provider_t type
- * @return 0 on success, valid errno otherwise.
- */
-JWT_EXPORT int jwt_set_crypto_ops_t(jwt_crypto_provider_t opname);
-
-/**
- * Check if the current crypto operations support JWK usage
- *
- * @return 1 if it does, 0 if not
- */
-JWT_EXPORT int jwt_crypto_ops_supports_jwk(void);
-
-
-/** @} */
-
-/**
  * @defgroup jwt_new JWT Object Creation
  * Functions used to create and destroy JWT objects.
  *
@@ -431,13 +256,13 @@ JWT_EXPORT int jwt_decode(jwt_t **jwt, const char *token,
 /**
  * Like jwt_decode(), but the key will be obtained via the key provider.
  * Key providers may use all sorts of key management techniques, e.g.
- * can check the "kid" header parameter or download the key pointed to 
+ * can check the "kid" header parameter or download the key pointed to
  * in "x5u"
  *
  * @param jwt Pointer to a JWT object pointer. Will be allocated on
  *     success.
  * @param token Pointer to a valid JWT string, null terminated.
- * @param key_provider Pointer to a function that will obtain the key for the given JWT. 
+ * @param key_provider Pointer to a function that will obtain the key for the given JWT.
  *      Returns 0 on success or any other value on failure.
  *      In the case of an error, the same error value will be returned to the caller.
  * @return 0 on success, valid errno otherwise.
@@ -966,47 +791,114 @@ JWT_EXPORT jwt_alg_t jwt_str_alg(const char *alg);
 /** @} */
 
 /**
- * @defgroup jwt_memory JWT memory functions
- * These functions allow you to get or set memory allocation functions.
+ * @defgroup jwk JWK and JWKS Management
+ * Functions to handle JWK in JSON for use in validating JWT objects
  * @{
  */
 
- /**
-  * Set functions to be used for allocating and freeing memory.
-  *
-  * By default, LibJWT uses malloc, realloc, and free for memory
-  * management. This function allows the user of the library to
-  * specify its own memory management functions. This is especially
-  * useful on Windows where mismatches in runtimes across DLLs can
-  * cause problems.
-  *
-  * The caller can specify either a valid function pointer for
-  * any of the parameters or NULL to use the corresponding default
-  * allocator function.
-  *
-  * Note that this function will also set the memory allocator
-  * for the Jansson library.
-  *
-  * @param pmalloc The function to use for allocating memory or
-  *     NULL to use malloc
-  * @param prealloc The function to use for reallocating memory or
-  *     NULL to use realloc
-  * @param pfree The function to use for freeing memory or
-  *     NULL to use free
-  * @returns 0 on success or errno otherwise.
-  */
-JWT_EXPORT int jwt_set_alloc(jwt_malloc_t pmalloc, jwt_realloc_t prealloc, jwt_free_t pfree);
+/**
+ * Create a new JWKS object for later use in validating JWTs.
+ *
+ * This function expects a JSON string either as a single object
+ * for one JWK or as an array of objects under a key of "keys" (as
+ * defined in JWKS specifications).
+ *
+ * If non-NULL is returned, you should then check to make sure there
+ * is no error with jwks_error(). There may be errors on individual
+ * JWK items in the set. You can check if there are any with
+ * jwks_error_any().
+ *
+ * @param jwk_json_str JSON string representation of a single key
+ *   or array of "keys". If NULL is passed, an empty jwk_set_t is
+ *   created.
+ * @return A valid jwt_set_t on success. On failure, either NULL
+ *   or a jwt_set_t with error set. NULL generally means ENOMEM.
+ */
+JWT_EXPORT jwk_set_t *jwks_create(const char *jwk_json_str);
 
 /**
- * Get functions used for allocating and freeing memory.
+ * Add a jwk_item_t to an existing jwk_set_t
  *
- * @param pmalloc Pointer to malloc function output variable, or NULL
- * @param prealloc Pointer to realloc function output variable, or NULL
- * @param pfree Pointer to free function output variable, or NULL
+ * @param jwk_set An existing jwk_set_t
+ * @param item A JWK item to add to the set
+ * @return 0 on success, valid errno otherwise.
  */
-JWT_EXPORT void jwt_get_alloc(jwt_malloc_t *pmalloc, jwt_realloc_t *prealloc, jwt_free_t *pfree);
+JWT_EXPORT int jwks_item_add(jwk_set_t *jwk_set, jwk_item_t *item);
 
- /** @} */
+/**
+ * Check if there is an error within the jwk_set
+ *
+ * To get a string describing the error, use jwks_error_str.
+ *
+ * @param jwk_set An existing jwk_set_t
+ * @return 0 if no error exists, 1 if it does exists.
+ */
+JWT_EXPORT int jwks_error(jwk_set_t *jwk_set);
+
+/**
+ * Check if there is an error within the jwk_set and any of
+ * the jwk_item_t in the set.
+ *
+ * @param jwk_set An existing jwk_set_t
+ * @return 0 if no error exists, 1 if any exists.
+ */
+JWT_EXPORT int jwks_error_any(jwk_set_t *jwk_set);
+
+/**
+ * Retrieve an error message from a jwk_set. Note, a zero
+ * length string is valid if jwos_error() returns non-zero.
+ *
+ * @param jwk_set An existing jwk_set_t
+ * @return NULL on error, valid string otherwise
+ */
+JWT_EXPORT const char *jwks_error_msg(jwk_set_t *jwk_set);
+
+/**
+ * Return the index'th jwk_item in the jwk_set
+ *
+ * Allows you to obtain the raw jwk_item. NOTE, this is not a copy
+ * of the item, so any changes to it will be reflected to it in the
+ * jwk_set. This also means if the jwk_set is freed, then this data
+ * is freed and cannot be used.
+ *
+ * @param jwk_set An existing jwk_set_t
+ * @param index Index of the jwk_set
+ * @return 0 if no error exists, 1 if it does exists.
+ *
+ * @remark It's also worth pointing out that the index of a specific
+ *     jwk_item in a jwk_set can and will change if items are added or
+ *     removed.
+ * from the jwk_set.
+ */
+JWT_EXPORT jwk_item_t *jwks_item_get(jwk_set_t *jwk_set, size_t index);
+
+/**
+ * Free all memory associated with a jwt_set_t, including any
+ * jwk_item_t in the set
+ *
+ * @param jwk_set An existing jwk_set_t
+ */
+JWT_EXPORT void jwks_free(jwk_set_t *jwk_set);
+
+/**
+ * Free all memory associated with the nth jwt_item_t in a jwk_set
+ *
+ * @param jwk_set A JWKS object
+ * @param index the position of the item in the index
+ * @return 0 if no item was was deleted (found), 1 if it was
+ */
+JWT_EXPORT int jwks_item_free(jwk_set_t *jwk_set, size_t index);
+
+/**
+ * Free all memory associated with alljwt_item_t in a jwk_set. The
+ * jwk_set becomes an empty set.
+ *
+ * @param jwk_set A JWKS object
+ * @return The numbner of items deleted
+ */
+JWT_EXPORT int jwks_item_free_all(jwk_set_t *jwk_set);
+
+/** @} */
 
 /**
  * @defgroup jwt_validate JWT validation functions
@@ -1290,6 +1182,113 @@ JWT_EXPORT int jwt_valid_set_headers(jwt_valid_t *jwt_valid, int hdr);
  *     set appropriately.
  */
 JWT_EXPORT char *jwt_exception_str(unsigned int exceptions);
+
+/** @} */
+
+/**
+ * @defgroup jwt_memory Memory Handlers
+ * These functions allow you to get or set memory allocation functions.
+ * @{
+ */
+
+ /**
+  * Set functions to be used for allocating and freeing memory.
+  *
+  * By default, LibJWT uses malloc, realloc, and free for memory
+  * management. This function allows the user of the library to
+  * specify its own memory management functions. This is especially
+  * useful on Windows where mismatches in runtimes across DLLs can
+  * cause problems.
+  *
+  * The caller can specify either a valid function pointer for
+  * any of the parameters or NULL to use the corresponding default
+  * allocator function.
+  *
+  * Note that this function will also set the memory allocator
+  * for the Jansson library.
+  *
+  * @param pmalloc The function to use for allocating memory or
+  *     NULL to use malloc
+  * @param prealloc The function to use for reallocating memory or
+  *     NULL to use realloc
+  * @param pfree The function to use for freeing memory or
+  *     NULL to use free
+  * @returns 0 on success or errno otherwise.
+  */
+JWT_EXPORT int jwt_set_alloc(jwt_malloc_t pmalloc, jwt_realloc_t prealloc, jwt_free_t pfree);
+
+/**
+ * Get functions used for allocating and freeing memory.
+ *
+ * @param pmalloc Pointer to malloc function output variable, or NULL
+ * @param prealloc Pointer to realloc function output variable, or NULL
+ * @param pfree Pointer to free function output variable, or NULL
+ */
+JWT_EXPORT void jwt_get_alloc(jwt_malloc_t *pmalloc, jwt_realloc_t *prealloc, jwt_free_t *pfree);
+
+ /** @} */
+
+/**
+ * @defgroup jwt_crypto Crypto Operations
+ * Functions used to set and get which crypto operations are used
+ *
+ * LibJWT supports several crypto libaries, mainly "openssl" and "gnutls".
+ * By default, if enabled, "openssl" is used.
+ *
+ * @warning Changing the crypto operations is not thread safe. You must
+ *   protect changing them with some sort of lock, including locking
+ *   around usage of the operations themselves. Ideally, you should only
+ *   perform this at the start of your application before using any of
+ *   LibJWTs functions. Failing to follow this guide can lead to crashes
+ *   in certain situations.
+ *
+ * @remark ENVIRONMENT: You can set JWT_CRYPTO to the default operations you
+ * wish to use. If JWT_CRYPTO is invalid, an error message will be
+ * printed to the console when LibJWT is loaded by the application.
+ * @{
+ */
+
+/**
+ * Retrieve the name of the current crypto operations being used.
+ *
+ * @return name of the crypto operation set
+ */
+JWT_EXPORT const char *jwt_get_crypto_ops(void);
+
+/**
+ * Retrieve the type of the current crypto operations being used.
+ *
+ * @return jwt_crypto_provider_t of the crypto operation set
+ */
+JWT_EXPORT jwt_crypto_provider_t jwt_get_crypto_ops_t(void);
+
+/**
+ * Set the crypto operations to the named set.
+ *
+ * The opname is one of the available operators in the compiled version
+ * of LibJWT. Most times, this is either "openssl" or "gnutls".
+ *
+ * @param opname the name of the crypto operation to set
+ * @return 0 on success, valid errno otherwise.
+ */
+JWT_EXPORT int jwt_set_crypto_ops(const char *opname);
+
+/**
+ * Set the crypto operations to a jwt_crypto_provider_t type
+ *
+ * The same as jwt_set_crypto_ops(), but uses the type as opname
+ *
+ * @param opname A valid jwt_crypto_provider_t type
+ * @return 0 on success, valid errno otherwise.
+ */
+JWT_EXPORT int jwt_set_crypto_ops_t(jwt_crypto_provider_t opname);
+
+/**
+ * Check if the current crypto operations support JWK usage
+ *
+ * @return 1 if it does, 0 if not
+ */
+JWT_EXPORT int jwt_crypto_ops_supports_jwk(void);
 
 /** @} */
 
