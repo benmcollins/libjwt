@@ -12,7 +12,7 @@ addons:
     packages:
     - libjansson-dev
     - libssl-dev
-    - libgnutls2.8-dev
+    - gnutls
     - check
     - valgrind
 
