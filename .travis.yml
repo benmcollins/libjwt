@@ -7,48 +7,65 @@ arch:
 compiler:
 - gcc
 
+.base_packages: &base_packages
+- libjansson-dev
+- libssl-dev
+- gnutls-dev
+- check
+
 addons:
   apt:
     packages:
-    - libjansson-dev
-    - libssl-dev
-    - gnutls-dev
-    - check
+    - *base_packages
+
+.autoconf_start: &autoconf_start
+- set -e
+- autoreconf -fi
+- mkdir build
+- cd build
+- ../configure ${CONF_ARGS}
+- make check
+
+.cmake_start: &cmake_start
+- set -e
+- mkdir -p build
+- cd build
+- cmake ${CMAKE_ARGS} ..
+- make
+- make test
 
 jobs:
   include:
     - name: "Build with CMake"
+      env:
+      - CMAKE_ARGS="-DWITH_GNUTLS=1 -DWITH_OPENSSL=1"
       script:
-      - set -e
-      - mkdir -p build
-      - cd build
-      - cmake -DWITH_GNUTLS=1 -DWITH_OPENSSL=1 ..
-      - make
-      - make test
+      - *cmake_start
 
     - name: "Build with Autotools"
+      env:
+      - CONF_ARGS="--with-openssl --with-gnutls"
       script:
-      - set -e
-      - autoreconf -fi
-      - mkdir -p build
-      - cd build
-      -  ../configure --with-openssl --with-gnutls
-      - make
-      - make check
+      - *autoconf_start
 
     - name: "Unit Tests, Code Coverage, Memcheck"
+      addons:
+        apt:
+          packages:
+          - *base_packages
+          - valgrind
+          - lcov
+          - doxygen
+          - graphviz
       before_install:
       - sudo pip install codecov
-      - sudo apt-get install valgrind lcov doxygen graphviz
+      env:
+      - CONF_ARGS="--with-openssl --without-gnutls --enable-code-coverage --enable-valgrind"
       script:
-      - set -e
-      - autoreconf -fi
-      - mkdir build
-      - cd build
-      - ../configure --with-openssl --without-gnutls --enable-code-coverage --enable-valgrind
-      - make
+      - *autoconf_start
       - make check-valgrind
       - make check-code-coverage
+      - make dist-bzip2
       after_success:
       - codecov
 
