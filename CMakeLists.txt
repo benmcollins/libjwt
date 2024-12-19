@@ -5,7 +5,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 include(AutoToolsVersion)
 
 project(${LIBJWT_PROJECT} VERSION ${LIBJWT_VERSION} LANGUAGES C)
-set(CMAKE_C_FLAGS -Wall)
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
 
 # Find all the things we need for the library
 find_package(PkgConfig REQUIRED)
@@ -15,6 +15,7 @@ pkg_check_modules(JANSSON jansson>=2.0 REQUIRED)
 # Need at least one of these
 option(WITHOUT_OPENSSL "Disable using OpenSSL (default is auto detect)" OFF)
 option(WITHOUT_GNUTLS "Disable using GnuTLS (default is auto detect)" OFF)
+# option(WITH_MBEDTLS "Enable using MBedTLS (default is disabled)" ON)
 
 if (NOT WITHOUT_GNUTLS)
 pkg_check_modules(GNUTLS gnutls>=3.6.0)
@@ -34,26 +35,26 @@ target_sources(jwt PRIVATE libjwt/jwt.c libjwt/jwks.c libjwt/base64.c)
 
 include_directories(${CMAKE_SOURCE_DIR}/include)
 
-target_link_libraries(jwt PRIVATE ${JANSSON_LINK_LIBRARIES})
-target_include_directories(jwt PRIVATE
+target_link_libraries(jwt PUBLIC ${JANSSON_LINK_LIBRARIES})
+target_include_directories(jwt PUBLIC
 	${JANSSON_INCLUDE_DIRS})
 
 # Process the detected packages
-
+set(HAVE_CRYPTO FALSE)
 if (GNUTLS_FOUND)
-	set(HAVE_CRYPTO 1)
+	set(HAVE_CRYPTO TRUE)
         add_definitions(-DHAVE_GNUTLS)
-	target_link_libraries(jwt PRIVATE ${GNUTLS_LINK_LIBRARIES})
-	target_include_directories(jwt PRIVATE
+	target_link_libraries(jwt PUBLIC ${GNUTLS_LINK_LIBRARIES})
+	target_include_directories(jwt PUBLIC
 		${GNUTLS_INCLUDE_DIRS})
 	target_sources(jwt PRIVATE libjwt/jwt-gnutls.c libjwt/jwks-gnutls.c)
 endif()
 
 if (OPENSSL_FOUND)
-	set(HAVE_CRYPTO 1)
+	set(HAVE_CRYPTO TRUE)
 	add_definitions(-DHAVE_OPENSSL)
-	target_link_libraries(jwt PRIVATE ${OPENSSL_LINK_LIBRARIES})
-	target_include_directories(jwt PRIVATE
+	target_link_libraries(jwt PUBLIC ${OPENSSL_LINK_LIBRARIES})
+	target_include_directories(jwt PUBLIC
 		${OPENSSL_INCLUDE_DIRS})
 	target_sources(jwt PRIVATE libjwt/jwt-openssl.c libjwt/jwks-openssl.c)
 endif()
@@ -113,50 +114,62 @@ install(EXPORT ${LIBJWT_PROJECT}Targets
 set(PACKAGE_NAME ${PROJECT_NAME})
 set(PACKAGE_VERSION ${PROJECT_VERSION})
 set(prefix ${CMAKE_INSTALL_PREFIX})
-string(REGEX REPLACE ";" " " JANSSON_LIBS "${JANSSON_LDFLAGS}")
-string(REGEX REPLACE ";" " " OPENSSL_LIBS "${OPENSSL_LDFLAGS}")
-string(REGEX REPLACE ";" " " GNUTLS_LIBS "${GNUTLS_LDFLAGS}")
+string(JOIN " " JANSSON_LIBS ${JANSSON_LDFLAGS})
+string(JOIN " " OPENSSL_LIBS ${OPENSSL_LDFLAGS})
+string(JOIN " " GNUTLS_LIBS ${GNUTLS_LDFLAGS})
 configure_file(libjwt/libjwt.pc.in libjwt.pc @ONLY)
 install(FILES ${CMAKE_BINARY_DIR}/libjwt.pc DESTINATION lib/pkgconfig)
 
 find_package(Doxygen)
 if (DOXYGEN_FOUND)
-	doxygen_add_docs(doxygen-doc
-		libjwt libjwt include
-		CONFIG_FILE ${CMAKE_SOURCE_DIR}/doxygen.cfg
-		COMMENT "Generating API documentation with Doxygen")
-	set(DOXYGEN_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/html")
+	set(DOXYGEN_ENV_VARS
+		"PROJECT=${PROJECT_NAME}"
+		"VERSION=${PROJECT_VERSION}"
+		"DOCDIR=${CMAKE_BINARY_DIR}/doxygen-doc"
+		"SRCDIR=${CMAKE_SOURCE_DIR}"
+		"HAVE_DOT=YES"
+		"DOT_PATH=${DOXYGEN_DOT_EXECUTABLE}")
+
+	add_custom_target(doxygen-doc ALL
+		COMMAND ${CMAKE_COMMAND} -E env
+			${DOXYGEN_ENV_VARS}
+			${DOXYGEN_EXECUTABLE}
+			${CMAKE_SOURCE_DIR}/doxygen.cfg
+		COMMENT "Generating documentation with Doxygen"
+		VERBATIM
+	)
 endif()
 
 option(ENABLE_COVERAGE "Enable code coverage rules" OFF)
 
 if (CHECK_FOUND)
-	enable_testing()
+	include(CTest)
 
-	set (TARGET_NAMES jwt_dump jwt_ec jwt_encode jwt_grant jwt_header
+	set (UNIT_TESTS jwt_dump jwt_ec jwt_encode jwt_grant jwt_header
 		jwt_new jwt_rsa jwt_validate jwt_rsa_pss jwt_eddsa
 		jwt_crypto jwt_es256k)
 
 	if (OPENSSL_FOUND)
 		# For now, only OpenSSL supports JWKS tests
-		list (APPEND TARGET_NAMES jwt_jwks jwt_jwks_errors
+		list (APPEND UNIT_TESTS jwt_jwks jwt_jwks_errors
 			jwt_jwks_ec jwt_jwks_rsa)
 	endif()
 
-	foreach (TARGET_NAME ${TARGET_NAMES})
+	foreach (TEST ${UNIT_TESTS})
 		# Create target for each test
-		add_executable(${TARGET_NAME} tests/${TARGET_NAME}.c)
+		add_executable(${TEST} tests/${TEST}.c)
 
 		# Add main JWT library
-		target_link_libraries(${TARGET_NAME} PRIVATE jwt)
+		target_link_libraries(${TEST} PRIVATE jwt)
 
 		# Add CHECK deps
-		target_link_libraries(${TARGET_NAME} PRIVATE ${CHECK_LINK_LIBRARIES})
-		target_include_directories(${TARGET_NAME} PRIVATE ${CHECK_INCLUDE_DIRS})
+		target_link_libraries(${TEST} PRIVATE ${CHECK_LINK_LIBRARIES})
+		target_include_directories(${TEST} PRIVATE ${CHECK_INCLUDE_DIRS})
 
-		# Add test
-		add_test(NAME ${TARGET_NAME} COMMAND /bin/bash -c
-			"export TEST=${TARGET_NAME}; . ${CMAKE_SOURCE_DIR}/tests/test-env.sh; exec ./${TARGET_NAME}")
+		# Add to test framework, making sure to set the environment
+		# for certain load-time tests.
+		add_test(NAME ${TEST} COMMAND /bin/bash -c
+			"export TEST=${TEST}; . ${CMAKE_SOURCE_DIR}/tests/test-env.sh; exec ./${TEST}")
 	endforeach()
 
 	if (ENABLE_COVERAGE)
@@ -169,7 +182,8 @@ if (CHECK_FOUND)
 			OUTPUT "${PROJECT_NAME}-${PROJECT_VERSION}-coverage"
 			TITLE "${PROJECT_NAME}-${PROJECT_VERSION} Code Coverage"
 			EXECUTABLE ctest -j ${PROCESSOR_COUNT}
-			DEPENDENCIES ${TARGET_NAMES}
-			EXCLUDE "tests/*" "**/ll.h" "/usr/**")
+			DEPENDENCIES ${UNIT_TESTS}
+			LCOV_ARGS --ignore-errors unused,unused
+			EXCLUDE "tests/*" "**/ll.h" "/usr/**" "/opt/**")
 	endif()
 endif()
