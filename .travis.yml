@@ -1,50 +1,46 @@
 language: c
-os: linux
 dist: jammy
-arch: amd64
-
-jobs:
-  include:
-    - name: "Build with CMake"
-      env: BUILD_SYSTEM=cmake
-    - name: "Build with Autotools"
-      env: BUILD_SYSTEM=autotools
- 
+os:
+- linux
+arch:
+- amd64
 compiler:
-  - gcc
+- gcc
 
 addons:
   apt:
     packages:
-      - autoconf
-      - automake
-      - libtool
-      - cmake
-      - libjansson-dev
-      - libssl-dev
-      - libgnutls28-dev
-      - check
-      - valgrind
+    - libjansson-dev
+    - libssl-dev
+    - libgnutls2.8-dev
+    - check
+    - valgrind
 
-before_install:
-  - sudo pip install codecov
-  - autoreconf -fi
+jobs:
+  include:
+    - name: "Build with CMake"
+      script:
+      - mkdir -p build
+      - cd build
+      - cmake -DWITH_GNUTLS=1 -DWITH_OPENSSL=1 ..
+      - make
 
-script:
-  - if [ "$BUILD_SYSTEM" = "cmake" ]; then
-      mkdir -p build && cd build;
-      cmake -DWITH_GNUTLS=1 -DWITH_OPENSSL=1 ..;
-      make;
-    fi
-  - if [ "$BUILD_SYSTEM" = "autotools" ]; then
-      mkdir abuild && cd abuild;
-      ./configure ----with-openssl --with-gnutls --enable-code-coverage --enable-valgrind;
-      make;
-      make check-valgrind;
-      make check-code-coverage;
-      codecov;
-    fi
+    - name: "Build with Autotools"
+      script:
+      - autoreconf -fi
+      - mkdir build
+      - cd build
+      -  ../configure --with-openssl --with-gnutls
+      - make
 
-branches:
-  only:
-    - master
+    - name: "Unit Tests, Code Coverage, Memcheck"
+      before_install:
+      - sudo pip install codecov
+      script:
+      - autoreconf -fi
+      - mkdir build
+      - cd build
+      -  ../configure --with-openssl --enable-code-coverage --enable-valgrind
+      - make
+      - make check-valgrind
+      - make check-code-coverage
