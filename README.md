@@ -47,8 +47,8 @@ macOS, and Windows.
 - ``make``
 
 ### Common
-If you have *libcheck* installed, both targets will compile the test suite.
-You can use the ``check`` target on autoconf or the ``test`` target on cmake.
+If you have *libcheck* installed, both targets will compile the test suite
+which you can run using the ``check`` target.
 
 Both build systems will auto detect *OpenSSL* and *GnuTLS* and use one or both.
 Each build system has a way to force-enable (error if not found) or force-disable

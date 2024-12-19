@@ -186,13 +186,17 @@ if (CHECK_FOUND)
 			"export TEST=${TEST}; . ${CMAKE_SOURCE_DIR}/tests/test-env.sh; exec ./${TEST}")
 	endforeach()
 
+	add_custom_target(check
+		COMMAND ${CMAKE_CTEST_COMMAND}
+		DEPENDS ${UNIT_TESTS})
+
 	if (ENABLE_COVERAGE)
 		set(CMAKE_BUILD_TYPE "Debug")
 		include(CodeCoverage)
 		append_coverage_compiler_flags()
 
 		setup_target_for_coverage_lcov(
-			NAME coverage
+			NAME check-code-coverage
 			OUTPUT "${PROJECT_NAME}-${PROJECT_VERSION}-coverage"
 			TITLE "${PROJECT_NAME}-${PROJECT_VERSION} Code Coverage"
 			EXECUTABLE ctest -j ${PROCESSOR_COUNT}
