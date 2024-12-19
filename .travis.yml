@@ -45,9 +45,12 @@ jobs:
       - autoreconf -fi
       - mkdir build
       - cd build
-      - ../configure --with-openssl --with-gnutls --enable-code-coverage --enable-valgrind
+      - ../configure --with-openssl --without-gnutls --enable-code-coverage --enable-valgrind
       - make
       - make check-valgrind
       - make check-code-coverage
       after_success:
       - codecov
+
+# TODO https://docs.travis-ci.com/user/deployment-v2/providers/pages/
+# TODO https://docs.travis-ci.com/user/deployment-v2/providers/releases/
