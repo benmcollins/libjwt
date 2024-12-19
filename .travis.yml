@@ -39,7 +39,7 @@ jobs:
     - name: "Unit Tests, Code Coverage, Memcheck"
       before_install:
       - sudo pip install codecov
-      - sudo apt-get install valgrind lcov genhtml doxygen
+      - sudo apt-get install valgrind lcov doxygen graphviz
       script:
       - set -e
       - autoreconf -fi
