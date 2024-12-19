@@ -12,11 +12,16 @@ compiler:
 - libssl-dev
 - gnutls-dev
 - check
+- lcov
 
 addons:
   apt:
     packages:
     - *base_packages
+
+.common_make: &common_make
+- make check-code-coverage
+- make doxygen-doc
 
 .autoconf_start: &autoconf_start
 - set -e
@@ -24,26 +29,26 @@ addons:
 - mkdir build
 - cd build
 - ../configure ${CONF_ARGS}
-- make check
+- *common_make
 
 .cmake_start: &cmake_start
 - set -e
 - mkdir -p build
 - cd build
 - cmake ${CMAKE_ARGS} ..
-- make check
+- *common_make
 
 jobs:
   include:
     - name: "Build with CMake"
       env:
-      - CMAKE_ARGS="-DWITH_GNUTLS=1 -DWITH_OPENSSL=1"
+      - CMAKE_ARGS="-DWITH_GNUTLS=YES -DWITH_OPENSSL=YES -DENABLE_COVERAGE=YES"
       script:
       - *cmake_start
 
     - name: "Build with Autotools"
       env:
-      - CONF_ARGS="--with-openssl --with-gnutls"
+      - CONF_ARGS="--with-openssl --with-gnutls --enable-code-coverage"
       script:
       - *autoconf_start
 
@@ -53,7 +58,6 @@ jobs:
           packages:
           - *base_packages
           - valgrind
-          - lcov
           - doxygen
           - graphviz
       before_install:
@@ -63,7 +67,6 @@ jobs:
       script:
       - *autoconf_start
       - make check-valgrind
-      - make check-code-coverage
       - make dist-bzip2
       after_success:
       - codecov

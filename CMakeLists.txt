@@ -195,13 +195,12 @@ if (CHECK_FOUND)
 		include(CodeCoverage)
 		append_coverage_compiler_flags()
 
+		set(COVERAGE_LCOV_INCLUDES "${CMAKE_SOURCE_DIR}/libjwt/*.c")
 		setup_target_for_coverage_lcov(
 			NAME check-code-coverage
 			OUTPUT "${PROJECT_NAME}-${PROJECT_VERSION}-coverage"
 			TITLE "${PROJECT_NAME}-${PROJECT_VERSION} Code Coverage"
 			EXECUTABLE ctest -j ${PROCESSOR_COUNT}
-			DEPENDENCIES ${UNIT_TESTS}
-			LCOV_ARGS --ignore-errors unused,unused
-			EXCLUDE "tests/*" "**/ll.h" "/usr/**" "/opt/**")
+			DEPENDENCIES ${UNIT_TESTS})
 	endif()
 endif()

@@ -266,6 +266,15 @@ function(setup_target_for_coverage_lcov)
     endforeach()
     list(REMOVE_DUPLICATES LCOV_EXCLUDES)
 
+    set(LCOV_INCLUDES "")
+    foreach(INCLUDE ${COVERAGE_LCOV_INCLUDES})
+        if(CMAKE_VERSION VERSION_GREATER 3.4)
+		get_filename_component(INCLUDE ${INCLUDE} ABSOLUTE BASE_DIR ${BASEDIR})
+        endif()
+	list(APPEND LCOV_INCLUDES "${INCLUDE}")
+    endforeach()
+    list(REMOVE_DUPLICATES LCOV_INCLUDES)
+
     # Conditional arguments
     if(CPPFILT_PATH AND NOT ${Coverage_NO_DEMANGLE})
       set(GENHTML_EXTRA_ARGS "--demangle-cpp")
@@ -299,7 +308,11 @@ function(setup_target_for_coverage_lcov)
     # filter collected data to final coverage report
     set(LCOV_FILTER_CMD
         ${LCOV_PATH} ${Coverage_LCOV_ARGS} --gcov-tool ${GCOV_PATH} --remove
-        ${Coverage_NAME}.total ${LCOV_EXCLUDES} --output-file ${Coverage_NAME}.info
+        ${Coverage_NAME}.total ${LCOV_EXCLUDES} --output-file ${Coverage_NAME}.lcov1
+    )
+    set(LCOV_EXTRACT_CMD
+        ${LCOV_PATH} ${Coverage_LCOV_ARGS} --gcov-tool ${GCOV_PATH} --extract
+	${Coverage_NAME}.lcov1 ${LCOV_INCLUDES} --output-file ${Coverage_NAME}.info
     )
     # Generate HTML output
     set(LCOV_GEN_HTML_CMD
@@ -346,6 +359,10 @@ function(setup_target_for_coverage_lcov)
         string(REPLACE ";" " " LCOV_FILTER_CMD_SPACED "${LCOV_FILTER_CMD}")
         message(STATUS "${LCOV_FILTER_CMD_SPACED}")
 
+	message(STATUS "Command to extract collected data: ")
+	string(REPLACE ";" " " LCOV_EXTRACT_CMD_SPACED "${LCOV_EXTRACT_CMD}")
+	message(STATUS "${LCOV_EXTRACT_CMD_SPACED}")
+
         message(STATUS "Command to generate lcov HTML output: ")
         string(REPLACE ";" " " LCOV_GEN_HTML_CMD_SPACED "${LCOV_GEN_HTML_CMD}")
         message(STATUS "${LCOV_GEN_HTML_CMD_SPACED}")
@@ -365,6 +382,7 @@ function(setup_target_for_coverage_lcov)
         COMMAND ${LCOV_CAPTURE_CMD}
         COMMAND ${LCOV_BASELINE_COUNT_CMD}
         COMMAND ${LCOV_FILTER_CMD}
+	COMMAND ${LCOV_EXTRACT_CMD}
         COMMAND ${LCOV_GEN_HTML_CMD}
         ${GCOVR_XML_CMD_COMMAND}
 
