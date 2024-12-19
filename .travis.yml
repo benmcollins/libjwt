@@ -13,6 +13,8 @@ compiler:
 - gnutls-dev
 - check
 - lcov
+- doxygen
+- graphviz
 
 addons:
   apt:
@@ -33,7 +35,7 @@ addons:
 
 .cmake_start: &cmake_start
 - set -e
-- mkdir -p build
+- mkdir build
 - cd build
 - cmake ${CMAKE_ARGS} ..
 - *common_make
@@ -58,8 +60,6 @@ jobs:
           packages:
           - *base_packages
           - valgrind
-          - doxygen
-          - graphviz
       before_install:
       - sudo pip install codecov
       env:
