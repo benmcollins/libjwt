@@ -12,16 +12,30 @@ find_package(PkgConfig REQUIRED)
 
 pkg_check_modules(JANSSON jansson>=2.0 REQUIRED)
 
-# Need at least one of these
-option(WITHOUT_OPENSSL "Disable using OpenSSL (default is auto detect)" OFF)
-option(WITHOUT_GNUTLS "Disable using GnuTLS (default is auto detect)" OFF)
+if (NOT DEFINED WITH_OPENSSL)
+	set(OPENSSL_AUTO TRUE)
+endif()
+if (NOT DEFINED WITH_GNUTLS)
+	set(GNUTLS_AUTO TRUE)
+endif()
+option(WITH_OPENSSL "Whether to use OpenSSL (default is auto detect)" ON)
+option(WITH_GNUTLS "Whether to use GnuTLS (default is auto detect)" ON)
+
 # option(WITH_MBEDTLS "Enable using MBedTLS (default is disabled)" ON)
 
-if (NOT WITHOUT_GNUTLS)
-pkg_check_modules(GNUTLS gnutls>=3.6.0)
+# Need at least one of these
+if (WITH_GNUTLS)
+	if (NOT GNUTLS_AUTO)
+		set(GNUTLS_REQUIRED "REQUIRED")
+	endif()
+	pkg_check_modules(GNUTLS gnutls>=3.6.0 ${GNUTLS_REQUIRED})
 endif()
-if (NOT WITHOUT_OPENSSL)
-pkg_check_modules(OPENSSL openssl>=1.1.0)
+
+if (WITH_OPENSSL)
+	if (NOT OPENSSL_AUTO)
+		set(OPENSSL_REQUIRED "REQUIRED")
+	endif()
+	pkg_check_modules(OPENSSL openssl>=1.1.0 ${OPENSSL_REQUIRED})
 endif()
 
 # Tests and coverage depend on this, but optional

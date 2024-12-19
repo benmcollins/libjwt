@@ -28,7 +28,7 @@ jobs:
     - name: "Build with Autotools"
       script:
       - autoreconf -fi
-      - mkdir build
+      - mkdir -p build
       - cd build
       -  ../configure --with-openssl --with-gnutls
       - make
@@ -40,7 +40,7 @@ jobs:
       - autoreconf -fi
       - mkdir build
       - cd build
-      -  ../configure --with-openssl --enable-code-coverage --enable-valgrind
+      -  ../configure --with-openssl --with-gnutls --enable-code-coverage --enable-valgrind
       - make
       - make check-valgrind
       - make check-code-coverage
