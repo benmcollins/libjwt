@@ -9,6 +9,82 @@
 /**
  * @file jwt.h
  * @brief The C JSON Web Token Library +JWK + JWKS
+ *
+ * @mainpage Welcome to LibJWT
+ *
+ * @section standards @fa{lightbulb} Supported Standards
+ *
+ * Standard            | RFC        | Description
+ * ------------------- | :--------: | --------------------------------------
+ * ``JWT``             | @rfc{7519} | JSON Web Token
+ * ``JWA``             | @rfc{7518} | JSON Web Algorithms
+ * ``JWS`` and ``JWE`` | @rfc{7518} | Specific types of JWA
+ * ``JWK``             | @rfc{7517} | JSON Web Key
+ * ``JWKS``            | @rfc{7517} | A set of JWK as an array of ``"keys"``
+ *
+ * @note Throughout this documentation you will see links such as the ones
+ *  above to RFC documents. These are relevant to that particular part of the
+ *  library and are helpful to understand some of the specific standards that
+ *  shaped the development of LibJWT.
+ *
+ * @section building @fa{diagram-project} Build Prerequisites
+ *
+ * @subsection req Required
+ *
+ * - <a href="https://github.com/akheron/jansson">JANSSON</a> (>= 2.0)
+ *
+ * @subsection req_crypto One or more of these
+ *
+ * - OpenSSL (>= 1.1.0)
+ * - GnuTLS (>= 3.6.0)
+ *
+ * @note OpenSSL >= 3.0 is required for JWK and JWKS support
+ *
+ * @subsection optional Optional
+ *
+ * - <a href="https://github.com/libcheck/check/issues">Check Library</a> for unit testing
+ * - Doxygen
+ *
+ * @section docs @fa{file-code} Docs and Source
+ *
+ * @fa{brands,github} <a href="https://benmcollins.github.io/libjwt/">GitHub Pages</a>
+ *
+ * @fa{brands,github} <a href="https://github.com/benmcollins/libjwt">GitHub Repo</a>
+ *
+ * @section prebuilt @fa{box-open} Pre-built Packages
+ *
+ * LibJWT is available in most Linux distributions as well as through
+ * <a href="https://formulae.brew.sh/formula/libjwt#default">Homebrew</a>.
+ *
+ * @section instructions @fa{hammer} Build Instructions
+ *
+ * @subsection autotools With GNU AutoTools:
+ *
+ * @code
+ * $ autoreconf -if
+ * $ mkdir build
+ * $ cd build
+ * $ ../configure
+ * $ make
+ * @endcode
+ *
+ * @subsection cmake With CMake:
+ *
+ * @code
+ * $ mkdir build
+ * $ cd build
+ * $ cmake ..
+ * $ make
+ * @endcode
+ *
+ * @subsection common Common
+ *
+ * If you have libcheck installed, both targets will compile the test suite
+ * which you can run using the ``check`` target.
+ *
+ * Both build systems will auto detect OpenSSL and GnuTLS and use one or
+ * both. Each build system has a way to force-enable (error if not found)
+ * or force-disable either library. See the @ref jwt_crypto section
  */
 
 #ifndef JWT_H
@@ -48,7 +124,7 @@
 extern "C" {
 #endif
 
-/**
+/** @ingroup jwt_core
  * @brief Opaque JWT object
  *
  * This object is used throughout the JWT functions.
@@ -60,14 +136,14 @@ extern "C" {
  */
 typedef struct jwt jwt_t;
 
-/**
+/** @ingroup jwt_valid
  * @brief Opaque JWT Validation object
  *
  * Used in the JWT validation functions.
  */
 typedef struct jwt_valid jwt_valid_t;
 
-/**
+/** @ingroup jwks_core
  * @brief Opaque JWKS object
  *
  * Used for working with JSON Web Keys and JWK Sets (JWKS).
@@ -79,7 +155,7 @@ typedef struct jwt_valid jwt_valid_t;
  */
 typedef struct jwk_set jwk_set_t;
 
-/**
+/** @ingroup jwt_core
  * @brief JWT algorithm types
  *
  * These are the supported algorithm types for LibJWT.
@@ -109,7 +185,7 @@ typedef enum {
 	JWT_ALG_INVAL,		/**< An invalid algorithm from the caller or the token */
 } jwt_alg_t;
 
-/**
+/** @ingroup jwt_crypto
  * @brief  Different providers for crypto operations
  *
  * Used to set or test the underlying cryptographic library provider.
@@ -126,7 +202,7 @@ typedef enum {
 	JWT_CRYPTO_OPS_MBEDTLS,		/**< MBedTLS embedded library */
 } jwt_crypto_provider_t;
 
-/**
+/** @ingroup jwks_core
  * @brief JWK Key Types
  *
  * Corresponds to the ``"kty"`` attribute of the JWK.
@@ -140,7 +216,7 @@ typedef enum {
 	JWK_KEY_TYPE_OKP,		/**< Octet Key Pair (e.g. EDDSA) */
 } jwk_key_type_t;
 
-/**
+/** @ingroup jwks_core
  * @brief Usage types for JWK public keys
  *
  * Corresponds to the ``"use"`` attribute in a valid JWK.
@@ -153,7 +229,7 @@ typedef enum {
 	JWK_PUB_KEY_USE_ENC,		/**< Decryption key (JWE) */
 } jwk_pub_key_use_t;
 
-/**
+/** @ingroup jwks_core
  * @brief Allowed key operations for JWK private keys
  *
  * A JWK can support one or more of these bitwise flag  operations. The
@@ -180,7 +256,7 @@ typedef enum {
 	JWK_KEY_OP_INVALID	= 0xffff,	/**< Invalid key_ops in JWK */
 } jwk_key_op_t;
 
-/**
+/** @ingroup jwks_core
  * @brief Structural representation of a JWK
  *
  * This data structure is produced by importing a JWK or JWKS into a 
@@ -189,65 +265,105 @@ typedef enum {
  * decide whether a key applies to certain jwt_t for verification
  * or signing.
  *
- * @remark If the @ref jwk_item_t.pem field is not NULL it contains a nil
- *  terminated string of the key. The underlying crypto algorith may
+ * @remark If the @ref jwk_item_t.pem field is not NULL, then it contains
+ *  a nil terminated string of the key. The underlying crypto algorith may
  *  or may not support this. It's provided as a convenience.
  *
  * @todo Decide whether to keep this public or opaque. It's super
  *  dangerous.
  */
 typedef struct {
-	jwk_key_type_t kty;
-	char *pem; //!< If not NULL, contains PEM string of this key
-	jwt_crypto_provider_t provider; //!< Crypto provider that owns this key
-	void *provider_data; //!< Internal data used by the provider
-	int is_private_key; //!< Whether this is a public or private key
-	char curve[256]; //!< Curve name of an EC or OKP key
-	size_t bits; //!< The number of bits in the key (may be 0)
-	int error; //!< Shows there is an error present in this key (unusable)
-	char error_msg[256]; //!< Descriptive message for @ref jwk_item_t.error
-	jwk_pub_key_use_t use;
-	jwk_key_op_t key_ops; //!< Bitwise flags of key_ops supported for this key
-	/* The alg this key can be used for. */
-	jwt_alg_t alg; //!< Valid alg this key can be used for
-	char *kid; //!< @rfc{7517,4.5}
+	jwk_key_type_t kty;	/**< The key type of this key					*/
+	char *pem;		/**< If not NULL, contains PEM string of this key		*/
+	jwt_crypto_provider_t provider; /**< Crypto provider that owns this key			*/
+	void *provider_data;	/**< Internal data used by the provider				*/
+	int is_private_key;	/**< Whether this is a public or private key			*/
+	char curve[256];	/**< Curve name of an ``"EC"`` or ``"OKP"`` key			*/
+	size_t bits;		/**< The number of bits in the key (may be 0)			*/
+	int error;		/**< Shows there is an error present in this key (unusable)	*/
+	char error_msg[256];	/**< Descriptive message for @ref jwk_item_t.error		*/
+	jwk_pub_key_use_t use;	/**< Value of the JWK ``"use"`` attribute			*/
+	jwk_key_op_t key_ops;	/**< Bitwise flags of ``"key_ops"`` supported for this key	*/
+	jwt_alg_t alg;		/**< Valid ``"alg"`` that this key can be used for		*/
+	char *kid;		/**< @rfc{7517,4.5}						*/
 } jwk_item_t;
 
-/**
+/** @ingroup jwt_valid
  * @brief Validation exception types for @ref jwt_t objects
  *
- * These are bitwise values that allow you to check for errors
- * when using the @ref jwt_valid_t
+ * These are bitwise values that allow you to check for exceptions when using
+ * the @ref jwt_valid_t
+ *
+ * @todo @rfc_t{7519,4.1.6} ``"iat"`` Issued At
+ * @todo @rfc_t{7519,4.1.7} ``"jti"`` JWT ID
  */
 typedef enum {
-	JWT_VALIDATION_SUCCESS		= 0x0000,
-	JWT_VALIDATION_ERROR		= 0x0001,	/**< General failures */
-	JWT_VALIDATION_ALG_MISMATCH	= 0x0002,
-	JWT_VALIDATION_EXPIRED		= 0x0004,
-	JWT_VALIDATION_TOO_NEW		= 0x0008,
-	JWT_VALIDATION_ISS_MISMATCH	= 0x0010,
-	JWT_VALIDATION_SUB_MISMATCH	= 0x0020,
-	JWT_VALIDATION_AUD_MISMATCH	= 0x0040,
-	JWT_VALIDATION_GRANT_MISSING	= 0x0080,
-	JWT_VALIDATION_GRANT_MISMATCH	= 0x0100,
+	JWT_VALIDATION_SUCCESS		= 0x0000,	/**< Validation succeeded			*/
+	JWT_VALIDATION_ERROR		= 0x0001,	/**< General failures				*/
+	JWT_VALIDATION_ALG_MISMATCH	= 0x0002,	/**< @rfc_t{7518,3.1} ``"alg"`` Algorithm	*/
+	JWT_VALIDATION_EXPIRED		= 0x0004,	/**< @rfc_t{7519,4.1.4} ``"exp"`` Expired	*/
+	JWT_VALIDATION_TOO_NEW		= 0x0008,	/**< @rfc_t{7519,4.1.5} ``"nbf"`` Not Before	*/
+	JWT_VALIDATION_ISS_MISMATCH	= 0x0010,	/**< @rfc_t{7519,4.1.1} ``"iss"`` Issuer	*/
+	JWT_VALIDATION_SUB_MISMATCH	= 0x0020,	/**< @rfc_t{7519,4.1.2} ``"sub"`` Subject	*/
+	JWT_VALIDATION_AUD_MISMATCH	= 0x0040,	/**< @rfc_t{7519,4.1.3} ``"aud"`` Audience	*/
+	JWT_VALIDATION_GRANT_MISSING	= 0x0080,	/**< User-defined Grant missing			*/
+	JWT_VALIDATION_GRANT_MISMATCH	= 0x0100,	/**< User-defined Grant mismatch		*/
 } jwt_valid_exception_t;
 
-/** JWT Memory allocation overrides */
+/** @ingroup jwt_memory
+ * @brief Prototype for malloc(3)
+ */
 typedef void *(*jwt_malloc_t)(size_t);
+/** @ingroup jwt_memory
+ * @brief Prototype for realloc(3)
+ */
 typedef void *(*jwt_realloc_t)(void *, size_t);
+/** @ingroup jwt_memory
+ * @brief Prototype for free(3)
+ */
 typedef void (*jwt_free_t)(void *);
 
-/** Structure used by key provider to return a key */
+/** @ingroup jwt_decode
+ * @brief Structure passed to @ref jwt_key_p_t callback
+ */
 typedef struct {
-    const unsigned char *jwt_key;
-    int jwt_key_len;
+    const unsigned char *jwt_key;	/**< Pointer to key material     */
+    int jwt_key_len;			/**< Length of jwt_key_t.jwt_key */
 } jwt_key_t;
 
-/** Key provider - inspects the JWT to obtain the key used to verify the signature */
+/** @ingroup jwt_decode
+ * @brief  Prototype of the Key provider callback
+ *
+ * This function is expected to return 0 on success, and errno
+ * otherwise. On success, the data in @ref jwt_key_t should be usable
+ * to to handle the operation needed to complete the verifification
+ * of the signature on the @ref jwt_t.
+ *
+ * @note The application is responsible for freeing any memory related
+ *  to the data used in the key. It must also ensure that the data is in
+ *  valid memory space until the decode operation completes. E.g. this
+ *  is how NOT to do...
+ * @code
+ * int my_key_callback(const jwt_t *jwt, jwt_key_t *key)
+ * {
+ *     unsigned char my_key[] = "aljksalkc";
+ *     key->jwt_key = my_key;
+ *     key->jwt_key_len = strlen(my_key);
+ *     return 0;
+ * }
+ * @endcode
+ * In this code, the data for ``my_key`` is on this function's stack and
+ * will be out of scope once it returns.
+ */
 typedef int (*jwt_key_p_t)(const jwt_t *, jwt_key_t *);
 
 /**
- * @defgroup jwt_new JWT Object Creation
+ * @defgroup jwt JSON Web Token
+ * @{
+ */
+
+/**
+ * @defgroup jwt_core Object creation
  * Functions used to create and destroy JWT objects.
  *
  * Generally, one would use the jwt_new() function to create an object
@@ -272,6 +388,36 @@ typedef int (*jwt_key_p_t)(const jwt_t *, jwt_key_t *);
  * @return 0 on success, valid errno otherwise.
  */
 JWT_EXPORT int jwt_new(jwt_t **jwt);
+
+/**
+ * Free a JWT object and any other resources it is using.
+ *
+ * After calling, the JWT object referenced will no longer be valid and
+ * its memory will be freed.
+ *
+ * @param jwt Pointer to a JWT object previously created with jwt_new()
+ *            or jwt_decode().
+ */
+JWT_EXPORT void jwt_free(jwt_t *jwt);
+
+/**
+ * Duplicate an existing JWT object.
+ *
+ * Copies all grants and algorithm specific bits to a new JWT object.
+ *
+ * @param jwt Pointer to a JWT object.
+ * @return A new object on success, NULL on error with errno set
+ *     appropriately.
+ */
+JWT_EXPORT jwt_t *jwt_dup(jwt_t *jwt);
+
+/** @} jwt_core */
+
+/**
+ * @defgroup jwt_decode Token decoding
+ * Functions used to decode and verify signatures for a JWT.
+ * @{
+ */
 
 /**
  * Decode an existing JWT and allocate a new JWT object from it.
@@ -323,32 +469,10 @@ JWT_EXPORT int jwt_decode(jwt_t **jwt, const char *token,
  */
 JWT_EXPORT int jwt_decode_2(jwt_t **jwt, const char *token, jwt_key_p_t key_provider);
 
-/**
- * Free a JWT object and any other resources it is using.
- *
- * After calling, the JWT object referenced will no longer be valid and
- * its memory will be freed.
- *
- * @param jwt Pointer to a JWT object previously created with jwt_new()
- *            or jwt_decode().
- */
-JWT_EXPORT void jwt_free(jwt_t *jwt);
+/** @} jwt_decode */
 
 /**
- * Duplicate an existing JWT object.
- *
- * Copies all grants and algorithm specific bits to a new JWT object.
- *
- * @param jwt Pointer to a JWT object.
- * @return A new object on success, NULL on error with errno set
- *     appropriately.
- */
-JWT_EXPORT jwt_t *jwt_dup(jwt_t *jwt);
-
-/** @} */
-
-/**
- * @defgroup jwt_grant JWT Grant Manipulation
+ * @defgroup jwt_grant Grant management
  * These functions allow you to add, remove and retrieve grants from a JWT
  * object.
  * @{
@@ -509,10 +633,10 @@ JWT_EXPORT int jwt_add_grants_json(jwt_t *jwt, const char *json);
  */
 JWT_EXPORT int jwt_del_grants(jwt_t *jwt, const char *grant);
 
-/** @} */
+/** @} jwt_grant */
 
 /**
- * @defgroup jwt_header JWT Header Manipulation
+ * @defgroup jwt_header Header management
  * These functions allow you to add, remove and retrieve headers from a JWT
  * object.
  * @{
@@ -673,12 +797,12 @@ JWT_EXPORT int jwt_add_headers_json(jwt_t *jwt, const char *json);
  */
 JWT_EXPORT int jwt_del_headers(jwt_t *jwt, const char *header);
 
-/** @} */
+/** @} jwt_header */
 
 /**
- * @defgroup jwt_encode JWT Output Functions
- * Functions that enable seeing the plain text or fully encoded version of
- * a JWT object.
+ * @defgroup jwt_encode Encoding and output
+ * Functions for encoding a valid JWT optionally (but preferably) using
+ * JWA operation such as sigining or encryption.
  * @{
  */
 
@@ -772,10 +896,10 @@ JWT_EXPORT char *jwt_encode_str(jwt_t *jwt);
  */
 JWT_EXPORT void jwt_free_str(char *str);
 
-/** @} */
+/** @} jwt_encode */
 
 /**
- * @defgroup jwt_alg JWT Algorithm Functions
+ * @defgroup jwt_alg Algorithm management
  * Set and check algorithms and algorithm specific values.
  *
  * When working with functions that require a key, the underlying library
@@ -842,11 +966,14 @@ JWT_EXPORT const char *jwt_alg_str(jwt_alg_t alg);
  */
 JWT_EXPORT jwt_alg_t jwt_str_alg(const char *alg);
 
-/** @} */
+/** @} jwt_alg */
+
+/** @} jwt */
 
 /**
- * @defgroup jwk JWK and JWKS Management
- * Functions to handle JWK in JSON for use in validating JWT objects
+ * @defgroup jwks_core JSON Web Key and Sets
+ * Functions to handle JSON that represents JWK and JWKS for use
+ * in validating JWT objects.
  * @{
  */
 
@@ -952,10 +1079,10 @@ JWT_EXPORT int jwks_item_free(jwk_set_t *jwk_set, size_t index);
  */
 JWT_EXPORT int jwks_item_free_all(jwk_set_t *jwk_set);
 
-/** @} */
+/** @} jwks_core */
 
-/**
- * @defgroup jwt_validate JWT validation functions
+/** @ingroup jwt
+ * @defgroup jwt_valid JWT validation functions
  * These functions allow you to define requirements for JWT validation.
  *
  * The most basic validation is that the JWT uses the expected algorithm.
@@ -1237,7 +1364,12 @@ JWT_EXPORT int jwt_valid_set_headers(jwt_valid_t *jwt_valid, int hdr);
  */
 JWT_EXPORT char *jwt_exception_str(unsigned int exceptions);
 
-/** @} */
+/** @} jwt_valid */
+
+/**
+ * @defgroup advanced Advanced functionality
+ * @{
+ */
 
 /**
  * @defgroup jwt_memory Memory Handlers
@@ -1280,7 +1412,7 @@ JWT_EXPORT int jwt_set_alloc(jwt_malloc_t pmalloc, jwt_realloc_t prealloc, jwt_f
  */
 JWT_EXPORT void jwt_get_alloc(jwt_malloc_t *pmalloc, jwt_realloc_t *prealloc, jwt_free_t *pfree);
 
- /** @} */
+ /** @} jwt_memory */
 
 /**
  * @defgroup jwt_crypto Crypto Operations
@@ -1344,7 +1476,9 @@ JWT_EXPORT int jwt_set_crypto_ops_t(jwt_crypto_provider_t opname);
  */
 JWT_EXPORT int jwt_crypto_ops_supports_jwk(void);
 
-/** @} */
+/** @} jwt_crypto */
+
+/** @} advanced */
 
 #ifdef __cplusplus
 }

@@ -43,6 +43,7 @@ jobs:
       - *common_build
 
     - name: "Unit Tests, Code Coverage, Memcheck"
+      dist: oracular
       addons:
         apt:
           packages:

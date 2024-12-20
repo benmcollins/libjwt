@@ -67,7 +67,7 @@ PROJECT_LOGO           = $(SRCDIR)/images/LibJWT-Icon-95x91.png
 # when the HTML document is shown. Doxygen will copy the logo to the output
 # directory.
 
-PROJECT_ICON           =
+PROJECT_ICON           = $(SRCDIR)/images/favicon.ico
 
 # The OUTPUT_DIRECTORY tag is used to specify the (relative or absolute) path
 # into which the generated documentation will be written. If a relative path is
@@ -279,7 +279,11 @@ TAB_SIZE               = 4
 # with the commands \{ and \} for these it is advised to use the version @{ and
 # @} or use a double escape (\\{ and \\})
 
-ALIASES = rfc{2}="<a type=\"button\" class=\"button\" target=\"_blank\" href=\"https://datatracker.ietf.org/doc/html/rfc\1#section-\2\"><i class=\"fa-regular fa-file-lines\"></i> RFC-\1 Sec \2</a>"
+ALIASES += rfc{1}="<a target=\"_blank\" href=\"https://datatracker.ietf.org/doc/html/rfc\1\"><i class=\"fa-regular fa-file-lines\"></i> RFC-\1</a>"
+ALIASES += rfc{2}="<a type=\"button\" class=\"button\" target=\"_blank\" href=\"https://datatracker.ietf.org/doc/html/rfc\1#section-\2\"><i class=\"fa-regular fa-file-lines\"></i> RFC-\1 Sec \2</a>"
+ALIASES += rfc_t{2}="<a target=\"_blank\" href=\"https://datatracker.ietf.org/doc/html/rfc\1#section-\2\"><i class=\"fa-regular fa-file-lines\"></i> RFC-\1 Sec \2</a>"
+ALIASES += fa{1}="<i class=\"fa-regular fa-\1\"></i>"
+ALIASES += fa{2}="<i class=\"fa-\1 fa-\2\"></i>"
 
 # Set the OPTIMIZE_OUTPUT_FOR_C tag to YES if your project consists of C sources
 # only. Doxygen will then generate output that is more tailored for C. For
