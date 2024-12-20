@@ -1,16 +1,10 @@
 ![LibJWT - The C JWT Library](images/LibJWT-800x152.png)
 ---
 
-<a href="https://maclara-llc.com" target="_blank">
-<img align="right" src="https://github.com/user-attachments/assets/6807d214-8d97-4a28-a923-32f7e434f0c6" alt="maClara, LLC" width="180">
-</a>
-<br/>
-<a href="https://jwt.io/libraries#:~:text=/libjwt" target="_blank">
-<img align="right" alt="View on JWT.IO" src="http://jwt.io/img/badge.svg">
-</a>
-
 [![Build Status](https://app.travis-ci.com/benmcollins/libjwt.svg?branch=master)](https://app.travis-ci.com/github/benmcollins/libjwt)
 [![codecov](https://codecov.io/gh/benmcollins/libjwt/graph/badge.svg?token=MhCaZ8cpwQ)](https://codecov.io/gh/benmcollins/libjwt)
+
+[![maClara](https://img.shields.io/badge/Sponsored%20by-maClara%2C%20LLC-blue?style=plastic&logoColor=blue)](https://maclara-llc.com)
 
 ## Build Prerequisites
 
