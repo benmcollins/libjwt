@@ -1,11 +1,8 @@
 language: c
 dist: jammy
-os:
-- linux
-arch:
-- amd64
-compiler:
-- gcc
+os: linux
+arch: amd64
+compiler: gcc
 
 .base_packages: &base_packages
 - libjansson-dev
@@ -21,24 +18,15 @@ addons:
     packages:
     - *base_packages
 
-.common_make: &common_make
-- make check-code-coverage
-- make doxygen-doc
-
-.autoconf_start: &autoconf_start
+.common_build: &common_build
 - set -e
 - autoreconf -fi
 - mkdir build
 - cd build
-- ../configure ${CONF_ARGS}
-- *common_make
-
-.cmake_start: &cmake_start
-- set -e
-- mkdir build
-- cd build
-- cmake ${CMAKE_ARGS} ..
-- *common_make
+- if [ -n "${CONF_ARGS}" ]; then ../configure "${CONF_ARGS}"; fi
+- if [ -n "${CMAKE_ARGS}" ]; then cmake "${CMAKE_ARGS}" ..; fi
+- make check-code-coverage
+- make doxygen-doc
 
 jobs:
   include:
@@ -46,13 +34,13 @@ jobs:
       env:
       - CMAKE_ARGS="-DWITH_GNUTLS=YES -DWITH_OPENSSL=YES -DENABLE_COVERAGE=YES"
       script:
-      - *cmake_start
+      - *common_build
 
     - name: "Build with Autotools"
       env:
       - CONF_ARGS="--with-openssl --with-gnutls --enable-code-coverage"
       script:
-      - *autoconf_start
+      - *common_build
 
     - name: "Unit Tests, Code Coverage, Memcheck"
       addons:
@@ -65,7 +53,7 @@ jobs:
       env:
       - CONF_ARGS="--with-openssl --without-gnutls --enable-code-coverage --enable-valgrind"
       script:
-      - *autoconf_start
+      - *common_build
       - make check-valgrind
       - make dist-bzip2
       after_success:

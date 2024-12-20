@@ -144,11 +144,11 @@ if (DOXYGEN_FOUND)
 		"HAVE_DOT=YES"
 		"DOT_PATH=${DOXYGEN_DOT_EXECUTABLE}")
 
-	add_custom_target(doxygen-doc ALL
+	add_custom_target(doxygen-doc
 		COMMAND ${CMAKE_COMMAND} -E env
 			${DOXYGEN_ENV_VARS}
 			${DOXYGEN_EXECUTABLE}
-			${CMAKE_SOURCE_DIR}/doxygen.cfg
+			${CMAKE_SOURCE_DIR}/Doxyfile
 		COMMENT "Generating documentation with Doxygen"
 		VERBATIM
 	)

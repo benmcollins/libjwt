@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include <time.h>
 
+//< @cond OS_CONDITIONALS
 #ifdef _MSC_VER
 
 	#define DEPRECATED(func) __declspec(deprecated) func
@@ -41,144 +42,195 @@
 	#define JWT_EXPORT
 
 #endif
+//< @endcond
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/** Opaque JWT object. */
+/**
+ * @brief Opaque JWT object
+ *
+ * This object is used throughout the JWT functions.
+ *
+ * @remark When creating a JWT object (encoding), this stores state until
+ *  you call one of the encoding functions. When dedcoding a JSON Web Token
+ *  this object is returned so you can inspect it further (e.g. retreive
+ *  grants).
+ */
 typedef struct jwt jwt_t;
 
-/** Opaque JWT validation object. */
+/**
+ * @brief Opaque JWT Validation object
+ *
+ * Used in the JWT validation functions.
+ */
 typedef struct jwt_valid jwt_valid_t;
 
-/** Opaque JWK set object. */
+/**
+ * @brief Opaque JWKS object
+ *
+ * Used for working with JSON Web Keys and JWK Sets (JWKS).
+ * 
+ * @remark All JWK operations require that you import your JWK into a
+ *  jwk_set_t first. Internal, LibJWT creates a jwk_set_t even for single
+ *  keys. This makes code pretty much the same whether working with one JWK
+ *  or a set of them.
+ */
 typedef struct jwk_set jwk_set_t;
 
-/** JWT algorithm types. */
-typedef enum jwt_alg {
-	JWT_ALG_NONE = 0,
-	JWT_ALG_HS256,
-	JWT_ALG_HS384,
-	JWT_ALG_HS512,
-	JWT_ALG_RS256,
-	JWT_ALG_RS384,
-	JWT_ALG_RS512,
-	JWT_ALG_ES256,
-	JWT_ALG_ES384,
-	JWT_ALG_ES512,
-	JWT_ALG_PS256,
-	JWT_ALG_PS384,
-	JWT_ALG_PS512,
-	JWT_ALG_ES256K,
-	JWT_ALG_EDDSA,
+/**
+ * @brief JWT algorithm types
+ *
+ * These are the supported algorithm types for LibJWT.
+ *
+ * @remark You should not assume that this directly relates to what may be
+ *  in the JWT header. The internal state of the jwt_t object and the JSON
+ *  data are only guarateed to be in sync during encoding and decoding.
+ *
+ * @rfc{7518,3.1}
+ */
+typedef enum {
+	JWT_ALG_NONE = 0,	/**< No signature */
+	JWT_ALG_HS256,		/**< HMAC using SHA-256 */
+	JWT_ALG_HS384,		/**< HMAC using SHA-384 */
+	JWT_ALG_HS512,		/**< HMAC using SHA-512 */
+	JWT_ALG_RS256,		/**< RSASSA-PKCS1-v1_5 using SHA-256 */
+	JWT_ALG_RS384,		/**< RSASSA-PKCS1-v1_5 using SHA-384 */
+	JWT_ALG_RS512,		/**< RSASSA-PKCS1-v1_5 using SHA-512 */
+	JWT_ALG_ES256,		/**< ECDSA using P-256 and SHA-256 */
+	JWT_ALG_ES384,		/**< ECDSA using P-384 and SHA-384 */
+	JWT_ALG_ES512,		/**< ECDSA using P-521 and SHA-512 */
+	JWT_ALG_PS256,		/**< RSASSA-PSS using SHA-256 and MGF1 with SHA-256 */
+	JWT_ALG_PS384,		/**< RSASSA-PSS using SHA-384 and MGF1 with SHA-384 */
+	JWT_ALG_PS512,		/**< RSASSA-PSS using SHA-512 and MGF1 with SHA-512 */
+	JWT_ALG_ES256K,		/**< ECDSA using secp256k1 and SHA-256 */
+	JWT_ALG_EDDSA,		/**< EdDSA using Ed25519 */
+	JWT_ALG_INVAL,		/**< An invalid algorithm from the caller or the token */
 } jwt_alg_t;
 
-#define JWT_ALG_INVAL (JWT_ALG_EDDSA + 1)
-
-/* Different providers for crypto operations. */
+/**
+ * @brief  Different providers for crypto operations
+ *
+ * Used to set or test the underlying cryptographic library provider.
+ *
+ * @remark These being present are not a guarantee that the JWT library
+ *  has been compiled to support it. Also, certain functions of the
+ *  library may not be supported by each. For example, not all of them
+ *  support JWKS operations.
+ **/
 typedef enum {
-	JWT_CRYPTO_OPS_NONE,
-	JWT_CRYPTO_OPS_OPENSSL,
-	JWT_CRYPTO_OPS_GNUTLS,
-	JWT_CRYPTO_OPS_MBEDTLS,
+	JWT_CRYPTO_OPS_NONE = 0,	/**< Used for error handling */
+	JWT_CRYPTO_OPS_OPENSSL,		/**< OpenSSL Library */
+	JWT_CRYPTO_OPS_GNUTLS,		/**< GnuTLS Library */
+	JWT_CRYPTO_OPS_MBEDTLS,		/**< MBedTLS embedded library */
 } jwt_crypto_provider_t;
 
-/* The different JWK kty values we understand. */
+/**
+ * @brief JWK Key Types
+ *
+ * Corresponds to the ``"kty"`` attribute of the JWK.
+ *
+ * @rfc{7517,4.1}
+ */
 typedef enum {
-	JWK_KEY_TYPE_NONE = 0,
-	JWK_KEY_TYPE_EC,
-	JWK_KEY_TYPE_RSA,
-	JWK_KEY_TYPE_OKP,
+	JWK_KEY_TYPE_NONE = 0,		/**< Unused on valid keys */
+	JWK_KEY_TYPE_EC,		/**< Eliptic Curve keys */
+	JWK_KEY_TYPE_RSA,		/**< RSA keys (RSA and RSA-PSS) */
+	JWK_KEY_TYPE_OKP,		/**< Octet Key Pair (e.g. EDDSA) */
 } jwk_key_type_t;
 
-/* JWK Public Key Use types. */
+/**
+ * @brief Usage types for JWK public keys
+ *
+ * Corresponds to the ``"use"`` attribute in a valid JWK.
+ *
+ * @rfc{7517,4.2}
+ **/
 typedef enum {
-	JWK_PUB_KEY_USE_ANY = 0,
-	JWK_PUB_KEY_USE_SIG,
-	JWK_PUB_KEY_USE_ENC,
+	JWK_PUB_KEY_USE_NONE = 0,	/**< No use attribute was set */
+	JWK_PUB_KEY_USE_SIG,		/**< Signature validation (JWS) */
+	JWK_PUB_KEY_USE_ENC,		/**< Decryption key (JWE) */
 } jwk_pub_key_use_t;
 
-/** JWK item */
-typedef struct jwk_item {
-	/* Required type. */
+/**
+ * @brief Allowed key operations for JWK private keys
+ *
+ * A JWK can support one or more of these bitwise flag  operations. The
+ * names correspond with the RFC.
+ *
+ * @code
+ * if (@ref jwt_item_t.key_ops & (JWK_KEY_OP_SIGN | JWK_KEY_OP_ENCRYPT)) {
+ *     ...
+ * }
+ * @endcode
+ *
+ * @rfc{7517,4.3}
+ **/
+typedef enum {
+	JWK_KEY_OP_NONE		= 0x0000,	/**< No key_op set */
+	JWK_KEY_OP_SIGN		= 0x0001,	/**< Signing */
+	JWK_KEY_OP_VERIFY	= 0x0002,	/**< Signature verification */
+	JWK_KEY_OP_ENCRYPT	= 0x0004,	/**< Used for encryption */
+	JWK_KEY_OP_DECRYPT	= 0x0008,	/**< Used for decrypting */
+	JWK_KEY_OP_WRAP		= 0x0010,	/**< For wrapping other keys */
+	JWK_KEY_OP_UNWRAP	= 0x0020,	/**< For unwrappng other keys */
+	JWK_KEY_OP_DERIVE_KEY	= 0x0040,	/**< Key derivation */
+	JWK_KEY_OP_DERIVE_BITS	= 0x0080,	/**< Bits derivation */
+	JWK_KEY_OP_INVALID	= 0xffff,	/**< Invalid key_ops in JWK */
+} jwk_key_op_t;
+
+/**
+ * @brief Structural representation of a JWK
+ *
+ * This data structure is produced by importing a JWK or JWKS into a 
+ * @ref jwk_set_t object. Generally, you would not change any values here
+ * and only use this to probe the internal parser and possibly to
+ * decide whether a key applies to certain jwt_t for verification
+ * or signing.
+ *
+ * @remark If the @ref jwk_item_t.pem field is not NULL it contains a nil
+ *  terminated string of the key. The underlying crypto algorith may
+ *  or may not support this. It's provided as a convenience.
+ *
+ * @todo Decide whether to keep this public or opaque. It's super
+ *  dangerous.
+ */
+typedef struct {
 	jwk_key_type_t kty;
-
-	/* nil terminated string representation of the key in PEM format.
-	 * Each crypto ops provider should attempt to provide this so
-	 * if the user of LibJWT wants to use one ops provider for JWKS
-	 * parsing, but another for JWT operations, they can do so. */
-	char *pem;
-
-	/* The crypto provider that parsed this key. */
-	jwt_crypto_provider_t provider;
-
-	/* Data internal to the crypto ops provider that parsed this key.
-	 *
-	 * It should not be used or modified except by the original
-	 * provider. For example, OpenSSL uses this to store the EVP_PKEY
-	 * so it can be used immediately for crypto operations.
-	 *
-	 * The provider is responsible for freeing this via callback when
-	 * this item is freed. */
-	void *provider_data;
-
-	/* Set to 1 if the key is a private key (or a key pair). The
-	 * crypto provider should make a best effort to set this. */
-	int is_private_key;
-
-	/* If the kty is EC or OKP, this should be set to the curve name
-	 * by the crypto provider, if 'crv' is present, or the crypto
-	 * provider can deduce it after parsing the JWK. */
-	char curve[256];
-
-	/* If possible, the crypto provider should set this to the number of
-	 * cryptographic bits in the key (e.g. 256 for prime256v1 EC key, or
-	 * 4096 for an RSA key with 4096 bit 'e'). */
-	size_t bits;
-
-	/* Stores error state related to this item. If error is set, this
-	 * item will not be used for JWT operations. */
-	int error;
-	char error_msg[256];
-
-	/* Public key use. */
+	char *pem; //!< If not NULL, contains PEM string of this key
+	jwt_crypto_provider_t provider; //!< Crypto provider that owns this key
+	void *provider_data; //!< Internal data used by the provider
+	int is_private_key; //!< Whether this is a public or private key
+	char curve[256]; //!< Curve name of an EC or OKP key
+	size_t bits; //!< The number of bits in the key (may be 0)
+	int error; //!< Shows there is an error present in this key (unusable)
+	char error_msg[256]; //!< Descriptive message for @ref jwk_item_t.error
 	jwk_pub_key_use_t use;
-	/* The different key ops this key can be used for. */
-	unsigned short key_ops;
+	jwk_key_op_t key_ops; //!< Bitwise flags of key_ops supported for this key
 	/* The alg this key can be used for. */
-	jwt_alg_t alg;
-
-	/* Provided by the JWK, used for JWT operations to match a key
-	 * to a token. */
-	char *kid;
+	jwt_alg_t alg; //!< Valid alg this key can be used for
+	char *kid; //!< @rfc{7517,4.5}
 } jwk_item_t;
 
-/* JWK op types, bitwise flags. */
-#define JWK_KEY_OP_NONE		0x0000
-#define JWK_KEY_OP_ANY		JWK_KEY_OP_NONE
-#define JWK_KEY_OP_SIGN		0x0001
-#define JWK_KEY_OP_VERIFY	0x0002
-#define JWK_KEY_OP_ENCRYPT	0x0004
-#define JWK_KEY_OP_DECRYPT	0x0008
-#define JWK_KEY_OP_WRAP		0x0010
-#define JWK_KEY_OP_UNWRAP	0x0020
-#define JWK_KEY_OP_DERIVE_KEY	0x0040
-#define JWK_KEY_OP_DERIVE_BITS	0x0080
-#define JWK_KEY_OP_INVALID	0xffff
-typedef unsigned short		jwk_key_op_t;
-
-/** JWT Validation exception types. These are bit values. */
-#define JWT_VALIDATION_SUCCESS		0x0000
-#define JWT_VALIDATION_ERROR		0x0001	/* General failures */
-#define JWT_VALIDATION_ALG_MISMATCH	0x0002
-#define JWT_VALIDATION_EXPIRED		0x0004
-#define JWT_VALIDATION_TOO_NEW		0x0008
-#define JWT_VALIDATION_ISS_MISMATCH	0x0010
-#define JWT_VALIDATION_SUB_MISMATCH	0x0020
-#define JWT_VALIDATION_AUD_MISMATCH	0x0040
-#define JWT_VALIDATION_GRANT_MISSING	0x0080
-#define JWT_VALIDATION_GRANT_MISMATCH	0x0100
+/**
+ * @brief Validation exception types for @ref jwt_t objects
+ *
+ * These are bitwise values that allow you to check for errors
+ * when using the @ref jwt_valid_t
+ */
+typedef enum {
+	JWT_VALIDATION_SUCCESS		= 0x0000,
+	JWT_VALIDATION_ERROR		= 0x0001,	/**< General failures */
+	JWT_VALIDATION_ALG_MISMATCH	= 0x0002,
+	JWT_VALIDATION_EXPIRED		= 0x0004,
+	JWT_VALIDATION_TOO_NEW		= 0x0008,
+	JWT_VALIDATION_ISS_MISMATCH	= 0x0010,
+	JWT_VALIDATION_SUB_MISMATCH	= 0x0020,
+	JWT_VALIDATION_AUD_MISMATCH	= 0x0040,
+	JWT_VALIDATION_GRANT_MISSING	= 0x0080,
+	JWT_VALIDATION_GRANT_MISMATCH	= 0x0100,
+} jwt_valid_exception_t;
 
 /** JWT Memory allocation overrides */
 typedef void *(*jwt_malloc_t)(size_t);
@@ -734,15 +786,15 @@ JWT_EXPORT void jwt_free_str(char *str);
  */
 
 /**
- * Set an algorithm from jwt_alg_t for this JWT object.
+ * Set an algorithm for a @ref jwt_t object.
  *
- * Specifies an algorithm for a JWT object. If JWT_ALG_NONE is used, then
- * key must be NULL and len must be 0. All other algorithms must have a
+ * Specifies an algorithm for a @ref jwt_t object. If @ref JWT_ALG_NONE is used,
+ * then key must be NULL and len must be 0. All other algorithms must have a
  * valid pointer to key data, which may be specific to the algorithm (e.g
  * RS256 expects a PEM formatted RSA key).
  *
- * @param jwt Pointer to a JWT object.
- * @param alg A valid jwt_alg_t specifier.
+ * @param jwt Pointer to a @ref jwt_t object.
+ * @param alg A valid @ref jwt_alg_t specifier.
  * @param key The key data to use for the algorithm.
  * @param len The length of the key data.
  * @return Returns 0 on success, valid errno otherwise.
@@ -780,9 +832,11 @@ JWT_EXPORT const char *jwt_alg_str(jwt_alg_t alg);
  *
  * Returns an alg type based on the string representation.
  *
- * @param alg A valid string algorithm type (e.g. "RS256").
- * @returns Returns an alg type matching the string or JWT_ALG_INVAL if no
- *     matches were found.
+ * @rfc{7518,3.1}
+ *
+ * @param alg A valid string for algorithm type (e.g. "RS256").
+ * @returns Returns a @ref jwt_alg_t matching the string
+ * or @ref JWT_ALG_INVAL if no  matches were found.
  *
  * Note, this only works for algorithms that LibJWT supports or knows about.
  */
@@ -924,7 +978,7 @@ JWT_EXPORT int jwks_item_free_all(jwk_set_t *jwk_set);
  *
  * @return bitwide OR if possible validation errors or 0 on success
  */
-JWT_EXPORT unsigned int jwt_validate(jwt_t *jwt, jwt_valid_t *jwt_valid);
+JWT_EXPORT jwt_valid_exception_t jwt_validate(jwt_t *jwt, jwt_valid_t *jwt_valid);
 
 /**
  * Allocate a new, JWT validation object.
@@ -961,7 +1015,7 @@ JWT_EXPORT void jwt_valid_free(jwt_valid_t *jwt_valid);
  * @return Returns current validation status as a bitwise OR of possible
  *   errors, or 0 if validation is currently successful.
  */
-JWT_EXPORT unsigned int jwt_valid_get_status(jwt_valid_t *jwt_valid);
+JWT_EXPORT jwt_valid_exception_t jwt_valid_get_status(jwt_valid_t *jwt_valid);
 
 /**
  * Return the nbf_leeway value set.

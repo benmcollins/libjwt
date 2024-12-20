@@ -52,7 +52,7 @@ struct jwt_valid {
 	time_t exp_leeway;
 	int hdr;
 	json_t *req_grants;
-	unsigned int status;
+	jwt_valid_exception_t status;
 };
 
 /* Yes, this is a bit of overhead, but it keeps me from having to

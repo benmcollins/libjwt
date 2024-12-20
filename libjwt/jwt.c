@@ -1463,7 +1463,7 @@ void jwt_valid_free(jwt_valid_t *jwt_valid)
 	jwt_freemem(jwt_valid);
 }
 
-unsigned int jwt_valid_get_status(jwt_valid_t *jwt_valid)
+jwt_valid_exception_t jwt_valid_get_status(jwt_valid_t *jwt_valid)
 {
 	if (!jwt_valid)
 		return JWT_VALIDATION_ERROR;
@@ -1663,7 +1663,7 @@ int jwt_valid_del_grants(jwt_valid_t *jwt_valid, const char *grant)
 	return __v->status;		\
 } while (0)
 
-unsigned int jwt_validate(jwt_t *jwt, jwt_valid_t *jwt_valid)
+jwt_valid_exception_t jwt_validate(jwt_t *jwt, jwt_valid_t *jwt_valid)
 {
 	const char *jwt_hdr_str, *jwt_body_str, *req_grant;
 	json_t *js_val_1, *js_val_2;
@@ -1745,7 +1745,7 @@ static jwt_exception_dict_t jwt_exceptions[] = {
 	{ JWT_VALIDATION_GRANT_MISMATCH, "grant mismatch" },
 };
 
-char *jwt_exception_str(unsigned int exceptions)
+char *jwt_exception_str(jwt_valid_exception_t exceptions)
 {
 	int rc, i;
 	char *str = NULL;

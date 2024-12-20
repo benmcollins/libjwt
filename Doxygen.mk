@@ -28,7 +28,7 @@
 #
 # This is usually added to MOSTLYCLEANFILES.
 
-EXTRA_DIST += doxygen.cfg
+EXTRA_DIST += Doxyfile
 
 ## --------------------------------- ##
 ## Format-independent Doxygen rules. ##
