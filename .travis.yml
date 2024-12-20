@@ -23,8 +23,8 @@ addons:
 - autoreconf -fi
 - mkdir build
 - cd build
-- if [ -n "${CONF_ARGS}" ]; then ../configure "${CONF_ARGS}"; fi
-- if [ -n "${CMAKE_ARGS}" ]; then cmake "${CMAKE_ARGS}" ..; fi
+- if [ -n "${CONF_ARGS}" ]; then ../configure ${CONF_ARGS}; fi
+- if [ -n "${CMAKE_ARGS}" ]; then cmake ${CMAKE_ARGS} ..; fi
 - make check-code-coverage
 - make doxygen-doc
 

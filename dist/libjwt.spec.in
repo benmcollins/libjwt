@@ -96,7 +96,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_includedir}/*
 
 %changelog
-* Tue Dec 17 2024 Ben Collins <bcollins@ubuntu.com> - 2.1.0-0
+* Tue Dec 17 2024 maClara, LLC <info@ubuntu.com> - 2.1.0-0
 - Updated
 * Tue Nov 12 2019 Julien Courtat <julien.courtat@aqsacom.com> - 1.11.0-0
 - Initial packaging
