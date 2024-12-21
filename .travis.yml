@@ -1,64 +1,58 @@
 language: c
 dist: jammy
 os: linux
-arch: amd64
+arch:
+- amd64
+- arm64
 compiler: gcc
-
-.base_packages: &base_packages
-- libjansson-dev
-- libssl-dev
-- gnutls-dev
-- check
-- lcov
-- doxygen
-- graphviz
 
 addons:
   apt:
     packages:
-    - *base_packages
+    - libjansson-dev
+    - libssl-dev
+    - gnutls-dev
+    - check
+    - lcov
+    - doxygen
+    - graphviz
+    - valgring
 
-.common_build: &common_build
-- set -e
+env:
+- BUILD=cmake
+- BUILD=autoconf
+- BUILD=complete
+
+before_install:
+- sudo pip install codecov
+
+before_script:
 - autoreconf -fi
 - mkdir build
 - cd build
-- if [ -n "${CONF_ARGS}" ]; then ../configure ${CONF_ARGS}; fi
-- if [ -n "${CMAKE_ARGS}" ]; then cmake ${CMAKE_ARGS} ..; fi
-- make check-code-coverage
-- make doxygen-doc
+
+script:
+- set -e
+- if [ "${BUILD}" = "cmake" ]; then
+    cmake -DWITH_GNUTLS=YES -DWITH_OPENSSL=YES ..;
+    make check;
+  elsif [ "${BUILD}" = "autoconf" ]; then;
+    ../configure --with-openssl --with-gnutls;
+    make check;
+  else;
+    ./configure --with-openssl --without-gnutls --enable-code-coverage --enable-valgrind;
+    make check-code-coverage;
+    make check-valgrind;
+    make doxygen-doc;
+    make dist-bzip2;
+  fi
 
 jobs:
-  include:
-    - name: "Build with CMake"
-      env:
-      - CMAKE_ARGS="-DWITH_GNUTLS=YES -DWITH_OPENSSL=YES -DENABLE_COVERAGE=YES"
-      script:
-      - *common_build
+  exclude:
+  - arch: arm64
+    env: BUILD=complete
 
-    - name: "Build with Autotools"
-      env:
-      - CONF_ARGS="--with-openssl --with-gnutls --enable-code-coverage"
-      script:
-      - *common_build
-
-    - name: "Unit Tests, Code Coverage, Memcheck"
-      dist: oracular
-      addons:
-        apt:
-          packages:
-          - *base_packages
-          - valgrind
-      before_install:
-      - sudo pip install codecov
-      env:
-      - CONF_ARGS="--with-openssl --without-gnutls --enable-code-coverage --enable-valgrind"
-      script:
-      - *common_build
-      - make check-valgrind
-      - make dist-bzip2
-      after_success:
-      - codecov
-
-# TODO https://docs.travis-ci.com/user/deployment-v2/providers/pages/
-# TODO https://docs.travis-ci.com/user/deployment-v2/providers/releases/
+after_success:
+- if [ "${BUILD}" = "complete" ]; then
+    codecov;
+  fi
