@@ -241,8 +241,8 @@ void jwks_free(jwk_set_t *jwk_set)
 
 jwk_set_t *jwks_create(const char *jwk_json_str)
 {
-	json_t *j_all = NULL, *j_array = NULL;
-	json_t *j_item = NULL;
+	json_auto_t *j_all = NULL;
+	json_t *j_array = NULL, *j_item = NULL;
 	json_error_t error;
 	jwk_set_t *jwk_set;
 	jwk_item_t *jwk_item;
@@ -295,8 +295,6 @@ jwk_set_t *jwks_create(const char *jwk_json_str)
 			jwks_item_add(jwk_set, jwk_item);
 		}
 	}
-
-	json_decref(j_all);
 
 	return jwk_set;
 }
