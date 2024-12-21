@@ -129,7 +129,41 @@ START_TEST(test_jwt_decode)
 }
 END_TEST
 
-START_TEST(test_jwt_decode_2)
+static int jwt_decode_2_cb_done;
+
+static int test_jwt_decode_2_alg_none_cb(const jwt_t *jwt, jwt_key_t *key)
+{
+	jwt_alg_t alg = jwt_get_alg(jwt);
+
+	jwt_decode_2_cb_done = 1;
+
+	return (alg == JWT_ALG_NONE) ? 0 : -1;
+}
+
+START_TEST(test_jwt_decode_2_alg_none)
+{
+	const char token[] = "eyJhbGciOiJub25lIn0.eyJpc3MiOiJmaWxlcy5jeXBo"
+			     "cmUuY29tIiwic3ViIjoidXNlcjAifQ.";
+	jwt_alg_t alg;
+	jwt_t *jwt;
+	int ret;
+
+	SET_OPS();
+
+	jwt_decode_2_cb_done = 0;
+
+	ret = jwt_decode_2(&jwt, token, test_jwt_decode_2_alg_none_cb);
+	ck_assert_int_ne(jwt_decode_2_cb_done, 0);
+	ck_assert_int_eq(ret, 0);
+	ck_assert_ptr_nonnull(jwt);
+
+	alg = jwt_get_alg(jwt);
+	ck_assert_int_eq(alg, JWT_ALG_NONE);
+
+	jwt_free(jwt);
+}
+
+START_TEST(test_jwt_decode_2_compat)
 {
 	const char token[] = "eyJhbGciOiJub25lIn0.eyJpc3MiOiJmaWxlcy5jeXBo"
 			     "cmUuY29tIiwic3ViIjoidXNlcjAifQ.";
@@ -144,7 +178,7 @@ START_TEST(test_jwt_decode_2)
 	ck_assert_ptr_nonnull(jwt);
 
 	alg = jwt_get_alg(jwt);
-	ck_assert(alg == JWT_ALG_NONE);
+	ck_assert_int_eq(alg, JWT_ALG_NONE);
 
 	jwt_free(jwt);
 }
@@ -186,11 +220,41 @@ START_TEST(test_jwt_decode_invalid_alg)
 }
 END_TEST
 
-START_TEST(test_jwt_decode_ignore_typ)
+/* { "typ": "JWT", "alg": "none" } . . */
+START_TEST(test_jwt_decode_dot_dot)
 {
-	const char token[] = "eyJ0eXAiOiJBTEwiLCJhbGciOiJIUzI1NiJ9."
-			     "eyJpc3MiOiJmaWxlcy5jeXBocmUuY29tIiwic"
-			     "3ViIjoidXNlcjAifQ.";
+	char token[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0..";
+	jwt_t *jwt;
+	int ret;
+
+	SET_OPS();
+
+	/* Two dots */
+	ret = jwt_decode(&jwt, token, NULL, 0);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_ptr_null(jwt);
+
+	/* One dot */
+	ret = strlen(token);
+	token[ret - 1] = '\0';
+
+	ret = jwt_decode(&jwt, token, NULL, 0);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_ptr_null(jwt);
+
+	/* No dot */
+	ret = strlen(token);
+	token[ret - 1] = '\0';
+
+	ret = jwt_decode(&jwt, token, NULL, 0);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_ptr_null(jwt);
+}
+
+/* { "typ": "JWT", "alg": "none" } . {} . */
+START_TEST(test_jwt_decode_empty_body)
+{
+	const char token[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.e30.";
 	jwt_t *jwt;
 	int ret;
 
@@ -198,7 +262,38 @@ START_TEST(test_jwt_decode_ignore_typ)
 
 	ret = jwt_decode(&jwt, token, NULL, 0);
 	ck_assert_int_eq(ret, 0);
-	ck_assert(jwt);
+	ck_assert_ptr_nonnull(jwt);
+
+	jwt_free(jwt);
+}
+
+/* { "typ": "JWT", "alg": "HS256" } . { "test": 1 } . */
+START_TEST(test_jwt_decode_nokey_alg_hs256)
+{
+	const char token[] = "eyJ0eXAiOiJBTEwiLCJhbGciOiJOT05FIn0.eyJ0ZXN0IjoxfQ.";
+	jwt_t *jwt;
+	int ret;
+
+	SET_OPS();
+
+	ret = jwt_decode(&jwt, token, NULL, 0);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_ptr_null(jwt);
+}
+END_TEST
+
+/* { "typ": "ALL", "alg": "none" } . { "test": 1 } */
+START_TEST(test_jwt_decode_ignore_typ)
+{
+	const char token[] = "eyJ0eXAiOiJBTEwiLCJhbGciOiJub25lIn0.eyJ0ZXN0IjoxfQ.";
+	jwt_t *jwt;
+	int ret;
+
+	SET_OPS();
+
+	ret = jwt_decode(&jwt, token, NULL, 0);
+	ck_assert_int_eq(ret, 0);
+	ck_assert_ptr_nonnull(jwt);
 
 	jwt_free(jwt);
 }
@@ -278,6 +373,7 @@ START_TEST(test_jwt_decode_hs256)
 END_TEST
 
 /* Fron issue #201. Adding tests for alg checks. */
+/* { "typ": "JWT", "alg": "HS256" } . { ... } . sig */
 START_TEST(test_jwt_decode_hs256_no_key_alg)
 {
 	const char token[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3Mi"
@@ -285,25 +381,12 @@ START_TEST(test_jwt_decode_hs256_no_key_alg)
 			     "Q.dLFbrHVViu1e3VD1yeCd9aaLNed-bfXhSsF0Gh56fBg";
 	jwt_t *jwt;
 	int ret;
-	const char *alg_str;
-	jwt_alg_t alg;
 
 	SET_OPS();
 
 	ret = jwt_decode(&jwt, token, NULL, 0);
-	ck_assert_int_eq(ret, 0);
-	ck_assert_ptr_nonnull(jwt);
-
-	alg_str = jwt_get_header(jwt, "alg");
-	ck_assert_str_eq(alg_str, "HS256");
-
-	alg = jwt_str_alg(alg_str);
-	ck_assert_int_eq(alg, JWT_ALG_HS256);
-
-	alg_str = jwt_alg_str(alg);
-	ck_assert_str_eq(alg_str, "HS256");
-
-	jwt_free(jwt);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_ptr_null(jwt);
 }
 END_TEST
 
@@ -402,7 +485,7 @@ END_TEST
 unsigned char __key512[64] = "012345678901234567890123456789XY"
 			     "012345678901234567890123456789XY";
 
-int test_jwt_decode_2_hs512_kp(const jwt_t *jwt, jwt_key_t *key)
+static int test_jwt_decode_2_hs512_kp(const jwt_t *jwt, jwt_key_t *key)
 {
 	if (jwt_get_alg(jwt) == JWT_ALG_HS512) {
 		key->jwt_key = __key512;
@@ -505,9 +588,13 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, test_jwt_dup, 0, i);
 	tcase_add_loop_test(tc_core, test_jwt_dup_signed, 0, i);
 	tcase_add_loop_test(tc_core, test_jwt_decode, 0, i);
-	tcase_add_loop_test(tc_core, test_jwt_decode_2, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_decode_2_compat, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_decode_2_alg_none, 0, i);
 	tcase_add_loop_test(tc_core, test_jwt_decode_invalid_alg, 0, i);
 	tcase_add_loop_test(tc_core, test_jwt_decode_ignore_typ, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_decode_dot_dot, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_decode_empty_body, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_decode_nokey_alg_hs256, 0, i);
 	tcase_add_loop_test(tc_core, test_jwt_decode_invalid_head, 0, i);
 	tcase_add_loop_test(tc_core, test_jwt_decode_alg_none_with_key, 0, i);
 	tcase_add_loop_test(tc_core, test_jwt_decode_invalid_body, 0, i);

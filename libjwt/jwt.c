@@ -310,6 +310,9 @@ int jwt_set_alg(jwt_t *jwt, jwt_alg_t alg, const unsigned char *key, int len)
 
 jwt_alg_t jwt_get_alg(const jwt_t *jwt)
 {
+	if (jwt == NULL)
+		return JWT_ALG_INVAL;
+
 	return jwt->alg;
 }
 
@@ -691,22 +694,26 @@ static int jwt_parse_head(jwt_t *jwt, char *head)
 	return 0;
 }
 
-static int jwt_verify_head(jwt_t *jwt)
+/**
+ * @brief Smoke test to save the user from themselves.
+ */
+static int jwt_verify_alg(jwt_t *jwt)
 {
 	int ret = 0;
 
-	if (jwt->alg != JWT_ALG_NONE) {
-		if (jwt->key) {
-			if (jwt->key_len <= 0)
-				ret = EINVAL;
-		} else {
-			jwt_scrub_key(jwt);
-		}
-	} else {
-		/* If alg is NONE, there should not be a key */
-		if (jwt->key)
+	if (jwt->alg == JWT_ALG_NONE) {
+		/* If the user gave us a key but the JWT has alg = none,
+		 * then we shouldn't even proceed. */
+		if (jwt->key || jwt->key_len)
 			ret = EINVAL;
+	} else if (!(jwt->key && (jwt->key_len > 0))) {
+		/* If alg != none, then we should have a key to use */
+		ret = EINVAL;
 	}
+
+	/* Releive ourselves of the burden of this secret. */
+	if (ret)
+		jwt_scrub_key(jwt);
 
 	return ret;
 }
@@ -771,13 +778,21 @@ static int jwt_copy_key(jwt_t *jwt, const unsigned char *key, int key_len)
 {
 	int ret = 0;
 
-	if (key_len) {
-		jwt->key = jwt_malloc(key_len);
-		if (jwt->key == NULL)
-			return ENOMEM; // LCOV_EXCL_LINE
-		memcpy(jwt->key, key, key_len);
-		jwt->key_len = key_len;
-	}
+	if (!key_len)
+		return 0;
+
+	/* Always allocate one extra byte. For PEM, it ensures against
+	 * not having a nil at the end (although all crypto backends
+	 * should honor length), and for binary keys, it wont hurt
+	 * because we use key_len for those operations. */
+	jwt->key = jwt_malloc(key_len + 1);
+	if (jwt->key == NULL)
+		return ENOMEM; // LCOV_EXCL_LINE
+
+	jwt->key[key_len] = '\0';
+
+	memcpy(jwt->key, key, key_len);
+	jwt->key_len = key_len;
 
 	return ret;
 }
@@ -788,12 +803,12 @@ static int jwt_decode_complete(jwt_t **jwt, const unsigned char *key, int key_le
 	int ret = EINVAL;
 	jwt_t *new = *jwt;
 
-	/* Copy the key over for verify_head. */
+	/* Copy the key over for verify_alg. */
 	ret = jwt_copy_key(new, key, key_len);
 	if (ret)
 		goto decode_done;
 
-	ret = jwt_verify_head(new);
+	ret = jwt_verify_alg(new);
 	if (ret)
 		goto decode_done;
 
@@ -801,8 +816,6 @@ static int jwt_decode_complete(jwt_t **jwt, const unsigned char *key, int key_le
 	if (new->alg != JWT_ALG_NONE) {
 		const char *sig = token + (payload_len + 1);
 		ret = jwt_verify(new, token, payload_len, sig);
-	} else {
-		ret = 0;
 	}
 
 decode_done:
@@ -820,6 +833,10 @@ int jwt_decode(jwt_t **jwt, const char *token, const unsigned char *key,
 	int ret;
 	unsigned int payload_len;
 
+	if (jwt == NULL)
+		return EINVAL;
+	*jwt = NULL;
+
 	if ((ret = jwt_parse(jwt, token, &payload_len)))
 		return ret;
 
@@ -831,21 +848,40 @@ int jwt_decode_2(jwt_t **jwt, const char *token, jwt_key_p_t key_provider)
 	int ret;
 	unsigned int payload_len;
 	jwt_key_t key = { NULL, 0 };
-	jwt_t *new;
+	jwt_t *new = NULL;
 
-	ret = jwt_parse(jwt, token, &payload_len);
+	if (jwt == NULL)
+		return EINVAL;
+	*jwt = NULL;
+
+	ret = jwt_parse(&new, token, &payload_len);
 	if (ret)
 		return ret;
-	new = *jwt;
 
-	/* Obtain the key. */
-	if (new->alg != JWT_ALG_NONE) {
-		if ((ret = key_provider(new, &key))) {
-			jwt_free(new);
-			*jwt = NULL;
-			return ret;
-		}
+	if (key_provider) {
+		/* The previous code trusted the JWT alg too much. If it was
+		 * NONE, then it wouldn't even bother calling the cb.
+		 *
+		 * We also had some test cases that called this func with no
+		 * key_provider and exptected it to work. True, this code
+		 * allowed for that. My gut tells me that should never have
+		 * been the case.
+		 *
+		 * For one, the previous code didn't check for NULL, so if
+		 * you got a key that wasn't alg == none, instant SEGV.
+		 *
+		 * However, since this func is getting deprecated, we'll
+		 * just let that case be like calling jwt_decode()
+		 */
+		ret = key_provider(new, &key);
 	}
+
+	if (ret) {
+		jwt_free(new);
+		return ret;
+	}
+
+	*jwt = new;
 
 	return jwt_decode_complete(jwt, key.jwt_key, key.jwt_key_len, token, payload_len);
 }
