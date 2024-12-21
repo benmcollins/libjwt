@@ -13,7 +13,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 include(AutoToolsVersion)
 
 project(${LIBJWT_PROJECT} VERSION ${LIBJWT_VERSION} LANGUAGES C)
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -D_JWT_LOCAL_TEST")
 
 # Find all the things we need for the library
 find_package(PkgConfig REQUIRED)
