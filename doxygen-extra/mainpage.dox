@@ -1,0 +1,75 @@
+@mainpage Welcome to LibJWT
+
+@section standards @fa{lightbulb} Supported Standards
+
+Standard            | RFC        | Description
+------------------- | :--------: | --------------------------------------
+``JWT``             | @rfc{7519} | JSON Web Token
+``JWA``             | @rfc{7518} | JSON Web Algorithms
+``JWS`` and ``JWE`` | @rfc{7518} | Specific types of JWA
+``JWK``             | @rfc{7517} | JSON Web Key
+``JWKS``            | @rfc{7517} | A set of JWK as an array of ``"keys"``
+
+@note Throughout this documentation you will see links such as the ones
+ above to RFC documents. These are relevant to that particular part of the
+ library and are helpful to understand some of the specific standards that
+ shaped the development of LibJWT.
+
+@section building @fa{diagram-project} Build Prerequisites
+
+@subsection req Required
+
+- <a href="https://github.com/akheron/jansson">JANSSON</a> (>= 2.0)
+
+@subsection req_crypto One or more of these
+
+- OpenSSL (>= 1.1.0)
+- GnuTLS (>= 3.6.0)
+
+@note OpenSSL >= 3.0 is required for JWK and JWKS support
+
+@subsection optional Optional
+
+- <a href="https://github.com/libcheck/check/issues">Check Library</a> for unit testing
+- Doxygen
+
+@section docs @fa{file-code} Docs and Source
+
+@fa{brands,github} <a href="https://benmcollins.github.io/libjwt/">GitHub Pages</a>
+
+@fa{brands,github} <a href="https://github.com/benmcollins/libjwt">GitHub Repo</a>
+
+@section prebuilt @fa{box-open} Pre-built Packages
+
+LibJWT is available in most Linux distributions as well as through
+<a href="https://formulae.brew.sh/formula/libjwt#default">Homebrew</a>.
+
+@section instructions @fa{hammer} Build Instructions
+
+@subsection autotools With GNU AutoTools:
+
+@code
+$ autoreconf -if
+$ mkdir build
+$ cd build
+$ ../configure
+$ make
+@endcode
+
+@subsection cmake With CMake:
+
+@code
+$ mkdir build
+$ cd build
+$ cmake ..
+$ make
+@endcode
+
+@subsection common Common
+
+If you have libcheck installed, both targets will compile the test suite
+which you can run using the ``check`` target.
+
+Both build systems will auto detect OpenSSL and GnuTLS and use one or
+both. Each build system has a way to force-enable (error if not found)
+or force-disable either library. See the @ref jwt_crypto_grp section
