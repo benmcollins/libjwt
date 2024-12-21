@@ -35,8 +35,8 @@ script:
 - set -e
 - ${CMD}
 - if [[ "${CMD}" =~ "coverage" ]]; then make check-code-coverage; else make check; fi
-- if [[ "${CMD}" =~ "valgrind" ]]; then make check-valgrind;
-- make doxygen-doc
+- if [[ "${CMD}" =~ "valgrind" ]]; then make check-valgrind; fi
+- if [[ "${CMD}" =~ "coverage" ]]; then make doxygen-doc; fi
 - if [[ "${CMD}" =~ "coverage" ]]; then make dist-bzip2; fi
 
 jobs:
@@ -45,4 +45,4 @@ jobs:
     env: CMD="../configure --without-gnutls --enable-code-coverage --enable-valgrind"
 
 after_success:
-- if [[ "${CMD}" =~ "coverage" ]; then codecov; fi
+- if [[ "${CMD}" =~ "coverage" ]]; then codecov; fi
