@@ -22,7 +22,9 @@
 - Doxygen
 
 ## Documentation
-[GitHub Pages](https://benmcollins.github.io/libjwt/)
+
+[v2.1.0 Release](https://libjwt.io/)
+[Dev HEAD](https://libjwt.io/HEAD/)
 
 ## Pre-built Packages
 LibJWT is available in most Linux distributions as well as through
