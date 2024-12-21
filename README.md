@@ -32,17 +32,24 @@ macOS, and Windows.
 ## Build Instructions
 
 **With GNU AutoTools:**
-- ``autoreconf -if``
-- ``mkdir build``
-- ``cd build``
-- ``../configure``
-- ``make``
+
+    $ autoreconf -if
+    ...
+    $ mkdir build
+    $ cd build
+    $ ../configure
+    ...
+    $ make
+    ...
 
 **With CMake:**
-- ``mkdir build``
-- ``cd build``
-- ``cmake ..``
-- ``make``
+
+    $ mkdir build
+    $ cd build
+    $ cmake ..
+    ...
+    $ make
+    ...
 
 ### Common
 If you have *libcheck* installed, both targets will compile the test suite
