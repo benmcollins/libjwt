@@ -16,7 +16,7 @@ addons:
     - lcov
     - doxygen
     - graphviz
-    - valgring
+    - valgrind
 
 env:
 - BUILD=cmake
