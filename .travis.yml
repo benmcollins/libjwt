@@ -3,7 +3,6 @@ dist: jammy
 os: linux
 arch:
 - amd64
-- arm64
 compiler: gcc
 
 addons:
@@ -38,11 +37,6 @@ script:
 - if [[ "${CMD}" =~ "valgrind" ]]; then make check-valgrind; fi
 - if [[ "${CMD}" =~ "coverage" ]]; then make doxygen-doc; fi
 - if [[ "${CMD}" =~ "coverage" ]]; then make dist-bzip2; fi
-
-jobs:
-  exclude:
-  - arch: arm64
-    env: CMD="../configure --without-gnutls --enable-code-coverage --enable-valgrind"
 
 after_success:
 - if [[ "${CMD}" =~ "coverage" ]]; then codecov; fi
