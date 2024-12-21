@@ -19,9 +19,9 @@ addons:
     - valgrind
 
 env:
-- BUILD=cmake
-- BUILD=autoconf
-- BUILD=complete
+- CMD="cmake -DWITH_GNUTLS=YES -DWITH_OPENSSL=YES .."
+- CMD="../configure --with-openssl --with-gnutls"
+- CMD="../configure --without-gnutls --enable-code-coverage --enable-valgrind"
 
 before_install:
 - sudo pip install codecov
@@ -33,26 +33,16 @@ before_script:
 
 script:
 - set -e
-- if [ "${BUILD}" = "cmake" ]; then
-    cmake -DWITH_GNUTLS=YES -DWITH_OPENSSL=YES ..;
-    make check;
-  elsif [ "${BUILD}" = "autoconf" ]; then;
-    ../configure --with-openssl --with-gnutls;
-    make check;
-  else;
-    ./configure --with-openssl --without-gnutls --enable-code-coverage --enable-valgrind;
-    make check-code-coverage;
-    make check-valgrind;
-    make doxygen-doc;
-    make dist-bzip2;
-  fi
+- ${CMD}
+- if [[ "${CMD}" =~ "coverage" ]]; then make check-code-coverage; else make check; fi
+- if [[ "${CMD}" =~ "valgrind" ]]; then make check-valgrind;
+- make doxygen-doc
+- if [[ "${CMD}" =~ "coverage" ]]; then make dist-bzip2; fi
 
 jobs:
   exclude:
   - arch: arm64
-    env: BUILD=complete
+    env: CMD="../configure --without-gnutls --enable-code-coverage --enable-valgrind"
 
 after_success:
-- if [ "${BUILD}" = "complete" ]; then
-    codecov;
-  fi
+- if [[ "${CMD}" =~ "coverage" ]; then codecov; fi
