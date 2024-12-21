@@ -1,0 +1,10 @@
+<map id="JSON Web Token" name="JSON Web Token">
+<area shape="rect" id="Node000007" href="$group__jwt__alg__grp.html" title="Set and check algorithms and algorithm specific values." alt="" coords="180,5,335,31"/>
+<area shape="rect" id="Node000002" href="$group__jwt__core__grp.html" title="Functions used to create and destroy JWT objects." alt="" coords="201,55,314,80"/>
+<area shape="rect" id="Node000006" href="$group__jwt__encode__grp.html" title="Functions for encoding a valid JWT optionally (but preferably) using JWA operation such as sigining o..." alt="" coords="186,104,329,130"/>
+<area shape="rect" id="Node000004" href="$group__jwt__grant__grp.html" title="These functions allow you to add, remove and retrieve grants from a JWT object." alt="" coords="191,153,324,179"/>
+<area shape="rect" id="Node000001" title=" " alt="" coords="5,153,132,179"/>
+<area shape="rect" id="Node000005" href="$group__jwt__header__grp.html" title="These functions allow you to add, remove and retrieve headers from a JWT object." alt="" coords="187,203,328,228"/>
+<area shape="rect" id="Node000008" href="$group__jwt__valid__grp.html" title="These functions allow you to define requirements for JWT validation." alt="" coords="188,252,326,278"/>
+<area shape="rect" id="Node000003" href="$group__jwt__verify__grp.html" title="Functions used to decode and verify signatures for a JWT." alt="" coords="195,301,320,327"/>
+</map>

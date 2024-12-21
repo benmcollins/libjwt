@@ -1,0 +1,36 @@
+var group__jwt__valid__grp =
+[
+    [ "jwt_valid_t", "group__jwt__valid__grp.html#gac413377fbfc11671e8a8a66f45693e5d", null ],
+    [ "jwt_valid_exception_t", "group__jwt__valid__grp.html#ga47ee94f9c08ff581f78590bfe024f6e4", [
+      [ "JWT_VALIDATION_SUCCESS", "group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4a94bb9121f597e706e89322b0f9a7330b", null ],
+      [ "JWT_VALIDATION_ERROR", "group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4ad2e58b1f8a8bc39518b1c973fa99ee6e", null ],
+      [ "JWT_VALIDATION_ALG_MISMATCH", "group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4abf0dc5dd94b521a118485a9522cd8cea", null ],
+      [ "JWT_VALIDATION_EXPIRED", "group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4a698be61a7f4bcf0dfd9894e1c6296e0b", null ],
+      [ "JWT_VALIDATION_TOO_NEW", "group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4a685c5270c214bf2484b65376e4b7459b", null ],
+      [ "JWT_VALIDATION_ISS_MISMATCH", "group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4a0dde2793247cd11fbf017212d8fd605f", null ],
+      [ "JWT_VALIDATION_SUB_MISMATCH", "group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4ac8b2989c55deb3bdad631c61f1ed304d", null ],
+      [ "JWT_VALIDATION_AUD_MISMATCH", "group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4acb9d53e3cc20a39c0827d77a071271e6", null ],
+      [ "JWT_VALIDATION_GRANT_MISSING", "group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4a94eb7551ec626004a55798ecbd563d38", null ],
+      [ "JWT_VALIDATION_GRANT_MISMATCH", "group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4a5b1db073c57082b557592b7115a8e363", null ]
+    ] ],
+    [ "jwt_exception_str", "group__jwt__valid__grp.html#ga62aa101df260ec31133eeb4c4c52b80a", null ],
+    [ "jwt_valid_add_grant", "group__jwt__valid__grp.html#gaf314c644fea06547647958483759ceac", null ],
+    [ "jwt_valid_add_grant_bool", "group__jwt__valid__grp.html#ga8900a467e4176b1fa9b622a2705269ee", null ],
+    [ "jwt_valid_add_grant_int", "group__jwt__valid__grp.html#gabacde09b87fca8b096d291163f4c4a5c", null ],
+    [ "jwt_valid_add_grants_json", "group__jwt__valid__grp.html#gab75b56ce400f582ace10a4e524635286", null ],
+    [ "jwt_valid_del_grants", "group__jwt__valid__grp.html#gaf9f8b1dbe950cf2fc9a8200cf749a442", null ],
+    [ "jwt_valid_free", "group__jwt__valid__grp.html#ga728df4b06a8265eaaea237641185c76f", null ],
+    [ "jwt_valid_get_exp_leeway", "group__jwt__valid__grp.html#gaeb53cb3059ef0a6969f9d401e76958c2", null ],
+    [ "jwt_valid_get_grant", "group__jwt__valid__grp.html#ga7f2277d29179a01928c0ebe4fbef1a7c", null ],
+    [ "jwt_valid_get_grant_bool", "group__jwt__valid__grp.html#ga1bcf672c544bd4d2ebb656a79ce90f69", null ],
+    [ "jwt_valid_get_grant_int", "group__jwt__valid__grp.html#ga1af73c88e51e80f456e10cdd43bcf2f1", null ],
+    [ "jwt_valid_get_grants_json", "group__jwt__valid__grp.html#ga19a0badfa97417865fe6053c8d9c076e", null ],
+    [ "jwt_valid_get_nbf_leeway", "group__jwt__valid__grp.html#gaea88716bb3596c459da61677e8184662", null ],
+    [ "jwt_valid_get_status", "group__jwt__valid__grp.html#gaffc50a84a9914aa74f233054fd243a61", null ],
+    [ "jwt_valid_new", "group__jwt__valid__grp.html#ga88d954bf262717532dba3f8d9d29c8af", null ],
+    [ "jwt_valid_set_exp_leeway", "group__jwt__valid__grp.html#ga7d4a3188a889ae2a0837aec6f358cde5", null ],
+    [ "jwt_valid_set_headers", "group__jwt__valid__grp.html#gaf12cd57921f54714ec74ced386a80981", null ],
+    [ "jwt_valid_set_nbf_leeway", "group__jwt__valid__grp.html#gae0319eaec4c9a1e706b85aa365ada20e", null ],
+    [ "jwt_valid_set_now", "group__jwt__valid__grp.html#ga8e5fbc676ebc0a0286bc70b9d062d53e", null ],
+    [ "jwt_validate", "group__jwt__valid__grp.html#ga9ce197165c625f967f889212ca9fab86", null ]
+];
