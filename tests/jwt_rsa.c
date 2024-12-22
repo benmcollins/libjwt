@@ -81,8 +81,10 @@ START_TEST(test_jwt_validate_rs256)
 
 	SET_OPS();
 
+	t_config.alg = JWT_ALG_RS256;
+
 	read_key("rsa_key_2048_pub.pem");
-	ret = jwt_decode(&jwt, jwt_rs256_2048, key, key_len);
+	ret = jwt_verify(&jwt, jwt_rs256_2048, &t_config);
 	free_key();
 	ck_assert_int_eq(ret, 0);
 	ck_assert_ptr_nonnull(jwt);
@@ -176,7 +178,7 @@ START_TEST(test_jwt_encode_rsa_with_ec)
 	ck_assert_int_eq(ret, 0);
 
 	read_key("ec_key_secp384r1.pem");
-	ret = jwt_set_alg(jwt, JWT_ALG_RS384, key, key_len);
+	ret = jwt_set_alg(jwt, JWT_ALG_RS384, t_config.key, t_config.key_len);
 	free_key();
 	ck_assert_int_eq(ret, 0);
 
@@ -196,7 +198,7 @@ START_TEST(test_jwt_verify_invalid_token)
 	SET_OPS();
 
 	read_key("rsa_key_2048.pem");
-	ret = jwt_decode(&jwt, jwt_rs256_invalid, key, JWT_ALG_RS512);
+	ret = jwt_verify(&jwt, jwt_rs256_invalid, &t_config);
 	free_key();
 	ck_assert_int_ne(ret, 0);
 	ck_assert_ptr_eq(jwt, NULL);
@@ -211,7 +213,7 @@ START_TEST(test_jwt_verify_invalid_alg)
 	SET_OPS();
 
 	read_key("rsa_key_2048.pem");
-	ret = jwt_decode(&jwt, jwt_rs256_2048, key, JWT_ALG_RS512);
+	ret = jwt_verify(&jwt, jwt_rs256_2048, &t_config);
 	free_key();
 	ck_assert_int_ne(ret, 0);
 	ck_assert_ptr_eq(jwt, NULL);
@@ -226,7 +228,7 @@ START_TEST(test_jwt_verify_invalid_cert)
 	SET_OPS();
 
 	read_key("rsa_key_8192_pub.pem");
-	ret = jwt_decode(&jwt, jwt_rs256_2048, key, JWT_ALG_RS256);
+	ret = jwt_verify(&jwt, jwt_rs256_2048, &t_config);
 	free_key();
 	ck_assert_int_ne(ret, 0);
 	ck_assert_ptr_eq(jwt, NULL);
@@ -241,7 +243,7 @@ START_TEST(test_jwt_verify_invalid_cert_file)
 	SET_OPS();
 
 	read_key("rsa_key_invalid_pub.pem");
-	ret = jwt_decode(&jwt, jwt_rs256_2048, key, JWT_ALG_RS256);
+	ret = jwt_verify(&jwt, jwt_rs256_2048, &t_config);
 	free_key();
 	ck_assert_int_ne(ret, 0);
 	ck_assert_ptr_eq(jwt, NULL);
@@ -271,7 +273,7 @@ START_TEST(test_jwt_encode_invalid_key)
 	ck_assert_int_eq(ret, 0);
 
 	read_key("rsa_key_invalid.pem");
-	ret = jwt_set_alg(jwt, JWT_ALG_RS512, key, key_len);
+	ret = jwt_set_alg(jwt, JWT_ALG_RS512, t_config.key, t_config.key_len);
 	free_key();
 	ck_assert_int_eq(ret, 0);
 

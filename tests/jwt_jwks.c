@@ -23,7 +23,7 @@ static void __jwks_check(const char *json, const char *pem)
 	int strcmp_ret;
 
 	read_key(json);
-	jwk_set = jwks_create((char *)key);
+	jwk_set = jwks_create(t_config.key);
 	free_key();
 	ck_assert_ptr_nonnull(jwk_set);
 
@@ -33,7 +33,7 @@ static void __jwks_check(const char *json, const char *pem)
 	ck_assert(!item->error);
 
 	read_key(pem);
-	strcmp_ret = strcmp(item->pem, (char *)key);
+	strcmp_ret = strcmp(item->pem, t_config.key);
 	free_key();
 	ck_assert_int_eq(strcmp_ret, 0);
 
@@ -72,7 +72,7 @@ START_TEST(test_jwks_keyring_load)
 	SET_OPS_JWK();
 
 	read_key("jwks_keyring.json");
-	jwk_set = jwks_create((char *)key);
+	jwk_set = jwks_create(t_config.key);
 	free_key();
 
 	ck_assert_ptr_nonnull(jwk_set);
@@ -102,7 +102,7 @@ START_TEST(test_jwks_key_op_all_types)
 	SET_OPS_JWK();
 
 	read_key("jwks_test-1.json");
-	jwk_set = jwks_create((char *)key);
+	jwk_set = jwks_create(t_config.key);
 	free_key();
 
 	ck_assert_ptr_nonnull(jwk_set);
@@ -128,7 +128,7 @@ START_TEST(test_jwks_key_op_bad_type)
 	SET_OPS_JWK();
 
 	read_key("jwks_test-2.json");
-	jwk_set = jwks_create((char *)key);
+	jwk_set = jwks_create(t_config.key);
 	free_key();
 
 	ck_assert_ptr_nonnull(jwk_set);

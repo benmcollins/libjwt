@@ -340,7 +340,8 @@ END_TEST
 
 START_TEST(test_jwt_encode_decode)
 {
-	const char *key = "somestring";
+	JWT_CONFIG_DECLARE(t_config);
+	char *key = "somestring";
 	jwt_t *mytoken, *ymtoken;
 	char *encoded;
 	int rc;
@@ -354,7 +355,12 @@ START_TEST(test_jwt_encode_decode)
 	jwt_set_alg(mytoken, JWT_ALG_HS256, (unsigned char *)key, strlen(key));
 
 	encoded = jwt_encode_str(mytoken);
-	rc = jwt_decode(&ymtoken, encoded, (unsigned char *)key, strlen(key));
+
+	t_config.key = key;
+	t_config.key_len = strlen(key);
+	t_config.alg = JWT_ALG_HS256;
+
+	rc = jwt_verify(&ymtoken, encoded, &t_config);
 	ck_assert_int_eq(rc, 0);
 
 	jwt_free(mytoken);

@@ -35,7 +35,9 @@ Standard            | RFC        | Description
 
 @section docs @fa{file-code} Docs and Source
 
-@fa{brands,github} <a href="https://benmcollins.github.io/libjwt/">GitHub Pages</a>
+@fa{arrow-up-right-from-square} <a href="https://libjwt.io/">Release Docs</a>
+
+@fa{arrow-up-right-from-square} <a href="https://libjwt.io/libjwt/HEAD">Dev (HEAD) Docs</a>
 
 @fa{brands,github} <a href="https://github.com/benmcollins/libjwt">GitHub Repo</a>
 
@@ -48,7 +50,7 @@ LibJWT is available in most Linux distributions as well as through
 
 @subsection autotools With GNU AutoTools:
 
-@code
+@code{.sh}
 $ autoreconf -if
 $ mkdir build
 $ cd build
@@ -58,7 +60,7 @@ $ make
 
 @subsection cmake With CMake:
 
-@code
+@code{.sh}
 $ mkdir build
 $ cd build
 $ cmake ..

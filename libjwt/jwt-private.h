@@ -103,8 +103,15 @@ extern struct jwt_crypto_ops jwt_mbedtls_ops;
 
 /* Memory allocators. */
 void *jwt_malloc(size_t size);
-void jwt_freemem(void *ptr);
+void __jwt_freemem(void *ptr);
 void *jwt_realloc(void *ptr, size_t size);
+
+#define jwt_freemem(__ptr) ({		\
+	if (__ptr) {			\
+		__jwt_freemem(__ptr);	\
+		__ptr = NULL;		\
+	}				\
+})
 
 /* Helper routines to handle base64url encoding without percent padding
  * as defined in RFC-4648. */

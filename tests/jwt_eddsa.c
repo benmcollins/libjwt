@@ -51,7 +51,7 @@ START_TEST(test_jwt_encode_eddsa_with_rsa)
 	ck_assert_int_eq(ret, 0);
 
 	read_key("rsa_key_4096.pem");
-	ret = jwt_set_alg(jwt, JWT_ALG_EDDSA, key, key_len);
+	ret = jwt_set_alg(jwt, JWT_ALG_EDDSA, t_config.key, t_config.key_len);
 	free_key();
 	ck_assert_int_eq(ret, 0);
 

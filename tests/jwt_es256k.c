@@ -60,7 +60,7 @@ START_TEST(test_jwt_encode_es256k_with_ec)
 	ck_assert_int_eq(ret, 0);
 
 	read_key("ec_key_prime256v1.pem");
-	ret = jwt_set_alg(jwt, JWT_ALG_ES256K, key, key_len);
+	ret = jwt_set_alg(jwt, JWT_ALG_ES256K, t_config.key, t_config.key_len);
 	free_key();
 	ck_assert_int_eq(ret, 0);
 

@@ -99,7 +99,7 @@ START_TEST(test_jwt_encode_ec_with_rsa)
 	ck_assert_int_eq(ret, 0);
 
 	read_key("rsa_key_4096.pem");
-	ret = jwt_set_alg(jwt, JWT_ALG_ES384, key, key_len);
+	ret = jwt_set_alg(jwt, JWT_ALG_ES384, t_config.key, t_config.key_len);
 	free_key();
 	ck_assert_int_eq(ret, 0);
 
@@ -119,7 +119,7 @@ START_TEST(test_jwt_verify_invalid_token)
 	SET_OPS();
 
 	read_key("ec_key_secp384r1.pem");
-	ret = jwt_decode(&jwt, jwt_es_invalid, key, JWT_ALG_ES256);
+	ret = jwt_verify(&jwt, jwt_es_invalid, &t_config);
 	free_key();
 	ck_assert_int_ne(ret, 0);
 	ck_assert_ptr_eq(jwt, NULL);
@@ -134,7 +134,7 @@ START_TEST(test_jwt_verify_invalid_alg)
 	SET_OPS();
 
 	read_key("ec_key_secp384r1.pem");
-	ret = jwt_decode(&jwt, jwt_es256, key, JWT_ALG_ES512);
+	ret = jwt_verify(&jwt, jwt_es256, &t_config);
 	free_key();
 	ck_assert_int_ne(ret, 0);
 	ck_assert_ptr_eq(jwt, NULL);
@@ -149,7 +149,7 @@ START_TEST(test_jwt_verify_invalid_cert)
 	SET_OPS();
 
 	read_key("ec_key_secp521r1_pub.pem");
-	ret = jwt_decode(&jwt, jwt_es256, key, JWT_ALG_ES256);
+	ret = jwt_verify(&jwt, jwt_es256, &t_config);
 	free_key();
 	ck_assert_int_ne(ret, 0);
 	ck_assert_ptr_eq(jwt, NULL);
@@ -164,7 +164,7 @@ START_TEST(test_jwt_verify_invalid_cert_file)
 	SET_OPS();
 
 	read_key("ec_key_invalid_pub.pem");
-	ret = jwt_decode(&jwt, jwt_es256, key, JWT_ALG_ES256);
+	ret = jwt_verify(&jwt, jwt_es256, &t_config);
 	free_key();
 	ck_assert_int_ne(ret, 0);
 	ck_assert_ptr_eq(jwt, NULL);
@@ -194,7 +194,7 @@ START_TEST(test_jwt_encode_invalid_key)
 	ck_assert_int_eq(ret, 0);
 
 	read_key("ec_key_invalid.pem");
-	ret = jwt_set_alg(jwt, JWT_ALG_ES512, key, key_len);
+	ret = jwt_set_alg(jwt, JWT_ALG_ES512, t_config.key, t_config.key_len);
 	free_key();
 	ck_assert_int_eq(ret, 0);
 

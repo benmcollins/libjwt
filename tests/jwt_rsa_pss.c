@@ -71,7 +71,7 @@ static void __test_rsa_pss_encode(const char *priv_key_file,
 	ck_assert_int_eq(ret, 0);
 
 	read_key(priv_key_file);
-	ret = jwt_set_alg(jwt, alg, key, key_len);
+	ret = jwt_set_alg(jwt, alg, t_config.key, t_config.key_len);
 	free_key();
 	ck_assert_int_eq(ret, 0);
 
@@ -134,7 +134,8 @@ START_TEST(test_jwt_verify_invalid_rsa_pss)
 	SET_OPS();
 
 	read_key(PS_KEY_PUB);
-	ret = jwt_decode(&jwt, jwt_ps256_2048_invalid, key, key_len);
+	t_config.alg = JWT_ALG_PS256;
+	ret = jwt_verify(&jwt, jwt_ps256_2048_invalid, &t_config);
 	free_key();
 	ck_assert_int_ne(ret, 0);
 	ck_assert_ptr_eq(jwt, NULL);
