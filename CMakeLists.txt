@@ -160,6 +160,7 @@ configure_file(libjwt/libjwt.pc.in libjwt.pc @ONLY)
 install(FILES ${CMAKE_BINARY_DIR}/libjwt.pc DESTINATION lib/pkgconfig)
 
 find_package(Doxygen)
+
 if (DOXYGEN_FOUND)
 	set(DOXYGEN_ENV_VARS
 		"PROJECT=${PROJECT_NAME}"

@@ -49,14 +49,14 @@
 DX_ENV=""
 AC_DEFUN([DX_FEATURE_doc],  ON)
 AC_DEFUN([DX_FEATURE_dot],  ON)
-AC_DEFUN([DX_FEATURE_man],  OFF)
-AC_DEFUN([DX_FEATURE_html], ON)
+AC_DEFUN([DX_FEATURE_man],  ON)
+AC_DEFUN([DX_FEATURE_html], OFF)
 AC_DEFUN([DX_FEATURE_chm],  OFF)
 AC_DEFUN([DX_FEATURE_chi],  OFF)
 AC_DEFUN([DX_FEATURE_rtf],  OFF)
 AC_DEFUN([DX_FEATURE_xml],  OFF)
-AC_DEFUN([DX_FEATURE_pdf],  ON)
-AC_DEFUN([DX_FEATURE_ps],   ON)
+AC_DEFUN([DX_FEATURE_pdf],  OFF)
+AC_DEFUN([DX_FEATURE_ps],   OFF)
 
 ## --------------- ##
 ## Private macros. ##
@@ -292,11 +292,11 @@ fi
 
 # Paper size for PS and/or PDF:
 AC_ARG_VAR(DOXYGEN_PAPER_SIZE,
-           [a4wide (default), a4, letter, legal or executive])
+           [letter (default), a4wide, a4, letter, legal or executive])
 case "$DOXYGEN_PAPER_SIZE" in
 #(
 "")
-    AC_SUBST(DOXYGEN_PAPER_SIZE, "")
+    AC_SUBST(DOXYGEN_PAPER_SIZE, "letter")
 ;; #(
 a4wide|a4|letter|legal|executive)
     DX_ENV_APPEND(PAPER_SIZE, $DOXYGEN_PAPER_SIZE)
