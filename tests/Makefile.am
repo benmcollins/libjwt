@@ -33,7 +33,7 @@ check_PROGRAMS = $(TESTS)
 
 AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_builddir)/include
 AM_CFLAGS = -Wall $(CHECK_CFLAGS) -DKEYDIR="\"$(srcdir)/keys\"" -D_GNU_SOURCE
-AM_LDFLAGS = -L$(top_builddir)/libjwt 
+AM_LDFLAGS = -L$(top_builddir)/libjwt
 LDADD = -ljwt $(CHECK_LIBS)
 
 CODE_COVERAGE_EXTRACT_PATTERN = "*/libjwt/*.c"

@@ -1350,23 +1350,19 @@ char *jwt_dump_str(jwt_t *jwt, int pretty)
 
 static int jwt_encode(jwt_t *jwt, char **out)
 {
-	char *buf = NULL, *head = NULL, *body = NULL, *sig;
+	char *buf = NULL, *head = NULL, *body = NULL, *sig = NULL;
 	int ret, head_len, body_len;
 	unsigned int sig_len;
 
+	if (out == NULL)
+		return EINVAL;
+	*out = NULL;
+
 	/* First the header. */
 	ret = jwt_write_head(jwt, &buf, 0);
-	if (ret) {
-		if (buf)
-			jwt_freemem(buf);
+	if (ret)
 		return ret;
-	}
-
-	head = alloca(strlen(buf) * 2);
-	if (head == NULL) {
-		jwt_freemem(buf);
-		return ENOMEM;
-	}
+	/* Encode it */
 	head_len = jwt_base64uri_encode(&head, buf, (int)strlen(buf));
 	jwt_freemem(buf);
 
@@ -1376,8 +1372,7 @@ static int jwt_encode(jwt_t *jwt, char **out)
 	/* Now the body. */
 	ret = jwt_write_body(jwt, &buf, 0);
 	if (ret) {
-		if (buf)
-			jwt_freemem(buf);
+		jwt_freemem(head);
 		return ret;
 	}
 
@@ -1389,50 +1384,68 @@ static int jwt_encode(jwt_t *jwt, char **out)
 		return -body_len;
 	}
 
-	/* Allocate enough to reuse as b64 buffer. */
-	buf = jwt_malloc(head_len + body_len + 2);
+	/* The part we need to sign, but add space for 3 dots and a nil */
+	buf = jwt_malloc(head_len + body_len + 4);
 	if (buf == NULL) {
-		// LCOV_EXCL_START
 		jwt_freemem(head);
 		jwt_freemem(body);
 		return ENOMEM;
-		// LCOV_EXCL_STOP
 	}
 
 	strcpy(buf, head);
 	strcat(buf, ".");
 	strcat(buf, body);
 
-	jwt_freemem(head);
-	jwt_freemem(body);
-
-	ret = __append_str(out, buf);
-	if (ret == 0)
-		ret = __append_str(out, ".");
-	if (ret) {
-		if (buf)
-			jwt_freemem(buf);
-		return ret;
-	}
-
 	if (jwt->alg == JWT_ALG_NONE) {
-		jwt_freemem(buf);
+		jwt_freemem(head);
+		jwt_freemem(body);
+
+		/* Add the trailing dot, and send it back */
+		strcat(buf, ".");
+		*out = buf;
 		return 0;
 	}
+
+	/* At this point buf has "head.body" */
 
 	/* Now the signature. */
 	ret = jwt_sign(jwt, &sig, &sig_len, buf, strlen(buf));
 	jwt_freemem(buf);
-
-	if (ret)
+	if (ret) {
+		jwt_freemem(head);
+		jwt_freemem(body);
 		return ret;
+	}
 
 	ret = jwt_base64uri_encode(&buf, sig, sig_len);
 	jwt_freemem(sig);
-	if (ret <= 0)
-		return -ret;
+	/* At this point buf has b64 of sig and ret is size of it */
 
-	ret = __append_str(out, buf);
+	if (ret < 0) {
+		jwt_freemem(head);
+		jwt_freemem(body);
+		jwt_freemem(buf);
+		return ENOMEM;
+	}
+
+	/* plus 2 dots and a nil */
+	ret = head_len + body_len + ret + 3;
+
+	/* We're good, so let's get it all together */
+	*out = jwt_malloc(ret);
+	if (*out == NULL) {
+		ret = ENOMEM;
+	} else {
+		strcpy(*out, head);
+		strcat(*out, ".");
+		strcat(*out, body);
+		strcat(*out, ".");
+		strcat(*out, buf);
+		ret = 0;
+	}
+
+	jwt_freemem(head);
+	jwt_freemem(body);
 	jwt_freemem(buf);
 
 	return ret;
