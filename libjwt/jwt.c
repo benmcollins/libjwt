@@ -95,7 +95,7 @@ int jwt_crypto_ops_supports_jwk(void)
 	return jwt_ops->jwk_implemented ? 1 : 0;
 }
 
-__attribute__((constructor))
+JWT_CONSTRUCTOR
 void jwt_init()
 {
 	const char *opname = getenv("JWT_CRYPTO");

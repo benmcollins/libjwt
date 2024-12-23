@@ -60,7 +60,15 @@ set_target_properties(jwt_static PROPERTIES OUTPUT_NAME jwt)
 
 target_sources(jwt PRIVATE libjwt/jwt.c libjwt/jwks.c libjwt/base64.c)
 
-generate_export_header(jwt)
+set(COMPILER_CONSTRUCTOR "__attribute__((constructor))")
+_check_c_compiler_attribute(${COMPILER_CONSTRUCTOR} COMPILER_HAS_CONSTRUCTOR)
+if (COMPILER_HAS_CONSTRUCTOR)
+	set(JWT_CUSTOM_CONTENT "\n#define JWT_CONSTRUCTOR ${COMPILER_CONSTRUCTOR}\n")
+else()
+	set(JWT_CUSTOM_CONTENT "\n#define JWT_CONSTRUCTOR\n")
+endif()
+generate_export_header(jwt
+	CUSTOM_CONTENT_FROM_VARIABLE JWT_CUSTOM_CONTENT)
 
 include_directories(${CMAKE_SOURCE_DIR}/include ${CMAKE_BINARY_DIR})
 

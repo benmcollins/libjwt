@@ -117,6 +117,7 @@ dnl AX_GCC_FUNC_ATTRIBUTE([deprecated])
 dnl AX_GCC_FUNC_ATTRIBUTE([visibility])
 AC_SUBST([GCC_FUNC_DEPRECATED],["__attribute__((__deprecated__))"])
 AC_SUBST([GCC_EXPORT],["__attribute__((visibility(\"default\")))"])
+AC_SUBST([GCC_CONSTRUCTOR],["__attribute__((constructor))"])
 
 dnl Valgrind defaults
 AX_VALGRIND_DFLT([memcheck], [on])

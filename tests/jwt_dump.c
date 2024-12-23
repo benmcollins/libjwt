@@ -28,6 +28,7 @@ static int test_set_alloc(void)
 	return jwt_set_alloc(test_malloc, test_realloc, test_free);
 }
 
+#ifdef JWT_CONSTRUCTOR
 START_TEST(test_jwt_crypto_ops)
 {
 	const char *msg = getenv("JWT_CRYPTO");
@@ -35,6 +36,7 @@ START_TEST(test_jwt_crypto_ops)
 	ck_assert_str_eq(msg, "NONEXISTENT");
 }
 END_TEST
+#endif
 
 START_TEST(test_alloc_funcs)
 {
@@ -374,7 +376,9 @@ static Suite *libjwt_suite(const char *title)
 
 	tc_core = tcase_create("jwt_dump");
 
+#ifdef JWT_CONSTRUCTOR
 	tcase_add_test(tc_core, test_jwt_crypto_ops);
+#endif
 	tcase_add_loop_test(tc_core, test_alloc_funcs, 0, i);
 	tcase_add_loop_test(tc_core, test_jwt_dump_fp, 0, i);
 	tcase_add_loop_test(tc_core, test_jwt_dump_str, 0, i);

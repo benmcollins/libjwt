@@ -8,6 +8,7 @@
 
 #include "jwt_tests.h"
 
+#ifdef JWT_CONSTRUCTOR
 START_TEST(test_jwt_crypto_ops)
 {
 	const char *msg = getenv("JWT_CRYPTO");
@@ -15,6 +16,7 @@ START_TEST(test_jwt_crypto_ops)
 	ck_assert_str_eq(msg, "openssl");
 }
 END_TEST
+#endif
 
 START_TEST(test_jwt_new)
 {
@@ -615,7 +617,9 @@ static Suite *libjwt_suite(const char *title)
 
 	tc_core = tcase_create("jwt_new");
 
+#ifdef JWT_CONSTRUCTOR
 	tcase_add_test(tc_core, test_jwt_crypto_ops);
+#endif
 	tcase_add_loop_test(tc_core, test_jwt_new, 0, i);
 	tcase_add_loop_test(tc_core, test_jwt_dup, 0, i);
 	tcase_add_loop_test(tc_core, test_jwt_dup_signed, 0, i);

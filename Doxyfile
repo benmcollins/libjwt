@@ -2397,8 +2397,11 @@ INCLUDE_FILE_PATTERNS  =
 
 PREDEFINED             = _DOXYGEN \
                          JWT_EXPORT= \
+			 JWT_NO_EXPORT= \
                          JWT_DEPRECATED= \
 			 JWT_DEPRECATED_EXPORT= \
+			 JWT_DEPRECATED_NO_EXPORT= \
+			 JWT_CONSTRUCTOR= \
                          __attribute__(x)= \
 			 __declspec(x)=
 

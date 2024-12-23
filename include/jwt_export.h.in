@@ -11,9 +11,11 @@
 #      define JWT_EXPORT __declspec(dllimport)
 #    endif
 #  endif
+#  define JWT_CONSTRUCTOR
 #else
 #  define JWT_DEPRECATED @GCC_FUNC_DEPRECATED@
 #  define JWT_EXPORT @GCC_EXPORT@
+#  define JWT_CONSTRUCTOR @GCC_CONSTRUCTOR@
 #endif
 
 #ifndef JWT_DEPRECATED_EXPORT
