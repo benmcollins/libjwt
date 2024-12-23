@@ -21,29 +21,33 @@
 
 /**< @cond OS_CONDITIONALS */
 #ifdef _MSC_VER
-
-	#define DEPR(__msg) __declspec(deprecated)
-
-	#define alloca _alloca
-	#define strcasecmp _stricmp
-	#define strdup _strdup
-
-	#ifdef JWT_DLL_CONFIG
-		#ifdef JWT_BUILD_SHARED_LIBRARY
-			#define JWT_EX __declspec(dllexport)
-		#else
-			#define JWT_EX __declspec(dllimport)
-		#endif
-	#else
-		#define JWT_EX
-	#endif
+#  define DEPR(__msg) __declspec(deprecated)
+#  define alloca _alloca
+#  define strcasecmp _stricmp
+#  define strdup _strdup
+#  ifdef JWT_DLL_CONFIG
+#    ifdef JWT_BUILD_SHARED_LIBRARY
+#      define JWT_EX __declspec(dllexport)
+#    else
+#      define JWT_EX __declspec(dllimport)
+#    endif
+#  endif
 
 #else
-
-	#define DEPR(__msg) [[deprecated(__msg)]]
-	#define JWT_EX
-
+#  ifdef __clang__
+#    define DEPR(__msg) [[deprecated(__msg)]]
+#  elif defined(__GNUC__)
+#    define DEPR(__msg) __attribute__ ((deprecated(__msg)))
+#  endif
 #endif
+
+#ifndef DEPR
+#define DEPR(__msg)
+#endif
+#ifndef JWT_EX
+#define JWT_EX
+#endif
+
 /**< @endcond */
 
 #ifdef __cplusplus
