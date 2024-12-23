@@ -1,5 +1,4 @@
 language: c
-dist: jammy
 os: linux
 arch:
 - amd64
@@ -28,20 +27,33 @@ before_script:
 
 jobs:
   include:
+    - name: "Autotools Build (focal)"
+      env: BUILD=auto
+      dist: focal
+      script:
+      - ../configure
+      - grep libjwt_version_info ../configure
+      - grep libjwt_version_info Makefile
+      - grep version-info libjet/Makefile
+      - make
+
     - name: "CMake Build"
       env: BUILD=cmake
+      dist: jammy
       script:
       - cmake -DWITH_GNUTLS=YES -DWITH_OPENSSL=YES ..
       - make check
 
     - name: "Autotools Build"
       env: BUILD=auto
+      dist: jammy
       script:
       - ../configure --with-openssl --with-gnutls
       - make check
 
     - name: "Coverage Build"
       env: BUILD=coverage
+      dist: jammy
       script:
       - ../configure --without-gnutls --enable-code-coverage --enable-valgrind
       - make check-valgrind check-code-coverage

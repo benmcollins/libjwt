@@ -12,7 +12,7 @@ lib_LTLIBRARIES = libjwt.la
 
 libjwt_la_SOURCES = jwt.c jwks.c base64.c
 
-libjwt_la_LDFLAGS = -version-info @libjwt_version_info@ $(OPENSSL_LDFLAGS) \
+libjwt_la_LDFLAGS = -version-info $(LIBJWT_VERSION_INFO) $(OPENSSL_LDFLAGS) \
 	$(GNUTLS_LDFLAGS) $(MBEDTLS_LIBS) $(JANSSON_LDFLAGS) -no-undefined
 libjwt_la_CPPFLAGS = -I$(top_srcdir)/include $(OPENSSL_INCLUDES) \
 	$(MBEDTLS_INCS) $(GNUTLS_INCLUDES) $(CODE_COVERAGE_CPPFLAGS) -Wall

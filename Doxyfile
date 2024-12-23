@@ -54,14 +54,14 @@ PROJECT_NUMBER         = "v$(VERSION)"
 # for a project that appears at the top of each page and should give viewer a
 # quick idea about the purpose of the project. Keep the description short.
 
-PROJECT_BRIEF          = "The C JSON Web Token Library +JWK +JWKS"
+PROJECT_BRIEF          = $(PROJECT_BRIEF)
 
 # With the PROJECT_LOGO tag one can specify a logo or an icon that is included
 # in the documentation. The maximum height of the logo should not exceed 55
 # pixels and the maximum width should not exceed 200 pixels. Doxygen will copy
 # the logo to the output directory.
 
-PROJECT_LOGO           = $(SRCDIR)/images/LibJWT-Icon-95x91.png
+PROJECT_LOGO           = $(SRCDIR)/images/LibJWT.svg height=100
 
 # With the PROJECT_ICON tag one can specify an icon that is included in the tabs
 # when the HTML document is shown. Doxygen will copy the logo to the output
