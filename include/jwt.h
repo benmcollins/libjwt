@@ -44,11 +44,6 @@
 	#define JWT_EX
 
 #endif
-
-#ifdef _JWT_LOCAL_TEST_
-#undef DEPR
-#define DEPR(__msg)
-#endif
 /**< @endcond */
 
 #ifdef __cplusplus
@@ -62,7 +57,7 @@ extern "C" {
  *
  * @remark When creating a JWT object (encoding), this stores state until
  *  you call one of the encoding functions. When dedcoding a JSON Web Token
- *  this object is returned so you can inspect it further (e.g. retreive
+ *  this object is returned so you can inspect it further (e.g. retrieve
  *  grants).
  */
 typedef struct jwt jwt_t;
@@ -78,7 +73,7 @@ typedef struct jwt_valid jwt_valid_t;
  * @brief Opaque JWKS object
  *
  * Used for working with JSON Web Keys and JWK Sets (JWKS).
- * 
+ *
  * @remark All JWK operations require that you import your JWK into a
  *  jwk_set_t first. Internal, LibJWT creates a jwk_set_t even for single
  *  keys. This makes code pretty much the same whether working with one JWK
@@ -195,7 +190,7 @@ typedef enum {
 /** @ingroup jwks_core_grp
  * @brief Structural representation of a JWK
  *
- * This data structure is produced by importing a JWK or JWKS into a 
+ * This data structure is produced by importing a JWK or JWKS into a
  * @ref jwk_set_t object. Generally, you would not change any values here
  * and only use this to probe the internal parser and possibly to
  * decide whether a key applies to certain jwt_t for verification
@@ -205,8 +200,7 @@ typedef enum {
  *  a nil terminated string of the key. The underlying crypto algorith may
  *  or may not support this. It's provided as a convenience.
  *
- * @todo Decide whether to keep this public or opaque. It's super
- *  dangerous.
+ * @raisewarning Decide if we need to make this an opaque object
  */
 typedef struct {
 	jwk_key_type_t kty;	/**< The key type of this key					*/
@@ -262,78 +256,14 @@ typedef void *(*jwt_realloc_t)(void *, size_t);
 typedef void (*jwt_free_t)(void *);
 
 /**
- * @defgroup jwt_config_grp Configuration Type
- *
- * The JWT configuration tools are setup to allow an agnostic way to handle
- * state between different functions. The specific uses of the tools varies
- * according to whether you are providing or consuming tokens. These aspects
- * are documented in the other sections.
- *
- * This section is a light intro of config types and common usage.
- *
- * @remark LibJWT does not internally modify or set information in the
- *  @ref jwt_config_t object. Certain values will determine how LibJWT
- *  handles various functions.
- * @{
- */
-
-/**
- * @brief Structure used to manage configuration state
- */
-typedef struct {
-	union {
-		const void *key;	/**< Pointer to key material	*/
-		DEPR("use key") const void *jwt_key;
-	};
-	union {
-		size_t key_len;		/**< Length of key material	*/
-		DEPR("use key_len") int jwt_key_len;
-	};
-	jwt_alg_t alg;			/**< For algorithm matching	*/
-	void *ctx;			/**< User controlled context	*/
-} jwt_config_t;
-
-/**
- * @brief Backward compatibility for @ref jwt_decode_2
- */
-#define jwt_key_t jwt_config_t
-
-/**
- * @todo
- */
-JWT_EX
-void jwt_config_init(jwt_config_t *config);
-
-/**
- * @todo
- */
-#define JWT_CONFIG_DECLARE(__name) \
-	jwt_config_t __name = { { NULL }, { 0 }, JWT_ALG_NONE, NULL}
-
-/**
- * @brief Prototype of callback for use
- * @todo
- */
-typedef int (*jwt_callback_t)(const jwt_t *, jwt_config_t *);
-
-/**
- * @brief Backward compatibility for @ref jwt_decode_2
- */
-#define jwt_key_p_t jwt_callback_t
-
-/**
- * @}
- */
-
-/**
  * @defgroup jwt_grp JSON Web Token
  * @{
  */
 
 /**
  * @defgroup jwt_core_grp Object Creation
- * Functions used to create and destroy JWT objects.
  *
+ * Functions used to create and destroy JWT objects.
  * @{
  */
 
@@ -368,14 +298,13 @@ JWT_EX int jwt_new(jwt_t **jwt);
  * After calling, the JWT object referenced will no longer be valid and
  * its memory will be freed.
  *
- * @param jwt Pointer to a JWT object previously created with @ref jwt_new
- *            or @ref jwt_decode.
+ * @param jwt Pointer to a JWT object previously created object
  */
 JWT_EX void jwt_free(jwt_t *jwt);
 
 #if defined(__GNUC__) || defined(__clang__)
 /**
- * @todo
+ * @raisewarning Document jwt_freep
  */
 static inline void jwt_freep(jwt_t **jwt) {
 	if (jwt) {
@@ -397,40 +326,179 @@ static inline void jwt_freep(jwt_t **jwt) {
  */
 JWT_EX jwt_t *jwt_dup(jwt_t *jwt);
 
-/** @} jwt_core_grp */
+/**
+ * @}
+ * @noop jwt_core_grp
+ */
 
 /**
- * @defgroup jwt_verify_grp Token Verification
- * Functions used to decode and verify signatures for a JWT.
+ * @defgroup jwt_config_grp Configuration Type
+ *
+ * The JWT configuration tools are setup to allow an agnostic way to handle
+ * state between different functions. The specific uses of the tools varies
+ * according to whether you are providing or consuming tokens. These aspects
+ * are documented in the other sections.
+ *
+ * This section is a light intro of config types and common usage.
+ *
+ * @remark LibJWT does not internally modify or set information in the
+ *  @ref jwt_config_t object. Certain values will determine how LibJWT
+ *  handles various functions.
  * @{
  */
 
+/**
+ * @brief Structure used to manage configuration state
+ */
+typedef struct {
+	union {
+		const void *key;	/**< Pointer to key material	*/
+		DEPR("use key") const void *jwt_key;
+	};
+	union {
+		size_t key_len;		/**< Length of key material	*/
+		DEPR("use key_len") int jwt_key_len;
+	};
+	jwt_alg_t alg;			/**< For algorithm matching	*/
+	void *ctx;			/**< User controlled context	*/
+} jwt_config_t;
+
+/**
+ * @brief Intialize @ref jwt_config_t to a clean state.
+ *
+ * To ensure a @ref jwt_config_t is at a known state, this will clear
+ * values in the config. It will not free memory that might be associated
+ * with internal pointers.
+ *
+ * @param config Pointer to config to be cleared
+ */
+JWT_EX
+void jwt_config_init(jwt_config_t *config);
+
+/**
+ * @brief Decleration of a @ref jwt_config_t
+ *
+ * This is useful for scoped usage to avoid declaring it and running the
+ * @ref jwt_config_init function.
+ *
+ * @code
+ * void some_function(const char *token)
+ * {
+ *     JWT_CONFIG_DECLARE(my_config);
+ *     jwt_auto_t *my_jwt;
+ *     int ret;
+ *
+ *     // Setup my_config with key, alg type, etc
+ *
+ *     ret = jwt_verify(&my_jwt, token, &my_config);
+ *     if (ret)
+ *         return ret;
+ *
+ *     // Success
+ * }
+ * @endcode
+ */
+#define JWT_CONFIG_DECLARE(__name) \
+	jwt_config_t __name = { { NULL }, { 0 }, JWT_ALG_NONE, NULL}
+
+/**
+ * @brief Callback for operations involving verification of tokens.
+ *
+ * Further details can be found in @ref jwt_verify_grp, specifically
+ * for @ref jwt_verify_wcb
+ */
+typedef int (*jwt_callback_t)(const jwt_t *, jwt_config_t *);
+
+/**< @cond JWT_BACKWARD_COMPAT */
+/**
+ * @brief Backward compatibility for @ref jwt_decode_2
+ */
+#define jwt_key_p_t jwt_callback_t
+
+/**
+ * @brief Backward compatibility for @ref jwt_decode_2
+ */
+#define jwt_key_t jwt_config_t
+/**< @endcond */
+
+/**
+ * @}
+ * @noop jwt_config_grp
+ */
+
+/**
+ * @defgroup jwt_verify_grp Token Verification
+ * @{
+ */
+
+/**
+ * @brief Decode and verify a JWT
+ *
+ * @raisewarning Complete documentation of jwt_verify
+ *
+ * @param jwt Pointer to a JWT object pointer
+ * @param token Pointer to a nil terminated JWT string
+ * @param config Pointer to a config structure to define how to verify the
+ *   token
+ * @return 0 on success, or an errno. On success, jwt will be allocated
+ */
 JWT_EX
 int jwt_verify(jwt_t **jwt, const char *token, jwt_config_t *config);
 
+/**
+ * @brief Decode and verify a JWT, with user callback
+ *
+ * This operates the same as @ref jwt_verify, with the addition of calling
+ * a user defined callback function between the decode and verification step.
+ * This allows the user to perform some extra verification, and even provide a
+ * key after decoding (e.g. to match a ``"kid"``).
+ *
+ * @raisewarning Complete documentation of jwt_verify_wcb
+ *
+ * @param jwt Pointer to a JWT object pointer
+ * @param token Pointer to a nil terminated JWT string
+ * @param config Pointer to a config structure to define how to verify the
+ *   token
+ * @param cb Pointer to a callback
+ * @return 0 on success, or an errno. On success, jwt will be allocated
+ */
 JWT_EX
 int jwt_verify_wcb(jwt_t **jwt, const char *token,
 		   jwt_config_t *config, jwt_callback_t cb);
 
 /**
- * @brief
+ * @brief Decode a JWT
  *
- * @deprecated See @ref jwt_verify and @ref jwt_verify_wcb instead.
+ * @deprecated See @ref jwt_verify instead.
+ *
+ * @param jwt Pointer to a JWT object pointer
+ * @param token Pointer to a nil terminated JWT string
+ * @param key Pointer to key
+ * @param key_len The length of the above key.
+ * @return 0 on success, or an errno. On success, jwt will be allocated
  */
 JWT_EX DEPR("Migrate your code to jwt_verify()")
 int jwt_decode(jwt_t **jwt, const char *token,
 	       const unsigned char *key, int key_len);
 
 /**
- * @brief
+ * @brief Decode a JWT with a user provided callback
  *
- * @deprecated See @ref jwt_verify and @ref jwt_verify_wcb instead.
+ * @deprecated See @ref jwt_verify_wcb instead.
+ *
+ * @param jwt Pointer to a JWT object pointer
+ * @param token Pointer to a nil terminated JWT string
+ * @param cb Pointer to a callback
+ * @return 0 on success, or an errno. On success, jwt will be allocated
  */
 JWT_EX DEPR("Migriate your code to jwt_verify_wcb()")
 int jwt_decode_2(jwt_t **jwt, const char *token,
 		 jwt_callback_t cb);
 
-/** @} jwt_verify_grp */
+/**
+ * @}
+ * @noop jwt_verify_grp
+ */
 
 /**
  * @defgroup jwt_grant_grp Grant Management
@@ -594,7 +662,10 @@ JWT_EX int jwt_add_grants_json(jwt_t *jwt, const char *json);
  */
 JWT_EX int jwt_del_grants(jwt_t *jwt, const char *grant);
 
-/** @} jwt_grant_grp */
+/**
+ * @}
+ * @noop jwt_grant_grp
+ */
 
 /**
  * @defgroup jwt_header_grp Header Hanagement
@@ -758,7 +829,10 @@ JWT_EX int jwt_add_headers_json(jwt_t *jwt, const char *json);
  */
 JWT_EX int jwt_del_headers(jwt_t *jwt, const char *header);
 
-/** @} jwt_header_grp */
+/**
+ * @}
+ * @noop jwt_header_grp
+ */
 
 /**
  * @defgroup jwt_encode_grp Encoding and Output
@@ -857,7 +931,10 @@ JWT_EX char *jwt_encode_str(jwt_t *jwt);
  */
 JWT_EX void jwt_free_str(char *str);
 
-/** @} jwt_encode_grp */
+/**
+ * @}
+ * @noop jwt_encode_grp
+ */
 
 /**
  * @defgroup jwt_alg_grp Algorithm Management
@@ -928,9 +1005,15 @@ JWT_EX const char *jwt_alg_str(jwt_alg_t alg);
  */
 JWT_EX jwt_alg_t jwt_str_alg(const char *alg);
 
-/** @} jwt_alg_grp */
+/**
+ * @}
+ * @noop jwt_alg_grp
+ */
 
-/** @} jwt_grp */
+/**
+ * @}
+ * @noop jwt_grp
+ */
 
 /**
  * @defgroup jwks_core_grp JSON Web Key and Sets
@@ -1041,7 +1124,10 @@ JWT_EX int jwks_item_free(jwk_set_t *jwk_set, size_t index);
  */
 JWT_EX int jwks_item_free_all(jwk_set_t *jwk_set);
 
-/** @} jwks_core_grp */
+/**
+ * @}
+ * @noop jwks_core_grp
+ */
 
 /** @ingroup jwt_grp
  * @defgroup jwt_valid_grp Validation Functions
@@ -1326,7 +1412,10 @@ JWT_EX int jwt_valid_set_headers(jwt_valid_t *jwt_valid, int hdr);
  */
 JWT_EX char *jwt_exception_str(unsigned int exceptions);
 
-/** @} jwt_valid_grp */
+/**
+ * @}
+ * @noop jwt_valid_grp
+ */
 
 /**
  * @defgroup advanced_grp Advanced Functionality
@@ -1363,7 +1452,8 @@ JWT_EX char *jwt_exception_str(unsigned int exceptions);
   *     NULL to use free
   * @returns 0 on success or errno otherwise.
   */
-JWT_EX int jwt_set_alloc(jwt_malloc_t pmalloc, jwt_realloc_t prealloc, jwt_free_t pfree);
+JWT_EX int jwt_set_alloc(jwt_malloc_t pmalloc, jwt_realloc_t prealloc,
+			 jwt_free_t pfree);
 
 /**
  * Get functions used for allocating and freeing memory.
@@ -1372,9 +1462,13 @@ JWT_EX int jwt_set_alloc(jwt_malloc_t pmalloc, jwt_realloc_t prealloc, jwt_free_
  * @param prealloc Pointer to realloc function output variable, or NULL
  * @param pfree Pointer to free function output variable, or NULL
  */
-JWT_EX void jwt_get_alloc(jwt_malloc_t *pmalloc, jwt_realloc_t *prealloc, jwt_free_t *pfree);
+JWT_EX void jwt_get_alloc(jwt_malloc_t *pmalloc, jwt_realloc_t *prealloc,
+			  jwt_free_t *pfree);
 
- /** @} jwt_memory_grp */
+ /**
+  * @}
+  * @noop jwt_memory_grp
+  */
 
 /**
  * @defgroup jwt_crypto_grp Cryptographic Operations
@@ -1438,9 +1532,15 @@ JWT_EX int jwt_set_crypto_ops_t(jwt_crypto_provider_t opname);
  */
 JWT_EX int jwt_crypto_ops_supports_jwk(void);
 
-/** @} jwt_crypto_grp */
+/**
+ * @}
+ * @noop jwt_crypto_grp
+ */
 
-/** @} advanced_grp */
+/**
+ * @}
+ * @noop advanced_grp
+ */
 
 #ifdef __cplusplus
 }

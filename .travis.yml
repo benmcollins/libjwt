@@ -17,26 +17,32 @@ addons:
     - graphviz
     - valgrind
 
-env:
-- CMD="cmake -DWITH_GNUTLS=YES -DWITH_OPENSSL=YES .."
-- CMD="../configure --with-openssl --with-gnutls"
-- CMD="../configure --without-gnutls --enable-code-coverage --enable-valgrind"
-
 before_install:
 - sudo pip install codecov
 
 before_script:
+- set -ev
 - autoreconf -fi
 - mkdir build
 - cd build
 
-script:
-- set -e
-- ${CMD}
-- if [[ "${CMD}" =~ "coverage" ]]; then make check-code-coverage; else make check; fi
-- if [[ "${CMD}" =~ "valgrind" ]]; then make check-valgrind; fi
-- if [[ "${CMD}" =~ "coverage" ]]; then make doxygen-doc; fi
-- if [[ "${CMD}" =~ "coverage" ]]; then make dist-bzip2; fi
+jobs:
+  include:
+    - name: "CMake Build"
+      env: BUILD=cmake
+      script:
+      - cmake -DWITH_GNUTLS=YES -DWITH_OPENSSL=YES ..
+      - make check
 
-after_success:
-- if [[ "${CMD}" =~ "coverage" ]]; then codecov; fi
+    - name: "Autotools Build"
+      env: BUILD=auto
+      script:
+      - ../configure --with-openssl --with-gnutls
+      - make check
+
+    - name: "Coverage Build"
+      env: BUILD=coverage
+      script:
+      - ../configure --without-gnutls --enable-code-coverage --enable-valgrind
+      - make check-valgrind check-code-coverage
+      - codecov
