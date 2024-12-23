@@ -62,7 +62,7 @@ target_sources(jwt PRIVATE libjwt/jwt.c libjwt/jwks.c libjwt/base64.c)
 
 generate_export_header(jwt)
 
-include_directories(${CMAKE_SOURCE_DIR}/include)
+include_directories(${CMAKE_SOURCE_DIR}/include ${CMAKE_BINARY_DIR})
 
 target_link_libraries(jwt PUBLIC ${JANSSON_LINK_LIBRARIES})
 target_include_directories(jwt PUBLIC

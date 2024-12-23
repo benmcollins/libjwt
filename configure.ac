@@ -113,8 +113,10 @@ PKG_CHECK_MODULES([CHECK], [check >= 0.9.4],
 AC_SUBST([RPMBUILD_OPTS],["$RPMB_OPENSSL $RPMB_GNUTLS $RPMB_CHECK"])
 
 dnl Check for compiler support flags
-AX_GCC_FUNC_ATTRIBUTE([deprecated])
-AX_GCC_FUNC_ATTRIBUTE([visibility])
+dnl AX_GCC_FUNC_ATTRIBUTE([deprecated])
+dnl AX_GCC_FUNC_ATTRIBUTE([visibility])
+AC_SUBST([GCC_FUNC_DEPRECATED],["__attribute__((__deprecated__))"])
+AC_SUBST([GCC_EXPORT],["__attribute__((visibility(\"default\")))"])
 
 dnl Valgrind defaults
 AX_VALGRIND_DFLT([memcheck], [on])
