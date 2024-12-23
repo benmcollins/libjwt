@@ -32,9 +32,6 @@ jobs:
       dist: focal
       script:
       - ../configure
-      - grep libjwt_version_info ../configure
-      - grep libjwt_version_info Makefile
-      - grep version-info libjet/Makefile
       - make
 
     - name: "CMake Build"
