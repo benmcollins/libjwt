@@ -44,7 +44,7 @@
  <tr id="projectrow">
   <td id="projectlogo"><img alt="Logo" src="LibJWT-Icon-95x91.png"/></td>
   <td id="projectalign">
-   <div id="projectname">LibJWT<span id="projectnumber">&#160;Dev</span>
+   <div id="projectname">LibJWT<span id="projectnumber">&#160;v2.1.0</span>
    </div>
    <div id="projectbrief">The C JSON Web Token Library +JWK +JWKS</div>
   </td>
@@ -88,133 +88,45 @@ $(function(){initNavTree('group__jwt__verify__grp.html',''); initResizable(true)
 <div id="doc-content">
 <div class="header">
   <div class="summary">
-<a href="#nested-classes">Data Structures</a> &#124;
-<a href="#typedef-members">Typedefs</a> &#124;
 <a href="#func-members">Functions</a>  </div>
   <div class="headertitle"><div class="title">Token Verification<div class="ingroups"><a class="el" href="group__jwt__grp.html">JSON Web Token</a></div></div></div>
 </div><!--header-->
 <div class="contents">
-
-<p>Functions used to decode and verify signatures for a JWT.  
-<a href="#details">More...</a></p>
 <div class="dynheader">
 Collaboration diagram for Token Verification:</div>
 <div class="dyncontent">
 <div class="center"><img src="group__jwt__verify__grp.png" border="0" usemap="#agroup____jwt____verify____grp" alt=""/></div>
 <map name="agroup____jwt____verify____grp" id="agroup____jwt____verify____grp">
 <area shape="rect" href="group__jwt__grp.html" title=" " alt="" coords="5,5,132,31"/>
-<area shape="rect" title="Functions used to decode and verify signatures for a JWT." alt="" coords="180,5,305,31"/>
+<area shape="rect" title=" " alt="" coords="180,5,305,31"/>
 </map>
 </div>
 <table class="memberdecls">
-<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="nested-classes" name="nested-classes"></a>
-Data Structures</h2></td></tr>
-<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structjwt__verify__t.html">jwt_verify_t</a></td></tr>
-<tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight">Used to manage keys for verifying a JWT.  <a href="structjwt__verify__t.html#details">More...</a><br /></td></tr>
-<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
-</table><table class="memberdecls">
-<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="typedef-members" name="typedef-members"></a>
-Typedefs</h2></td></tr>
-<tr class="memitem:ga90c0098baf1b6aff6ad1e94f9c96247c" id="r_ga90c0098baf1b6aff6ad1e94f9c96247c"><td class="memItemLeft" align="right" valign="top">typedef <a class="el" href="structjwt__verify__t.html">jwt_verify_t</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga90c0098baf1b6aff6ad1e94f9c96247c">jwt_key_t</a></td></tr>
-<tr class="memdesc:ga90c0098baf1b6aff6ad1e94f9c96247c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Backward compatibility for <a class="el" href="#ga3d4b9811c21893ad7ad2c8d58206dbcb">jwt_decode_2</a>.  <br /></td></tr>
-<tr class="separator:ga90c0098baf1b6aff6ad1e94f9c96247c"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ga9499c15ad0b5890a44c6535782a0bbcf" id="r_ga9499c15ad0b5890a44c6535782a0bbcf"><td class="memItemLeft" align="right" valign="top">typedef int(*&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga9499c15ad0b5890a44c6535782a0bbcf">jwt_verify_p_t</a>) (const <a class="el" href="group__jwt__core__grp.html#gabf0acfb990d245214216af589c1d0947">jwt_t</a> *, <a class="el" href="structjwt__verify__t.html">jwt_verify_t</a> *)</td></tr>
-<tr class="memdesc:ga9499c15ad0b5890a44c6535782a0bbcf"><td class="mdescLeft">&#160;</td><td class="mdescRight">Prototype of the key provider callback.  <br /></td></tr>
-<tr class="separator:ga9499c15ad0b5890a44c6535782a0bbcf"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ga42133b3421c04025d37157ffd4c1551c" id="r_ga42133b3421c04025d37157ffd4c1551c"><td class="memItemLeft" align="right" valign="top">typedef <a class="el" href="#ga9499c15ad0b5890a44c6535782a0bbcf">jwt_verify_p_t</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga42133b3421c04025d37157ffd4c1551c">jwt_key_p_t</a></td></tr>
-<tr class="memdesc:ga42133b3421c04025d37157ffd4c1551c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Backward compatibility for <a class="el" href="#ga3d4b9811c21893ad7ad2c8d58206dbcb">jwt_decode_2</a>.  <br /></td></tr>
-<tr class="separator:ga42133b3421c04025d37157ffd4c1551c"><td class="memSeparator" colspan="2">&#160;</td></tr>
-</table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="func-members" name="func-members"></a>
 Functions</h2></td></tr>
-<tr class="memitem:ga2978fb04c015050ad5bc3ddf9d29275d" id="r_ga2978fb04c015050ad5bc3ddf9d29275d"><td class="memItemLeft" align="right" valign="top">JWT_EX int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga2978fb04c015050ad5bc3ddf9d29275d">jwt_verify</a> (<a class="el" href="group__jwt__core__grp.html#gabf0acfb990d245214216af589c1d0947">jwt_t</a> **jwt, const char *token, <a class="el" href="structjwt__verify__t.html">jwt_verify_t</a> *key_v)</td></tr>
-<tr class="separator:ga2978fb04c015050ad5bc3ddf9d29275d"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:gab7b1d3205d5c261273a66a6178ce93fc" id="r_gab7b1d3205d5c261273a66a6178ce93fc"><td class="memItemLeft" align="right" valign="top">JWT_EX int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#gab7b1d3205d5c261273a66a6178ce93fc">jwt_verify_wcb</a> (<a class="el" href="group__jwt__core__grp.html#gabf0acfb990d245214216af589c1d0947">jwt_t</a> **jwt, const char *token, <a class="el" href="structjwt__verify__t.html">jwt_verify_t</a> *key_v, <a class="el" href="#ga42133b3421c04025d37157ffd4c1551c">jwt_key_p_t</a> key_provider)</td></tr>
-<tr class="separator:gab7b1d3205d5c261273a66a6178ce93fc"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ga60e6f70bc766b7a47b502113cf1c7174" id="r_ga60e6f70bc766b7a47b502113cf1c7174"><td class="memItemLeft" align="right" valign="top">JWT_EX DEPRECATED int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga60e6f70bc766b7a47b502113cf1c7174">jwt_decode</a> (<a class="el" href="group__jwt__core__grp.html#gabf0acfb990d245214216af589c1d0947">jwt_t</a> **jwt, const char *token, const unsigned char *key, int key_len)</td></tr>
-<tr class="separator:ga60e6f70bc766b7a47b502113cf1c7174"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ga3d4b9811c21893ad7ad2c8d58206dbcb" id="r_ga3d4b9811c21893ad7ad2c8d58206dbcb"><td class="memItemLeft" align="right" valign="top">JWT_EX DEPRECATED int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga3d4b9811c21893ad7ad2c8d58206dbcb">jwt_decode_2</a> (<a class="el" href="group__jwt__core__grp.html#gabf0acfb990d245214216af589c1d0947">jwt_t</a> **jwt, const char *token, <a class="el" href="#ga42133b3421c04025d37157ffd4c1551c">jwt_key_p_t</a> key_provider)</td></tr>
-<tr class="separator:ga3d4b9811c21893ad7ad2c8d58206dbcb"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:gab0535d292e64c3688085cf0139aa8c8d" id="r_gab0535d292e64c3688085cf0139aa8c8d"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#gab0535d292e64c3688085cf0139aa8c8d">jwt_verify</a> (<a class="el" href="group__jwt__core__grp.html#gabf0acfb990d245214216af589c1d0947">jwt_t</a> **jwt, const char *token, <a class="el" href="structjwt__config__t.html">jwt_config_t</a> *config)</td></tr>
+<tr class="memdesc:gab0535d292e64c3688085cf0139aa8c8d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Decode and verify a JWT.  <br /></td></tr>
+<tr class="separator:gab0535d292e64c3688085cf0139aa8c8d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:gaddab273e09a8327e03f458be1cfb83b4" id="r_gaddab273e09a8327e03f458be1cfb83b4"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#gaddab273e09a8327e03f458be1cfb83b4">jwt_verify_wcb</a> (<a class="el" href="group__jwt__core__grp.html#gabf0acfb990d245214216af589c1d0947">jwt_t</a> **jwt, const char *token, <a class="el" href="structjwt__config__t.html">jwt_config_t</a> *config, <a class="el" href="group__jwt__config__grp.html#ga44edddf2ce7034752c2b22283ad1010d">jwt_callback_t</a> cb)</td></tr>
+<tr class="memdesc:gaddab273e09a8327e03f458be1cfb83b4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Decode and verify a JWT, with user callback.  <br /></td></tr>
+<tr class="separator:gaddab273e09a8327e03f458be1cfb83b4"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga4d498ffdcf1c95d67b81c224e2a447e5" id="r_ga4d498ffdcf1c95d67b81c224e2a447e5"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga4d498ffdcf1c95d67b81c224e2a447e5">jwt_decode</a> (<a class="el" href="group__jwt__core__grp.html#gabf0acfb990d245214216af589c1d0947">jwt_t</a> **jwt, const char *token, const unsigned char *key, int key_len)</td></tr>
+<tr class="memdesc:ga4d498ffdcf1c95d67b81c224e2a447e5"><td class="mdescLeft">&#160;</td><td class="mdescRight">Decode a JWT.  <br /></td></tr>
+<tr class="separator:ga4d498ffdcf1c95d67b81c224e2a447e5"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:gaf6811b9a47f36da1399297fc7710e8ad" id="r_gaf6811b9a47f36da1399297fc7710e8ad"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#gaf6811b9a47f36da1399297fc7710e8ad">jwt_decode_2</a> (<a class="el" href="group__jwt__core__grp.html#gabf0acfb990d245214216af589c1d0947">jwt_t</a> **jwt, const char *token, <a class="el" href="group__jwt__config__grp.html#ga44edddf2ce7034752c2b22283ad1010d">jwt_callback_t</a> cb)</td></tr>
+<tr class="memdesc:gaf6811b9a47f36da1399297fc7710e8ad"><td class="mdescLeft">&#160;</td><td class="mdescRight">Decode a JWT with a user provided callback.  <br /></td></tr>
+<tr class="separator:gaf6811b9a47f36da1399297fc7710e8ad"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
-<p>Functions used to decode and verify signatures for a JWT. </p>
-<h2 class="groupheader">Typedef Documentation</h2>
-<a id="ga42133b3421c04025d37157ffd4c1551c" name="ga42133b3421c04025d37157ffd4c1551c"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ga42133b3421c04025d37157ffd4c1551c">&#9670;&#160;</a></span>jwt_key_p_t</h2>
-
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">typedef <a class="el" href="#ga9499c15ad0b5890a44c6535782a0bbcf">jwt_verify_p_t</a> <a class="el" href="#ga42133b3421c04025d37157ffd4c1551c">jwt_key_p_t</a></td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-<p>Backward compatibility for <a class="el" href="#ga3d4b9811c21893ad7ad2c8d58206dbcb">jwt_decode_2</a>. </p>
-
-<p class="definition">Definition at line <a class="el" href="jwt_8h_source.html#l00388">388</a> of file <a class="el" href="jwt_8h_source.html">jwt.h</a>.</p>
-
-</div>
-</div>
-<a id="ga90c0098baf1b6aff6ad1e94f9c96247c" name="ga90c0098baf1b6aff6ad1e94f9c96247c"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ga90c0098baf1b6aff6ad1e94f9c96247c">&#9670;&#160;</a></span>jwt_key_t</h2>
-
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">typedef <a class="el" href="structjwt__verify__t.html">jwt_verify_t</a> <a class="el" href="#ga90c0098baf1b6aff6ad1e94f9c96247c">jwt_key_t</a></td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-<p>Backward compatibility for <a class="el" href="#ga3d4b9811c21893ad7ad2c8d58206dbcb">jwt_decode_2</a>. </p>
-
-<p class="definition">Definition at line <a class="el" href="jwt_8h_source.html#l00357">357</a> of file <a class="el" href="jwt_8h_source.html">jwt.h</a>.</p>
-
-</div>
-</div>
-<a id="ga9499c15ad0b5890a44c6535782a0bbcf" name="ga9499c15ad0b5890a44c6535782a0bbcf"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ga9499c15ad0b5890a44c6535782a0bbcf">&#9670;&#160;</a></span>jwt_verify_p_t</h2>
-
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">typedef int(* jwt_verify_p_t) (const <a class="el" href="group__jwt__core__grp.html#gabf0acfb990d245214216af589c1d0947">jwt_t</a> *, <a class="el" href="structjwt__verify__t.html">jwt_verify_t</a> *)</td>
-        </tr>
-      </table>
-</div><div class="memdoc">
-
-<p>Prototype of the key provider callback. </p>
-<p>This function is expected to return 0 on success, and errno otherwise. On success, the data in <a class="el" href="structjwt__verify__t.html">jwt_verify_t</a> should be usable to to handle the operation needed to complete the verifification of the signature on the <a class="el" href="group__jwt__core__grp.html#gabf0acfb990d245214216af589c1d0947">jwt_t</a>.</p>
-<dl class="section note"><dt>Note</dt><dd>The application is responsible for freeing any memory related to the data used in the key. It must also ensure that the data is in valid memory space until the decode operation completes. E.g. this is what NOT to do... <div class="fragment"><div class="line"><span class="keywordtype">int</span> my_key_callback(<span class="keyword">const</span> <a class="code hl_typedef" href="group__jwt__core__grp.html#gabf0acfb990d245214216af589c1d0947">jwt_t</a> *jwt, <a class="code hl_struct" href="structjwt__verify__t.html">jwt_verify_t</a> *key_v)</div>
-<div class="line">{</div>
-<div class="line">    <span class="keywordtype">unsigned</span> <span class="keywordtype">char</span> my_key[] = <span class="stringliteral">&quot;aljksalkc&quot;</span>;</div>
-<div class="line">    key_v-&gt;<a class="code hl_variable" href="structjwt__verify__t.html#aef95f32fbe0aee6b891100acf16cb969">jwt_key</a> = my_key;</div>
-<div class="line">    key_v-&gt;<a class="code hl_variable" href="structjwt__verify__t.html#ad5b397e828bc1d4cb9d833a54a035725">jwt_key_len</a> = strlen(my_key);</div>
-<div class="line">    <span class="keywordflow">return</span> 0;</div>
-<div class="line">}</div>
-<div class="ttc" id="agroup__jwt__core__grp_html_gabf0acfb990d245214216af589c1d0947"><div class="ttname"><a href="group__jwt__core__grp.html#gabf0acfb990d245214216af589c1d0947">jwt_t</a></div><div class="ttdeci">struct jwt jwt_t</div><div class="ttdoc">&lt;</div><div class="ttdef"><b>Definition</b> <a href="jwt_8h_source.html#l00068">jwt.h:68</a></div></div>
-<div class="ttc" id="astructjwt__verify__t_html"><div class="ttname"><a href="structjwt__verify__t.html">jwt_verify_t</a></div><div class="ttdoc">Used to manage keys for verifying a JWT.</div><div class="ttdef"><b>Definition</b> <a href="jwt_8h_source.html#l00347">jwt.h:347</a></div></div>
-<div class="ttc" id="astructjwt__verify__t_html_ad5b397e828bc1d4cb9d833a54a035725"><div class="ttname"><a href="structjwt__verify__t.html#ad5b397e828bc1d4cb9d833a54a035725">jwt_verify_t::jwt_key_len</a></div><div class="ttdeci">int jwt_key_len</div><div class="ttdoc">Length of key material</div><div class="ttdef"><b>Definition</b> <a href="jwt_8h_source.html#l00349">jwt.h:349</a></div></div>
-<div class="ttc" id="astructjwt__verify__t_html_aef95f32fbe0aee6b891100acf16cb969"><div class="ttname"><a href="structjwt__verify__t.html#aef95f32fbe0aee6b891100acf16cb969">jwt_verify_t::jwt_key</a></div><div class="ttdeci">const void * jwt_key</div><div class="ttdoc">Pointer to key material</div><div class="ttdef"><b>Definition</b> <a href="jwt_8h_source.html#l00348">jwt.h:348</a></div></div>
-</div><!-- fragment --> In this code, the data for <code>my_key</code> is on this function's stack and will be out of scope once it returns. </dd></dl>
-
-<p class="definition">Definition at line <a class="el" href="jwt_8h_source.html#l00383">383</a> of file <a class="el" href="jwt_8h_source.html">jwt.h</a>.</p>
-
-</div>
-</div>
 <h2 class="groupheader">Function Documentation</h2>
-<a id="ga60e6f70bc766b7a47b502113cf1c7174" name="ga60e6f70bc766b7a47b502113cf1c7174"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ga60e6f70bc766b7a47b502113cf1c7174">&#9670;&#160;</a></span>jwt_decode()</h2>
+<a id="ga4d498ffdcf1c95d67b81c224e2a447e5" name="ga4d498ffdcf1c95d67b81c224e2a447e5"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga4d498ffdcf1c95d67b81c224e2a447e5">&#9670;&#160;</a></span>jwt_decode()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">JWT_EX DEPRECATED int jwt_decode </td>
+          <td class="memname">int jwt_decode </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="group__jwt__core__grp.html#gabf0acfb990d245214216af589c1d0947">jwt_t</a> **</td>          <td class="paramname"><span class="paramname"><em>jwt</em></span>, </td>
         </tr>
@@ -235,18 +147,30 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-<dl class="deprecated"><dt><b><a class="el" href="deprecated.html#_deprecated000001">Deprecated</a></b></dt><dd>See <a class="el" href="#ga2978fb04c015050ad5bc3ddf9d29275d">jwt_verify</a> and <a class="el" href="#gab7b1d3205d5c261273a66a6178ce93fc">jwt_verify_wcb</a> instead. </dd></dl>
+
+<p>Decode a JWT. </p>
+<dl class="deprecated"><dt><b><a class="el" href="deprecated.html#_deprecated000001">Deprecated</a></b></dt><dd>See <a class="el" href="#gab0535d292e64c3688085cf0139aa8c8d">jwt_verify</a> instead.</dd></dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">jwt</td><td>Pointer to a JWT object pointer </td></tr>
+    <tr><td class="paramname">token</td><td>Pointer to a nil terminated JWT string </td></tr>
+    <tr><td class="paramname">key</td><td>Pointer to key </td></tr>
+    <tr><td class="paramname">key_len</td><td>The length of the above key. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>0 on success, or an errno. On success, jwt will be allocated </dd></dl>
 
 </div>
 </div>
-<a id="ga3d4b9811c21893ad7ad2c8d58206dbcb" name="ga3d4b9811c21893ad7ad2c8d58206dbcb"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ga3d4b9811c21893ad7ad2c8d58206dbcb">&#9670;&#160;</a></span>jwt_decode_2()</h2>
+<a id="gaf6811b9a47f36da1399297fc7710e8ad" name="gaf6811b9a47f36da1399297fc7710e8ad"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#gaf6811b9a47f36da1399297fc7710e8ad">&#9670;&#160;</a></span>jwt_decode_2()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">JWT_EX DEPRECATED int jwt_decode_2 </td>
+          <td class="memname">int jwt_decode_2 </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="group__jwt__core__grp.html#gabf0acfb990d245214216af589c1d0947">jwt_t</a> **</td>          <td class="paramname"><span class="paramname"><em>jwt</em></span>, </td>
         </tr>
@@ -258,22 +182,33 @@ Functions</h2></td></tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="#ga42133b3421c04025d37157ffd4c1551c">jwt_key_p_t</a></td>          <td class="paramname"><span class="paramname"><em>key_provider</em></span>&#160;)</td>
+          <td class="paramtype"><a class="el" href="group__jwt__config__grp.html#ga44edddf2ce7034752c2b22283ad1010d">jwt_callback_t</a></td>          <td class="paramname"><span class="paramname"><em>cb</em></span>&#160;)</td>
         </tr>
       </table>
 </div><div class="memdoc">
-<dl class="deprecated"><dt><b><a class="el" href="deprecated.html#_deprecated000002">Deprecated</a></b></dt><dd>See <a class="el" href="#ga2978fb04c015050ad5bc3ddf9d29275d">jwt_verify</a> and <a class="el" href="#gab7b1d3205d5c261273a66a6178ce93fc">jwt_verify_wcb</a> instead. </dd></dl>
+
+<p>Decode a JWT with a user provided callback. </p>
+<dl class="deprecated"><dt><b><a class="el" href="deprecated.html#_deprecated000002">Deprecated</a></b></dt><dd>See <a class="el" href="#gaddab273e09a8327e03f458be1cfb83b4">jwt_verify_wcb</a> instead.</dd></dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">jwt</td><td>Pointer to a JWT object pointer </td></tr>
+    <tr><td class="paramname">token</td><td>Pointer to a nil terminated JWT string </td></tr>
+    <tr><td class="paramname">cb</td><td>Pointer to a callback </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>0 on success, or an errno. On success, jwt will be allocated </dd></dl>
 
 </div>
 </div>
-<a id="ga2978fb04c015050ad5bc3ddf9d29275d" name="ga2978fb04c015050ad5bc3ddf9d29275d"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ga2978fb04c015050ad5bc3ddf9d29275d">&#9670;&#160;</a></span>jwt_verify()</h2>
+<a id="gab0535d292e64c3688085cf0139aa8c8d" name="gab0535d292e64c3688085cf0139aa8c8d"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#gab0535d292e64c3688085cf0139aa8c8d">&#9670;&#160;</a></span>jwt_verify()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">JWT_EX int jwt_verify </td>
+          <td class="memname">int jwt_verify </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="group__jwt__core__grp.html#gabf0acfb990d245214216af589c1d0947">jwt_t</a> **</td>          <td class="paramname"><span class="paramname"><em>jwt</em></span>, </td>
         </tr>
@@ -285,21 +220,32 @@ Functions</h2></td></tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="structjwt__verify__t.html">jwt_verify_t</a> *</td>          <td class="paramname"><span class="paramname"><em>key_v</em></span>&#160;)</td>
+          <td class="paramtype"><a class="el" href="structjwt__config__t.html">jwt_config_t</a> *</td>          <td class="paramname"><span class="paramname"><em>config</em></span>&#160;)</td>
         </tr>
       </table>
 </div><div class="memdoc">
 
+<p>Decode and verify a JWT. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">jwt</td><td>Pointer to a JWT object pointer </td></tr>
+    <tr><td class="paramname">token</td><td>Pointer to a nil terminated JWT string </td></tr>
+    <tr><td class="paramname">config</td><td>Pointer to a config structure to define how to verify the token </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>0 on success, or an errno. On success, jwt will be allocated </dd></dl>
+
 </div>
 </div>
-<a id="gab7b1d3205d5c261273a66a6178ce93fc" name="gab7b1d3205d5c261273a66a6178ce93fc"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#gab7b1d3205d5c261273a66a6178ce93fc">&#9670;&#160;</a></span>jwt_verify_wcb()</h2>
+<a id="gaddab273e09a8327e03f458be1cfb83b4" name="gaddab273e09a8327e03f458be1cfb83b4"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#gaddab273e09a8327e03f458be1cfb83b4">&#9670;&#160;</a></span>jwt_verify_wcb()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">JWT_EX int jwt_verify_wcb </td>
+          <td class="memname">int jwt_verify_wcb </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="group__jwt__core__grp.html#gabf0acfb990d245214216af589c1d0947">jwt_t</a> **</td>          <td class="paramname"><span class="paramname"><em>jwt</em></span>, </td>
         </tr>
@@ -311,15 +257,28 @@ Functions</h2></td></tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="structjwt__verify__t.html">jwt_verify_t</a> *</td>          <td class="paramname"><span class="paramname"><em>key_v</em></span>, </td>
+          <td class="paramtype"><a class="el" href="structjwt__config__t.html">jwt_config_t</a> *</td>          <td class="paramname"><span class="paramname"><em>config</em></span>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="#ga42133b3421c04025d37157ffd4c1551c">jwt_key_p_t</a></td>          <td class="paramname"><span class="paramname"><em>key_provider</em></span>&#160;)</td>
+          <td class="paramtype"><a class="el" href="group__jwt__config__grp.html#ga44edddf2ce7034752c2b22283ad1010d">jwt_callback_t</a></td>          <td class="paramname"><span class="paramname"><em>cb</em></span>&#160;)</td>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>Decode and verify a JWT, with user callback. </p>
+<p>This operates the same as <a class="el" href="#gab0535d292e64c3688085cf0139aa8c8d">jwt_verify</a>, with the addition of calling a user defined callback function between the decode and verification step. This allows the user to perform some extra verification, and even provide a key after decoding (e.g. to match a <code>"kid"</code>).</p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">jwt</td><td>Pointer to a JWT object pointer </td></tr>
+    <tr><td class="paramname">token</td><td>Pointer to a nil terminated JWT string </td></tr>
+    <tr><td class="paramname">config</td><td>Pointer to a config structure to define how to verify the token </td></tr>
+    <tr><td class="paramname">cb</td><td>Pointer to a callback </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>0 on success, or an errno. On success, jwt will be allocated </dd></dl>
 
 </div>
 </div>

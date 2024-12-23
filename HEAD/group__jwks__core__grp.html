@@ -44,7 +44,7 @@
  <tr id="projectrow">
   <td id="projectlogo"><img alt="Logo" src="LibJWT-Icon-95x91.png"/></td>
   <td id="projectalign">
-   <div id="projectname">LibJWT<span id="projectnumber">&#160;Dev</span>
+   <div id="projectname">LibJWT<span id="projectnumber">&#160;v2.1.0</span>
    </div>
    <div id="projectbrief">The C JSON Web Token Library +JWK +JWKS</div>
   </td>
@@ -146,33 +146,33 @@ Enumerations</h2></td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="func-members" name="func-members"></a>
 Functions</h2></td></tr>
-<tr class="memitem:ga98344761fc19ea7ee5390ae9e8d2cca7" id="r_ga98344761fc19ea7ee5390ae9e8d2cca7"><td class="memItemLeft" align="right" valign="top">JWT_EX <a class="el" href="#ga380f2d92f1d0d306420729f9789f5e50">jwk_set_t</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga98344761fc19ea7ee5390ae9e8d2cca7">jwks_create</a> (const char *jwk_json_str)</td></tr>
-<tr class="memdesc:ga98344761fc19ea7ee5390ae9e8d2cca7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Create a new JWKS object for later use in validating JWTs.  <br /></td></tr>
-<tr class="separator:ga98344761fc19ea7ee5390ae9e8d2cca7"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ga0412942c5cb9ebc33a138d58be87a328" id="r_ga0412942c5cb9ebc33a138d58be87a328"><td class="memItemLeft" align="right" valign="top">JWT_EX int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga0412942c5cb9ebc33a138d58be87a328">jwks_item_add</a> (<a class="el" href="#ga380f2d92f1d0d306420729f9789f5e50">jwk_set_t</a> *jwk_set, <a class="el" href="structjwk__item__t.html">jwk_item_t</a> *item)</td></tr>
-<tr class="memdesc:ga0412942c5cb9ebc33a138d58be87a328"><td class="mdescLeft">&#160;</td><td class="mdescRight">Add a <a class="el" href="structjwk__item__t.html" title="Structural representation of a JWK.">jwk_item_t</a> to an existing jwk_set_t.  <br /></td></tr>
-<tr class="separator:ga0412942c5cb9ebc33a138d58be87a328"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:gaa084f1f35b118c90e23fec8424e83e4e" id="r_gaa084f1f35b118c90e23fec8424e83e4e"><td class="memItemLeft" align="right" valign="top">JWT_EX int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#gaa084f1f35b118c90e23fec8424e83e4e">jwks_error</a> (<a class="el" href="#ga380f2d92f1d0d306420729f9789f5e50">jwk_set_t</a> *jwk_set)</td></tr>
-<tr class="memdesc:gaa084f1f35b118c90e23fec8424e83e4e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Check if there is an error within the jwk_set.  <br /></td></tr>
-<tr class="separator:gaa084f1f35b118c90e23fec8424e83e4e"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:gaa1de410ba108a14f9aa74575105a06a5" id="r_gaa1de410ba108a14f9aa74575105a06a5"><td class="memItemLeft" align="right" valign="top">JWT_EX int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#gaa1de410ba108a14f9aa74575105a06a5">jwks_error_any</a> (<a class="el" href="#ga380f2d92f1d0d306420729f9789f5e50">jwk_set_t</a> *jwk_set)</td></tr>
-<tr class="memdesc:gaa1de410ba108a14f9aa74575105a06a5"><td class="mdescLeft">&#160;</td><td class="mdescRight">Check if there is an error within the jwk_set and any of the <a class="el" href="structjwk__item__t.html" title="Structural representation of a JWK.">jwk_item_t</a> in the set.  <br /></td></tr>
-<tr class="separator:gaa1de410ba108a14f9aa74575105a06a5"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:gaf334f7d92468eeca912fbd540a3cd290" id="r_gaf334f7d92468eeca912fbd540a3cd290"><td class="memItemLeft" align="right" valign="top">JWT_EX const char *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#gaf334f7d92468eeca912fbd540a3cd290">jwks_error_msg</a> (<a class="el" href="#ga380f2d92f1d0d306420729f9789f5e50">jwk_set_t</a> *jwk_set)</td></tr>
-<tr class="memdesc:gaf334f7d92468eeca912fbd540a3cd290"><td class="mdescLeft">&#160;</td><td class="mdescRight">Retrieve an error message from a jwk_set.  <br /></td></tr>
-<tr class="separator:gaf334f7d92468eeca912fbd540a3cd290"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ga916f7aec6ec88984dc878c85f6218d9e" id="r_ga916f7aec6ec88984dc878c85f6218d9e"><td class="memItemLeft" align="right" valign="top">JWT_EX <a class="el" href="structjwk__item__t.html">jwk_item_t</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga916f7aec6ec88984dc878c85f6218d9e">jwks_item_get</a> (<a class="el" href="#ga380f2d92f1d0d306420729f9789f5e50">jwk_set_t</a> *jwk_set, size_t index)</td></tr>
-<tr class="memdesc:ga916f7aec6ec88984dc878c85f6218d9e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return the index'th jwk_item in the jwk_set.  <br /></td></tr>
-<tr class="separator:ga916f7aec6ec88984dc878c85f6218d9e"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ga7f26c5a8c1acb214f9d7e64001281fc4" id="r_ga7f26c5a8c1acb214f9d7e64001281fc4"><td class="memItemLeft" align="right" valign="top">JWT_EX void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga7f26c5a8c1acb214f9d7e64001281fc4">jwks_free</a> (<a class="el" href="#ga380f2d92f1d0d306420729f9789f5e50">jwk_set_t</a> *jwk_set)</td></tr>
-<tr class="memdesc:ga7f26c5a8c1acb214f9d7e64001281fc4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Free all memory associated with a jwt_set_t, including any <a class="el" href="structjwk__item__t.html" title="Structural representation of a JWK.">jwk_item_t</a> in the set.  <br /></td></tr>
-<tr class="separator:ga7f26c5a8c1acb214f9d7e64001281fc4"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ga545755c81613b5959422b7ed90db389a" id="r_ga545755c81613b5959422b7ed90db389a"><td class="memItemLeft" align="right" valign="top">JWT_EX int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga545755c81613b5959422b7ed90db389a">jwks_item_free</a> (<a class="el" href="#ga380f2d92f1d0d306420729f9789f5e50">jwk_set_t</a> *jwk_set, size_t index)</td></tr>
-<tr class="memdesc:ga545755c81613b5959422b7ed90db389a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Free all memory associated with the nth jwt_item_t in a jwk_set.  <br /></td></tr>
-<tr class="separator:ga545755c81613b5959422b7ed90db389a"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:gad13bed808cadfa3f1fff97d678e4a3e7" id="r_gad13bed808cadfa3f1fff97d678e4a3e7"><td class="memItemLeft" align="right" valign="top">JWT_EX int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#gad13bed808cadfa3f1fff97d678e4a3e7">jwks_item_free_all</a> (<a class="el" href="#ga380f2d92f1d0d306420729f9789f5e50">jwk_set_t</a> *jwk_set)</td></tr>
-<tr class="memdesc:gad13bed808cadfa3f1fff97d678e4a3e7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Free all memory associated with alljwt_item_t in a jwk_set.  <br /></td></tr>
-<tr class="separator:gad13bed808cadfa3f1fff97d678e4a3e7"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga61852f3afd280f50a02171fee05b5b8e" id="r_ga61852f3afd280f50a02171fee05b5b8e"><td class="memItemLeft" align="right" valign="top"><a class="el" href="#ga380f2d92f1d0d306420729f9789f5e50">jwk_set_t</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga61852f3afd280f50a02171fee05b5b8e">jwks_create</a> (const char *jwk_json_str)</td></tr>
+<tr class="memdesc:ga61852f3afd280f50a02171fee05b5b8e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Create a new JWKS object for later use in validating JWTs.  <br /></td></tr>
+<tr class="separator:ga61852f3afd280f50a02171fee05b5b8e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga2524a7db039e09d7716cd63e86846f9f" id="r_ga2524a7db039e09d7716cd63e86846f9f"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga2524a7db039e09d7716cd63e86846f9f">jwks_item_add</a> (<a class="el" href="#ga380f2d92f1d0d306420729f9789f5e50">jwk_set_t</a> *jwk_set, <a class="el" href="structjwk__item__t.html">jwk_item_t</a> *item)</td></tr>
+<tr class="memdesc:ga2524a7db039e09d7716cd63e86846f9f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Add a <a class="el" href="structjwk__item__t.html" title="Structural representation of a JWK.">jwk_item_t</a> to an existing jwk_set_t.  <br /></td></tr>
+<tr class="separator:ga2524a7db039e09d7716cd63e86846f9f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga2d50f634f1b9d73de31ee251fcf50210" id="r_ga2d50f634f1b9d73de31ee251fcf50210"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga2d50f634f1b9d73de31ee251fcf50210">jwks_error</a> (<a class="el" href="#ga380f2d92f1d0d306420729f9789f5e50">jwk_set_t</a> *jwk_set)</td></tr>
+<tr class="memdesc:ga2d50f634f1b9d73de31ee251fcf50210"><td class="mdescLeft">&#160;</td><td class="mdescRight">Check if there is an error within the jwk_set.  <br /></td></tr>
+<tr class="separator:ga2d50f634f1b9d73de31ee251fcf50210"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:gac3b6bdd5540c8aa1390705e09db6b655" id="r_gac3b6bdd5540c8aa1390705e09db6b655"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#gac3b6bdd5540c8aa1390705e09db6b655">jwks_error_any</a> (<a class="el" href="#ga380f2d92f1d0d306420729f9789f5e50">jwk_set_t</a> *jwk_set)</td></tr>
+<tr class="memdesc:gac3b6bdd5540c8aa1390705e09db6b655"><td class="mdescLeft">&#160;</td><td class="mdescRight">Check if there is an error within the jwk_set and any of the <a class="el" href="structjwk__item__t.html" title="Structural representation of a JWK.">jwk_item_t</a> in the set.  <br /></td></tr>
+<tr class="separator:gac3b6bdd5540c8aa1390705e09db6b655"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga7500b0576723039ce30b09a2e1387d6a" id="r_ga7500b0576723039ce30b09a2e1387d6a"><td class="memItemLeft" align="right" valign="top">const char *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga7500b0576723039ce30b09a2e1387d6a">jwks_error_msg</a> (<a class="el" href="#ga380f2d92f1d0d306420729f9789f5e50">jwk_set_t</a> *jwk_set)</td></tr>
+<tr class="memdesc:ga7500b0576723039ce30b09a2e1387d6a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Retrieve an error message from a jwk_set.  <br /></td></tr>
+<tr class="separator:ga7500b0576723039ce30b09a2e1387d6a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:gae00c8e06cbdf28d732452218940341a3" id="r_gae00c8e06cbdf28d732452218940341a3"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structjwk__item__t.html">jwk_item_t</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#gae00c8e06cbdf28d732452218940341a3">jwks_item_get</a> (<a class="el" href="#ga380f2d92f1d0d306420729f9789f5e50">jwk_set_t</a> *jwk_set, size_t index)</td></tr>
+<tr class="memdesc:gae00c8e06cbdf28d732452218940341a3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return the index'th jwk_item in the jwk_set.  <br /></td></tr>
+<tr class="separator:gae00c8e06cbdf28d732452218940341a3"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:gadd20e30cdcd0c0d5b794547d41e8252f" id="r_gadd20e30cdcd0c0d5b794547d41e8252f"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#gadd20e30cdcd0c0d5b794547d41e8252f">jwks_free</a> (<a class="el" href="#ga380f2d92f1d0d306420729f9789f5e50">jwk_set_t</a> *jwk_set)</td></tr>
+<tr class="memdesc:gadd20e30cdcd0c0d5b794547d41e8252f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Free all memory associated with a jwt_set_t, including any <a class="el" href="structjwk__item__t.html" title="Structural representation of a JWK.">jwk_item_t</a> in the set.  <br /></td></tr>
+<tr class="separator:gadd20e30cdcd0c0d5b794547d41e8252f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga8a82553f9582e10d096a1b9ac73c21a5" id="r_ga8a82553f9582e10d096a1b9ac73c21a5"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga8a82553f9582e10d096a1b9ac73c21a5">jwks_item_free</a> (<a class="el" href="#ga380f2d92f1d0d306420729f9789f5e50">jwk_set_t</a> *jwk_set, size_t index)</td></tr>
+<tr class="memdesc:ga8a82553f9582e10d096a1b9ac73c21a5"><td class="mdescLeft">&#160;</td><td class="mdescRight">Free all memory associated with the nth jwt_item_t in a jwk_set.  <br /></td></tr>
+<tr class="separator:ga8a82553f9582e10d096a1b9ac73c21a5"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga8b5403fd3d2e07199bb8afb2c053aa2e" id="r_ga8b5403fd3d2e07199bb8afb2c053aa2e"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga8b5403fd3d2e07199bb8afb2c053aa2e">jwks_item_free_all</a> (<a class="el" href="#ga380f2d92f1d0d306420729f9789f5e50">jwk_set_t</a> *jwk_set)</td></tr>
+<tr class="memdesc:ga8b5403fd3d2e07199bb8afb2c053aa2e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Free all memory associated with alljwt_item_t in a jwk_set.  <br /></td></tr>
+<tr class="separator:ga8b5403fd3d2e07199bb8afb2c053aa2e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <p>Functions to handle JSON that represents JWK and JWKS for use in validating JWT objects. </p>
@@ -193,7 +193,7 @@ Functions</h2></td></tr>
 <p>Used for working with JSON Web Keys and JWK Sets (JWKS).</p>
 <dl class="section remark"><dt>Remarks</dt><dd>All JWK operations require that you import your JWK into a jwk_set_t first. Internal, LibJWT creates a jwk_set_t even for single keys. This makes code pretty much the same whether working with one JWK or a set of them. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="jwt_8h_source.html#l00087">87</a> of file <a class="el" href="jwt_8h_source.html">jwt.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="jwt_8h_source.html#l00082">82</a> of file <a class="el" href="jwt_8h_source.html">jwt.h</a>.</p>
 
 </div>
 </div>
@@ -215,8 +215,8 @@ Functions</h2></td></tr>
 <div class="fragment"><div class="line"><span class="keywordflow">if</span> (@ref jwt_item_t.key_ops &amp; (<a class="code hl_enumvalue" href="#gga150285e933a3d456bcd8d87b906438a3a893a71fda7261466815427686f349eef">JWK_KEY_OP_SIGN</a> | <a class="code hl_enumvalue" href="#gga150285e933a3d456bcd8d87b906438a3a1101574110cba3dd17ff829d728ceb5b">JWK_KEY_OP_ENCRYPT</a>)) {</div>
 <div class="line">    ...</div>
 <div class="line">}</div>
-<div class="ttc" id="agroup__jwks__core__grp_html_gga150285e933a3d456bcd8d87b906438a3a1101574110cba3dd17ff829d728ceb5b"><div class="ttname"><a href="#gga150285e933a3d456bcd8d87b906438a3a1101574110cba3dd17ff829d728ceb5b">JWK_KEY_OP_ENCRYPT</a></div><div class="ttdeci">@ JWK_KEY_OP_ENCRYPT</div><div class="ttdoc">Used for encryption.</div><div class="ttdef"><b>Definition</b> <a href="jwt_8h_source.html#l00186">jwt.h:186</a></div></div>
-<div class="ttc" id="agroup__jwks__core__grp_html_gga150285e933a3d456bcd8d87b906438a3a893a71fda7261466815427686f349eef"><div class="ttname"><a href="#gga150285e933a3d456bcd8d87b906438a3a893a71fda7261466815427686f349eef">JWK_KEY_OP_SIGN</a></div><div class="ttdeci">@ JWK_KEY_OP_SIGN</div><div class="ttdoc">Signing.</div><div class="ttdef"><b>Definition</b> <a href="jwt_8h_source.html#l00184">jwt.h:184</a></div></div>
+<div class="ttc" id="agroup__jwks__core__grp_html_gga150285e933a3d456bcd8d87b906438a3a1101574110cba3dd17ff829d728ceb5b"><div class="ttname"><a href="#gga150285e933a3d456bcd8d87b906438a3a1101574110cba3dd17ff829d728ceb5b">JWK_KEY_OP_ENCRYPT</a></div><div class="ttdeci">@ JWK_KEY_OP_ENCRYPT</div><div class="ttdoc">Used for encryption.</div><div class="ttdef"><b>Definition</b> <a href="jwt_8h_source.html#l00181">jwt.h:181</a></div></div>
+<div class="ttc" id="agroup__jwks__core__grp_html_gga150285e933a3d456bcd8d87b906438a3a893a71fda7261466815427686f349eef"><div class="ttname"><a href="#gga150285e933a3d456bcd8d87b906438a3a893a71fda7261466815427686f349eef">JWK_KEY_OP_SIGN</a></div><div class="ttdeci">@ JWK_KEY_OP_SIGN</div><div class="ttdoc">Signing.</div><div class="ttdef"><b>Definition</b> <a href="jwt_8h_source.html#l00179">jwt.h:179</a></div></div>
 </div><!-- fragment --><p><a href="https://datatracker.ietf.org/doc/html/rfc7517#section-4.3" type="button" class="button" target="_blank"><em class="fa-regular fa-file-lines"></em> RFC-7517 Sec 4.3</a> </p>
 <table class="fieldtable">
 <tr><th colspan="2">Enumerator</th></tr><tr><td class="fieldname"><a id="gga150285e933a3d456bcd8d87b906438a3a9054426563814eff0f4ea23def0e00f9" name="gga150285e933a3d456bcd8d87b906438a3a9054426563814eff0f4ea23def0e00f9"></a>JWK_KEY_OP_NONE&#160;</td><td class="fielddoc"><p>No key_op set. </p>
@@ -241,7 +241,7 @@ Functions</h2></td></tr>
 </td></tr>
 </table>
 
-<p class="definition">Definition at line <a class="el" href="jwt_8h_source.html#l00182">182</a> of file <a class="el" href="jwt_8h_source.html">jwt.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="jwt_8h_source.html#l00177">177</a> of file <a class="el" href="jwt_8h_source.html">jwt.h</a>.</p>
 
 </div>
 </div>
@@ -272,7 +272,7 @@ Functions</h2></td></tr>
 </td></tr>
 </table>
 
-<p class="definition">Definition at line <a class="el" href="jwt_8h_source.html#l00148">148</a> of file <a class="el" href="jwt_8h_source.html">jwt.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="jwt_8h_source.html#l00143">143</a> of file <a class="el" href="jwt_8h_source.html">jwt.h</a>.</p>
 
 </div>
 </div>
@@ -300,19 +300,19 @@ Functions</h2></td></tr>
 </td></tr>
 </table>
 
-<p class="definition">Definition at line <a class="el" href="jwt_8h_source.html#l00162">162</a> of file <a class="el" href="jwt_8h_source.html">jwt.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="jwt_8h_source.html#l00157">157</a> of file <a class="el" href="jwt_8h_source.html">jwt.h</a>.</p>
 
 </div>
 </div>
 <h2 class="groupheader">Function Documentation</h2>
-<a id="ga98344761fc19ea7ee5390ae9e8d2cca7" name="ga98344761fc19ea7ee5390ae9e8d2cca7"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ga98344761fc19ea7ee5390ae9e8d2cca7">&#9670;&#160;</a></span>jwks_create()</h2>
+<a id="ga61852f3afd280f50a02171fee05b5b8e" name="ga61852f3afd280f50a02171fee05b5b8e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga61852f3afd280f50a02171fee05b5b8e">&#9670;&#160;</a></span>jwks_create()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">JWT_EX <a class="el" href="#ga380f2d92f1d0d306420729f9789f5e50">jwk_set_t</a> * jwks_create </td>
+          <td class="memname"><a class="el" href="#ga380f2d92f1d0d306420729f9789f5e50">jwk_set_t</a> * jwks_create </td>
           <td>(</td>
           <td class="paramtype">const char *</td>          <td class="paramname"><span class="paramname"><em>jwk_json_str</em></span></td><td>)</td>
           <td></td>
@@ -322,7 +322,7 @@ Functions</h2></td></tr>
 
 <p>Create a new JWKS object for later use in validating JWTs. </p>
 <p>This function expects a JSON string either as a single object for one JWK or as an array of objects under a key of "keys" (as defined in JWKS specifications).</p>
-<p>If non-NULL is returned, you should then check to make sure there is no error with <a class="el" href="#gaa084f1f35b118c90e23fec8424e83e4e" title="Check if there is an error within the jwk_set.">jwks_error()</a>. There may be errors on individual JWK items in the set. You can check if there are any with <a class="el" href="#gaa1de410ba108a14f9aa74575105a06a5" title="Check if there is an error within the jwk_set and any of the jwk_item_t in the set.">jwks_error_any()</a>.</p>
+<p>If non-NULL is returned, you should then check to make sure there is no error with <a class="el" href="#ga2d50f634f1b9d73de31ee251fcf50210" title="Check if there is an error within the jwk_set.">jwks_error()</a>. There may be errors on individual JWK items in the set. You can check if there are any with <a class="el" href="#gac3b6bdd5540c8aa1390705e09db6b655" title="Check if there is an error within the jwk_set and any of the jwk_item_t in the set.">jwks_error_any()</a>.</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">jwk_json_str</td><td>JSON string representation of a single key or array of "keys". If NULL is passed, an empty jwk_set_t is created. </td></tr>
@@ -333,14 +333,14 @@ Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="gaa084f1f35b118c90e23fec8424e83e4e" name="gaa084f1f35b118c90e23fec8424e83e4e"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#gaa084f1f35b118c90e23fec8424e83e4e">&#9670;&#160;</a></span>jwks_error()</h2>
+<a id="ga2d50f634f1b9d73de31ee251fcf50210" name="ga2d50f634f1b9d73de31ee251fcf50210"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga2d50f634f1b9d73de31ee251fcf50210">&#9670;&#160;</a></span>jwks_error()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">JWT_EX int jwks_error </td>
+          <td class="memname">int jwks_error </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="#ga380f2d92f1d0d306420729f9789f5e50">jwk_set_t</a> *</td>          <td class="paramname"><span class="paramname"><em>jwk_set</em></span></td><td>)</td>
           <td></td>
@@ -360,14 +360,14 @@ Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="gaa1de410ba108a14f9aa74575105a06a5" name="gaa1de410ba108a14f9aa74575105a06a5"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#gaa1de410ba108a14f9aa74575105a06a5">&#9670;&#160;</a></span>jwks_error_any()</h2>
+<a id="gac3b6bdd5540c8aa1390705e09db6b655" name="gac3b6bdd5540c8aa1390705e09db6b655"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#gac3b6bdd5540c8aa1390705e09db6b655">&#9670;&#160;</a></span>jwks_error_any()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">JWT_EX int jwks_error_any </td>
+          <td class="memname">int jwks_error_any </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="#ga380f2d92f1d0d306420729f9789f5e50">jwk_set_t</a> *</td>          <td class="paramname"><span class="paramname"><em>jwk_set</em></span></td><td>)</td>
           <td></td>
@@ -386,14 +386,14 @@ Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="gaf334f7d92468eeca912fbd540a3cd290" name="gaf334f7d92468eeca912fbd540a3cd290"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#gaf334f7d92468eeca912fbd540a3cd290">&#9670;&#160;</a></span>jwks_error_msg()</h2>
+<a id="ga7500b0576723039ce30b09a2e1387d6a" name="ga7500b0576723039ce30b09a2e1387d6a"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga7500b0576723039ce30b09a2e1387d6a">&#9670;&#160;</a></span>jwks_error_msg()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">JWT_EX const char * jwks_error_msg </td>
+          <td class="memname">const char * jwks_error_msg </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="#ga380f2d92f1d0d306420729f9789f5e50">jwk_set_t</a> *</td>          <td class="paramname"><span class="paramname"><em>jwk_set</em></span></td><td>)</td>
           <td></td>
@@ -413,14 +413,14 @@ Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="ga7f26c5a8c1acb214f9d7e64001281fc4" name="ga7f26c5a8c1acb214f9d7e64001281fc4"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ga7f26c5a8c1acb214f9d7e64001281fc4">&#9670;&#160;</a></span>jwks_free()</h2>
+<a id="gadd20e30cdcd0c0d5b794547d41e8252f" name="gadd20e30cdcd0c0d5b794547d41e8252f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#gadd20e30cdcd0c0d5b794547d41e8252f">&#9670;&#160;</a></span>jwks_free()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">JWT_EX void jwks_free </td>
+          <td class="memname">void jwks_free </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="#ga380f2d92f1d0d306420729f9789f5e50">jwk_set_t</a> *</td>          <td class="paramname"><span class="paramname"><em>jwk_set</em></span></td><td>)</td>
           <td></td>
@@ -438,14 +438,14 @@ Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="ga0412942c5cb9ebc33a138d58be87a328" name="ga0412942c5cb9ebc33a138d58be87a328"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ga0412942c5cb9ebc33a138d58be87a328">&#9670;&#160;</a></span>jwks_item_add()</h2>
+<a id="ga2524a7db039e09d7716cd63e86846f9f" name="ga2524a7db039e09d7716cd63e86846f9f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga2524a7db039e09d7716cd63e86846f9f">&#9670;&#160;</a></span>jwks_item_add()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">JWT_EX int jwks_item_add </td>
+          <td class="memname">int jwks_item_add </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="#ga380f2d92f1d0d306420729f9789f5e50">jwk_set_t</a> *</td>          <td class="paramname"><span class="paramname"><em>jwk_set</em></span>, </td>
         </tr>
@@ -469,14 +469,14 @@ Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="ga545755c81613b5959422b7ed90db389a" name="ga545755c81613b5959422b7ed90db389a"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ga545755c81613b5959422b7ed90db389a">&#9670;&#160;</a></span>jwks_item_free()</h2>
+<a id="ga8a82553f9582e10d096a1b9ac73c21a5" name="ga8a82553f9582e10d096a1b9ac73c21a5"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga8a82553f9582e10d096a1b9ac73c21a5">&#9670;&#160;</a></span>jwks_item_free()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">JWT_EX int jwks_item_free </td>
+          <td class="memname">int jwks_item_free </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="#ga380f2d92f1d0d306420729f9789f5e50">jwk_set_t</a> *</td>          <td class="paramname"><span class="paramname"><em>jwk_set</em></span>, </td>
         </tr>
@@ -500,14 +500,14 @@ Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="gad13bed808cadfa3f1fff97d678e4a3e7" name="gad13bed808cadfa3f1fff97d678e4a3e7"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#gad13bed808cadfa3f1fff97d678e4a3e7">&#9670;&#160;</a></span>jwks_item_free_all()</h2>
+<a id="ga8b5403fd3d2e07199bb8afb2c053aa2e" name="ga8b5403fd3d2e07199bb8afb2c053aa2e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga8b5403fd3d2e07199bb8afb2c053aa2e">&#9670;&#160;</a></span>jwks_item_free_all()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">JWT_EX int jwks_item_free_all </td>
+          <td class="memname">int jwks_item_free_all </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="#ga380f2d92f1d0d306420729f9789f5e50">jwk_set_t</a> *</td>          <td class="paramname"><span class="paramname"><em>jwk_set</em></span></td><td>)</td>
           <td></td>
@@ -527,14 +527,14 @@ Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="ga916f7aec6ec88984dc878c85f6218d9e" name="ga916f7aec6ec88984dc878c85f6218d9e"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ga916f7aec6ec88984dc878c85f6218d9e">&#9670;&#160;</a></span>jwks_item_get()</h2>
+<a id="gae00c8e06cbdf28d732452218940341a3" name="gae00c8e06cbdf28d732452218940341a3"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#gae00c8e06cbdf28d732452218940341a3">&#9670;&#160;</a></span>jwks_item_get()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">JWT_EX <a class="el" href="structjwk__item__t.html">jwk_item_t</a> * jwks_item_get </td>
+          <td class="memname"><a class="el" href="structjwk__item__t.html">jwk_item_t</a> * jwks_item_get </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="#ga380f2d92f1d0d306420729f9789f5e50">jwk_set_t</a> *</td>          <td class="paramname"><span class="paramname"><em>jwk_set</em></span>, </td>
         </tr>

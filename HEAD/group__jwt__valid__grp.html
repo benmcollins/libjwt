@@ -44,7 +44,7 @@
  <tr id="projectrow">
   <td id="projectlogo"><img alt="Logo" src="LibJWT-Icon-95x91.png"/></td>
   <td id="projectalign">
-   <div id="projectname">LibJWT<span id="projectnumber">&#160;Dev</span>
+   <div id="projectname">LibJWT<span id="projectnumber">&#160;v2.1.0</span>
    </div>
    <div id="projectbrief">The C JSON Web Token Library +JWK +JWKS</div>
   </td>
@@ -135,66 +135,66 @@ Enumerations</h2></td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="func-members" name="func-members"></a>
 Functions</h2></td></tr>
-<tr class="memitem:ga9ce197165c625f967f889212ca9fab86" id="r_ga9ce197165c625f967f889212ca9fab86"><td class="memItemLeft" align="right" valign="top">JWT_EX <a class="el" href="#ga47ee94f9c08ff581f78590bfe024f6e4">jwt_valid_exception_t</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga9ce197165c625f967f889212ca9fab86">jwt_validate</a> (<a class="el" href="group__jwt__core__grp.html#gabf0acfb990d245214216af589c1d0947">jwt_t</a> *jwt, <a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *jwt_valid)</td></tr>
-<tr class="memdesc:ga9ce197165c625f967f889212ca9fab86"><td class="mdescLeft">&#160;</td><td class="mdescRight">Validate a JWT object with a validation object.  <br /></td></tr>
-<tr class="separator:ga9ce197165c625f967f889212ca9fab86"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ga88d954bf262717532dba3f8d9d29c8af" id="r_ga88d954bf262717532dba3f8d9d29c8af"><td class="memItemLeft" align="right" valign="top">JWT_EX int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga88d954bf262717532dba3f8d9d29c8af">jwt_valid_new</a> (<a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> **jwt_valid, <a class="el" href="group__jwt__core__grp.html#ga889db178d8714ab67bc994f1d8faad33">jwt_alg_t</a> alg)</td></tr>
-<tr class="memdesc:ga88d954bf262717532dba3f8d9d29c8af"><td class="mdescLeft">&#160;</td><td class="mdescRight">Allocate a new, JWT validation object.  <br /></td></tr>
-<tr class="separator:ga88d954bf262717532dba3f8d9d29c8af"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ga728df4b06a8265eaaea237641185c76f" id="r_ga728df4b06a8265eaaea237641185c76f"><td class="memItemLeft" align="right" valign="top">JWT_EX void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga728df4b06a8265eaaea237641185c76f">jwt_valid_free</a> (<a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *jwt_valid)</td></tr>
-<tr class="memdesc:ga728df4b06a8265eaaea237641185c76f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Free a JWT validation object and any other resources it is using.  <br /></td></tr>
-<tr class="separator:ga728df4b06a8265eaaea237641185c76f"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:gaffc50a84a9914aa74f233054fd243a61" id="r_gaffc50a84a9914aa74f233054fd243a61"><td class="memItemLeft" align="right" valign="top">JWT_EX <a class="el" href="#ga47ee94f9c08ff581f78590bfe024f6e4">jwt_valid_exception_t</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#gaffc50a84a9914aa74f233054fd243a61">jwt_valid_get_status</a> (<a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *jwt_valid)</td></tr>
-<tr class="memdesc:gaffc50a84a9914aa74f233054fd243a61"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return the status string for the validation object.  <br /></td></tr>
-<tr class="separator:gaffc50a84a9914aa74f233054fd243a61"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:gaea88716bb3596c459da61677e8184662" id="r_gaea88716bb3596c459da61677e8184662"><td class="memItemLeft" align="right" valign="top">JWT_EX time_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#gaea88716bb3596c459da61677e8184662">jwt_valid_get_nbf_leeway</a> (<a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *jwt_valid)</td></tr>
-<tr class="memdesc:gaea88716bb3596c459da61677e8184662"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return the nbf_leeway value set.  <br /></td></tr>
-<tr class="separator:gaea88716bb3596c459da61677e8184662"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:gaeb53cb3059ef0a6969f9d401e76958c2" id="r_gaeb53cb3059ef0a6969f9d401e76958c2"><td class="memItemLeft" align="right" valign="top">JWT_EX time_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#gaeb53cb3059ef0a6969f9d401e76958c2">jwt_valid_get_exp_leeway</a> (<a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *jwt_valid)</td></tr>
-<tr class="memdesc:gaeb53cb3059ef0a6969f9d401e76958c2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return the exp_leeway value set.  <br /></td></tr>
-<tr class="separator:gaeb53cb3059ef0a6969f9d401e76958c2"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:gaf314c644fea06547647958483759ceac" id="r_gaf314c644fea06547647958483759ceac"><td class="memItemLeft" align="right" valign="top">JWT_EX int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#gaf314c644fea06547647958483759ceac">jwt_valid_add_grant</a> (<a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *jwt_valid, const char *grant, const char *val)</td></tr>
-<tr class="memdesc:gaf314c644fea06547647958483759ceac"><td class="mdescLeft">&#160;</td><td class="mdescRight">Add a new string grant requirement to this JWT validation object.  <br /></td></tr>
-<tr class="separator:gaf314c644fea06547647958483759ceac"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ga7f2277d29179a01928c0ebe4fbef1a7c" id="r_ga7f2277d29179a01928c0ebe4fbef1a7c"><td class="memItemLeft" align="right" valign="top">JWT_EX const char *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga7f2277d29179a01928c0ebe4fbef1a7c">jwt_valid_get_grant</a> (<a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *jwt_valid, const char *grant)</td></tr>
-<tr class="memdesc:ga7f2277d29179a01928c0ebe4fbef1a7c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return the value of a string required grant.  <br /></td></tr>
-<tr class="separator:ga7f2277d29179a01928c0ebe4fbef1a7c"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:gabacde09b87fca8b096d291163f4c4a5c" id="r_gabacde09b87fca8b096d291163f4c4a5c"><td class="memItemLeft" align="right" valign="top">JWT_EX int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#gabacde09b87fca8b096d291163f4c4a5c">jwt_valid_add_grant_int</a> (<a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *jwt_valid, const char *grant, long val)</td></tr>
-<tr class="memdesc:gabacde09b87fca8b096d291163f4c4a5c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Add a new integer grant requirement to this JWT validation object.  <br /></td></tr>
-<tr class="separator:gabacde09b87fca8b096d291163f4c4a5c"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ga1af73c88e51e80f456e10cdd43bcf2f1" id="r_ga1af73c88e51e80f456e10cdd43bcf2f1"><td class="memItemLeft" align="right" valign="top">JWT_EX long&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga1af73c88e51e80f456e10cdd43bcf2f1">jwt_valid_get_grant_int</a> (<a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *jwt_valid, const char *grant)</td></tr>
-<tr class="memdesc:ga1af73c88e51e80f456e10cdd43bcf2f1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return the value of an integer required grant.  <br /></td></tr>
-<tr class="separator:ga1af73c88e51e80f456e10cdd43bcf2f1"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ga8900a467e4176b1fa9b622a2705269ee" id="r_ga8900a467e4176b1fa9b622a2705269ee"><td class="memItemLeft" align="right" valign="top">JWT_EX int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga8900a467e4176b1fa9b622a2705269ee">jwt_valid_add_grant_bool</a> (<a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *jwt_valid, const char *grant, int val)</td></tr>
-<tr class="memdesc:ga8900a467e4176b1fa9b622a2705269ee"><td class="mdescLeft">&#160;</td><td class="mdescRight">Add a new boolean required grant to this JWT validation object.  <br /></td></tr>
-<tr class="separator:ga8900a467e4176b1fa9b622a2705269ee"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ga1bcf672c544bd4d2ebb656a79ce90f69" id="r_ga1bcf672c544bd4d2ebb656a79ce90f69"><td class="memItemLeft" align="right" valign="top">JWT_EX int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga1bcf672c544bd4d2ebb656a79ce90f69">jwt_valid_get_grant_bool</a> (<a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *jwt_valid, const char *grant)</td></tr>
-<tr class="memdesc:ga1bcf672c544bd4d2ebb656a79ce90f69"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return the value of an boolean required grant.  <br /></td></tr>
-<tr class="separator:ga1bcf672c544bd4d2ebb656a79ce90f69"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:gab75b56ce400f582ace10a4e524635286" id="r_gab75b56ce400f582ace10a4e524635286"><td class="memItemLeft" align="right" valign="top">JWT_EX int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#gab75b56ce400f582ace10a4e524635286">jwt_valid_add_grants_json</a> (<a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *jwt_valid, const char *json)</td></tr>
-<tr class="memdesc:gab75b56ce400f582ace10a4e524635286"><td class="mdescLeft">&#160;</td><td class="mdescRight">Add required grants from a JSON encoded object string.  <br /></td></tr>
-<tr class="separator:gab75b56ce400f582ace10a4e524635286"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ga19a0badfa97417865fe6053c8d9c076e" id="r_ga19a0badfa97417865fe6053c8d9c076e"><td class="memItemLeft" align="right" valign="top">JWT_EX char *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga19a0badfa97417865fe6053c8d9c076e">jwt_valid_get_grants_json</a> (<a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *jwt_valid, const char *grant)</td></tr>
-<tr class="memdesc:ga19a0badfa97417865fe6053c8d9c076e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return the value of a grant as JSON encoded object string.  <br /></td></tr>
-<tr class="separator:ga19a0badfa97417865fe6053c8d9c076e"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:gaf9f8b1dbe950cf2fc9a8200cf749a442" id="r_gaf9f8b1dbe950cf2fc9a8200cf749a442"><td class="memItemLeft" align="right" valign="top">JWT_EX int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#gaf9f8b1dbe950cf2fc9a8200cf749a442">jwt_valid_del_grants</a> (<a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *jwt_valid, const char *grant)</td></tr>
-<tr class="memdesc:gaf9f8b1dbe950cf2fc9a8200cf749a442"><td class="mdescLeft">&#160;</td><td class="mdescRight">Delete a grant from this JWT object.  <br /></td></tr>
-<tr class="separator:gaf9f8b1dbe950cf2fc9a8200cf749a442"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ga8e5fbc676ebc0a0286bc70b9d062d53e" id="r_ga8e5fbc676ebc0a0286bc70b9d062d53e"><td class="memItemLeft" align="right" valign="top">JWT_EX int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga8e5fbc676ebc0a0286bc70b9d062d53e">jwt_valid_set_now</a> (<a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *jwt_valid, const time_t now)</td></tr>
-<tr class="memdesc:ga8e5fbc676ebc0a0286bc70b9d062d53e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set the time for which expires and not-before claims should be evaluated.  <br /></td></tr>
-<tr class="separator:ga8e5fbc676ebc0a0286bc70b9d062d53e"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:gae0319eaec4c9a1e706b85aa365ada20e" id="r_gae0319eaec4c9a1e706b85aa365ada20e"><td class="memItemLeft" align="right" valign="top">JWT_EX int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#gae0319eaec4c9a1e706b85aa365ada20e">jwt_valid_set_nbf_leeway</a> (<a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *jwt_valid, const time_t nbf_leeway)</td></tr>
-<tr class="memdesc:gae0319eaec4c9a1e706b85aa365ada20e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set the nbf_leeway value as defined in: <a href="https://www.rfc-editor.org/rfc/rfc7519#section-4.1.5">https://www.rfc-editor.org/rfc/rfc7519#section-4.1.5</a>.  <br /></td></tr>
-<tr class="separator:gae0319eaec4c9a1e706b85aa365ada20e"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ga7d4a3188a889ae2a0837aec6f358cde5" id="r_ga7d4a3188a889ae2a0837aec6f358cde5"><td class="memItemLeft" align="right" valign="top">JWT_EX int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga7d4a3188a889ae2a0837aec6f358cde5">jwt_valid_set_exp_leeway</a> (<a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *jwt_valid, const time_t exp_leeway)</td></tr>
-<tr class="memdesc:ga7d4a3188a889ae2a0837aec6f358cde5"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set the exp_leeway value as defined in: <a href="https://www.rfc-editor.org/rfc/rfc7519#section-4.1.4">https://www.rfc-editor.org/rfc/rfc7519#section-4.1.4</a>.  <br /></td></tr>
-<tr class="separator:ga7d4a3188a889ae2a0837aec6f358cde5"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:gaf12cd57921f54714ec74ced386a80981" id="r_gaf12cd57921f54714ec74ced386a80981"><td class="memItemLeft" align="right" valign="top">JWT_EX int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#gaf12cd57921f54714ec74ced386a80981">jwt_valid_set_headers</a> (<a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *jwt_valid, int hdr)</td></tr>
-<tr class="memdesc:gaf12cd57921f54714ec74ced386a80981"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set validation for replicated claims in headers.  <br /></td></tr>
-<tr class="separator:gaf12cd57921f54714ec74ced386a80981"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ga62aa101df260ec31133eeb4c4c52b80a" id="r_ga62aa101df260ec31133eeb4c4c52b80a"><td class="memItemLeft" align="right" valign="top">JWT_EX char *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga62aa101df260ec31133eeb4c4c52b80a">jwt_exception_str</a> (unsigned int exceptions)</td></tr>
-<tr class="memdesc:ga62aa101df260ec31133eeb4c4c52b80a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Parses exceptions and returns a comma delimited and human-readable string.  <br /></td></tr>
-<tr class="separator:ga62aa101df260ec31133eeb4c4c52b80a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga354a14a13a0c96dae2cc22c4fa790413" id="r_ga354a14a13a0c96dae2cc22c4fa790413"><td class="memItemLeft" align="right" valign="top"><a class="el" href="#ga47ee94f9c08ff581f78590bfe024f6e4">jwt_valid_exception_t</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga354a14a13a0c96dae2cc22c4fa790413">jwt_validate</a> (<a class="el" href="group__jwt__core__grp.html#gabf0acfb990d245214216af589c1d0947">jwt_t</a> *jwt, <a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *jwt_valid)</td></tr>
+<tr class="memdesc:ga354a14a13a0c96dae2cc22c4fa790413"><td class="mdescLeft">&#160;</td><td class="mdescRight">Validate a JWT object with a validation object.  <br /></td></tr>
+<tr class="separator:ga354a14a13a0c96dae2cc22c4fa790413"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:gaede6b64d84fd8166ea16debe6efc826d" id="r_gaede6b64d84fd8166ea16debe6efc826d"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#gaede6b64d84fd8166ea16debe6efc826d">jwt_valid_new</a> (<a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> **jwt_valid, <a class="el" href="group__jwt__core__grp.html#ga889db178d8714ab67bc994f1d8faad33">jwt_alg_t</a> alg)</td></tr>
+<tr class="memdesc:gaede6b64d84fd8166ea16debe6efc826d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Allocate a new, JWT validation object.  <br /></td></tr>
+<tr class="separator:gaede6b64d84fd8166ea16debe6efc826d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga77db16a4a29ef6a607d6aff8012955b2" id="r_ga77db16a4a29ef6a607d6aff8012955b2"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga77db16a4a29ef6a607d6aff8012955b2">jwt_valid_free</a> (<a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *jwt_valid)</td></tr>
+<tr class="memdesc:ga77db16a4a29ef6a607d6aff8012955b2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Free a JWT validation object and any other resources it is using.  <br /></td></tr>
+<tr class="separator:ga77db16a4a29ef6a607d6aff8012955b2"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga165d7857282f3cce9106b26369cf11ca" id="r_ga165d7857282f3cce9106b26369cf11ca"><td class="memItemLeft" align="right" valign="top"><a class="el" href="#ga47ee94f9c08ff581f78590bfe024f6e4">jwt_valid_exception_t</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga165d7857282f3cce9106b26369cf11ca">jwt_valid_get_status</a> (<a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *jwt_valid)</td></tr>
+<tr class="memdesc:ga165d7857282f3cce9106b26369cf11ca"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return the status string for the validation object.  <br /></td></tr>
+<tr class="separator:ga165d7857282f3cce9106b26369cf11ca"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:gafa9c96838053831dd239824ed5149879" id="r_gafa9c96838053831dd239824ed5149879"><td class="memItemLeft" align="right" valign="top">time_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#gafa9c96838053831dd239824ed5149879">jwt_valid_get_nbf_leeway</a> (<a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *jwt_valid)</td></tr>
+<tr class="memdesc:gafa9c96838053831dd239824ed5149879"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return the nbf_leeway value set.  <br /></td></tr>
+<tr class="separator:gafa9c96838053831dd239824ed5149879"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga0dc43278963ec6474d5d7263c960e69c" id="r_ga0dc43278963ec6474d5d7263c960e69c"><td class="memItemLeft" align="right" valign="top">time_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga0dc43278963ec6474d5d7263c960e69c">jwt_valid_get_exp_leeway</a> (<a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *jwt_valid)</td></tr>
+<tr class="memdesc:ga0dc43278963ec6474d5d7263c960e69c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return the exp_leeway value set.  <br /></td></tr>
+<tr class="separator:ga0dc43278963ec6474d5d7263c960e69c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:gab5e9e2dc5e0276ea2c21c050822c19e1" id="r_gab5e9e2dc5e0276ea2c21c050822c19e1"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#gab5e9e2dc5e0276ea2c21c050822c19e1">jwt_valid_add_grant</a> (<a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *jwt_valid, const char *grant, const char *val)</td></tr>
+<tr class="memdesc:gab5e9e2dc5e0276ea2c21c050822c19e1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Add a new string grant requirement to this JWT validation object.  <br /></td></tr>
+<tr class="separator:gab5e9e2dc5e0276ea2c21c050822c19e1"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga03b176d20c41a85a979c9671a9a02b6f" id="r_ga03b176d20c41a85a979c9671a9a02b6f"><td class="memItemLeft" align="right" valign="top">const char *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga03b176d20c41a85a979c9671a9a02b6f">jwt_valid_get_grant</a> (<a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *jwt_valid, const char *grant)</td></tr>
+<tr class="memdesc:ga03b176d20c41a85a979c9671a9a02b6f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return the value of a string required grant.  <br /></td></tr>
+<tr class="separator:ga03b176d20c41a85a979c9671a9a02b6f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga50c04450cc57bcd18717c25f18aed479" id="r_ga50c04450cc57bcd18717c25f18aed479"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga50c04450cc57bcd18717c25f18aed479">jwt_valid_add_grant_int</a> (<a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *jwt_valid, const char *grant, long val)</td></tr>
+<tr class="memdesc:ga50c04450cc57bcd18717c25f18aed479"><td class="mdescLeft">&#160;</td><td class="mdescRight">Add a new integer grant requirement to this JWT validation object.  <br /></td></tr>
+<tr class="separator:ga50c04450cc57bcd18717c25f18aed479"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga98a643ad3c8103539dee35c22a3adbb6" id="r_ga98a643ad3c8103539dee35c22a3adbb6"><td class="memItemLeft" align="right" valign="top">long&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga98a643ad3c8103539dee35c22a3adbb6">jwt_valid_get_grant_int</a> (<a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *jwt_valid, const char *grant)</td></tr>
+<tr class="memdesc:ga98a643ad3c8103539dee35c22a3adbb6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return the value of an integer required grant.  <br /></td></tr>
+<tr class="separator:ga98a643ad3c8103539dee35c22a3adbb6"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:gafa57cedcecda005a47161c462b2f0c9f" id="r_gafa57cedcecda005a47161c462b2f0c9f"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#gafa57cedcecda005a47161c462b2f0c9f">jwt_valid_add_grant_bool</a> (<a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *jwt_valid, const char *grant, int val)</td></tr>
+<tr class="memdesc:gafa57cedcecda005a47161c462b2f0c9f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Add a new boolean required grant to this JWT validation object.  <br /></td></tr>
+<tr class="separator:gafa57cedcecda005a47161c462b2f0c9f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:gabe7ce52fca00463c2b70aa367037db98" id="r_gabe7ce52fca00463c2b70aa367037db98"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#gabe7ce52fca00463c2b70aa367037db98">jwt_valid_get_grant_bool</a> (<a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *jwt_valid, const char *grant)</td></tr>
+<tr class="memdesc:gabe7ce52fca00463c2b70aa367037db98"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return the value of an boolean required grant.  <br /></td></tr>
+<tr class="separator:gabe7ce52fca00463c2b70aa367037db98"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga9361112f9372d8de2f11c115314c2d71" id="r_ga9361112f9372d8de2f11c115314c2d71"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga9361112f9372d8de2f11c115314c2d71">jwt_valid_add_grants_json</a> (<a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *jwt_valid, const char *json)</td></tr>
+<tr class="memdesc:ga9361112f9372d8de2f11c115314c2d71"><td class="mdescLeft">&#160;</td><td class="mdescRight">Add required grants from a JSON encoded object string.  <br /></td></tr>
+<tr class="separator:ga9361112f9372d8de2f11c115314c2d71"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:gacafaf1f062cd358bda89601570d194ad" id="r_gacafaf1f062cd358bda89601570d194ad"><td class="memItemLeft" align="right" valign="top">char *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#gacafaf1f062cd358bda89601570d194ad">jwt_valid_get_grants_json</a> (<a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *jwt_valid, const char *grant)</td></tr>
+<tr class="memdesc:gacafaf1f062cd358bda89601570d194ad"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return the value of a grant as JSON encoded object string.  <br /></td></tr>
+<tr class="separator:gacafaf1f062cd358bda89601570d194ad"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga929d87f2577cbb600de468b159d9f00d" id="r_ga929d87f2577cbb600de468b159d9f00d"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga929d87f2577cbb600de468b159d9f00d">jwt_valid_del_grants</a> (<a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *jwt_valid, const char *grant)</td></tr>
+<tr class="memdesc:ga929d87f2577cbb600de468b159d9f00d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Delete a grant from this JWT object.  <br /></td></tr>
+<tr class="separator:ga929d87f2577cbb600de468b159d9f00d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:gad6a97fc0bb3341ae7f19975095a8086a" id="r_gad6a97fc0bb3341ae7f19975095a8086a"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#gad6a97fc0bb3341ae7f19975095a8086a">jwt_valid_set_now</a> (<a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *jwt_valid, const time_t now)</td></tr>
+<tr class="memdesc:gad6a97fc0bb3341ae7f19975095a8086a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set the time for which expires and not-before claims should be evaluated.  <br /></td></tr>
+<tr class="separator:gad6a97fc0bb3341ae7f19975095a8086a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga55f1862ab8bb6297ee0163f77fe7c386" id="r_ga55f1862ab8bb6297ee0163f77fe7c386"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga55f1862ab8bb6297ee0163f77fe7c386">jwt_valid_set_nbf_leeway</a> (<a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *jwt_valid, const time_t nbf_leeway)</td></tr>
+<tr class="memdesc:ga55f1862ab8bb6297ee0163f77fe7c386"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set the nbf_leeway value as defined in: <a href="https://www.rfc-editor.org/rfc/rfc7519#section-4.1.5">https://www.rfc-editor.org/rfc/rfc7519#section-4.1.5</a>.  <br /></td></tr>
+<tr class="separator:ga55f1862ab8bb6297ee0163f77fe7c386"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga1ce0ec28e692a189d3c6819dc571f941" id="r_ga1ce0ec28e692a189d3c6819dc571f941"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga1ce0ec28e692a189d3c6819dc571f941">jwt_valid_set_exp_leeway</a> (<a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *jwt_valid, const time_t exp_leeway)</td></tr>
+<tr class="memdesc:ga1ce0ec28e692a189d3c6819dc571f941"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set the exp_leeway value as defined in: <a href="https://www.rfc-editor.org/rfc/rfc7519#section-4.1.4">https://www.rfc-editor.org/rfc/rfc7519#section-4.1.4</a>.  <br /></td></tr>
+<tr class="separator:ga1ce0ec28e692a189d3c6819dc571f941"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:gab29df6ee78d33bb846b13f95a1269e0d" id="r_gab29df6ee78d33bb846b13f95a1269e0d"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#gab29df6ee78d33bb846b13f95a1269e0d">jwt_valid_set_headers</a> (<a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *jwt_valid, int hdr)</td></tr>
+<tr class="memdesc:gab29df6ee78d33bb846b13f95a1269e0d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set validation for replicated claims in headers.  <br /></td></tr>
+<tr class="separator:gab29df6ee78d33bb846b13f95a1269e0d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga9c29423f490268df9ec101a83ed96e5f" id="r_ga9c29423f490268df9ec101a83ed96e5f"><td class="memItemLeft" align="right" valign="top">char *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga9c29423f490268df9ec101a83ed96e5f">jwt_exception_str</a> (unsigned int exceptions)</td></tr>
+<tr class="memdesc:ga9c29423f490268df9ec101a83ed96e5f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Parses exceptions and returns a comma delimited and human-readable string.  <br /></td></tr>
+<tr class="separator:ga9c29423f490268df9ec101a83ed96e5f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <p>These functions allow you to define requirements for JWT validation. </p>
@@ -218,7 +218,7 @@ Functions</h2></td></tr>
 <p>Opaque JWT Validation object. </p>
 <p>Used in the JWT validation functions. </p>
 
-<p class="definition">Definition at line <a class="el" href="jwt_8h_source.html#l00075">75</a> of file <a class="el" href="jwt_8h_source.html">jwt.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="jwt_8h_source.html#l00070">70</a> of file <a class="el" href="jwt_8h_source.html">jwt.h</a>.</p>
 
 </div>
 </div>
@@ -237,7 +237,7 @@ Functions</h2></td></tr>
 
 <p>Validation exception types for <a class="el" href="group__jwt__core__grp.html#gabf0acfb990d245214216af589c1d0947">jwt_t</a> objects. </p>
 <p>These are bitwise values that allow you to check for exceptions when using the <a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a></p>
-<dl class="todo"><dt><b><a class="el" href="todo.html#_todo000002">Todo</a></b></dt><dd><p class="startdd"><a href="https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.6" target="_blank"><em class="fa-regular fa-file-lines"></em> RFC-7519 Sec 4.1.6</a> <code>"iat"</code> Issued At </p>
+<dl class="todo"><dt><b><a class="el" href="todo.html#_todo000001">Todo</a></b></dt><dd><p class="startdd"><a href="https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.6" target="_blank"><em class="fa-regular fa-file-lines"></em> RFC-7519 Sec 4.1.6</a> <code>"iat"</code> Issued At </p>
 <p class="enddd"><a href="https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.7" target="_blank"><em class="fa-regular fa-file-lines"></em> RFC-7519 Sec 4.1.7</a> <code>"jti"</code> JWT ID </p>
 </dd></dl>
 <table class="fieldtable">
@@ -271,19 +271,19 @@ Functions</h2></td></tr>
 </td></tr>
 </table>
 
-<p class="definition">Definition at line <a class="el" href="jwt_8h_source.html#l00236">236</a> of file <a class="el" href="jwt_8h_source.html">jwt.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="jwt_8h_source.html#l00230">230</a> of file <a class="el" href="jwt_8h_source.html">jwt.h</a>.</p>
 
 </div>
 </div>
 <h2 class="groupheader">Function Documentation</h2>
-<a id="ga62aa101df260ec31133eeb4c4c52b80a" name="ga62aa101df260ec31133eeb4c4c52b80a"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ga62aa101df260ec31133eeb4c4c52b80a">&#9670;&#160;</a></span>jwt_exception_str()</h2>
+<a id="ga9c29423f490268df9ec101a83ed96e5f" name="ga9c29423f490268df9ec101a83ed96e5f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga9c29423f490268df9ec101a83ed96e5f">&#9670;&#160;</a></span>jwt_exception_str()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">JWT_EX char * jwt_exception_str </td>
+          <td class="memname">char * jwt_exception_str </td>
           <td>(</td>
           <td class="paramtype">unsigned int</td>          <td class="paramname"><span class="paramname"><em>exceptions</em></span></td><td>)</td>
           <td></td>
@@ -292,7 +292,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 
 <p>Parses exceptions and returns a comma delimited and human-readable string. </p>
-<p>The returned string must be freed by the caller. If you changed the allocation method using jwt_set_alloc, then you must use <a class="el" href="group__jwt__encode__grp.html#gaa4a31fd1663c0338afaf79d0ee3a4849" title="Free a string returned from the library.">jwt_free_str()</a> to free the memory.</p>
+<p>The returned string must be freed by the caller. If you changed the allocation method using jwt_set_alloc, then you must use <a class="el" href="group__jwt__encode__grp.html#ga1c6ff5f00e8722f5522fe7b36697ecdd" title="Free a string returned from the library.">jwt_free_str()</a> to free the memory.</p>
 <dl class="section remark"><dt>Remarks</dt><dd>This string is currently en-US ASCII only. Language support will come in the future.</dd></dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
@@ -304,14 +304,14 @@ Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="gaf314c644fea06547647958483759ceac" name="gaf314c644fea06547647958483759ceac"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#gaf314c644fea06547647958483759ceac">&#9670;&#160;</a></span>jwt_valid_add_grant()</h2>
+<a id="gab5e9e2dc5e0276ea2c21c050822c19e1" name="gab5e9e2dc5e0276ea2c21c050822c19e1"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#gab5e9e2dc5e0276ea2c21c050822c19e1">&#9670;&#160;</a></span>jwt_valid_add_grant()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">JWT_EX int jwt_valid_add_grant </td>
+          <td class="memname">int jwt_valid_add_grant </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *</td>          <td class="paramname"><span class="paramname"><em>jwt_valid</em></span>, </td>
         </tr>
@@ -338,18 +338,18 @@ Functions</h2></td></tr>
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Returns 0 on success, valid errno otherwise.</dd></dl>
-<p>Note, this only allows for string based grants. If you wish to add integer grants, then use <a class="el" href="#gabacde09b87fca8b096d291163f4c4a5c" title="Add a new integer grant requirement to this JWT validation object.">jwt_valid_add_grant_int()</a>. If you wish to add more complex grants (e.g. an array), then use <a class="el" href="#gab75b56ce400f582ace10a4e524635286" title="Add required grants from a JSON encoded object string.">jwt_valid_add_grants_json()</a>. </p>
+<p>Note, this only allows for string based grants. If you wish to add integer grants, then use <a class="el" href="#ga50c04450cc57bcd18717c25f18aed479" title="Add a new integer grant requirement to this JWT validation object.">jwt_valid_add_grant_int()</a>. If you wish to add more complex grants (e.g. an array), then use <a class="el" href="#ga9361112f9372d8de2f11c115314c2d71" title="Add required grants from a JSON encoded object string.">jwt_valid_add_grants_json()</a>. </p>
 
 </div>
 </div>
-<a id="ga8900a467e4176b1fa9b622a2705269ee" name="ga8900a467e4176b1fa9b622a2705269ee"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ga8900a467e4176b1fa9b622a2705269ee">&#9670;&#160;</a></span>jwt_valid_add_grant_bool()</h2>
+<a id="gafa57cedcecda005a47161c462b2f0c9f" name="gafa57cedcecda005a47161c462b2f0c9f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#gafa57cedcecda005a47161c462b2f0c9f">&#9670;&#160;</a></span>jwt_valid_add_grant_bool()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">JWT_EX int jwt_valid_add_grant_bool </td>
+          <td class="memname">int jwt_valid_add_grant_bool </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *</td>          <td class="paramname"><span class="paramname"><em>jwt_valid</em></span>, </td>
         </tr>
@@ -377,18 +377,18 @@ Functions</h2></td></tr>
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Returns 0 on success, valid errno otherwise.</dd></dl>
-<dl class="section remark"><dt>Remarks</dt><dd>This only allows for boolean based grants. If you wish to add string grants, then use <a class="el" href="#gaf314c644fea06547647958483759ceac" title="Add a new string grant requirement to this JWT validation object.">jwt_valid_add_grant()</a>. If you wish to add more complex grants (e.g. an array), then use <a class="el" href="#gab75b56ce400f582ace10a4e524635286" title="Add required grants from a JSON encoded object string.">jwt_valid_add_grants_json()</a>. </dd></dl>
+<dl class="section remark"><dt>Remarks</dt><dd>This only allows for boolean based grants. If you wish to add string grants, then use <a class="el" href="#gab5e9e2dc5e0276ea2c21c050822c19e1" title="Add a new string grant requirement to this JWT validation object.">jwt_valid_add_grant()</a>. If you wish to add more complex grants (e.g. an array), then use <a class="el" href="#ga9361112f9372d8de2f11c115314c2d71" title="Add required grants from a JSON encoded object string.">jwt_valid_add_grants_json()</a>. </dd></dl>
 
 </div>
 </div>
-<a id="gabacde09b87fca8b096d291163f4c4a5c" name="gabacde09b87fca8b096d291163f4c4a5c"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#gabacde09b87fca8b096d291163f4c4a5c">&#9670;&#160;</a></span>jwt_valid_add_grant_int()</h2>
+<a id="ga50c04450cc57bcd18717c25f18aed479" name="ga50c04450cc57bcd18717c25f18aed479"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga50c04450cc57bcd18717c25f18aed479">&#9670;&#160;</a></span>jwt_valid_add_grant_int()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">JWT_EX int jwt_valid_add_grant_int </td>
+          <td class="memname">int jwt_valid_add_grant_int </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *</td>          <td class="paramname"><span class="paramname"><em>jwt_valid</em></span>, </td>
         </tr>
@@ -415,18 +415,18 @@ Functions</h2></td></tr>
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Returns 0 on success, valid errno otherwise.</dd></dl>
-<dl class="section remark"><dt>Remarks</dt><dd>This only allows for integer based grants. If you wish to add string grants, then use <a class="el" href="#gaf314c644fea06547647958483759ceac" title="Add a new string grant requirement to this JWT validation object.">jwt_valid_add_grant()</a>. If you wish to add more complex grants (e.g. an array), then use <a class="el" href="#gab75b56ce400f582ace10a4e524635286" title="Add required grants from a JSON encoded object string.">jwt_valid_add_grants_json()</a>. </dd></dl>
+<dl class="section remark"><dt>Remarks</dt><dd>This only allows for integer based grants. If you wish to add string grants, then use <a class="el" href="#gab5e9e2dc5e0276ea2c21c050822c19e1" title="Add a new string grant requirement to this JWT validation object.">jwt_valid_add_grant()</a>. If you wish to add more complex grants (e.g. an array), then use <a class="el" href="#ga9361112f9372d8de2f11c115314c2d71" title="Add required grants from a JSON encoded object string.">jwt_valid_add_grants_json()</a>. </dd></dl>
 
 </div>
 </div>
-<a id="gab75b56ce400f582ace10a4e524635286" name="gab75b56ce400f582ace10a4e524635286"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#gab75b56ce400f582ace10a4e524635286">&#9670;&#160;</a></span>jwt_valid_add_grants_json()</h2>
+<a id="ga9361112f9372d8de2f11c115314c2d71" name="ga9361112f9372d8de2f11c115314c2d71"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga9361112f9372d8de2f11c115314c2d71">&#9670;&#160;</a></span>jwt_valid_add_grants_json()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">JWT_EX int jwt_valid_add_grants_json </td>
+          <td class="memname">int jwt_valid_add_grants_json </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *</td>          <td class="paramname"><span class="paramname"><em>jwt_valid</em></span>, </td>
         </tr>
@@ -451,14 +451,14 @@ Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="gaf9f8b1dbe950cf2fc9a8200cf749a442" name="gaf9f8b1dbe950cf2fc9a8200cf749a442"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#gaf9f8b1dbe950cf2fc9a8200cf749a442">&#9670;&#160;</a></span>jwt_valid_del_grants()</h2>
+<a id="ga929d87f2577cbb600de468b159d9f00d" name="ga929d87f2577cbb600de468b159d9f00d"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga929d87f2577cbb600de468b159d9f00d">&#9670;&#160;</a></span>jwt_valid_del_grants()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">JWT_EX int jwt_valid_del_grants </td>
+          <td class="memname">int jwt_valid_del_grants </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *</td>          <td class="paramname"><span class="paramname"><em>jwt_valid</em></span>, </td>
         </tr>
@@ -483,14 +483,14 @@ Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="ga728df4b06a8265eaaea237641185c76f" name="ga728df4b06a8265eaaea237641185c76f"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ga728df4b06a8265eaaea237641185c76f">&#9670;&#160;</a></span>jwt_valid_free()</h2>
+<a id="ga77db16a4a29ef6a607d6aff8012955b2" name="ga77db16a4a29ef6a607d6aff8012955b2"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga77db16a4a29ef6a607d6aff8012955b2">&#9670;&#160;</a></span>jwt_valid_free()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">JWT_EX void jwt_valid_free </td>
+          <td class="memname">void jwt_valid_free </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *</td>          <td class="paramname"><span class="paramname"><em>jwt_valid</em></span></td><td>)</td>
           <td></td>
@@ -502,21 +502,21 @@ Functions</h2></td></tr>
 <p>After calling, the JWT validation object referenced will no longer be valid and its memory will be freed.</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">jwt_valid</td><td>Pointer to a JWT validation object previously created with <a class="el" href="#ga88d954bf262717532dba3f8d9d29c8af" title="Allocate a new, JWT validation object.">jwt_valid_new()</a>. </td></tr>
+    <tr><td class="paramname">jwt_valid</td><td>Pointer to a JWT validation object previously created with <a class="el" href="#gaede6b64d84fd8166ea16debe6efc826d" title="Allocate a new, JWT validation object.">jwt_valid_new()</a>. </td></tr>
   </table>
   </dd>
 </dl>
 
 </div>
 </div>
-<a id="gaeb53cb3059ef0a6969f9d401e76958c2" name="gaeb53cb3059ef0a6969f9d401e76958c2"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#gaeb53cb3059ef0a6969f9d401e76958c2">&#9670;&#160;</a></span>jwt_valid_get_exp_leeway()</h2>
+<a id="ga0dc43278963ec6474d5d7263c960e69c" name="ga0dc43278963ec6474d5d7263c960e69c"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga0dc43278963ec6474d5d7263c960e69c">&#9670;&#160;</a></span>jwt_valid_get_exp_leeway()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">JWT_EX time_t jwt_valid_get_exp_leeway </td>
+          <td class="memname">time_t jwt_valid_get_exp_leeway </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *</td>          <td class="paramname"><span class="paramname"><em>jwt_valid</em></span></td><td>)</td>
           <td></td>
@@ -535,14 +535,14 @@ Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="ga7f2277d29179a01928c0ebe4fbef1a7c" name="ga7f2277d29179a01928c0ebe4fbef1a7c"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ga7f2277d29179a01928c0ebe4fbef1a7c">&#9670;&#160;</a></span>jwt_valid_get_grant()</h2>
+<a id="ga03b176d20c41a85a979c9671a9a02b6f" name="ga03b176d20c41a85a979c9671a9a02b6f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga03b176d20c41a85a979c9671a9a02b6f">&#9670;&#160;</a></span>jwt_valid_get_grant()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">JWT_EX const char * jwt_valid_get_grant </td>
+          <td class="memname">const char * jwt_valid_get_grant </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *</td>          <td class="paramname"><span class="paramname"><em>jwt_valid</em></span>, </td>
         </tr>
@@ -564,18 +564,18 @@ Functions</h2></td></tr>
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Returns a string for the value, or NULL when not found.</dd></dl>
-<p>Note, this will only return grants with JSON string values. Use <a class="el" href="#ga19a0badfa97417865fe6053c8d9c076e" title="Return the value of a grant as JSON encoded object string.">jwt_valid_get_grants_json()</a> to get the JSON representation of more complex values (e.g. arrays) or use <a class="el" href="#ga1af73c88e51e80f456e10cdd43bcf2f1" title="Return the value of an integer required grant.">jwt_valid_get_grant_int()</a> to get simple integer values. </p>
+<p>Note, this will only return grants with JSON string values. Use <a class="el" href="#gacafaf1f062cd358bda89601570d194ad" title="Return the value of a grant as JSON encoded object string.">jwt_valid_get_grants_json()</a> to get the JSON representation of more complex values (e.g. arrays) or use <a class="el" href="#ga98a643ad3c8103539dee35c22a3adbb6" title="Return the value of an integer required grant.">jwt_valid_get_grant_int()</a> to get simple integer values. </p>
 
 </div>
 </div>
-<a id="ga1bcf672c544bd4d2ebb656a79ce90f69" name="ga1bcf672c544bd4d2ebb656a79ce90f69"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ga1bcf672c544bd4d2ebb656a79ce90f69">&#9670;&#160;</a></span>jwt_valid_get_grant_bool()</h2>
+<a id="gabe7ce52fca00463c2b70aa367037db98" name="gabe7ce52fca00463c2b70aa367037db98"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#gabe7ce52fca00463c2b70aa367037db98">&#9670;&#160;</a></span>jwt_valid_get_grant_bool()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">JWT_EX int jwt_valid_get_grant_bool </td>
+          <td class="memname">int jwt_valid_get_grant_bool </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *</td>          <td class="paramname"><span class="paramname"><em>jwt_valid</em></span>, </td>
         </tr>
@@ -597,18 +597,18 @@ Functions</h2></td></tr>
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Returns a boolean for the value. Sets errno to ENOENT when not found.</dd></dl>
-<dl class="section remark"><dt>Remarks</dt><dd>This will only return grants with JSON boolean values. Use <a class="el" href="#ga19a0badfa97417865fe6053c8d9c076e" title="Return the value of a grant as JSON encoded object string.">jwt_valid_get_grants_json()</a> to get the JSON representation of more complex values (e.g. arrays) or use <a class="el" href="#ga7f2277d29179a01928c0ebe4fbef1a7c" title="Return the value of a string required grant.">jwt_valid_get_grant()</a> to get string values. </dd></dl>
+<dl class="section remark"><dt>Remarks</dt><dd>This will only return grants with JSON boolean values. Use <a class="el" href="#gacafaf1f062cd358bda89601570d194ad" title="Return the value of a grant as JSON encoded object string.">jwt_valid_get_grants_json()</a> to get the JSON representation of more complex values (e.g. arrays) or use <a class="el" href="#ga03b176d20c41a85a979c9671a9a02b6f" title="Return the value of a string required grant.">jwt_valid_get_grant()</a> to get string values. </dd></dl>
 
 </div>
 </div>
-<a id="ga1af73c88e51e80f456e10cdd43bcf2f1" name="ga1af73c88e51e80f456e10cdd43bcf2f1"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ga1af73c88e51e80f456e10cdd43bcf2f1">&#9670;&#160;</a></span>jwt_valid_get_grant_int()</h2>
+<a id="ga98a643ad3c8103539dee35c22a3adbb6" name="ga98a643ad3c8103539dee35c22a3adbb6"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga98a643ad3c8103539dee35c22a3adbb6">&#9670;&#160;</a></span>jwt_valid_get_grant_int()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">JWT_EX long jwt_valid_get_grant_int </td>
+          <td class="memname">long jwt_valid_get_grant_int </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *</td>          <td class="paramname"><span class="paramname"><em>jwt_valid</em></span>, </td>
         </tr>
@@ -630,18 +630,18 @@ Functions</h2></td></tr>
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Returns an int for the value. Sets errno to ENOENT when not found.</dd></dl>
-<dl class="section remark"><dt>Remarks</dt><dd>This will only return grants with JSON integer values. Use <a class="el" href="#ga19a0badfa97417865fe6053c8d9c076e" title="Return the value of a grant as JSON encoded object string.">jwt_valid_get_grants_json()</a> to get the JSON representation of more complex values (e.g. arrays) or use <a class="el" href="#ga7f2277d29179a01928c0ebe4fbef1a7c" title="Return the value of a string required grant.">jwt_valid_get_grant()</a> to get string values. </dd></dl>
+<dl class="section remark"><dt>Remarks</dt><dd>This will only return grants with JSON integer values. Use <a class="el" href="#gacafaf1f062cd358bda89601570d194ad" title="Return the value of a grant as JSON encoded object string.">jwt_valid_get_grants_json()</a> to get the JSON representation of more complex values (e.g. arrays) or use <a class="el" href="#ga03b176d20c41a85a979c9671a9a02b6f" title="Return the value of a string required grant.">jwt_valid_get_grant()</a> to get string values. </dd></dl>
 
 </div>
 </div>
-<a id="ga19a0badfa97417865fe6053c8d9c076e" name="ga19a0badfa97417865fe6053c8d9c076e"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ga19a0badfa97417865fe6053c8d9c076e">&#9670;&#160;</a></span>jwt_valid_get_grants_json()</h2>
+<a id="gacafaf1f062cd358bda89601570d194ad" name="gacafaf1f062cd358bda89601570d194ad"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#gacafaf1f062cd358bda89601570d194ad">&#9670;&#160;</a></span>jwt_valid_get_grants_json()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">JWT_EX char * jwt_valid_get_grants_json </td>
+          <td class="memname">char * jwt_valid_get_grants_json </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *</td>          <td class="paramname"><span class="paramname"><em>jwt_valid</em></span>, </td>
         </tr>
@@ -666,14 +666,14 @@ Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="gaea88716bb3596c459da61677e8184662" name="gaea88716bb3596c459da61677e8184662"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#gaea88716bb3596c459da61677e8184662">&#9670;&#160;</a></span>jwt_valid_get_nbf_leeway()</h2>
+<a id="gafa9c96838053831dd239824ed5149879" name="gafa9c96838053831dd239824ed5149879"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#gafa9c96838053831dd239824ed5149879">&#9670;&#160;</a></span>jwt_valid_get_nbf_leeway()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">JWT_EX time_t jwt_valid_get_nbf_leeway </td>
+          <td class="memname">time_t jwt_valid_get_nbf_leeway </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *</td>          <td class="paramname"><span class="paramname"><em>jwt_valid</em></span></td><td>)</td>
           <td></td>
@@ -692,14 +692,14 @@ Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="gaffc50a84a9914aa74f233054fd243a61" name="gaffc50a84a9914aa74f233054fd243a61"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#gaffc50a84a9914aa74f233054fd243a61">&#9670;&#160;</a></span>jwt_valid_get_status()</h2>
+<a id="ga165d7857282f3cce9106b26369cf11ca" name="ga165d7857282f3cce9106b26369cf11ca"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga165d7857282f3cce9106b26369cf11ca">&#9670;&#160;</a></span>jwt_valid_get_status()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">JWT_EX <a class="el" href="#ga47ee94f9c08ff581f78590bfe024f6e4">jwt_valid_exception_t</a> jwt_valid_get_status </td>
+          <td class="memname"><a class="el" href="#ga47ee94f9c08ff581f78590bfe024f6e4">jwt_valid_exception_t</a> jwt_valid_get_status </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *</td>          <td class="paramname"><span class="paramname"><em>jwt_valid</em></span></td><td>)</td>
           <td></td>
@@ -708,7 +708,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 
 <p>Return the status string for the validation object. </p>
-<p>The status of validation object is primarily for describing the reason <a class="el" href="#ga9ce197165c625f967f889212ca9fab86" title="Validate a JWT object with a validation object.">jwt_validate()</a> failed.</p>
+<p>The status of validation object is primarily for describing the reason <a class="el" href="#ga354a14a13a0c96dae2cc22c4fa790413" title="Validate a JWT object with a validation object.">jwt_validate()</a> failed.</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">jwt_valid</td><td>Pointer to a JWT validation object. </td></tr>
@@ -719,14 +719,14 @@ Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="ga88d954bf262717532dba3f8d9d29c8af" name="ga88d954bf262717532dba3f8d9d29c8af"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ga88d954bf262717532dba3f8d9d29c8af">&#9670;&#160;</a></span>jwt_valid_new()</h2>
+<a id="gaede6b64d84fd8166ea16debe6efc826d" name="gaede6b64d84fd8166ea16debe6efc826d"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#gaede6b64d84fd8166ea16debe6efc826d">&#9670;&#160;</a></span>jwt_valid_new()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">JWT_EX int jwt_valid_new </td>
+          <td class="memname">int jwt_valid_new </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> **</td>          <td class="paramname"><span class="paramname"><em>jwt_valid</em></span>, </td>
         </tr>
@@ -739,7 +739,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 
 <p>Allocate a new, JWT validation object. </p>
-<p>This is used to create a new object for a JWT validation. After you have finished with the object, use <a class="el" href="#ga728df4b06a8265eaaea237641185c76f" title="Free a JWT validation object and any other resources it is using.">jwt_valid_free()</a> to clean up the memory used by it.</p>
+<p>This is used to create a new object for a JWT validation. After you have finished with the object, use <a class="el" href="#ga77db16a4a29ef6a607d6aff8012955b2" title="Free a JWT validation object and any other resources it is using.">jwt_valid_free()</a> to clean up the memory used by it.</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">jwt_valid</td><td>Pointer to a JWT validation object pointer. Will be allocated on success. </td></tr>
@@ -751,14 +751,14 @@ Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="ga7d4a3188a889ae2a0837aec6f358cde5" name="ga7d4a3188a889ae2a0837aec6f358cde5"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ga7d4a3188a889ae2a0837aec6f358cde5">&#9670;&#160;</a></span>jwt_valid_set_exp_leeway()</h2>
+<a id="ga1ce0ec28e692a189d3c6819dc571f941" name="ga1ce0ec28e692a189d3c6819dc571f941"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga1ce0ec28e692a189d3c6819dc571f941">&#9670;&#160;</a></span>jwt_valid_set_exp_leeway()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">JWT_EX int jwt_valid_set_exp_leeway </td>
+          <td class="memname">int jwt_valid_set_exp_leeway </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *</td>          <td class="paramname"><span class="paramname"><em>jwt_valid</em></span>, </td>
         </tr>
@@ -782,14 +782,14 @@ Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="gaf12cd57921f54714ec74ced386a80981" name="gaf12cd57921f54714ec74ced386a80981"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#gaf12cd57921f54714ec74ced386a80981">&#9670;&#160;</a></span>jwt_valid_set_headers()</h2>
+<a id="gab29df6ee78d33bb846b13f95a1269e0d" name="gab29df6ee78d33bb846b13f95a1269e0d"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#gab29df6ee78d33bb846b13f95a1269e0d">&#9670;&#160;</a></span>jwt_valid_set_headers()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">JWT_EX int jwt_valid_set_headers </td>
+          <td class="memname">int jwt_valid_set_headers </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *</td>          <td class="paramname"><span class="paramname"><em>jwt_valid</em></span>, </td>
         </tr>
@@ -811,18 +811,18 @@ Functions</h2></td></tr>
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Returns 0 on success, valid errno otherwise.</dd></dl>
-<dl class="section remark"><dt>Remarks</dt><dd><a class="el" href="#ga9ce197165c625f967f889212ca9fab86" title="Validate a JWT object with a validation object.">jwt_validate()</a> will not fail if iss, sub, aud are not present in JWT header or body. </dd></dl>
+<dl class="section remark"><dt>Remarks</dt><dd><a class="el" href="#ga354a14a13a0c96dae2cc22c4fa790413" title="Validate a JWT object with a validation object.">jwt_validate()</a> will not fail if iss, sub, aud are not present in JWT header or body. </dd></dl>
 
 </div>
 </div>
-<a id="gae0319eaec4c9a1e706b85aa365ada20e" name="gae0319eaec4c9a1e706b85aa365ada20e"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#gae0319eaec4c9a1e706b85aa365ada20e">&#9670;&#160;</a></span>jwt_valid_set_nbf_leeway()</h2>
+<a id="ga55f1862ab8bb6297ee0163f77fe7c386" name="ga55f1862ab8bb6297ee0163f77fe7c386"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga55f1862ab8bb6297ee0163f77fe7c386">&#9670;&#160;</a></span>jwt_valid_set_nbf_leeway()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">JWT_EX int jwt_valid_set_nbf_leeway </td>
+          <td class="memname">int jwt_valid_set_nbf_leeway </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *</td>          <td class="paramname"><span class="paramname"><em>jwt_valid</em></span>, </td>
         </tr>
@@ -846,14 +846,14 @@ Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="ga8e5fbc676ebc0a0286bc70b9d062d53e" name="ga8e5fbc676ebc0a0286bc70b9d062d53e"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ga8e5fbc676ebc0a0286bc70b9d062d53e">&#9670;&#160;</a></span>jwt_valid_set_now()</h2>
+<a id="gad6a97fc0bb3341ae7f19975095a8086a" name="gad6a97fc0bb3341ae7f19975095a8086a"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#gad6a97fc0bb3341ae7f19975095a8086a">&#9670;&#160;</a></span>jwt_valid_set_now()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">JWT_EX int jwt_valid_set_now </td>
+          <td class="memname">int jwt_valid_set_now </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="#gac413377fbfc11671e8a8a66f45693e5d">jwt_valid_t</a> *</td>          <td class="paramname"><span class="paramname"><em>jwt_valid</em></span>, </td>
         </tr>
@@ -874,18 +874,18 @@ Functions</h2></td></tr>
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Returns 0 on success, valid errno otherwise.</dd></dl>
-<dl class="section remark"><dt>Remarks</dt><dd><a class="el" href="#ga9ce197165c625f967f889212ca9fab86" title="Validate a JWT object with a validation object.">jwt_validate()</a> will not fail based on time if no expires or not-before claims exist in a JWT object. </dd></dl>
+<dl class="section remark"><dt>Remarks</dt><dd><a class="el" href="#ga354a14a13a0c96dae2cc22c4fa790413" title="Validate a JWT object with a validation object.">jwt_validate()</a> will not fail based on time if no expires or not-before claims exist in a JWT object. </dd></dl>
 
 </div>
 </div>
-<a id="ga9ce197165c625f967f889212ca9fab86" name="ga9ce197165c625f967f889212ca9fab86"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ga9ce197165c625f967f889212ca9fab86">&#9670;&#160;</a></span>jwt_validate()</h2>
+<a id="ga354a14a13a0c96dae2cc22c4fa790413" name="ga354a14a13a0c96dae2cc22c4fa790413"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga354a14a13a0c96dae2cc22c4fa790413">&#9670;&#160;</a></span>jwt_validate()</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">JWT_EX <a class="el" href="#ga47ee94f9c08ff581f78590bfe024f6e4">jwt_valid_exception_t</a> jwt_validate </td>
+          <td class="memname"><a class="el" href="#ga47ee94f9c08ff581f78590bfe024f6e4">jwt_valid_exception_t</a> jwt_validate </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="group__jwt__core__grp.html#gabf0acfb990d245214216af589c1d0947">jwt_t</a> *</td>          <td class="paramname"><span class="paramname"><em>jwt</em></span>, </td>
         </tr>

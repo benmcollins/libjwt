@@ -19,7 +19,7 @@ var group__jwt__core__grp =
       [ "JWT_ALG_EDDSA", "group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33aab33738e67e3b23db72a3bc77043009b", null ],
       [ "JWT_ALG_INVAL", "group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33a199f5ce0e69c0160cc121cf6dbe9cb58", null ]
     ] ],
-    [ "jwt_dup", "group__jwt__core__grp.html#ga4f08487beba3df7c581e1ec19d56c228", null ],
-    [ "jwt_free", "group__jwt__core__grp.html#gac7f03a454a32ab8da207d0188f23543c", null ],
-    [ "jwt_new", "group__jwt__core__grp.html#ga534a2c12f9b7c509c9ea86d0f465d604", null ]
+    [ "jwt_dup", "group__jwt__core__grp.html#gac11d4548c695e5781cae2a5148a7e240", null ],
+    [ "jwt_free", "group__jwt__core__grp.html#gafd51b076050815be44081439d1cb33fc", null ],
+    [ "jwt_new", "group__jwt__core__grp.html#ga9ce4e8fb6c2eb66e41b07a7a57d8a68a", null ]
 ];

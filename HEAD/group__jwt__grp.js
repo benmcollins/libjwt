@@ -1,6 +1,7 @@
 var group__jwt__grp =
 [
     [ "Object Creation", "group__jwt__core__grp.html", "group__jwt__core__grp" ],
+    [ "Configuration Type", "group__jwt__config__grp.html", "group__jwt__config__grp" ],
     [ "Token Verification", "group__jwt__verify__grp.html", "group__jwt__verify__grp" ],
     [ "Grant Management", "group__jwt__grant__grp.html", "group__jwt__grant__grp" ],
     [ "Header Hanagement", "group__jwt__header__grp.html", "group__jwt__header__grp" ],
