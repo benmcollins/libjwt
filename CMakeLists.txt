@@ -11,6 +11,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
 # Extract info from configure.ac
 include(AutoToolsVersion)
+include(GenerateExportHeader)
 
 project(${LIBJWT_PROJECT}
 	VERSION ${LIBJWT_VERSION}
@@ -58,6 +59,8 @@ add_library(jwt_static STATIC)
 set_target_properties(jwt_static PROPERTIES OUTPUT_NAME jwt)
 
 target_sources(jwt PRIVATE libjwt/jwt.c libjwt/jwks.c libjwt/base64.c)
+
+generate_export_header(jwt)
 
 include_directories(${CMAKE_SOURCE_DIR}/include)
 
@@ -114,7 +117,9 @@ add_definitions(-D_GNU_SOURCE)
 add_definitions(-DKEYDIR=\"${CMAKE_SOURCE_DIR}/tests/keys\")
 
 # Install header
-install(FILES include/jwt.h DESTINATION include)
+install(FILES include/jwt.h
+	${CMAKE_BINARY_DIR}/jwt_export.h
+	DESTINATION include)
 
 # Install library
 install(TARGETS jwt

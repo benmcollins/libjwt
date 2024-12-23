@@ -17,10 +17,10 @@ EXTRA_DIST += CMakeLists.txt		\
 	cmake/CodeCoverage.cmake
 
 # Logos and banners
-EXTRA_DIST +=					\
-	images/LibJWT-800x152.png		\
-	images/LibJWT-Icon-95x91.png		\
-	images/LibJWT.svg
+EXTRA_DIST +=				\
+	images/LibJWT-800x152.png	\
+	images/LibJWT.svg		\
+	images/favicon.ico
 
 # Doxygen components
 EXTRA_DIST +=							\

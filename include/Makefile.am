@@ -7,3 +7,4 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 include_HEADERS = jwt.h
+nodist_include_HEADERS = jwt_export.h
