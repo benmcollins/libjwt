@@ -21,6 +21,7 @@ before_install:
 
 before_script:
 - set -ev
+- autoreconf --version
 - autoreconf -fi
 - mkdir build
 - cd build
