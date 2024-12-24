@@ -271,10 +271,15 @@ if (CHECK_FOUND)
 			EXECUTABLE ctest -j ${PROCESSOR_COUNT}
 			DEPENDENCIES ${UNIT_TESTS})
 	endif()
-else()
-	if (ENABLE_COVERAGE)
-		message(SEND_ERROR "Coverage enabled, but did not find check library")
-	endif()
+elseif(ENABLE_COVERAGE)
+	message(SEND_ERROR "Coverage enabled, but did not find check library")
+endif()
+
+if (NOT ENABLE_COVERAGE)
+	add_custom_target(check-code-coverage
+		COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --cyan
+			"Coverage needs to be enabled for this target (ENABLE_COVERAGE=YES)"
+		VERBATIM)
 endif()
 
 set(CPACK_PROPERTIES_FILE "${CMAKE_SOURCE_DIR}/cmake/CPackConfig.cmake")
