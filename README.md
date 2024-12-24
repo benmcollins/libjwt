@@ -10,6 +10,7 @@
 
 ### Required
 - [JANSSON](https://github.com/akheron/jansson) (>= 2.0)
+- CMake (>= 3.7)
 
 ### Atleast one of these, you can use both
 - OpenSSL (>= 1.1.0)
@@ -33,17 +34,6 @@ macOS, and Windows.
 
 ## Build Instructions
 
-**With GNU AutoTools:**
-
-    $ autoreconf -if
-    ...
-    $ mkdir build
-    $ cd build
-    $ ../configure
-    ...
-    $ make
-    ...
-
 **With CMake:**
 
     $ mkdir build
@@ -54,9 +44,8 @@ macOS, and Windows.
     ...
 
 ### Common
-If you have *libcheck* installed, both targets will compile the test suite
-which you can run using the ``check`` target.
+If you have *libcheck* installed you can compile the test suite which you can
+run using the ``check`` target.
 
-Both build systems will auto detect *OpenSSL* and *GnuTLS* and use one or both.
-Each build system has a way to force-enable (error if not found) or force-disable
-either library.
+CMake will auto detect *OpenSSL* and *GnuTLS* and use one or both. There are
+CMake options to force either one on or off.

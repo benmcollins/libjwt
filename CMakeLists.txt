@@ -10,7 +10,7 @@ cmake_minimum_required (VERSION 3.7...3.15)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
 # Extract info from configure.ac
-include(AutoToolsVersion)
+include(LibJWTVersions)
 include(GenerateExportHeader)
 
 project(${LIBJWT_PROJECT}
@@ -168,6 +168,8 @@ add_definitions(-DKEYDIR=\"${CMAKE_SOURCE_DIR}/tests/keys\")
 install(FILES include/jwt.h
 	${CMAKE_BINARY_DIR}/jwt_export.h
 	DESTINATION include)
+install(FILES LICENSE README.md
+	DESTINATION ${CMAKE_INSTALL_PREFIX}/share/doc/${LIBJWT_PROJECT_LOWER})
 
 # Install library
 install(TARGETS jwt
@@ -183,25 +185,22 @@ install(TARGETS jwt_static
         ARCHIVE DESTINATION lib
 )
 
+# For cmake users
 install(EXPORT ${LIBJWT_PROJECT}Targets
 	FILE ${LIBJWT_PROJECT}Config.cmake
 	NAMESPACE ${LIBJWT_PROJECT}::
 	DESTINATION lib/cmake/${LIBJWT_PROJECT}
 )
 
-# We do this to make it compatible with autotools
-set(PACKAGE_NAME ${PROJECT_NAME})
-set(PACKAGE_VERSION ${PROJECT_VERSION})
-set(prefix ${CMAKE_INSTALL_PREFIX})
-string(JOIN " " JANSSON_LIBS ${JANSSON_LDFLAGS})
-if (OPENSSL_FOUND)
-	string(JOIN " " OPENSSL_LIBS ${OPENSSL_LDFLAGS})
-endif()
-if (GNUTLS_FOUND)
-	string(JOIN " " GNUTLS_LIBS ${GNUTLS_LDFLAGS})
-endif()
+# For pkg-config users
+unset(LIBJWT_LDFLAGS)
+foreach (FLAG ${JANSSON_LDFLAGS} ${OPENSSL_LDFLAGS} ${GNUTLS_LDFLAGS})
+	string(APPEND LIBJWT_LDFLAGS " " ${FLAG})
+endforeach()
+
 configure_file(libjwt/libjwt.pc.in libjwt.pc @ONLY)
-install(FILES ${CMAKE_BINARY_DIR}/libjwt.pc DESTINATION lib/pkgconfig)
+install(FILES ${CMAKE_BINARY_DIR}/libjwt.pc
+	DESTINATION lib/pkgconfig)
 
 find_package(Doxygen)
 
@@ -219,7 +218,7 @@ if (DOXYGEN_FOUND)
 		COMMAND ${CMAKE_COMMAND} -E env
 			${DOXYGEN_ENV_VARS}
 			${DOXYGEN_EXECUTABLE}
-			${CMAKE_SOURCE_DIR}/Doxyfile
+			${CMAKE_SOURCE_DIR}/doxygen/Doxyfile
 		COMMENT "Generating documentation with Doxygen"
 		VERBATIM
 	)
@@ -229,8 +228,14 @@ option(ENABLE_COVERAGE "Enable code coverage rules" OFF)
 
 # Tests and coverage depend on this, but optional
 if (WITH_TESTS)
-	option(ENABLE_COVERAGE "Enable code coverage rules" OFF)
-	pkg_check_modules(CHECK check>=0.9.10 IMPORTED_TARGET)
+	if (ENABLE_COVERAGE)
+		set(CHECK_REQUIRED "REQUIRED")
+	endif()
+	pkg_check_modules(CHECK check>=0.9.10 IMPORTED_TARGET ${CHECK_REQUIRED})
+else()
+	if (ENABLE_COVERAGE)
+		message(SEND_ERROR "You must set WITH_TESTS=ON to enable code coverage")
+	endif()
 endif()
 
 function(jwt_add_test)
@@ -279,6 +284,10 @@ if (CHECK_FOUND)
 			TITLE "${PROJECT_NAME}-${PROJECT_VERSION} Code Coverage"
 			EXECUTABLE ctest -j ${PROCESSOR_COUNT}
 			DEPENDENCIES ${UNIT_TESTS})
+	endif()
+else()
+	if (ENABLE_COVERAGE)
+		message(SEND_ERROR "Coverage enabled, but did not find check library")
 	endif()
 endif()
 

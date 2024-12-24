@@ -21,8 +21,6 @@ before_install:
 
 before_script:
 - set -ev
-- autoreconf --version
-- autoreconf -fi
 - mkdir build
 - cd build
 
@@ -32,30 +30,25 @@ after_script:
 
 jobs:
   include:
-    - name: "Autotools Build (focal)"
+    - name: "Focal"
       dist: focal
       script:
-      - ../configure
-      - make
-      - rm -rf *
-      - cmake -DWITH_TESTS=NO ..
-      - make
+      - cmake -DWITH_GNUTLS=YES -DWITH_OPENSSL=YES ..
+      - make check
 
-    - name: "CMake Build"
+    - name: "Jammy"
       dist: jammy
       script:
       - cmake -DWITH_GNUTLS=YES -DWITH_OPENSSL=YES ..
       - make check
 
-    - name: "Autotools Build"
-      dist: jammy
-      script:
-      - ../configure --with-openssl --with-gnutls
-      - make check
-
     - name: "Coverage Build"
       dist: jammy
       script:
-      - ../configure --without-gnutls --enable-code-coverage --enable-valgrind
-      - make check-valgrind check-code-coverage doxygen-doc
+      - cmake -DWITH_GNUTLS=NO -DWITH_OPENSSL=YES -DENABLE_COVERAGE ..
+      - make
+      - ctest -T memcheck
+      - make doxygen-doc
+      - make package_source
+      - make check-code-coverage
       - codecov

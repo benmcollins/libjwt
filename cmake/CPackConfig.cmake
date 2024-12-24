@@ -10,11 +10,12 @@
 # usually begin with CPACK_<GENNAME>_xxxx.
 
 set(CPACK_BINARY_TBZ2 "OFF")
+set(CPACK_BINARY_DEB "ON")
 set(CPACK_GENERATOR "TBZ2")
-set(CPACK_PACKAGE_NAME "libjwt")
 set(CPACK_PACKAGE_VENDOR "maClara, LLC")
 set(CPACK_SOURCE_GENERATOR "TBZ2")
 set(CPACK_SOURCE_TBZ2 "ON")
+set(CPACK_PACKAGE_CONTACT "Ben Collins <bcollins@ubuntu.com>")
 set(CPACK_IGNORE_FILES "/\\.git/" "\\.gitignore" "\\.swp\$" "\\.DS_Store" "\\.travis.yml")
 list(APPEND CPACK_IGNORE_FILES "/build/" "Makefile.*" "configure.ac" "/m4/" "Doxygen\\.mk")
 list(APPEND CPACK_IGNORE_FILES "/dist/" "jwt_export\\.h\\.in" "/m4-local/")

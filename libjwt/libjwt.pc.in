@@ -1,13 +1,13 @@
-prefix=@prefix@
-exec_prefix=${prefix}
+prefix=@CMAKE_INSTALL_PREFIX@
 libdir=${prefix}/lib
 includedir=${prefix}/include
 
-Name: @PACKAGE_NAME@
-URL: https://github.com/benmcollins/libjwt
-Description: JWT C Library
-Version: @PACKAGE_VERSION@
+Name: @CMAKE_PROJECT_NAME@
+Description: @CMAKE_PROJECT_DESCRIPTION@
+Version: @CMAKE_PROJECT_VERSION@
+URL: @CMAKE_PROJECT_HOMEPAGE_URL@
+Requires: @JANSSON_MODULE_NAME@ @OPENSSL_MODULE_NAME@ @GNUTLS_MODULE_NAME@
 
 Cflags: -I${includedir}
 Libs: -L${libdir} -ljwt
-Libs.private: @JANSSON_LIBS@ @OPENSSL_LIBS@ @GNUTLS_LIBS@
+Libs.private: @LIBJWT_LDFLAGS@
