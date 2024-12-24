@@ -9,6 +9,10 @@ m4_define([minor_version], [1])
 m4_define([micro_version], [0])
 m4_define([libjwt_version], [major_version.minor_version.micro_version])
 
+m4_if(m4_esyscmd_s([ls -d .git || echo none]),[.git],
+	m4_define([libjwt_version],
+	m4_esyscmd_s([git describe --abbrev=7 --dirty --always --tags | sed -e 's/^v//'])))
+
 dnl SONAME History
 dnl v1.12.1      0 => 1
 dnl v1.15.0      1 => 2
