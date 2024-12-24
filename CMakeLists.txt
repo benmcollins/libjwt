@@ -57,7 +57,16 @@ add_library(jwt SHARED)
 add_library(jwt_static STATIC)
 set_target_properties(jwt_static PROPERTIES OUTPUT_NAME jwt)
 
-target_sources(jwt PRIVATE libjwt/jwt.c libjwt/jwks.c libjwt/base64.c)
+target_sources(jwt PRIVATE
+	libjwt/base64.c
+	libjwt/jwt-memory.c
+	libjwt/jwt.c
+	libjwt/jwks.c
+	libjwt/jwt-setget.c
+	libjwt/jwt-crypto-ops.c
+	libjwt/jwt-validate.c
+	libjwt/jwt-encode.c
+	libjwt/jwt-verify.c)
 
 set(COMPILER_CONSTRUCTOR "__attribute__((constructor))")
 _check_c_compiler_attribute(${COMPILER_CONSTRUCTOR} COMPILER_HAS_CONSTRUCTOR)
@@ -69,7 +78,8 @@ endif()
 generate_export_header(jwt
 	CUSTOM_CONTENT_FROM_VARIABLE JWT_CUSTOM_CONTENT)
 
-include_directories(${CMAKE_SOURCE_DIR}/include ${CMAKE_BINARY_DIR})
+include_directories(${CMAKE_SOURCE_DIR}/include ${CMAKE_BINARY_DIR}
+		    ${CMAKE_SOURCE_DIR}/libjwt)
 
 target_link_libraries(jwt PUBLIC ${JANSSON_LINK_LIBRARIES})
 target_include_directories(jwt PUBLIC
@@ -83,7 +93,9 @@ if (GNUTLS_FOUND)
 	target_link_libraries(jwt PUBLIC ${GNUTLS_LINK_LIBRARIES})
 	target_include_directories(jwt PUBLIC
 		${GNUTLS_INCLUDE_DIRS})
-	target_sources(jwt PRIVATE libjwt/jwt-gnutls.c libjwt/jwks-gnutls.c)
+	target_sources(jwt PRIVATE
+		libjwt/gnutls/jwk-parse.c
+		libjwt/gnutls/sign-verify.c)
 endif()
 
 if (OPENSSL_FOUND)
@@ -92,7 +104,9 @@ if (OPENSSL_FOUND)
 	target_link_libraries(jwt PUBLIC ${OPENSSL_LINK_LIBRARIES})
 	target_include_directories(jwt PUBLIC
 		${OPENSSL_INCLUDE_DIRS})
-	target_sources(jwt PRIVATE libjwt/jwt-openssl.c libjwt/jwks-openssl.c)
+	target_sources(jwt PRIVATE
+		libjwt/openssl/jwk-parse.c
+		libjwt/openssl/sign-verify.c)
 endif()
 
 # We need one of the things above to even work

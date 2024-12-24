@@ -118,7 +118,23 @@ void *jwt_realloc(void *ptr, size_t size);
 int jwt_base64uri_encode(char **_dst, const char *plain, int plain_len);
 void *jwt_base64uri_decode(const char *src, int *ret_len);
 
+/* JSON stuff */
+const char *get_js_string(json_t *js, const char *key);
+long get_js_int(json_t *js, const char *key);
+int get_js_bool(json_t *js, const char *key);
+
 /* A time-safe strcmp function */
 int jwt_strcmp(const char *str1, const char *str2);
+
+char *jwt_strdup(const char *str);
+
+void jwt_scrub_key(jwt_t *jwt);
+
+int jwt_verify_sig(jwt_t *jwt, const char *head, unsigned int head_len,
+                   const char *sig);
+int jwt_sign(jwt_t *jwt, char **out, unsigned int *len, const char *str,
+	     unsigned int str_len);
+
+int __append_str(char **buf, const char *str);
 
 #endif /* JWT_PRIVATE_H */

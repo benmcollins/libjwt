@@ -10,7 +10,9 @@ AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_builddir)/include
 
 lib_LTLIBRARIES = libjwt.la
 
-libjwt_la_SOURCES = jwt.c jwks.c base64.c jwt-private.h base64.h ll.h
+libjwt_la_SOURCES = jwt.c jwt-verify.c jwt-encode.c jwks.c \
+	jwt-crypto-ops.c jwt-memory.c jwt-setget.c ../libjwt/jwt-validate.c \
+	base64.c jwt-private.h base64.h ll.h
 
 libjwt_la_LDFLAGS = -version-info $(LIBJWT_VERSION_INFO) $(OPENSSL_LDFLAGS) \
 	$(GNUTLS_LDFLAGS) $(MBEDTLS_LIBS) $(JANSSON_LDFLAGS) -no-undefined
@@ -25,15 +27,15 @@ libjwt_la_LIBADD = $(JANSSON_LIBS) $(OPENSSL_LIBS) $(GNUTLS_LIBS) \
 	$(CODE_COVERAGE_LDFLAGS)
 
 if HAVE_OPENSSL
-libjwt_la_SOURCES += jwt-openssl.c jwks-openssl.c
+libjwt_la_SOURCES += openssl/jwk-parse.c openssl/sign-verify.c
 endif
 
 if HAVE_GNUTLS
-libjwt_la_SOURCES += jwt-gnutls.c jwks-gnutls.c
+libjwt_la_SOURCES += gnutls/jwk-parse.c gnutls/sign-verify.c
 endif
 
 if HAVE_MBEDTLS
-libjwt_la_SOURCES += jwt-mbedtls.c jwks-mbedtls.c
+libjwt_la_SOURCES += mbedtls/jwk-parse.c mbedtls/sign-verify.c
 endif
 
 pkgconfiglibdir = $(libdir)/pkgconfig
