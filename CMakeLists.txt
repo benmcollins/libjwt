@@ -36,6 +36,7 @@ option(WITH_GNUTLS "Whether to use GnuTLS (default is auto detect)" ON)
 
 # option(WITH_MBEDTLS "Enable using MBedTLS (default is disabled)" ON)
 
+option(WITH_EXAMPLES "Whether to build the example programs (default is OFF)" OFF)
 option(WITH_TESTS "Whether to build and run the testsuite (default is ON)" ON)
 
 # Need at least one of these
@@ -105,6 +106,13 @@ if (OPENSSL_FOUND)
 	list(APPEND JWT_SOURCES
 	     libjwt/openssl/jwk-parse.c
 	     libjwt/openssl/sign-verify.c)
+endif()
+
+if (WITH_EXAMPLES)
+	add_executable(jwtauth examples/main-auth.c)
+	target_link_libraries(jwtauth PRIVATE jwt)
+	add_executable(jwtgen examples/main-gen.c)
+	target_link_libraries(jwtgen PRIVATE jwt)
 endif()
 
 # We need one of the things above to even work
@@ -190,6 +198,7 @@ option(ENABLE_COVERAGE "Enable code coverage rules" OFF)
 
 # Tests and coverage depend on this, but optional
 if (WITH_TESTS)
+	option(ENABLE_COVERAGE "Enable code coverage rules" OFF)
 	pkg_check_modules(CHECK check>=0.9.10 IMPORTED_TARGET)
 endif()
 

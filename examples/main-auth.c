@@ -35,6 +35,7 @@ int main(int argc, char *argv[])
 	int i = 0;
 	unsigned char key[10240];
 	size_t key_len;
+	JWT_CONFIG_DECLARE(config);
 	FILE *fp_pub_key;
 	char jwt_str[2048];
 	size_t jwt_len;
@@ -135,7 +136,10 @@ int main(int argc, char *argv[])
 	}
 
 	/* Decode jwt */
-	ret = jwt_decode(&jwt, jwt_str, key, key_len);
+	config.key = key;
+	config.key_len = key_len;
+	config.alg = opt_alg;
+	ret = jwt_verify(&jwt, jwt_str, &config);
 	if (ret != 0 || jwt == NULL) {
 		fprintf(stderr, "invalid jwt\n");
 		exit_status = 1;
