@@ -92,18 +92,24 @@ struct jwt_crypto_ops {
 };
 
 #ifdef HAVE_OPENSSL
+JWT_NO_EXPORT
 extern struct jwt_crypto_ops jwt_openssl_ops;
 #endif
 #ifdef HAVE_GNUTLS
+JWT_NO_EXPORT
 extern struct jwt_crypto_ops jwt_gnutls_ops;
 #endif
 #ifdef HAVE_MBEDTLS
+JWT_NO_EXPORT
 extern struct jwt_crypto_ops jwt_mbedtls_ops;
 #endif
 
 /* Memory allocators. */
+JWT_NO_EXPORT
 void *jwt_malloc(size_t size);
+JWT_NO_EXPORT
 void __jwt_freemem(void *ptr);
+JWT_NO_EXPORT
 void *jwt_realloc(void *ptr, size_t size);
 
 #define jwt_freemem(__ptr) ({		\
@@ -115,26 +121,37 @@ void *jwt_realloc(void *ptr, size_t size);
 
 /* Helper routines to handle base64url encoding without percent padding
  * as defined in RFC-4648. */
+JWT_NO_EXPORT
 int jwt_base64uri_encode(char **_dst, const char *plain, int plain_len);
+JWT_NO_EXPORT
 void *jwt_base64uri_decode(const char *src, int *ret_len);
 
 /* JSON stuff */
+JWT_NO_EXPORT
 const char *get_js_string(json_t *js, const char *key);
+JWT_NO_EXPORT
 long get_js_int(json_t *js, const char *key);
+JWT_NO_EXPORT
 int get_js_bool(json_t *js, const char *key);
 
 /* A time-safe strcmp function */
+JWT_NO_EXPORT
 int jwt_strcmp(const char *str1, const char *str2);
 
+JWT_NO_EXPORT
 char *jwt_strdup(const char *str);
 
+JWT_NO_EXPORT
 void jwt_scrub_key(jwt_t *jwt);
 
+JWT_NO_EXPORT
 int jwt_verify_sig(jwt_t *jwt, const char *head, unsigned int head_len,
                    const char *sig);
+JWT_NO_EXPORT
 int jwt_sign(jwt_t *jwt, char **out, unsigned int *len, const char *str,
 	     unsigned int str_len);
 
+JWT_NO_EXPORT
 int __append_str(char **buf, const char *str);
 
 #endif /* JWT_PRIVATE_H */
