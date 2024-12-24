@@ -111,8 +111,19 @@ endif()
 if (WITH_EXAMPLES)
 	add_executable(jwtauth examples/main-auth.c)
 	target_link_libraries(jwtauth PRIVATE jwt)
+
 	add_executable(jwtgen examples/main-gen.c)
 	target_link_libraries(jwtgen PRIVATE jwt)
+
+	add_executable(jwt_to_pem tests/keys/jwks/jwk_to_pem.c)
+	target_link_libraries(jwt_to_pem PRIVATE jwt)
+
+	if (OPENSSL_FOUND)
+		add_executable(pem_to_jwk tests/keys/jwks/pem_to_jwk.c)
+		# For now, this program uses some libjwt internals, so it
+		# has to link to the static library
+		target_link_libraries(pem_to_jwk PRIVATE jwt_static PkgConfig::OPENSSL)
+	endif()
 endif()
 
 # We need one of the things above to even work
@@ -167,8 +178,12 @@ set(PACKAGE_NAME ${PROJECT_NAME})
 set(PACKAGE_VERSION ${PROJECT_VERSION})
 set(prefix ${CMAKE_INSTALL_PREFIX})
 string(JOIN " " JANSSON_LIBS ${JANSSON_LDFLAGS})
-string(JOIN " " OPENSSL_LIBS ${OPENSSL_LDFLAGS})
-string(JOIN " " GNUTLS_LIBS ${GNUTLS_LDFLAGS})
+if (OPENSSL_FOUND)
+	string(JOIN " " OPENSSL_LIBS ${OPENSSL_LDFLAGS})
+endif()
+if (GNUTLS_FOUND)
+	string(JOIN " " GNUTLS_LIBS ${GNUTLS_LDFLAGS})
+endif()
 configure_file(libjwt/libjwt.pc.in libjwt.pc @ONLY)
 install(FILES ${CMAKE_BINARY_DIR}/libjwt.pc DESTINATION lib/pkgconfig)
 
