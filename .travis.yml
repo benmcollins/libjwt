@@ -33,22 +33,21 @@ jobs:
     - name: "Focal"
       dist: focal
       script:
-      - cmake -DWITH_GNUTLS=YES -DWITH_OPENSSL=YES ..
-      - make check
+      - cmake -DWITH_GNUTLS=YES -DWITH_OPENSSL=YES -DWITH_TESTS=NO -DENABLE_COVERAGE=NO ..
+      - make
 
     - name: "Jammy"
       dist: jammy
       script:
-      - cmake -DWITH_GNUTLS=YES -DWITH_OPENSSL=YES ..
+      - cmake -DWITH_GNUTLS=YES -DWITH_OPENSSL=YES -DWITH_TESTS=YES ..
       - make check
 
     - name: "Coverage Build"
       dist: jammy
       script:
-      - cmake -DWITH_GNUTLS=NO -DWITH_OPENSSL=YES -DENABLE_COVERAGE ..
+      - cmake -DWITH_GNUTLS=NO -DWITH_OPENSSL=YES -DENABLE_COVERAGE=ON ..
       - make
       - ctest -T memcheck
-      - make doxygen-doc
       - make package_source
       - make check-code-coverage
       - codecov
