@@ -36,7 +36,10 @@ jobs:
       dist: focal
       script:
       - ../configure
-      - make check
+      - make
+      - rm -rf *
+      - cmake ..
+      - make
 
     - name: "CMake Build"
       dist: jammy
