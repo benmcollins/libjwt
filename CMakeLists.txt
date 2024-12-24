@@ -52,7 +52,7 @@ if (WITH_OPENSSL)
 endif()
 
 # Tests and coverage depend on this, but optional
-pkg_check_modules(CHECK check>=0.9.10)
+pkg_check_modules(CHECK check>=0.9.10 IMPORTED_TARGET)
 
 add_library(jwt SHARED)
 add_library(jwt_static STATIC)
@@ -204,8 +204,7 @@ if (CHECK_FOUND)
 		target_link_libraries(${TEST} PRIVATE jwt)
 
 		# Add CHECK deps
-		target_link_libraries(${TEST} PRIVATE ${CHECK_LINK_LIBRARIES})
-		target_include_directories(${TEST} PRIVATE ${CHECK_INCLUDE_DIRS})
+		target_link_libraries(${TEST} PRIVATE PkgConfig::CHECK)
 
 		# Add to test framework, making sure to set the environment
 		# for certain load-time tests.
