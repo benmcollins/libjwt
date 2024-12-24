@@ -54,5 +54,5 @@ jobs:
       dist: jammy
       script:
       - ../configure --without-gnutls --enable-code-coverage --enable-valgrind
-      - make check-valgrind check-code-coverage docbook-doc
+      - make check-valgrind check-code-coverage doxygen-doc
       - codecov
