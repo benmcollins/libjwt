@@ -205,23 +205,9 @@ install(FILES ${CMAKE_BINARY_DIR}/libjwt.pc
 find_package(Doxygen)
 
 if (DOXYGEN_FOUND)
-	set(DOXYGEN_ENV_VARS
-		"PROJECT=${PROJECT_NAME}"
-		"VERSION=${PROJECT_VERSION}"
-		"DOCDIR=${CMAKE_BINARY_DIR}/doxygen-doc"
-		"SRCDIR=${CMAKE_SOURCE_DIR}"
-		"PROJECT_BRIEF=${CMAKE_PROJECT_DESCRIPTION}"
-		"HAVE_DOT=YES"
-		"DOT_PATH=${DOXYGEN_DOT_EXECUTABLE}")
-
-	add_custom_target(doxygen-doc
-		COMMAND ${CMAKE_COMMAND} -E env
-			${DOXYGEN_ENV_VARS}
-			${DOXYGEN_EXECUTABLE}
-			${CMAKE_SOURCE_DIR}/doxygen/Doxyfile
-		COMMENT "Generating documentation with Doxygen"
-		VERBATIM
-	)
+	set(DOXYGEN_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/doxygen-doc)
+	include(LibJWTDoxyfile)
+	doxygen_add_docs(doxygen-doc include/jwt.h)
 endif()
 
 option(ENABLE_COVERAGE "Enable code coverage rules" OFF)
