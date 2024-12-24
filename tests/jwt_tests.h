@@ -20,19 +20,9 @@
 #endif
 
 /* Compatibility with older libCheck versions */
-#ifndef ck_assert_ptr_ne
-#define ck_assert_ptr_ne(__X, __Y) ck_assert(__X != __Y)
-#define ck_assert_ptr_eq(__X, __Y) ck_assert(__X == __Y)
-#endif
-
-#ifndef ck_assert_int_gt
-#define ck_assert_int_gt(__X, __Y) ck_assert(__X > __Y)
-#define ck_assert_int_lt(__X, __Y) ck_assert(__X < __Y)
-#endif
-
 #ifndef ck_assert_ptr_null
-#define ck_assert_ptr_null(__X) ck_assert(__X == NULL)
-#define ck_assert_ptr_nonnull(__X) ck_assert(__X != NULL)
+#define ck_assert_ptr_null(__X) ck_assert_ptr_eq(__X, NULL)
+#define ck_assert_ptr_nonnull(__X) ck_assert_ptr_ne(__X, NULL)
 #endif
 
 /* Constant time to make tests consistent. */

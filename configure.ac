@@ -107,7 +107,7 @@ AC_ARG_WITH([examples],
 	[AM_CONDITIONAL([BUILD_EXAMPLES],[false])])
 
 PKG_CHECK_MODULES([JANSSON], [jansson >= 2.0])
-PKG_CHECK_MODULES([CHECK], [check >= 0.9.4],
+PKG_CHECK_MODULES([CHECK], [check >= 0.9.10],
 	[RPMB_CHECK="--with check"],[RPMB_CHECK="--without check"])
 
 AC_SUBST([RPMBUILD_OPTS],["$RPMB_OPENSSL $RPMB_GNUTLS $RPMB_CHECK"])

@@ -52,7 +52,7 @@ if (WITH_OPENSSL)
 endif()
 
 # Tests and coverage depend on this, but optional
-pkg_check_modules(CHECK check>=0.9.4)
+pkg_check_modules(CHECK check>=0.9.10)
 
 add_library(jwt SHARED)
 add_library(jwt_static STATIC)
