@@ -108,21 +108,37 @@ if (OPENSSL_FOUND)
 	     libjwt/openssl/sign-verify.c)
 endif()
 
+function(jwt_add_extra)
+	set(oneValueArgs NAME SRC DIR)
+	cmake_parse_arguments(Extra "" "${oneValueArgs}" "" ${ARGN})
+
+	add_executable(${Extra_NAME} ${Extra_SRC})
+	target_link_libraries(${Extra_NAME} PRIVATE jwt)
+	set_target_properties(${Extra_NAME} PROPERTIES
+		RUNTIME_OUTPUT_DIRECTORY
+		"${CMAKE_BINARY_DIR}/${Extra_DIR}")
+endfunction()
+
 if (WITH_EXAMPLES)
-	add_executable(jwtauth examples/main-auth.c)
-	target_link_libraries(jwtauth PRIVATE jwt)
+	jwt_add_extra(NAME jwtauth
+		      SRC examples/main-auth.c
+		      DIR examples)
+	jwt_add_extra(NAME jwtgen
+                      SRC examples/main-gen.c
+                      DIR examples)
 
-	add_executable(jwtgen examples/main-gen.c)
-	target_link_libraries(jwtgen PRIVATE jwt)
-
-	add_executable(jwt_to_pem tests/keys/jwks/jwk_to_pem.c)
-	target_link_libraries(jwt_to_pem PRIVATE jwt)
+	jwt_add_extra(NAME jwt_to_pem
+                      SRC tests/keys/jwks/jwk_to_pem.c
+                      DIR tools)
 
 	if (OPENSSL_FOUND)
 		add_executable(pem_to_jwk tests/keys/jwks/pem_to_jwk.c)
 		# For now, this program uses some libjwt internals, so it
 		# has to link to the static library
 		target_link_libraries(pem_to_jwk PRIVATE jwt_static PkgConfig::OPENSSL)
+		set_target_properties(pem_to_jwk  PROPERTIES
+			RUNTIME_OUTPUT_DIRECTORY
+			"${CMAKE_BINARY_DIR}/tools")
 	endif()
 endif()
 
@@ -217,6 +233,19 @@ if (WITH_TESTS)
 	pkg_check_modules(CHECK check>=0.9.10 IMPORTED_TARGET)
 endif()
 
+function(jwt_add_test)
+	set(oneValueArgs NAME)
+	cmake_parse_arguments(LibTest "" "${oneValueArgs}" "" ${ARGN})
+
+	jwt_add_extra(NAME ${LibTest_NAME}
+                      SRC tests/${LibTest_NAME}.c
+                      DIR tests)
+
+	target_link_libraries(${LibTest_NAME} PRIVATE PkgConfig::CHECK)
+	add_test(NAME ${LibTest_NAME} COMMAND /bin/bash -c
+		"export TEST=${LibTest_NAME}; . ${CMAKE_SOURCE_DIR}/tests/test-env.sh; exec ${CMAKE_BINARY_DIR}/tests/${LibTest_NAME}")
+endfunction()
+
 if (CHECK_FOUND)
 	include(CTest)
 
@@ -231,19 +260,7 @@ if (CHECK_FOUND)
 	endif()
 
 	foreach (TEST ${UNIT_TESTS})
-		# Create target for each test
-		add_executable(${TEST} tests/${TEST}.c)
-
-		# Add main JWT library
-		target_link_libraries(${TEST} PRIVATE jwt)
-
-		# Add CHECK deps
-		target_link_libraries(${TEST} PRIVATE PkgConfig::CHECK)
-
-		# Add to test framework, making sure to set the environment
-		# for certain load-time tests.
-		add_test(NAME ${TEST} COMMAND /bin/bash -c
-			"export TEST=${TEST}; . ${CMAKE_SOURCE_DIR}/tests/test-env.sh; exec ./${TEST}")
+		jwt_add_test(NAME ${TEST})
 	endforeach()
 
 	add_custom_target(check
@@ -264,3 +281,6 @@ if (CHECK_FOUND)
 			DEPENDENCIES ${UNIT_TESTS})
 	endif()
 endif()
+
+set(CPACK_PROPERTIES_FILE "${CMAKE_SOURCE_DIR}/cmake/CPackConfig.cmake")
+include(CPack)
