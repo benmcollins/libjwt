@@ -23,7 +23,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
 # Find all the things we need for the library
 find_package(PkgConfig REQUIRED)
 
-pkg_check_modules(JANSSON jansson>=2.0 REQUIRED)
+pkg_check_modules(JANSSON jansson>=2.0 REQUIRED IMPORTED_TARGET)
 
 if (NOT DEFINED WITH_OPENSSL)
 	set(OPENSSL_AUTO TRUE)
@@ -43,30 +43,31 @@ if (WITH_GNUTLS)
 	if (NOT GNUTLS_AUTO)
 		set(GNUTLS_REQUIRED "REQUIRED")
 	endif()
-	pkg_check_modules(GNUTLS gnutls>=3.6.0 ${GNUTLS_REQUIRED})
+	pkg_check_modules(GNUTLS gnutls>=3.6.0 IMPORTED_TARGET
+			  ${GNUTLS_REQUIRED})
 endif()
 
 if (WITH_OPENSSL)
 	if (NOT OPENSSL_AUTO)
 		set(OPENSSL_REQUIRED "REQUIRED")
 	endif()
-	pkg_check_modules(OPENSSL openssl>=1.1.0 ${OPENSSL_REQUIRED})
+	pkg_check_modules(OPENSSL openssl>=1.1.0 IMPORTED_TARGET
+			  ${OPENSSL_REQUIRED})
 endif()
 
 add_library(jwt SHARED)
 add_library(jwt_static STATIC)
 set_target_properties(jwt_static PROPERTIES OUTPUT_NAME jwt)
 
-target_sources(jwt PRIVATE
-	libjwt/base64.c
-	libjwt/jwt-memory.c
-	libjwt/jwt.c
-	libjwt/jwks.c
-	libjwt/jwt-setget.c
-	libjwt/jwt-crypto-ops.c
-	libjwt/jwt-validate.c
-	libjwt/jwt-encode.c
-	libjwt/jwt-verify.c)
+set(JWT_SOURCES libjwt/base64.c
+        libjwt/jwt-memory.c
+        libjwt/jwt.c
+        libjwt/jwks.c
+        libjwt/jwt-setget.c
+        libjwt/jwt-crypto-ops.c
+        libjwt/jwt-validate.c
+        libjwt/jwt-encode.c
+        libjwt/jwt-verify.c)
 
 set(COMPILER_CONSTRUCTOR "__attribute__((constructor))")
 _check_c_compiler_attribute(${COMPILER_CONSTRUCTOR} COMPILER_HAS_CONSTRUCTOR)
@@ -81,32 +82,29 @@ generate_export_header(jwt
 include_directories(${CMAKE_SOURCE_DIR}/include ${CMAKE_BINARY_DIR}
 		    ${CMAKE_SOURCE_DIR}/libjwt)
 
-target_link_libraries(jwt PUBLIC ${JANSSON_LINK_LIBRARIES})
-target_include_directories(jwt PUBLIC
-	${JANSSON_INCLUDE_DIRS})
+target_link_libraries(jwt PUBLIC PkgConfig::JANSSON)
+target_link_libraries(jwt_static PUBLIC PkgConfig::JANSSON)
 
 # Process the detected packages
 set(HAVE_CRYPTO FALSE)
 if (GNUTLS_FOUND)
 	set(HAVE_CRYPTO TRUE)
         add_definitions(-DHAVE_GNUTLS)
-	target_link_libraries(jwt PUBLIC ${GNUTLS_LINK_LIBRARIES})
-	target_include_directories(jwt PUBLIC
-		${GNUTLS_INCLUDE_DIRS})
-	target_sources(jwt PRIVATE
-		libjwt/gnutls/jwk-parse.c
-		libjwt/gnutls/sign-verify.c)
+	target_link_libraries(jwt PUBLIC PkgConfig::GNUTLS)
+	target_link_libraries(jwt_static PUBLIC PkgConfig::GNUTLS)
+	list(APPEND JWT_SOURCES
+	     libjwt/gnutls/jwk-parse.c
+	     libjwt/gnutls/sign-verify.c)
 endif()
 
 if (OPENSSL_FOUND)
 	set(HAVE_CRYPTO TRUE)
 	add_definitions(-DHAVE_OPENSSL)
-	target_link_libraries(jwt PUBLIC ${OPENSSL_LINK_LIBRARIES})
-	target_include_directories(jwt PUBLIC
-		${OPENSSL_INCLUDE_DIRS})
-	target_sources(jwt PRIVATE
-		libjwt/openssl/jwk-parse.c
-		libjwt/openssl/sign-verify.c)
+	target_link_libraries(jwt PUBLIC PkgConfig::OPENSSL)
+	target_link_libraries(jwt_static PUBLIC PkgConfig::OPENSSL)
+	list(APPEND JWT_SOURCES
+	     libjwt/openssl/jwk-parse.c
+	     libjwt/openssl/sign-verify.c)
 endif()
 
 # We need one of the things above to even work
@@ -114,14 +112,8 @@ if (NOT HAVE_CRYPTO)
 	message(FATAL_ERROR "No crypto support detected")
 endif()
 
-# Setup the static library by copying shared lib
-get_target_property(STATIC_LINK_LIBRARIES jwt LINK_LIBRARIES)
-get_target_property(STATIC_INCLUDE_DIRECTORIES jwt INCLUDE_DIRECTORIES)
-get_target_property(STATIC_SOURCES jwt SOURCES)
-
-target_sources(jwt_static PRIVATE ${STATIC_SOURCES})
-target_link_libraries(jwt_static PRIVATE ${STATIC_LINK_LIBRARIES})
-target_include_directories(jwt_static PRIVATE ${STATIC_INCLUDE_DIRECTORIES})
+target_sources(jwt PRIVATE ${JWT_SOURCES})
+target_sources(jwt_static PRIVATE ${JWT_SOURCES})
 
 target_include_directories(jwt PUBLIC
 	$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
