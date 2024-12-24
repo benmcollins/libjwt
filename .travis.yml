@@ -38,7 +38,7 @@ jobs:
       - ../configure
       - make
       - rm -rf *
-      - cmake ..
+      - cmake -DWITH_TESTS=NO ..
       - make
 
     - name: "CMake Build"

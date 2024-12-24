@@ -36,6 +36,8 @@ option(WITH_GNUTLS "Whether to use GnuTLS (default is auto detect)" ON)
 
 # option(WITH_MBEDTLS "Enable using MBedTLS (default is disabled)" ON)
 
+option(WITH_TESTS "Whether to build and run the testsuite (default is ON)" ON)
+
 # Need at least one of these
 if (WITH_GNUTLS)
 	if (NOT GNUTLS_AUTO)
@@ -50,9 +52,6 @@ if (WITH_OPENSSL)
 	endif()
 	pkg_check_modules(OPENSSL openssl>=1.1.0 ${OPENSSL_REQUIRED})
 endif()
-
-# Tests and coverage depend on this, but optional
-pkg_check_modules(CHECK check>=0.9.10 IMPORTED_TARGET)
 
 add_library(jwt SHARED)
 add_library(jwt_static STATIC)
@@ -182,6 +181,11 @@ if (DOXYGEN_FOUND)
 endif()
 
 option(ENABLE_COVERAGE "Enable code coverage rules" OFF)
+
+# Tests and coverage depend on this, but optional
+if (WITH_TESTS)
+	pkg_check_modules(CHECK check>=0.9.10 IMPORTED_TARGET)
+endif()
 
 if (CHECK_FOUND)
 	include(CTest)
