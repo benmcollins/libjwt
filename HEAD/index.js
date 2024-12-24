@@ -9,7 +9,6 @@ var index =
     [ "Docs and Source", "index.html#docs", null ],
     [ "Pre-built Packages", "index.html#prebuilt", null ],
     [ "Build Instructions", "index.html#instructions", [
-      [ "With GNU AutoTools:", "index.html#autotools", null ],
       [ "With CMake:", "index.html#cmake", null ],
       [ "Common", "index.html#common", null ]
     ] ]

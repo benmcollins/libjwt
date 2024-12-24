@@ -1,7 +1,9 @@
 <map id="include/jwt.h" name="include/jwt.h">
-<area shape="rect" id="Node000001" title="The C JSON Web Token Library +JWK + JWKS." alt="" coords="30,5,124,31"/>
-<area shape="rect" id="Node000002" title=" " alt="" coords="5,79,66,105"/>
-<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="72,33,52,67,48,64,68,30"/>
-<area shape="rect" id="Node000003" title=" " alt="" coords="90,79,147,105"/>
-<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="86,30,106,64,101,67,81,33"/>
+<area shape="rect" id="Node000001" title="The C JSON Web Token Library +JWK + JWKS." alt="" coords="104,5,199,31"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="5,79,98,105"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="136,34,82,72,79,67,133,29"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="121,79,182,105"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="154,31,154,63,149,63,149,31"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="206,79,263,105"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="167,30,211,67,207,71,164,34"/>
 </map>

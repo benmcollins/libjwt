@@ -42,7 +42,7 @@
 <table cellspacing="0" cellpadding="0">
  <tbody>
  <tr id="projectrow">
-  <td id="projectlogo"><img alt="Logo" src="LibJWT-Icon-95x91.png"/></td>
+  <td id="projectlogo"><img alt="Logo" src="LibJWT.svg" height="100"/></td>
   <td id="projectalign">
    <div id="projectname">LibJWT<span id="projectnumber">&#160;Dev</span>
    </div>
@@ -107,7 +107,7 @@ Collaboration diagram for Object Creation:</div>
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="typedef-members" name="typedef-members"></a>
 Typedefs</h2></td></tr>
 <tr class="memitem:gabf0acfb990d245214216af589c1d0947" id="r_gabf0acfb990d245214216af589c1d0947"><td class="memItemLeft" align="right" valign="top">typedef struct jwt&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#gabf0acfb990d245214216af589c1d0947">jwt_t</a></td></tr>
-<tr class="memdesc:gabf0acfb990d245214216af589c1d0947"><td class="mdescLeft">&#160;</td><td class="mdescRight">&lt;  <br /></td></tr>
+<tr class="memdesc:gabf0acfb990d245214216af589c1d0947"><td class="mdescLeft">&#160;</td><td class="mdescRight">Opaque JWT object.  <br /></td></tr>
 <tr class="separator:gabf0acfb990d245214216af589c1d0947"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="enum-members" name="enum-members"></a>
@@ -164,12 +164,11 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p>&lt; </p>
-<p>Opaque JWT object</p>
+<p>Opaque JWT object. </p>
 <p>This object is used throughout the JWT functions.</p>
 <dl class="section remark"><dt>Remarks</dt><dd>When creating a JWT object (encoding), this stores state until you call one of the encoding functions. When dedcoding a JSON Web Token this object is returned so you can inspect it further (e.g. retrieve grants). </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="jwt_8h_source.html#l00063">63</a> of file <a class="el" href="jwt_8h_source.html">jwt.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="jwt_8h_source.html#l00037">37</a> of file <a class="el" href="jwt_8h_source.html">jwt.h</a>.</p>
 
 </div>
 </div>
@@ -226,7 +225,7 @@ Functions</h2></td></tr>
 </td></tr>
 </table>
 
-<p class="definition">Definition at line <a class="el" href="jwt_8h_source.html#l00100">100</a> of file <a class="el" href="jwt_8h_source.html">jwt.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="jwt_8h_source.html#l00074">74</a> of file <a class="el" href="jwt_8h_source.html">jwt.h</a>.</p>
 
 </div>
 </div>
@@ -312,7 +311,7 @@ Functions</h2></td></tr>
 <div class="line">    <a class="code hl_function" href="#gafd51b076050815be44081439d1cb33fc">jwt_free</a>(MyJWT);</div>
 <div class="line">}</div>
 <div class="ttc" id="agroup__jwt__core__grp_html_ga9ce4e8fb6c2eb66e41b07a7a57d8a68a"><div class="ttname"><a href="#ga9ce4e8fb6c2eb66e41b07a7a57d8a68a">jwt_new</a></div><div class="ttdeci">int jwt_new(jwt_t **jwt)</div><div class="ttdoc">Allocate a new, empty, JWT object.</div></div>
-<div class="ttc" id="agroup__jwt__core__grp_html_gabf0acfb990d245214216af589c1d0947"><div class="ttname"><a href="#gabf0acfb990d245214216af589c1d0947">jwt_t</a></div><div class="ttdeci">struct jwt jwt_t</div><div class="ttdoc">&lt;</div><div class="ttdef"><b>Definition</b> <a href="jwt_8h_source.html#l00063">jwt.h:63</a></div></div>
+<div class="ttc" id="agroup__jwt__core__grp_html_gabf0acfb990d245214216af589c1d0947"><div class="ttname"><a href="#gabf0acfb990d245214216af589c1d0947">jwt_t</a></div><div class="ttdeci">struct jwt jwt_t</div><div class="ttdoc">Opaque JWT object.</div><div class="ttdef"><b>Definition</b> <a href="jwt_8h_source.html#l00037">jwt.h:37</a></div></div>
 <div class="ttc" id="agroup__jwt__core__grp_html_gafd51b076050815be44081439d1cb33fc"><div class="ttname"><a href="#gafd51b076050815be44081439d1cb33fc">jwt_free</a></div><div class="ttdeci">void jwt_free(jwt_t *jwt)</div><div class="ttdoc">Free a JWT object and any other resources it is using.</div></div>
 </div><!-- fragment --><dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
