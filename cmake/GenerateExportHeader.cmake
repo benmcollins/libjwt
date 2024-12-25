@@ -284,11 +284,47 @@ macro(_test_compiler_has_deprecated)
   endif()
 endmacro()
 
+macro(_test_compiler_has_constructor)
+  if(CMAKE_CXX_COMPILER_ID MATCHES Borland
+      OR CMAKE_CXX_COMPILER_ID MATCHES Embarcadero
+      OR CMAKE_CXX_COMPILER_ID MATCHES HP
+      OR GCC_TOO_OLD
+      OR CMAKE_CXX_COMPILER_ID MATCHES "^(PGI|NVHPC)$"
+      OR CMAKE_CXX_COMPILER_ID MATCHES Watcom)
+    set(COMPILER_HAS_CONSTRUCTOR "" CACHE INTERNAL
+      "Compiler support for a constructor attribute")
+  else()
+    if (CMAKE_CXX_COMPILER_LOADED)
+      _check_cxx_compiler_attribute("__attribute__((__constructor__))"
+      COMPILER_HAS_CONSTRUCTOR_ATTR)
+      if(COMPILER_HAS_CONSTRUCTOR_ATTR)
+        set(COMPILER_HAS_CONSTRUCTOR "${COMPILER_HAS_CONSTRUCTOR_ATTR}"
+          CACHE INTERNAL "Compiler support for a constructor attribute")
+      else()
+        _check_cxx_compiler_attribute("__declspec(constructor)"
+          COMPILER_HAS_CONSTRUCTOR)
+      endif()
+    else()
+      _check_c_compiler_attribute("__attribute__((__constructor__))"
+      COMPILER_HAS_CONSTRUCTOR_ATTR)
+      if(COMPILER_HAS_CONSTRUCTOR_ATTR)
+        set(COMPILER_HAS_CONSTRUCTOR "${COMPILER_HAS_CONSTRUCTOR_ATTR}"
+          CACHE INTERNAL "Compiler support for a constructor attribute")
+      else()
+        _check_c_compiler_attribute("__declspec(constructor)"
+		COMPILER_HAS_CONSTRUCTOR)
+      endif()
+
+    endif()
+  endif()
+endmacro()
+
 get_filename_component(_GENERATE_EXPORT_HEADER_MODULE_DIR
   "${CMAKE_CURRENT_LIST_FILE}" PATH)
 
 macro(_DO_SET_MACRO_VALUES TARGET_LIBRARY)
   set(DEFINE_DEPRECATED)
+  set(DEFINE_CONSTRUCTOR)
   set(DEFINE_EXPORT)
   set(DEFINE_IMPORT)
   set(DEFINE_NO_EXPORT)
@@ -296,7 +332,12 @@ macro(_DO_SET_MACRO_VALUES TARGET_LIBRARY)
   if (COMPILER_HAS_DEPRECATED_ATTR AND NOT WIN32)
     set(DEFINE_DEPRECATED "__attribute__ ((__deprecated__))")
   elseif(COMPILER_HAS_DEPRECATED)
-    set(DEFINE_DEPRECATED "__declspec(deprecated)")
+    set(DEFINE_DEPRECATED "__declspec(deprecated")
+  endif()
+  if (COMPILER_HAS_CONSTRUCTOR_ATTR AND NOT WIN32)
+	  set(DEFINE_CONSTRUCTOR "__attribute__ ((__constructor__))")
+  elseif(COMPILER_HAS_CONSTRUCTOR)
+	  set(DEFINE_CONSTRUCTOR "__declspec(constructor)")
   endif()
 
   get_property(type TARGET ${TARGET_LIBRARY} PROPERTY TYPE)
@@ -317,7 +358,7 @@ macro(_DO_GENERATE_EXPORT_HEADER TARGET_LIBRARY)
   # Option overrides
   set(options DEFINE_NO_DEPRECATED)
   set(oneValueArgs PREFIX_NAME BASE_NAME EXPORT_MACRO_NAME EXPORT_FILE_NAME
-    DEPRECATED_MACRO_NAME NO_EXPORT_MACRO_NAME STATIC_DEFINE
+    DEPRECATED_MACRO_NAME NO_EXPORT_MACRO_NAME STATIC_DEFINE CONSTRUCTOR_MACRO_NAME
     NO_DEPRECATED_MACRO_NAME CUSTOM_CONTENT_FROM_VARIABLE INCLUDE_GUARD_NAME)
   set(multiValueArgs)
 
@@ -338,9 +379,14 @@ macro(_DO_GENERATE_EXPORT_HEADER TARGET_LIBRARY)
   set(NO_EXPORT_MACRO_NAME "${_GEH_PREFIX_NAME}${BASE_NAME_UPPER}_NO_EXPORT")
   set(EXPORT_FILE_NAME "${CMAKE_CURRENT_BINARY_DIR}/${BASE_NAME_LOWER}_export.h")
   set(DEPRECATED_MACRO_NAME "${_GEH_PREFIX_NAME}${BASE_NAME_UPPER}_DEPRECATED")
+  set(CONSTRUCTOR_MACRO_NAME "${_GEH_PREFIX_NAME}${BASE_NAME_UPPER}_CONSTRUCTOR")
   set(STATIC_DEFINE "${_GEH_PREFIX_NAME}${BASE_NAME_UPPER}_STATIC_DEFINE")
   set(NO_DEPRECATED_MACRO_NAME
     "${_GEH_PREFIX_NAME}${BASE_NAME_UPPER}_NO_DEPRECATED")
+  set(VERSION_MAJOR_NAME "${_GEH_PREFIX_NAME}${BASE_NAME_UPPER}_VERSION_MAJOR")
+  set(VERSION_MINOR_NAME "${_GEH_PREFIX_NAME}${BASE_NAME_UPPER}_VERSION_MINOR")
+  set(VERSION_MICRO_NAME "${_GEH_PREFIX_NAME}${BASE_NAME_UPPER}_VERSION_MICRO")
+  set(VERSION_STRING_NAME "${_GEH_PREFIX_NAME}${BASE_NAME_UPPER}_VERSION_STRING")
 
   if(_GEH_UNPARSED_ARGUMENTS)
     message(FATAL_ERROR "Unknown keywords given to GENERATE_EXPORT_HEADER(): \"${_GEH_UNPARSED_ARGUMENTS}\"")
@@ -361,6 +407,10 @@ macro(_DO_GENERATE_EXPORT_HEADER TARGET_LIBRARY)
     set(DEPRECATED_MACRO_NAME ${_GEH_PREFIX_NAME}${_GEH_DEPRECATED_MACRO_NAME})
   endif()
   string(MAKE_C_IDENTIFIER ${DEPRECATED_MACRO_NAME} DEPRECATED_MACRO_NAME)
+  if(_GEH_CONSTRUCTOR_MACRO_NAME)
+	  set(CONSTRUCTOR_MACRO_NAME ${_GEH_PREFIX_NAME}${_GEH_CONSTRUCTOR_MACRO_NAME})
+  endif()
+  string(MAKE_C_IDENTIFIER ${CONSTRUCTOR_MACRO_NAME} CONSTRUCTOR_MACRO_NAME)
   if(_GEH_NO_EXPORT_MACRO_NAME)
     set(NO_EXPORT_MACRO_NAME ${_GEH_PREFIX_NAME}${_GEH_NO_EXPORT_MACRO_NAME})
   endif()
@@ -403,7 +453,7 @@ macro(_DO_GENERATE_EXPORT_HEADER TARGET_LIBRARY)
     endif()
   endif()
 
-  configure_file("${_GENERATE_EXPORT_HEADER_MODULE_DIR}/exportheader.cmake.in"
+  configure_file("${CMAKE_SOURCE_DIR}/include/jwt_export.h.in"
     "${EXPORT_FILE_NAME}" @ONLY)
 endmacro()
 
@@ -418,6 +468,7 @@ function(GENERATE_EXPORT_HEADER TARGET_LIBRARY)
   endif()
   _test_compiler_hidden_visibility()
   _test_compiler_has_deprecated()
+  _test_compiler_has_constructor()
   _do_set_macro_values(${TARGET_LIBRARY})
   _do_generate_export_header(${TARGET_LIBRARY} ${ARGN})
 endfunction()
@@ -429,6 +480,7 @@ function(add_compiler_export_flags)
 
   _test_compiler_hidden_visibility()
   _test_compiler_has_deprecated()
+  _test_compiler_has_constructor()
 
   option(USE_COMPILER_HIDDEN_VISIBILITY
     "Use HIDDEN visibility support if available." ON)

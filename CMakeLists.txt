@@ -42,7 +42,7 @@ option(WITH_TESTS "Whether to build and run the testsuite (default is ON)" ON)
 # Need at least one of these
 if (WITH_GNUTLS)
 	if (NOT GNUTLS_AUTO)
-		set(GNUTLS_REQUIRED "REQUIRED")
+		set(GNUTLS_REQUIRED REQUIRED)
 	endif()
 	pkg_check_modules(GNUTLS gnutls>=3.6.0 IMPORTED_TARGET
 			  ${GNUTLS_REQUIRED})
@@ -50,7 +50,7 @@ endif()
 
 if (WITH_OPENSSL)
 	if (NOT OPENSSL_AUTO)
-		set(OPENSSL_REQUIRED "REQUIRED")
+		set(OPENSSL_REQUIRED REQUIRED)
 	endif()
 	pkg_check_modules(OPENSSL openssl>=1.1.0 IMPORTED_TARGET
 			  ${OPENSSL_REQUIRED})
@@ -58,7 +58,9 @@ endif()
 
 add_library(jwt SHARED)
 add_library(jwt_static STATIC)
-set_target_properties(jwt_static PROPERTIES OUTPUT_NAME jwt)
+set_target_properties(jwt_static PROPERTIES
+	OUTPUT_NAME jwt
+	COMPILE_FLAGS -DJWT_STATIC_DEFINE)
 
 set(JWT_SOURCES libjwt/base64.c
         libjwt/jwt-memory.c
@@ -70,15 +72,14 @@ set(JWT_SOURCES libjwt/base64.c
         libjwt/jwt-encode.c
         libjwt/jwt-verify.c)
 
-set(COMPILER_CONSTRUCTOR "__attribute__((constructor))")
-_check_c_compiler_attribute(${COMPILER_CONSTRUCTOR} COMPILER_HAS_CONSTRUCTOR)
-if (COMPILER_HAS_CONSTRUCTOR)
-	set(JWT_CUSTOM_CONTENT "\n#define JWT_CONSTRUCTOR ${COMPILER_CONSTRUCTOR}\n")
-else()
-	set(JWT_CUSTOM_CONTENT "\n#define JWT_CONSTRUCTOR\n")
+# Allow building without deprecated functions (suggested)
+option(EXCLUDE_DEPRECATED
+	"Exclude deprecated parts of the library (default included)" FALSE)
+if (EXCLUDE_DEPRECATED)
+	set(NO_BUILD_DEPRECATED DEFINE_NO_DEPRECATED)
 endif()
-generate_export_header(jwt
-	CUSTOM_CONTENT_FROM_VARIABLE JWT_CUSTOM_CONTENT)
+
+generate_export_header(jwt ${NO_BUILD_DEPRECATED})
 
 include_directories(${CMAKE_SOURCE_DIR}/include ${CMAKE_BINARY_DIR}
 		    ${CMAKE_SOURCE_DIR}/libjwt)
@@ -215,7 +216,7 @@ option(ENABLE_COVERAGE "Enable code coverage rules" OFF)
 # Tests and coverage depend on this, but optional
 if (WITH_TESTS)
 	if (ENABLE_COVERAGE)
-		set(CHECK_REQUIRED "REQUIRED")
+		set(CHECK_REQUIRED REQUIRED)
 	endif()
 	pkg_check_modules(CHECK check>=0.9.10 IMPORTED_TARGET ${CHECK_REQUIRED})
 else()
