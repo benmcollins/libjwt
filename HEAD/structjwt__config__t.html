@@ -44,7 +44,7 @@
  <tr id="projectrow">
   <td id="projectlogo"><img alt="Logo" src="LibJWT.svg" height="100"/></td>
   <td id="projectalign">
-   <div id="projectname">LibJWT<span id="projectnumber">&#160;Dev</span>
+   <div id="projectname">LibJWT<span id="projectnumber">&#160;2.1.1</span>
    </div>
    <div id="projectbrief">The C JSON Web Token Library +JWK +JWKS</div>
   </td>
@@ -59,16 +59,6 @@
 $(function() { codefold.init(0); });
 /* @license-end */
 </script>
-<script type="text/javascript" src="menudata.js"></script>
-<script type="text/javascript" src="menu.js"></script>
-<script type="text/javascript">
-/* @license magnet:?xt=urn:btih:d3d9a9a6595521f9666a5e94cc830dab83b65699&amp;dn=expat.txt MIT */
-$(function() {
-  initMenu('',false,false,'search.php','Search',true);
-});
-/* @license-end */
-</script>
-<div id="main-nav"></div>
 </div><!-- top -->
 <div id="side-nav" class="ui-resizable side-nav-resizable">
   <div id="nav-tree">
@@ -95,15 +85,12 @@ $(function(){initNavTree('structjwt__config__t.html',''); initResizable(true); }
 
 <p>Structure used to manage configuration state.  
  <a href="#details">More...</a></p>
-
-<p><code>#include &lt;<a class="el" href="jwt_8h_source.html">jwt.h</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
 Data Fields</h2></td></tr>
 <tr class="memitem:a2b73602258138e4ce361286d99825af6" id="r_a2b73602258138e4ce361286d99825af6"><td class="memItemLeft" >union {&#160;</td><td class="memItemRight" valign="bottom"></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ab844ae5c5d5370ca9e2587c274548e2f" id="r_ab844ae5c5d5370ca9e2587c274548e2f"><td class="memItemLeft" >&#160;&#160;&#160;const void *&#160;&#160;&#160;<a class="el" href="#ae0c3a81bd6e44a10a3863808fea31ab0">key</a>&#160;</td><td class="memItemRight" valign="bottom"></td></tr>
-<tr class="memdesc:ab844ae5c5d5370ca9e2587c274548e2f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Pointer to key material.  <a href="#ae0c3a81bd6e44a10a3863808fea31ab0">More...</a><br /></td></tr>
 <tr class="separator:ab844ae5c5d5370ca9e2587c274548e2f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a73c04d1a54a9aa4144598da21f764d0c" id="r_a73c04d1a54a9aa4144598da21f764d0c"><td class="memItemLeft" >&#160;&#160;&#160;const void *&#160;&#160;&#160;<a class="el" href="#ad7ce7a24c7b944d94897cc5eac0ad8eb">jwt_key</a>&#160;</td><td class="memItemRight" valign="bottom"></td></tr>
 <tr class="separator:a73c04d1a54a9aa4144598da21f764d0c"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -112,25 +99,18 @@ Data Fields</h2></td></tr>
 <tr class="memitem:aa60c2044c61f92b65756af2ecce3cc9d" id="r_aa60c2044c61f92b65756af2ecce3cc9d"><td class="memItemLeft" >union {&#160;</td><td class="memItemRight" valign="bottom"></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a0582c6d4587d17689d9cab9f3a60e4f2" id="r_a0582c6d4587d17689d9cab9f3a60e4f2"><td class="memItemLeft" >&#160;&#160;&#160;size_t&#160;&#160;&#160;<a class="el" href="#a19588c92ee9c7f30bd6dbff6821207d9">key_len</a>&#160;</td><td class="memItemRight" valign="bottom"></td></tr>
-<tr class="memdesc:a0582c6d4587d17689d9cab9f3a60e4f2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Length of key material <br  />
-  <a href="#a19588c92ee9c7f30bd6dbff6821207d9">More...</a><br /></td></tr>
 <tr class="separator:a0582c6d4587d17689d9cab9f3a60e4f2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a18e5c01c01ba00885a870943a09c1539" id="r_a18e5c01c01ba00885a870943a09c1539"><td class="memItemLeft" >&#160;&#160;&#160;int&#160;&#160;&#160;<a class="el" href="#adae9aa4116f2131edf0ac1089812bdca">jwt_key_len</a>&#160;</td><td class="memItemRight" valign="bottom"></td></tr>
 <tr class="separator:a18e5c01c01ba00885a870943a09c1539"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa60c2044c61f92b65756af2ecce3cc9d" id="r_aa60c2044c61f92b65756af2ecce3cc9d"><td class="memItemLeft" valign="top">};&#160;</td><td class="memItemRight" valign="bottom">&#160;</td><td class="memItemRight" valign="bottom"></td></tr>
 <tr class="separator:aa60c2044c61f92b65756af2ecce3cc9d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa1f5e081bba22bd5e0e90962b55d3305" id="r_aa1f5e081bba22bd5e0e90962b55d3305"><td class="memItemLeft" align="right" valign="top"><a class="el" href="group__jwt__core__grp.html#ga889db178d8714ab67bc994f1d8faad33">jwt_alg_t</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#aa1f5e081bba22bd5e0e90962b55d3305">alg</a></td></tr>
-<tr class="memdesc:aa1f5e081bba22bd5e0e90962b55d3305"><td class="mdescLeft">&#160;</td><td class="mdescRight">For algorithm matching <br  />
-  <br /></td></tr>
 <tr class="separator:aa1f5e081bba22bd5e0e90962b55d3305"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a5b20a944b428896447108820ca861117" id="r_a5b20a944b428896447108820ca861117"><td class="memItemLeft" align="right" valign="top">void *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a5b20a944b428896447108820ca861117">ctx</a></td></tr>
-<tr class="memdesc:a5b20a944b428896447108820ca861117"><td class="mdescLeft">&#160;</td><td class="mdescRight">User controlled context.  <br /></td></tr>
 <tr class="separator:a5b20a944b428896447108820ca861117"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Structure used to manage configuration state. </p>
-
-<p class="definition">Definition at line <a class="el" href="jwt_8h_source.html#l00330">330</a> of file <a class="el" href="jwt_8h_source.html">jwt.h</a>.</p>
 </div><h2 class="groupheader">Field Documentation</h2>
 <a id="a2b73602258138e4ce361286d99825af6" name="a2b73602258138e4ce361286d99825af6"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a2b73602258138e4ce361286d99825af6">&#9670;&#160;</a></span>[union]</h2>
@@ -171,11 +151,8 @@ Data Fields</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
 <p>For algorithm matching <br  />
  </p>
-
-<p class="definition">Definition at line <a class="el" href="jwt_8h_source.html#l00339">339</a> of file <a class="el" href="jwt_8h_source.html">jwt.h</a>.</p>
 
 </div>
 </div>
@@ -190,10 +167,7 @@ Data Fields</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p>User controlled context. </p>
-
-<p class="definition">Definition at line <a class="el" href="jwt_8h_source.html#l00340">340</a> of file <a class="el" href="jwt_8h_source.html">jwt.h</a>.</p>
+<p>User controlled context </p>
 
 </div>
 </div>
@@ -209,8 +183,6 @@ Data Fields</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="jwt_8h_source.html#l00333">333</a> of file <a class="el" href="jwt_8h_source.html">jwt.h</a>.</p>
-
 </div>
 </div>
 <a id="adae9aa4116f2131edf0ac1089812bdca" name="adae9aa4116f2131edf0ac1089812bdca"></a>
@@ -225,8 +197,6 @@ Data Fields</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="jwt_8h_source.html#l00337">337</a> of file <a class="el" href="jwt_8h_source.html">jwt.h</a>.</p>
-
 </div>
 </div>
 <a id="ae0c3a81bd6e44a10a3863808fea31ab0" name="ae0c3a81bd6e44a10a3863808fea31ab0"></a>
@@ -240,10 +210,7 @@ Data Fields</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p>Pointer to key material. </p>
-
-<p class="definition">Definition at line <a class="el" href="jwt_8h_source.html#l00332">332</a> of file <a class="el" href="jwt_8h_source.html">jwt.h</a>.</p>
+<p>Pointer to key material </p>
 
 </div>
 </div>
@@ -258,17 +225,11 @@ Data Fields</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
 <p>Length of key material <br  />
  </p>
 
-<p class="definition">Definition at line <a class="el" href="jwt_8h_source.html#l00336">336</a> of file <a class="el" href="jwt_8h_source.html">jwt.h</a>.</p>
-
 </div>
 </div>
-<hr/>The documentation for this struct was generated from the following file:<ul>
-<li>include/<a class="el" href="jwt_8h_source.html">jwt.h</a></li>
-</ul>
 </div><!-- contents -->
 </div><!-- doc-content -->
 <!-- HTML footer for doxygen 1.12.0-->

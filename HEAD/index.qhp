@@ -1,0 +1,551 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<QtHelpProject version="1.0">
+<namespace>com.maclara-llc.LibJWT</namespace>
+<virtualFolder>doc</virtualFolder>
+<filterSection>
+<filterAttribute>doxygen</filterAttribute>
+<toc>
+<section title="LibJWT 2.1.1" ref="index.html">
+<section title="Welcome to LibJWT" ref="index.html">
+<section title="Supported Standards" ref="index.html#standards"/>
+<section title="Build Prerequisites" ref="index.html#building">
+<section title="Required" ref="index.html#req"/>
+<section title="One or more of these" ref="index.html#req_crypto"/>
+<section title="Optional" ref="index.html#optional"/>
+</section>
+<section title="Docs and Source" ref="index.html#docs"/>
+<section title="Pre-built Packages" ref="index.html#prebuilt"/>
+<section title="Build Instructions" ref="index.html#instructions">
+<section title="With CMake:" ref="index.html#cmake"/>
+<section title="Common" ref="index.html#common"/>
+</section>
+</section>
+<section title="Todo List" ref="todo.html"/>
+<section title="Deprecated List" ref="deprecated.html"/>
+<section title="Topics" ref="topics.html">
+<section title="JSON Web Token" ref="group__jwt__grp.html">
+<section title="Object Creation" ref="group__jwt__core__grp.html">
+<section title="jwt_t" ref="group__jwt__core__grp.html#gabf0acfb990d245214216af589c1d0947"/>
+<section title="jwt_alg_t" ref="group__jwt__core__grp.html#ga889db178d8714ab67bc994f1d8faad33">
+<section title="JWT_ALG_NONE" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33a3249a71140a0bb4b3cb196fe15114b89"/>
+<section title="JWT_ALG_HS256" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33aaa9217f4c8f5266d5401402f0ec98604"/>
+<section title="JWT_ALG_HS384" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33af0adc69b9caa89fbc2eeaf744d7cf4f2"/>
+<section title="JWT_ALG_HS512" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33a596b0da85c01e17b43a6574f82159081"/>
+<section title="JWT_ALG_RS256" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33aa03ba981baa4b1cda3b9de1347ada853"/>
+<section title="JWT_ALG_RS384" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33a520814a2695a6df472bb408ba6feb206"/>
+<section title="JWT_ALG_RS512" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33ab4d732eef3f6bee21201d638dfd8ca44"/>
+<section title="JWT_ALG_ES256" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33a84f9bf1cb93f6ae622a9de57d9c67472"/>
+<section title="JWT_ALG_ES384" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33ae18e69e6b629aa0d3e6d16ec4a95c708"/>
+<section title="JWT_ALG_ES512" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33a87205e19f1dde7c3cee012424482e106"/>
+<section title="JWT_ALG_PS256" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33ad0216cbdf24f6b486d5082294b3cfc5b"/>
+<section title="JWT_ALG_PS384" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33a3ad3c7e704886dd61dee0de5fa02072d"/>
+<section title="JWT_ALG_PS512" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33a727c838b47ad911681eb029cc8b55744"/>
+<section title="JWT_ALG_ES256K" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33a7f760cf9ed49b80ecb78580ed381ff01"/>
+<section title="JWT_ALG_EDDSA" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33aab33738e67e3b23db72a3bc77043009b"/>
+<section title="JWT_ALG_INVAL" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33a199f5ce0e69c0160cc121cf6dbe9cb58"/>
+</section>
+<section title="jwt_dup" ref="group__jwt__core__grp.html#gac11d4548c695e5781cae2a5148a7e240"/>
+<section title="jwt_free" ref="group__jwt__core__grp.html#gafd51b076050815be44081439d1cb33fc"/>
+<section title="jwt_new" ref="group__jwt__core__grp.html#ga9ce4e8fb6c2eb66e41b07a7a57d8a68a"/>
+</section>
+<section title="Configuration Type" ref="group__jwt__config__grp.html">
+<section title="jwt_config_t" ref="structjwt__config__t.html">
+<section title="alg" ref="structjwt__config__t.html#aa1f5e081bba22bd5e0e90962b55d3305"/>
+<section title="ctx" ref="structjwt__config__t.html#a5b20a944b428896447108820ca861117"/>
+<section title="jwt_key" ref="structjwt__config__t.html#ad7ce7a24c7b944d94897cc5eac0ad8eb"/>
+<section title="jwt_key_len" ref="structjwt__config__t.html#adae9aa4116f2131edf0ac1089812bdca"/>
+<section title="key" ref="structjwt__config__t.html#ae0c3a81bd6e44a10a3863808fea31ab0"/>
+<section title="key_len" ref="structjwt__config__t.html#a19588c92ee9c7f30bd6dbff6821207d9"/>
+</section>
+<section title="JWT_CONFIG_DECLARE" ref="group__jwt__config__grp.html#ga0816f65962b32e875a2ed9b6f0166bee"/>
+<section title="jwt_callback_t" ref="group__jwt__config__grp.html#ga44edddf2ce7034752c2b22283ad1010d"/>
+<section title="jwt_config_init" ref="group__jwt__config__grp.html#ga08ab7f9e1917072c0910ee5335d3b04a"/>
+</section>
+<section title="Token Verification" ref="group__jwt__verify__grp.html">
+<section title="jwt_decode" ref="group__jwt__verify__grp.html#ga4d498ffdcf1c95d67b81c224e2a447e5"/>
+<section title="jwt_decode_2" ref="group__jwt__verify__grp.html#gaf6811b9a47f36da1399297fc7710e8ad"/>
+<section title="jwt_verify" ref="group__jwt__verify__grp.html#gab0535d292e64c3688085cf0139aa8c8d"/>
+<section title="jwt_verify_wcb" ref="group__jwt__verify__grp.html#gaddab273e09a8327e03f458be1cfb83b4"/>
+</section>
+<section title="Grant Management" ref="group__jwt__grant__grp.html">
+<section title="jwt_add_grant" ref="group__jwt__grant__grp.html#ga91d9bfe88d3e7b246ee67d2ed4609955"/>
+<section title="jwt_add_grant_bool" ref="group__jwt__grant__grp.html#gad528aabec09be8d051485a45c49781c3"/>
+<section title="jwt_add_grant_int" ref="group__jwt__grant__grp.html#gae4cdc69b259a0f2f98e3c07bf9038765"/>
+<section title="jwt_add_grants_json" ref="group__jwt__grant__grp.html#ga0509c745c45eebb41c278cebb0617a55"/>
+<section title="jwt_del_grants" ref="group__jwt__grant__grp.html#ga0d8da61021d73817fb71bf8ffb7791b7"/>
+<section title="jwt_get_grant" ref="group__jwt__grant__grp.html#ga371b128c850eef1c364fa199ab79304b"/>
+<section title="jwt_get_grant_bool" ref="group__jwt__grant__grp.html#ga439c70c683ebf8b44eb6cdcc7a88ae2f"/>
+<section title="jwt_get_grant_int" ref="group__jwt__grant__grp.html#gae48541a059b47945181102d6478bd2bb"/>
+<section title="jwt_get_grants_json" ref="group__jwt__grant__grp.html#gad17b899468a54b1270a55f9ff5ae1c6f"/>
+</section>
+<section title="Header Hanagement" ref="group__jwt__header__grp.html">
+<section title="jwt_add_header" ref="group__jwt__header__grp.html#ga1c0093b5b221f78bbd4e102d30870a27"/>
+<section title="jwt_add_header_bool" ref="group__jwt__header__grp.html#ga337c85106951204af60f40288da0a7d8"/>
+<section title="jwt_add_header_int" ref="group__jwt__header__grp.html#ga250b312a2c57fa5664f3921950c88766"/>
+<section title="jwt_add_headers_json" ref="group__jwt__header__grp.html#ga283f3dc2d9686e4db73874ae9f446ac1"/>
+<section title="jwt_del_headers" ref="group__jwt__header__grp.html#gae5ebb283a76098e9a99f7fe13b18593f"/>
+<section title="jwt_get_header" ref="group__jwt__header__grp.html#ga721e3aff05b50f3859d4a725fd700710"/>
+<section title="jwt_get_header_bool" ref="group__jwt__header__grp.html#ga33a937ff813f648aef0ed1a5179aa75a"/>
+<section title="jwt_get_header_int" ref="group__jwt__header__grp.html#gae245c9c95917566c0b135b39edd398fc"/>
+<section title="jwt_get_headers_json" ref="group__jwt__header__grp.html#ga42eca709925d5bfcb9d0c5cfa11039f8"/>
+</section>
+<section title="Encoding and Output" ref="group__jwt__encode__grp.html">
+<section title="jwt_dump_fp" ref="group__jwt__encode__grp.html#gacc77ae9e2214c9b07352a400758f1f4d"/>
+<section title="jwt_dump_grants_str" ref="group__jwt__encode__grp.html#ga219c406420f7f92960735433c69a304e"/>
+<section title="jwt_dump_str" ref="group__jwt__encode__grp.html#ga1bf8a1df0f944c027d40677404778290"/>
+<section title="jwt_encode_fp" ref="group__jwt__encode__grp.html#ga2782abdbb190b626a5bd4eb3943b7b8d"/>
+<section title="jwt_encode_str" ref="group__jwt__encode__grp.html#ga124ccd21e6495dbbd1012f60d74202dd"/>
+<section title="jwt_free_str" ref="group__jwt__encode__grp.html#ga1c6ff5f00e8722f5522fe7b36697ecdd"/>
+</section>
+<section title="Algorithm Management" ref="group__jwt__alg__grp.html">
+<section title="jwt_alg_str" ref="group__jwt__alg__grp.html#gaa906a6a1c27a3f9f6500240f7b228123"/>
+<section title="jwt_get_alg" ref="group__jwt__alg__grp.html#ga3e9cb111d566f55017d86d22dc545225"/>
+<section title="jwt_set_alg" ref="group__jwt__alg__grp.html#ga4b2fe3a4afc420fa7fa9feecebf2c4d7"/>
+<section title="jwt_str_alg" ref="group__jwt__alg__grp.html#gaf15787af42ab0fc567a0a1fc5ef3edc6"/>
+</section>
+<section title="Validation Functions" ref="group__jwt__valid__grp.html">
+<section title="jwt_valid_t" ref="group__jwt__valid__grp.html#gac413377fbfc11671e8a8a66f45693e5d"/>
+<section title="jwt_valid_exception_t" ref="group__jwt__valid__grp.html#ga47ee94f9c08ff581f78590bfe024f6e4">
+<section title="JWT_VALIDATION_SUCCESS" ref="group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4a94bb9121f597e706e89322b0f9a7330b"/>
+<section title="JWT_VALIDATION_ERROR" ref="group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4ad2e58b1f8a8bc39518b1c973fa99ee6e"/>
+<section title="JWT_VALIDATION_ALG_MISMATCH" ref="group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4abf0dc5dd94b521a118485a9522cd8cea"/>
+<section title="JWT_VALIDATION_EXPIRED" ref="group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4a698be61a7f4bcf0dfd9894e1c6296e0b"/>
+<section title="JWT_VALIDATION_TOO_NEW" ref="group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4a685c5270c214bf2484b65376e4b7459b"/>
+<section title="JWT_VALIDATION_ISS_MISMATCH" ref="group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4a0dde2793247cd11fbf017212d8fd605f"/>
+<section title="JWT_VALIDATION_SUB_MISMATCH" ref="group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4ac8b2989c55deb3bdad631c61f1ed304d"/>
+<section title="JWT_VALIDATION_AUD_MISMATCH" ref="group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4acb9d53e3cc20a39c0827d77a071271e6"/>
+<section title="JWT_VALIDATION_GRANT_MISSING" ref="group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4a94eb7551ec626004a55798ecbd563d38"/>
+<section title="JWT_VALIDATION_GRANT_MISMATCH" ref="group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4a5b1db073c57082b557592b7115a8e363"/>
+</section>
+<section title="jwt_exception_str" ref="group__jwt__valid__grp.html#ga9c29423f490268df9ec101a83ed96e5f"/>
+<section title="jwt_valid_add_grant" ref="group__jwt__valid__grp.html#gab5e9e2dc5e0276ea2c21c050822c19e1"/>
+<section title="jwt_valid_add_grant_bool" ref="group__jwt__valid__grp.html#gafa57cedcecda005a47161c462b2f0c9f"/>
+<section title="jwt_valid_add_grant_int" ref="group__jwt__valid__grp.html#ga50c04450cc57bcd18717c25f18aed479"/>
+<section title="jwt_valid_add_grants_json" ref="group__jwt__valid__grp.html#ga9361112f9372d8de2f11c115314c2d71"/>
+<section title="jwt_valid_del_grants" ref="group__jwt__valid__grp.html#ga929d87f2577cbb600de468b159d9f00d"/>
+<section title="jwt_valid_free" ref="group__jwt__valid__grp.html#ga77db16a4a29ef6a607d6aff8012955b2"/>
+<section title="jwt_valid_get_exp_leeway" ref="group__jwt__valid__grp.html#ga0dc43278963ec6474d5d7263c960e69c"/>
+<section title="jwt_valid_get_grant" ref="group__jwt__valid__grp.html#ga03b176d20c41a85a979c9671a9a02b6f"/>
+<section title="jwt_valid_get_grant_bool" ref="group__jwt__valid__grp.html#gabe7ce52fca00463c2b70aa367037db98"/>
+<section title="jwt_valid_get_grant_int" ref="group__jwt__valid__grp.html#ga98a643ad3c8103539dee35c22a3adbb6"/>
+<section title="jwt_valid_get_grants_json" ref="group__jwt__valid__grp.html#gacafaf1f062cd358bda89601570d194ad"/>
+<section title="jwt_valid_get_nbf_leeway" ref="group__jwt__valid__grp.html#gafa9c96838053831dd239824ed5149879"/>
+<section title="jwt_valid_get_status" ref="group__jwt__valid__grp.html#ga165d7857282f3cce9106b26369cf11ca"/>
+<section title="jwt_valid_new" ref="group__jwt__valid__grp.html#gaede6b64d84fd8166ea16debe6efc826d"/>
+<section title="jwt_valid_set_exp_leeway" ref="group__jwt__valid__grp.html#ga1ce0ec28e692a189d3c6819dc571f941"/>
+<section title="jwt_valid_set_headers" ref="group__jwt__valid__grp.html#gab29df6ee78d33bb846b13f95a1269e0d"/>
+<section title="jwt_valid_set_nbf_leeway" ref="group__jwt__valid__grp.html#ga55f1862ab8bb6297ee0163f77fe7c386"/>
+<section title="jwt_valid_set_now" ref="group__jwt__valid__grp.html#gad6a97fc0bb3341ae7f19975095a8086a"/>
+<section title="jwt_validate" ref="group__jwt__valid__grp.html#ga354a14a13a0c96dae2cc22c4fa790413"/>
+</section>
+</section>
+<section title="JSON Web Key and Sets" ref="group__jwks__core__grp.html">
+<section title="jwk_item_t" ref="structjwk__item__t.html">
+<section title="alg" ref="structjwk__item__t.html#aae5092f40a4bfbe9155ddde65f5b933f"/>
+<section title="bits" ref="structjwk__item__t.html#a2a87bc6fcdbdbd234f1beee3ba63ea61"/>
+<section title="curve" ref="structjwk__item__t.html#a3840bd4c87181411e0f3012c020787b3"/>
+<section title="error" ref="structjwk__item__t.html#ae5aef5762e38fc66625cedc461a32ece"/>
+<section title="error_msg" ref="structjwk__item__t.html#a2840975767dbdc020912682c06ebdb75"/>
+<section title="is_private_key" ref="structjwk__item__t.html#a58ab0832602b475e7c3a7009925db87e"/>
+<section title="key_ops" ref="structjwk__item__t.html#a44fe44eb2d9c9466c48f19cd5f590e21"/>
+<section title="kid" ref="structjwk__item__t.html#a874da82b485b8c541ecd0f3f8fd12a0f"/>
+<section title="kty" ref="structjwk__item__t.html#ae2d7fed09d97d0ac3e6571e7c897d580"/>
+<section title="pem" ref="structjwk__item__t.html#afecd2ad6ce52bf49a202999c184a9b2e"/>
+<section title="provider" ref="structjwk__item__t.html#a892ffdca6722b35e24d885f01edd6679"/>
+<section title="provider_data" ref="structjwk__item__t.html#a6cf519323148008f4549798d7df1d8f3"/>
+<section title="use" ref="structjwk__item__t.html#a8790b92f608e12757ba07dff49b931df"/>
+</section>
+<section title="jwk_set_t" ref="group__jwks__core__grp.html#ga380f2d92f1d0d306420729f9789f5e50"/>
+<section title="jwk_key_op_t" ref="group__jwks__core__grp.html#ga150285e933a3d456bcd8d87b906438a3">
+<section title="JWK_KEY_OP_NONE" ref="group__jwks__core__grp.html#gga150285e933a3d456bcd8d87b906438a3a9054426563814eff0f4ea23def0e00f9"/>
+<section title="JWK_KEY_OP_SIGN" ref="group__jwks__core__grp.html#gga150285e933a3d456bcd8d87b906438a3a893a71fda7261466815427686f349eef"/>
+<section title="JWK_KEY_OP_VERIFY" ref="group__jwks__core__grp.html#gga150285e933a3d456bcd8d87b906438a3a76ea53a146dac84cffa46681bbc7fc2e"/>
+<section title="JWK_KEY_OP_ENCRYPT" ref="group__jwks__core__grp.html#gga150285e933a3d456bcd8d87b906438a3a1101574110cba3dd17ff829d728ceb5b"/>
+<section title="JWK_KEY_OP_DECRYPT" ref="group__jwks__core__grp.html#gga150285e933a3d456bcd8d87b906438a3a9a4c0f1119d858a8bda1f7cecfb98d79"/>
+<section title="JWK_KEY_OP_WRAP" ref="group__jwks__core__grp.html#gga150285e933a3d456bcd8d87b906438a3a451f04d391cf27e7938c6b29324272c8"/>
+<section title="JWK_KEY_OP_UNWRAP" ref="group__jwks__core__grp.html#gga150285e933a3d456bcd8d87b906438a3a56462a753babcb3a1593a5436d677667"/>
+<section title="JWK_KEY_OP_DERIVE_KEY" ref="group__jwks__core__grp.html#gga150285e933a3d456bcd8d87b906438a3adb8b6296fb02fd5e961d89310edf7ce6"/>
+<section title="JWK_KEY_OP_DERIVE_BITS" ref="group__jwks__core__grp.html#gga150285e933a3d456bcd8d87b906438a3a073d4ad92c0276dbc1ecdc874231ce39"/>
+<section title="JWK_KEY_OP_INVALID" ref="group__jwks__core__grp.html#gga150285e933a3d456bcd8d87b906438a3aeb336579eb3c3c3e6f563b2a36d1511f"/>
+</section>
+<section title="jwk_key_type_t" ref="group__jwks__core__grp.html#ga6ee53248054c67e9585aae9e937890f2">
+<section title="JWK_KEY_TYPE_NONE" ref="group__jwks__core__grp.html#gga6ee53248054c67e9585aae9e937890f2a91865197de901ef236c5570a7c6897d9"/>
+<section title="JWK_KEY_TYPE_EC" ref="group__jwks__core__grp.html#gga6ee53248054c67e9585aae9e937890f2ad7065b821b8699d3b42fe0c3263dd3b1"/>
+<section title="JWK_KEY_TYPE_RSA" ref="group__jwks__core__grp.html#gga6ee53248054c67e9585aae9e937890f2af1a4bf01f937df96d195572180f036d8"/>
+<section title="JWK_KEY_TYPE_OKP" ref="group__jwks__core__grp.html#gga6ee53248054c67e9585aae9e937890f2ab42a328b8fc31e10c3f5e38e953c684c"/>
+</section>
+<section title="jwk_pub_key_use_t" ref="group__jwks__core__grp.html#gab30049eeae2a6ecdc0c9ae849b835b6b">
+<section title="JWK_PUB_KEY_USE_NONE" ref="group__jwks__core__grp.html#ggab30049eeae2a6ecdc0c9ae849b835b6baf3e36efeb7307384fa7f7dbee089573b"/>
+<section title="JWK_PUB_KEY_USE_SIG" ref="group__jwks__core__grp.html#ggab30049eeae2a6ecdc0c9ae849b835b6ba5c6c707d72a666971135ad6bec551b99"/>
+<section title="JWK_PUB_KEY_USE_ENC" ref="group__jwks__core__grp.html#ggab30049eeae2a6ecdc0c9ae849b835b6baefac5505199173f9c52530be55a54408"/>
+</section>
+<section title="jwks_create" ref="group__jwks__core__grp.html#ga61852f3afd280f50a02171fee05b5b8e"/>
+<section title="jwks_error" ref="group__jwks__core__grp.html#ga2d50f634f1b9d73de31ee251fcf50210"/>
+<section title="jwks_error_any" ref="group__jwks__core__grp.html#gac3b6bdd5540c8aa1390705e09db6b655"/>
+<section title="jwks_error_msg" ref="group__jwks__core__grp.html#ga7500b0576723039ce30b09a2e1387d6a"/>
+<section title="jwks_free" ref="group__jwks__core__grp.html#gadd20e30cdcd0c0d5b794547d41e8252f"/>
+<section title="jwks_item_add" ref="group__jwks__core__grp.html#ga2524a7db039e09d7716cd63e86846f9f"/>
+<section title="jwks_item_free" ref="group__jwks__core__grp.html#ga8a82553f9582e10d096a1b9ac73c21a5"/>
+<section title="jwks_item_free_all" ref="group__jwks__core__grp.html#ga8b5403fd3d2e07199bb8afb2c053aa2e"/>
+<section title="jwks_item_get" ref="group__jwks__core__grp.html#gae00c8e06cbdf28d732452218940341a3"/>
+</section>
+<section title="Advanced Functionality" ref="group__advanced__grp.html">
+<section title="Memory Handlers" ref="group__jwt__memory__grp.html">
+<section title="jwt_free_t" ref="group__jwt__memory__grp.html#gad3b3fc88482616b2883b786d0700c377"/>
+<section title="jwt_malloc_t" ref="group__jwt__memory__grp.html#gae64b1a91c7e44845d2422f5a6bfa7972"/>
+<section title="jwt_realloc_t" ref="group__jwt__memory__grp.html#gaee904814d9c9266c68d2abff08fbc5af"/>
+<section title="jwt_get_alloc" ref="group__jwt__memory__grp.html#ga8d96db3450596f2e38b549bd8f0e4ec5"/>
+<section title="jwt_set_alloc" ref="group__jwt__memory__grp.html#ga1d0fb7527d55f7849d2195ff8fd28344"/>
+</section>
+<section title="Cryptographic Operations" ref="group__jwt__crypto__grp.html">
+<section title="jwt_crypto_provider_t" ref="group__jwt__crypto__grp.html#gaa1e2b1f241858d81b1bfb86018d3b3ac">
+<section title="JWT_CRYPTO_OPS_NONE" ref="group__jwt__crypto__grp.html#ggaa1e2b1f241858d81b1bfb86018d3b3aca482aa19a4996aaddbfd0349356be92c2"/>
+<section title="JWT_CRYPTO_OPS_OPENSSL" ref="group__jwt__crypto__grp.html#ggaa1e2b1f241858d81b1bfb86018d3b3aca5ebef71958d3135b13ada7bb72a63b02"/>
+<section title="JWT_CRYPTO_OPS_GNUTLS" ref="group__jwt__crypto__grp.html#ggaa1e2b1f241858d81b1bfb86018d3b3acaee34d6e9a11bfaa47e01c56a66682750"/>
+<section title="JWT_CRYPTO_OPS_MBEDTLS" ref="group__jwt__crypto__grp.html#ggaa1e2b1f241858d81b1bfb86018d3b3aca4c5fd08d7061b5caba0f8698dc817306"/>
+</section>
+<section title="jwt_crypto_ops_supports_jwk" ref="group__jwt__crypto__grp.html#gad03cf6e8291772a1ff1d37a81f18a177"/>
+<section title="jwt_get_crypto_ops" ref="group__jwt__crypto__grp.html#ga1ccd01c10c0f77ab1d247b1fff1f47b1"/>
+<section title="jwt_get_crypto_ops_t" ref="group__jwt__crypto__grp.html#ga3f15e0ad1c6f8e2afae34c1d5bb03fcd"/>
+<section title="jwt_set_crypto_ops" ref="group__jwt__crypto__grp.html#ga6749e9262b985d2b0b1f99f316356aa3"/>
+<section title="jwt_set_crypto_ops_t" ref="group__jwt__crypto__grp.html#ga1a03f32ccbc62bd04b4ae3a795d0bb08"/>
+</section>
+</section>
+</section>
+<section title="Data Structures" ref="annotated.html">
+<section title="Data Structures" ref="annotated.html">
+<section title="jwk_item_t" ref="structjwk__item__t.html">
+<section title="alg" ref="structjwk__item__t.html#aae5092f40a4bfbe9155ddde65f5b933f"/>
+<section title="bits" ref="structjwk__item__t.html#a2a87bc6fcdbdbd234f1beee3ba63ea61"/>
+<section title="curve" ref="structjwk__item__t.html#a3840bd4c87181411e0f3012c020787b3"/>
+<section title="error" ref="structjwk__item__t.html#ae5aef5762e38fc66625cedc461a32ece"/>
+<section title="error_msg" ref="structjwk__item__t.html#a2840975767dbdc020912682c06ebdb75"/>
+<section title="is_private_key" ref="structjwk__item__t.html#a58ab0832602b475e7c3a7009925db87e"/>
+<section title="key_ops" ref="structjwk__item__t.html#a44fe44eb2d9c9466c48f19cd5f590e21"/>
+<section title="kid" ref="structjwk__item__t.html#a874da82b485b8c541ecd0f3f8fd12a0f"/>
+<section title="kty" ref="structjwk__item__t.html#ae2d7fed09d97d0ac3e6571e7c897d580"/>
+<section title="pem" ref="structjwk__item__t.html#afecd2ad6ce52bf49a202999c184a9b2e"/>
+<section title="provider" ref="structjwk__item__t.html#a892ffdca6722b35e24d885f01edd6679"/>
+<section title="provider_data" ref="structjwk__item__t.html#a6cf519323148008f4549798d7df1d8f3"/>
+<section title="use" ref="structjwk__item__t.html#a8790b92f608e12757ba07dff49b931df"/>
+</section>
+<section title="jwt_config_t" ref="structjwt__config__t.html">
+<section title="alg" ref="structjwt__config__t.html#aa1f5e081bba22bd5e0e90962b55d3305"/>
+<section title="ctx" ref="structjwt__config__t.html#a5b20a944b428896447108820ca861117"/>
+<section title="jwt_key" ref="structjwt__config__t.html#ad7ce7a24c7b944d94897cc5eac0ad8eb"/>
+<section title="jwt_key_len" ref="structjwt__config__t.html#adae9aa4116f2131edf0ac1089812bdca"/>
+<section title="key" ref="structjwt__config__t.html#ae0c3a81bd6e44a10a3863808fea31ab0"/>
+<section title="key_len" ref="structjwt__config__t.html#a19588c92ee9c7f30bd6dbff6821207d9"/>
+</section>
+</section>
+<section title="Data Structure Index" ref="classes.html"/>
+<section title="Data Fields" ref="functions.html">
+<section title="All" ref="functions.html"/>
+<section title="Variables" ref="functions_vars.html"/>
+</section>
+</section>
+</section>
+</toc>
+<keywords>
+<keyword name="jwk_item_t" id="jwk_item_t_" ref="structjwk__item__t.html"/>
+<keyword name="jwt_config_t" id="jwt_config_t_" ref="structjwt__config__t.html"/>
+<keyword name="JSON Web Token" id="JSON Web Token_" ref="group__jwt__grp.html"/>
+<keyword name="Object Creation" id="Object Creation_" ref="group__jwt__core__grp.html"/>
+<keyword name="Configuration Type" id="Configuration Type_" ref="group__jwt__config__grp.html"/>
+<keyword name="Token Verification" id="Token Verification_" ref="group__jwt__verify__grp.html"/>
+<keyword name="Grant Management" id="Grant Management_" ref="group__jwt__grant__grp.html"/>
+<keyword name="Header Hanagement" id="Header Hanagement_" ref="group__jwt__header__grp.html"/>
+<keyword name="Encoding and Output" id="Encoding and Output_" ref="group__jwt__encode__grp.html"/>
+<keyword name="Algorithm Management" id="Algorithm Management_" ref="group__jwt__alg__grp.html"/>
+<keyword name="JSON Web Key and Sets" id="JSON Web Key and Sets_" ref="group__jwks__core__grp.html"/>
+<keyword name="Validation Functions" id="Validation Functions_" ref="group__jwt__valid__grp.html"/>
+<keyword name="Advanced Functionality" id="Advanced Functionality_" ref="group__advanced__grp.html"/>
+<keyword name="Memory Handlers" id="Memory Handlers_" ref="group__jwt__memory__grp.html"/>
+<keyword name="Cryptographic Operations" id="Cryptographic Operations_" ref="group__jwt__crypto__grp.html"/>
+<keyword name="Todo List" id="Todo List_" ref="todo.html"/>
+<keyword name="Deprecated List" id="Deprecated List_" ref="deprecated.html"/>
+<keyword name="Welcome to LibJWT" id="Welcome to LibJWT_" ref="index.html"/>
+<keyword name="alg" id="jwk_item_t::alg_aae5092f40a4bfbe9155ddde65f5b933f" ref="structjwk__item__t.html#aae5092f40a4bfbe9155ddde65f5b933f"/>
+<keyword name="alg" id="jwt_config_t::alg_aa1f5e081bba22bd5e0e90962b55d3305" ref="structjwt__config__t.html#aa1f5e081bba22bd5e0e90962b55d3305"/>
+<keyword name="bits" id="jwk_item_t::bits_a2a87bc6fcdbdbd234f1beee3ba63ea61" ref="structjwk__item__t.html#a2a87bc6fcdbdbd234f1beee3ba63ea61"/>
+<keyword name="ctx" id="jwt_config_t::ctx_a5b20a944b428896447108820ca861117" ref="structjwt__config__t.html#a5b20a944b428896447108820ca861117"/>
+<keyword name="curve[256]" id="jwk_item_t::curve_a3840bd4c87181411e0f3012c020787b3" ref="structjwk__item__t.html#a3840bd4c87181411e0f3012c020787b3"/>
+<keyword name="error" id="jwk_item_t::error_ae5aef5762e38fc66625cedc461a32ece" ref="structjwk__item__t.html#ae5aef5762e38fc66625cedc461a32ece"/>
+<keyword name="error_msg[256]" id="jwk_item_t::error_msg_a2840975767dbdc020912682c06ebdb75" ref="structjwk__item__t.html#a2840975767dbdc020912682c06ebdb75"/>
+<keyword name="is_private_key" id="jwk_item_t::is_private_key_a58ab0832602b475e7c3a7009925db87e" ref="structjwk__item__t.html#a58ab0832602b475e7c3a7009925db87e"/>
+<keyword name="jwt_key" id="jwt_config_t::jwt_key_ad7ce7a24c7b944d94897cc5eac0ad8eb" ref="structjwt__config__t.html#ad7ce7a24c7b944d94897cc5eac0ad8eb"/>
+<keyword name="jwt_key_len" id="jwt_config_t::jwt_key_len_adae9aa4116f2131edf0ac1089812bdca" ref="structjwt__config__t.html#adae9aa4116f2131edf0ac1089812bdca"/>
+<keyword name="key" id="jwt_config_t::key_ae0c3a81bd6e44a10a3863808fea31ab0" ref="structjwt__config__t.html#ae0c3a81bd6e44a10a3863808fea31ab0"/>
+<keyword name="key_len" id="jwt_config_t::key_len_a19588c92ee9c7f30bd6dbff6821207d9" ref="structjwt__config__t.html#a19588c92ee9c7f30bd6dbff6821207d9"/>
+<keyword name="key_ops" id="jwk_item_t::key_ops_a44fe44eb2d9c9466c48f19cd5f590e21" ref="structjwk__item__t.html#a44fe44eb2d9c9466c48f19cd5f590e21"/>
+<keyword name="kid" id="jwk_item_t::kid_a874da82b485b8c541ecd0f3f8fd12a0f" ref="structjwk__item__t.html#a874da82b485b8c541ecd0f3f8fd12a0f"/>
+<keyword name="kty" id="jwk_item_t::kty_ae2d7fed09d97d0ac3e6571e7c897d580" ref="structjwk__item__t.html#ae2d7fed09d97d0ac3e6571e7c897d580"/>
+<keyword name="pem" id="jwk_item_t::pem_afecd2ad6ce52bf49a202999c184a9b2e" ref="structjwk__item__t.html#afecd2ad6ce52bf49a202999c184a9b2e"/>
+<keyword name="provider" id="jwk_item_t::provider_a892ffdca6722b35e24d885f01edd6679" ref="structjwk__item__t.html#a892ffdca6722b35e24d885f01edd6679"/>
+<keyword name="provider_data" id="jwk_item_t::provider_data_a6cf519323148008f4549798d7df1d8f3" ref="structjwk__item__t.html#a6cf519323148008f4549798d7df1d8f3"/>
+<keyword name="use" id="jwk_item_t::use_a8790b92f608e12757ba07dff49b931df" ref="structjwk__item__t.html#a8790b92f608e12757ba07dff49b931df"/>
+<keyword name="JWK_KEY_OP_DECRYPT" id="jwks_core_grp::JWK_KEY_OP_DECRYPT_gga150285e933a3d456bcd8d87b906438a3a9a4c0f1119d858a8bda1f7cecfb98d79" ref="group__jwks__core__grp.html#gga150285e933a3d456bcd8d87b906438a3a9a4c0f1119d858a8bda1f7cecfb98d79"/>
+<keyword name="JWK_KEY_OP_DERIVE_BITS" id="jwks_core_grp::JWK_KEY_OP_DERIVE_BITS_gga150285e933a3d456bcd8d87b906438a3a073d4ad92c0276dbc1ecdc874231ce39" ref="group__jwks__core__grp.html#gga150285e933a3d456bcd8d87b906438a3a073d4ad92c0276dbc1ecdc874231ce39"/>
+<keyword name="JWK_KEY_OP_DERIVE_KEY" id="jwks_core_grp::JWK_KEY_OP_DERIVE_KEY_gga150285e933a3d456bcd8d87b906438a3adb8b6296fb02fd5e961d89310edf7ce6" ref="group__jwks__core__grp.html#gga150285e933a3d456bcd8d87b906438a3adb8b6296fb02fd5e961d89310edf7ce6"/>
+<keyword name="JWK_KEY_OP_ENCRYPT" id="jwks_core_grp::JWK_KEY_OP_ENCRYPT_gga150285e933a3d456bcd8d87b906438a3a1101574110cba3dd17ff829d728ceb5b" ref="group__jwks__core__grp.html#gga150285e933a3d456bcd8d87b906438a3a1101574110cba3dd17ff829d728ceb5b"/>
+<keyword name="JWK_KEY_OP_INVALID" id="jwks_core_grp::JWK_KEY_OP_INVALID_gga150285e933a3d456bcd8d87b906438a3aeb336579eb3c3c3e6f563b2a36d1511f" ref="group__jwks__core__grp.html#gga150285e933a3d456bcd8d87b906438a3aeb336579eb3c3c3e6f563b2a36d1511f"/>
+<keyword name="JWK_KEY_OP_NONE" id="jwks_core_grp::JWK_KEY_OP_NONE_gga150285e933a3d456bcd8d87b906438a3a9054426563814eff0f4ea23def0e00f9" ref="group__jwks__core__grp.html#gga150285e933a3d456bcd8d87b906438a3a9054426563814eff0f4ea23def0e00f9"/>
+<keyword name="JWK_KEY_OP_SIGN" id="jwks_core_grp::JWK_KEY_OP_SIGN_gga150285e933a3d456bcd8d87b906438a3a893a71fda7261466815427686f349eef" ref="group__jwks__core__grp.html#gga150285e933a3d456bcd8d87b906438a3a893a71fda7261466815427686f349eef"/>
+<keyword name="jwk_key_op_t" id="jwks_core_grp::jwk_key_op_t_ga150285e933a3d456bcd8d87b906438a3" ref="group__jwks__core__grp.html#ga150285e933a3d456bcd8d87b906438a3"/>
+<keyword name="JWK_KEY_OP_NONE" id="jwks_core_grp::JWK_KEY_OP_NONE_gga150285e933a3d456bcd8d87b906438a3a9054426563814eff0f4ea23def0e00f9" ref="group__jwks__core__grp.html#gga150285e933a3d456bcd8d87b906438a3a9054426563814eff0f4ea23def0e00f9"/>
+<keyword name="JWK_KEY_OP_SIGN" id="jwks_core_grp::JWK_KEY_OP_SIGN_gga150285e933a3d456bcd8d87b906438a3a893a71fda7261466815427686f349eef" ref="group__jwks__core__grp.html#gga150285e933a3d456bcd8d87b906438a3a893a71fda7261466815427686f349eef"/>
+<keyword name="JWK_KEY_OP_VERIFY" id="jwks_core_grp::JWK_KEY_OP_VERIFY_gga150285e933a3d456bcd8d87b906438a3a76ea53a146dac84cffa46681bbc7fc2e" ref="group__jwks__core__grp.html#gga150285e933a3d456bcd8d87b906438a3a76ea53a146dac84cffa46681bbc7fc2e"/>
+<keyword name="JWK_KEY_OP_ENCRYPT" id="jwks_core_grp::JWK_KEY_OP_ENCRYPT_gga150285e933a3d456bcd8d87b906438a3a1101574110cba3dd17ff829d728ceb5b" ref="group__jwks__core__grp.html#gga150285e933a3d456bcd8d87b906438a3a1101574110cba3dd17ff829d728ceb5b"/>
+<keyword name="JWK_KEY_OP_DECRYPT" id="jwks_core_grp::JWK_KEY_OP_DECRYPT_gga150285e933a3d456bcd8d87b906438a3a9a4c0f1119d858a8bda1f7cecfb98d79" ref="group__jwks__core__grp.html#gga150285e933a3d456bcd8d87b906438a3a9a4c0f1119d858a8bda1f7cecfb98d79"/>
+<keyword name="JWK_KEY_OP_WRAP" id="jwks_core_grp::JWK_KEY_OP_WRAP_gga150285e933a3d456bcd8d87b906438a3a451f04d391cf27e7938c6b29324272c8" ref="group__jwks__core__grp.html#gga150285e933a3d456bcd8d87b906438a3a451f04d391cf27e7938c6b29324272c8"/>
+<keyword name="JWK_KEY_OP_UNWRAP" id="jwks_core_grp::JWK_KEY_OP_UNWRAP_gga150285e933a3d456bcd8d87b906438a3a56462a753babcb3a1593a5436d677667" ref="group__jwks__core__grp.html#gga150285e933a3d456bcd8d87b906438a3a56462a753babcb3a1593a5436d677667"/>
+<keyword name="JWK_KEY_OP_DERIVE_KEY" id="jwks_core_grp::JWK_KEY_OP_DERIVE_KEY_gga150285e933a3d456bcd8d87b906438a3adb8b6296fb02fd5e961d89310edf7ce6" ref="group__jwks__core__grp.html#gga150285e933a3d456bcd8d87b906438a3adb8b6296fb02fd5e961d89310edf7ce6"/>
+<keyword name="JWK_KEY_OP_DERIVE_BITS" id="jwks_core_grp::JWK_KEY_OP_DERIVE_BITS_gga150285e933a3d456bcd8d87b906438a3a073d4ad92c0276dbc1ecdc874231ce39" ref="group__jwks__core__grp.html#gga150285e933a3d456bcd8d87b906438a3a073d4ad92c0276dbc1ecdc874231ce39"/>
+<keyword name="JWK_KEY_OP_INVALID" id="jwks_core_grp::JWK_KEY_OP_INVALID_gga150285e933a3d456bcd8d87b906438a3aeb336579eb3c3c3e6f563b2a36d1511f" ref="group__jwks__core__grp.html#gga150285e933a3d456bcd8d87b906438a3aeb336579eb3c3c3e6f563b2a36d1511f"/>
+<keyword name="JWK_KEY_OP_UNWRAP" id="jwks_core_grp::JWK_KEY_OP_UNWRAP_gga150285e933a3d456bcd8d87b906438a3a56462a753babcb3a1593a5436d677667" ref="group__jwks__core__grp.html#gga150285e933a3d456bcd8d87b906438a3a56462a753babcb3a1593a5436d677667"/>
+<keyword name="JWK_KEY_OP_VERIFY" id="jwks_core_grp::JWK_KEY_OP_VERIFY_gga150285e933a3d456bcd8d87b906438a3a76ea53a146dac84cffa46681bbc7fc2e" ref="group__jwks__core__grp.html#gga150285e933a3d456bcd8d87b906438a3a76ea53a146dac84cffa46681bbc7fc2e"/>
+<keyword name="JWK_KEY_OP_WRAP" id="jwks_core_grp::JWK_KEY_OP_WRAP_gga150285e933a3d456bcd8d87b906438a3a451f04d391cf27e7938c6b29324272c8" ref="group__jwks__core__grp.html#gga150285e933a3d456bcd8d87b906438a3a451f04d391cf27e7938c6b29324272c8"/>
+<keyword name="JWK_KEY_TYPE_EC" id="jwks_core_grp::JWK_KEY_TYPE_EC_gga6ee53248054c67e9585aae9e937890f2ad7065b821b8699d3b42fe0c3263dd3b1" ref="group__jwks__core__grp.html#gga6ee53248054c67e9585aae9e937890f2ad7065b821b8699d3b42fe0c3263dd3b1"/>
+<keyword name="JWK_KEY_TYPE_NONE" id="jwks_core_grp::JWK_KEY_TYPE_NONE_gga6ee53248054c67e9585aae9e937890f2a91865197de901ef236c5570a7c6897d9" ref="group__jwks__core__grp.html#gga6ee53248054c67e9585aae9e937890f2a91865197de901ef236c5570a7c6897d9"/>
+<keyword name="JWK_KEY_TYPE_OKP" id="jwks_core_grp::JWK_KEY_TYPE_OKP_gga6ee53248054c67e9585aae9e937890f2ab42a328b8fc31e10c3f5e38e953c684c" ref="group__jwks__core__grp.html#gga6ee53248054c67e9585aae9e937890f2ab42a328b8fc31e10c3f5e38e953c684c"/>
+<keyword name="JWK_KEY_TYPE_RSA" id="jwks_core_grp::JWK_KEY_TYPE_RSA_gga6ee53248054c67e9585aae9e937890f2af1a4bf01f937df96d195572180f036d8" ref="group__jwks__core__grp.html#gga6ee53248054c67e9585aae9e937890f2af1a4bf01f937df96d195572180f036d8"/>
+<keyword name="jwk_key_type_t" id="jwks_core_grp::jwk_key_type_t_ga6ee53248054c67e9585aae9e937890f2" ref="group__jwks__core__grp.html#ga6ee53248054c67e9585aae9e937890f2"/>
+<keyword name="JWK_KEY_TYPE_NONE" id="jwks_core_grp::JWK_KEY_TYPE_NONE_gga6ee53248054c67e9585aae9e937890f2a91865197de901ef236c5570a7c6897d9" ref="group__jwks__core__grp.html#gga6ee53248054c67e9585aae9e937890f2a91865197de901ef236c5570a7c6897d9"/>
+<keyword name="JWK_KEY_TYPE_EC" id="jwks_core_grp::JWK_KEY_TYPE_EC_gga6ee53248054c67e9585aae9e937890f2ad7065b821b8699d3b42fe0c3263dd3b1" ref="group__jwks__core__grp.html#gga6ee53248054c67e9585aae9e937890f2ad7065b821b8699d3b42fe0c3263dd3b1"/>
+<keyword name="JWK_KEY_TYPE_RSA" id="jwks_core_grp::JWK_KEY_TYPE_RSA_gga6ee53248054c67e9585aae9e937890f2af1a4bf01f937df96d195572180f036d8" ref="group__jwks__core__grp.html#gga6ee53248054c67e9585aae9e937890f2af1a4bf01f937df96d195572180f036d8"/>
+<keyword name="JWK_KEY_TYPE_OKP" id="jwks_core_grp::JWK_KEY_TYPE_OKP_gga6ee53248054c67e9585aae9e937890f2ab42a328b8fc31e10c3f5e38e953c684c" ref="group__jwks__core__grp.html#gga6ee53248054c67e9585aae9e937890f2ab42a328b8fc31e10c3f5e38e953c684c"/>
+<keyword name="JWK_PUB_KEY_USE_ENC" id="jwks_core_grp::JWK_PUB_KEY_USE_ENC_ggab30049eeae2a6ecdc0c9ae849b835b6baefac5505199173f9c52530be55a54408" ref="group__jwks__core__grp.html#ggab30049eeae2a6ecdc0c9ae849b835b6baefac5505199173f9c52530be55a54408"/>
+<keyword name="JWK_PUB_KEY_USE_NONE" id="jwks_core_grp::JWK_PUB_KEY_USE_NONE_ggab30049eeae2a6ecdc0c9ae849b835b6baf3e36efeb7307384fa7f7dbee089573b" ref="group__jwks__core__grp.html#ggab30049eeae2a6ecdc0c9ae849b835b6baf3e36efeb7307384fa7f7dbee089573b"/>
+<keyword name="JWK_PUB_KEY_USE_SIG" id="jwks_core_grp::JWK_PUB_KEY_USE_SIG_ggab30049eeae2a6ecdc0c9ae849b835b6ba5c6c707d72a666971135ad6bec551b99" ref="group__jwks__core__grp.html#ggab30049eeae2a6ecdc0c9ae849b835b6ba5c6c707d72a666971135ad6bec551b99"/>
+<keyword name="jwk_pub_key_use_t" id="jwks_core_grp::jwk_pub_key_use_t_gab30049eeae2a6ecdc0c9ae849b835b6b" ref="group__jwks__core__grp.html#gab30049eeae2a6ecdc0c9ae849b835b6b"/>
+<keyword name="JWK_PUB_KEY_USE_NONE" id="jwks_core_grp::JWK_PUB_KEY_USE_NONE_ggab30049eeae2a6ecdc0c9ae849b835b6baf3e36efeb7307384fa7f7dbee089573b" ref="group__jwks__core__grp.html#ggab30049eeae2a6ecdc0c9ae849b835b6baf3e36efeb7307384fa7f7dbee089573b"/>
+<keyword name="JWK_PUB_KEY_USE_SIG" id="jwks_core_grp::JWK_PUB_KEY_USE_SIG_ggab30049eeae2a6ecdc0c9ae849b835b6ba5c6c707d72a666971135ad6bec551b99" ref="group__jwks__core__grp.html#ggab30049eeae2a6ecdc0c9ae849b835b6ba5c6c707d72a666971135ad6bec551b99"/>
+<keyword name="JWK_PUB_KEY_USE_ENC" id="jwks_core_grp::JWK_PUB_KEY_USE_ENC_ggab30049eeae2a6ecdc0c9ae849b835b6baefac5505199173f9c52530be55a54408" ref="group__jwks__core__grp.html#ggab30049eeae2a6ecdc0c9ae849b835b6baefac5505199173f9c52530be55a54408"/>
+<keyword name="jwk_set_t" id="jwks_core_grp::jwk_set_t_ga380f2d92f1d0d306420729f9789f5e50" ref="group__jwks__core__grp.html#ga380f2d92f1d0d306420729f9789f5e50"/>
+<keyword name="jwks_create(const char *jwk_json_str)" id="jwks_core_grp::jwks_create_ga61852f3afd280f50a02171fee05b5b8e" ref="group__jwks__core__grp.html#ga61852f3afd280f50a02171fee05b5b8e"/>
+<keyword name="jwks_error(jwk_set_t *jwk_set)" id="jwks_core_grp::jwks_error_ga2d50f634f1b9d73de31ee251fcf50210" ref="group__jwks__core__grp.html#ga2d50f634f1b9d73de31ee251fcf50210"/>
+<keyword name="jwks_error_any(jwk_set_t *jwk_set)" id="jwks_core_grp::jwks_error_any_gac3b6bdd5540c8aa1390705e09db6b655" ref="group__jwks__core__grp.html#gac3b6bdd5540c8aa1390705e09db6b655"/>
+<keyword name="jwks_error_msg(jwk_set_t *jwk_set)" id="jwks_core_grp::jwks_error_msg_ga7500b0576723039ce30b09a2e1387d6a" ref="group__jwks__core__grp.html#ga7500b0576723039ce30b09a2e1387d6a"/>
+<keyword name="jwks_free(jwk_set_t *jwk_set)" id="jwks_core_grp::jwks_free_gadd20e30cdcd0c0d5b794547d41e8252f" ref="group__jwks__core__grp.html#gadd20e30cdcd0c0d5b794547d41e8252f"/>
+<keyword name="jwks_item_add(jwk_set_t *jwk_set, jwk_item_t *item)" id="jwks_core_grp::jwks_item_add_ga2524a7db039e09d7716cd63e86846f9f" ref="group__jwks__core__grp.html#ga2524a7db039e09d7716cd63e86846f9f"/>
+<keyword name="jwks_item_free(jwk_set_t *jwk_set, size_t index)" id="jwks_core_grp::jwks_item_free_ga8a82553f9582e10d096a1b9ac73c21a5" ref="group__jwks__core__grp.html#ga8a82553f9582e10d096a1b9ac73c21a5"/>
+<keyword name="jwks_item_free_all(jwk_set_t *jwk_set)" id="jwks_core_grp::jwks_item_free_all_ga8b5403fd3d2e07199bb8afb2c053aa2e" ref="group__jwks__core__grp.html#ga8b5403fd3d2e07199bb8afb2c053aa2e"/>
+<keyword name="jwks_item_get(jwk_set_t *jwk_set, size_t index)" id="jwks_core_grp::jwks_item_get_gae00c8e06cbdf28d732452218940341a3" ref="group__jwks__core__grp.html#gae00c8e06cbdf28d732452218940341a3"/>
+<keyword name="jwt_add_grant(jwt_t *jwt, const char *grant, const char *val)" id="jwt_grant_grp::jwt_add_grant_ga91d9bfe88d3e7b246ee67d2ed4609955" ref="group__jwt__grant__grp.html#ga91d9bfe88d3e7b246ee67d2ed4609955"/>
+<keyword name="jwt_add_grant_bool(jwt_t *jwt, const char *grant, int val)" id="jwt_grant_grp::jwt_add_grant_bool_gad528aabec09be8d051485a45c49781c3" ref="group__jwt__grant__grp.html#gad528aabec09be8d051485a45c49781c3"/>
+<keyword name="jwt_add_grant_int(jwt_t *jwt, const char *grant, long val)" id="jwt_grant_grp::jwt_add_grant_int_gae4cdc69b259a0f2f98e3c07bf9038765" ref="group__jwt__grant__grp.html#gae4cdc69b259a0f2f98e3c07bf9038765"/>
+<keyword name="jwt_add_grants_json(jwt_t *jwt, const char *json)" id="jwt_grant_grp::jwt_add_grants_json_ga0509c745c45eebb41c278cebb0617a55" ref="group__jwt__grant__grp.html#ga0509c745c45eebb41c278cebb0617a55"/>
+<keyword name="jwt_add_header(jwt_t *jwt, const char *header, const char *val)" id="jwt_header_grp::jwt_add_header_ga1c0093b5b221f78bbd4e102d30870a27" ref="group__jwt__header__grp.html#ga1c0093b5b221f78bbd4e102d30870a27"/>
+<keyword name="jwt_add_header_bool(jwt_t *jwt, const char *header, int val)" id="jwt_header_grp::jwt_add_header_bool_ga337c85106951204af60f40288da0a7d8" ref="group__jwt__header__grp.html#ga337c85106951204af60f40288da0a7d8"/>
+<keyword name="jwt_add_header_int(jwt_t *jwt, const char *header, long val)" id="jwt_header_grp::jwt_add_header_int_ga250b312a2c57fa5664f3921950c88766" ref="group__jwt__header__grp.html#ga250b312a2c57fa5664f3921950c88766"/>
+<keyword name="jwt_add_headers_json(jwt_t *jwt, const char *json)" id="jwt_header_grp::jwt_add_headers_json_ga283f3dc2d9686e4db73874ae9f446ac1" ref="group__jwt__header__grp.html#ga283f3dc2d9686e4db73874ae9f446ac1"/>
+<keyword name="JWT_ALG_EDDSA" id="jwt_core_grp::JWT_ALG_EDDSA_gga889db178d8714ab67bc994f1d8faad33aab33738e67e3b23db72a3bc77043009b" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33aab33738e67e3b23db72a3bc77043009b"/>
+<keyword name="JWT_ALG_ES256" id="jwt_core_grp::JWT_ALG_ES256_gga889db178d8714ab67bc994f1d8faad33a84f9bf1cb93f6ae622a9de57d9c67472" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33a84f9bf1cb93f6ae622a9de57d9c67472"/>
+<keyword name="JWT_ALG_ES256K" id="jwt_core_grp::JWT_ALG_ES256K_gga889db178d8714ab67bc994f1d8faad33a7f760cf9ed49b80ecb78580ed381ff01" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33a7f760cf9ed49b80ecb78580ed381ff01"/>
+<keyword name="JWT_ALG_ES384" id="jwt_core_grp::JWT_ALG_ES384_gga889db178d8714ab67bc994f1d8faad33ae18e69e6b629aa0d3e6d16ec4a95c708" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33ae18e69e6b629aa0d3e6d16ec4a95c708"/>
+<keyword name="JWT_ALG_ES512" id="jwt_core_grp::JWT_ALG_ES512_gga889db178d8714ab67bc994f1d8faad33a87205e19f1dde7c3cee012424482e106" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33a87205e19f1dde7c3cee012424482e106"/>
+<keyword name="JWT_ALG_HS256" id="jwt_core_grp::JWT_ALG_HS256_gga889db178d8714ab67bc994f1d8faad33aaa9217f4c8f5266d5401402f0ec98604" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33aaa9217f4c8f5266d5401402f0ec98604"/>
+<keyword name="JWT_ALG_HS384" id="jwt_core_grp::JWT_ALG_HS384_gga889db178d8714ab67bc994f1d8faad33af0adc69b9caa89fbc2eeaf744d7cf4f2" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33af0adc69b9caa89fbc2eeaf744d7cf4f2"/>
+<keyword name="JWT_ALG_HS512" id="jwt_core_grp::JWT_ALG_HS512_gga889db178d8714ab67bc994f1d8faad33a596b0da85c01e17b43a6574f82159081" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33a596b0da85c01e17b43a6574f82159081"/>
+<keyword name="JWT_ALG_INVAL" id="jwt_core_grp::JWT_ALG_INVAL_gga889db178d8714ab67bc994f1d8faad33a199f5ce0e69c0160cc121cf6dbe9cb58" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33a199f5ce0e69c0160cc121cf6dbe9cb58"/>
+<keyword name="JWT_ALG_NONE" id="jwt_core_grp::JWT_ALG_NONE_gga889db178d8714ab67bc994f1d8faad33a3249a71140a0bb4b3cb196fe15114b89" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33a3249a71140a0bb4b3cb196fe15114b89"/>
+<keyword name="JWT_ALG_PS256" id="jwt_core_grp::JWT_ALG_PS256_gga889db178d8714ab67bc994f1d8faad33ad0216cbdf24f6b486d5082294b3cfc5b" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33ad0216cbdf24f6b486d5082294b3cfc5b"/>
+<keyword name="JWT_ALG_PS384" id="jwt_core_grp::JWT_ALG_PS384_gga889db178d8714ab67bc994f1d8faad33a3ad3c7e704886dd61dee0de5fa02072d" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33a3ad3c7e704886dd61dee0de5fa02072d"/>
+<keyword name="JWT_ALG_PS512" id="jwt_core_grp::JWT_ALG_PS512_gga889db178d8714ab67bc994f1d8faad33a727c838b47ad911681eb029cc8b55744" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33a727c838b47ad911681eb029cc8b55744"/>
+<keyword name="JWT_ALG_RS256" id="jwt_core_grp::JWT_ALG_RS256_gga889db178d8714ab67bc994f1d8faad33aa03ba981baa4b1cda3b9de1347ada853" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33aa03ba981baa4b1cda3b9de1347ada853"/>
+<keyword name="JWT_ALG_RS384" id="jwt_core_grp::JWT_ALG_RS384_gga889db178d8714ab67bc994f1d8faad33a520814a2695a6df472bb408ba6feb206" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33a520814a2695a6df472bb408ba6feb206"/>
+<keyword name="JWT_ALG_RS512" id="jwt_core_grp::JWT_ALG_RS512_gga889db178d8714ab67bc994f1d8faad33ab4d732eef3f6bee21201d638dfd8ca44" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33ab4d732eef3f6bee21201d638dfd8ca44"/>
+<keyword name="jwt_alg_str(jwt_alg_t alg)" id="jwt_alg_grp::jwt_alg_str_gaa906a6a1c27a3f9f6500240f7b228123" ref="group__jwt__alg__grp.html#gaa906a6a1c27a3f9f6500240f7b228123"/>
+<keyword name="jwt_alg_t" id="jwt_core_grp::jwt_alg_t_ga889db178d8714ab67bc994f1d8faad33" ref="group__jwt__core__grp.html#ga889db178d8714ab67bc994f1d8faad33"/>
+<keyword name="JWT_ALG_NONE" id="jwt_core_grp::JWT_ALG_NONE_gga889db178d8714ab67bc994f1d8faad33a3249a71140a0bb4b3cb196fe15114b89" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33a3249a71140a0bb4b3cb196fe15114b89"/>
+<keyword name="JWT_ALG_HS256" id="jwt_core_grp::JWT_ALG_HS256_gga889db178d8714ab67bc994f1d8faad33aaa9217f4c8f5266d5401402f0ec98604" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33aaa9217f4c8f5266d5401402f0ec98604"/>
+<keyword name="JWT_ALG_HS384" id="jwt_core_grp::JWT_ALG_HS384_gga889db178d8714ab67bc994f1d8faad33af0adc69b9caa89fbc2eeaf744d7cf4f2" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33af0adc69b9caa89fbc2eeaf744d7cf4f2"/>
+<keyword name="JWT_ALG_HS512" id="jwt_core_grp::JWT_ALG_HS512_gga889db178d8714ab67bc994f1d8faad33a596b0da85c01e17b43a6574f82159081" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33a596b0da85c01e17b43a6574f82159081"/>
+<keyword name="JWT_ALG_RS256" id="jwt_core_grp::JWT_ALG_RS256_gga889db178d8714ab67bc994f1d8faad33aa03ba981baa4b1cda3b9de1347ada853" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33aa03ba981baa4b1cda3b9de1347ada853"/>
+<keyword name="JWT_ALG_RS384" id="jwt_core_grp::JWT_ALG_RS384_gga889db178d8714ab67bc994f1d8faad33a520814a2695a6df472bb408ba6feb206" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33a520814a2695a6df472bb408ba6feb206"/>
+<keyword name="JWT_ALG_RS512" id="jwt_core_grp::JWT_ALG_RS512_gga889db178d8714ab67bc994f1d8faad33ab4d732eef3f6bee21201d638dfd8ca44" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33ab4d732eef3f6bee21201d638dfd8ca44"/>
+<keyword name="JWT_ALG_ES256" id="jwt_core_grp::JWT_ALG_ES256_gga889db178d8714ab67bc994f1d8faad33a84f9bf1cb93f6ae622a9de57d9c67472" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33a84f9bf1cb93f6ae622a9de57d9c67472"/>
+<keyword name="JWT_ALG_ES384" id="jwt_core_grp::JWT_ALG_ES384_gga889db178d8714ab67bc994f1d8faad33ae18e69e6b629aa0d3e6d16ec4a95c708" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33ae18e69e6b629aa0d3e6d16ec4a95c708"/>
+<keyword name="JWT_ALG_ES512" id="jwt_core_grp::JWT_ALG_ES512_gga889db178d8714ab67bc994f1d8faad33a87205e19f1dde7c3cee012424482e106" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33a87205e19f1dde7c3cee012424482e106"/>
+<keyword name="JWT_ALG_PS256" id="jwt_core_grp::JWT_ALG_PS256_gga889db178d8714ab67bc994f1d8faad33ad0216cbdf24f6b486d5082294b3cfc5b" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33ad0216cbdf24f6b486d5082294b3cfc5b"/>
+<keyword name="JWT_ALG_PS384" id="jwt_core_grp::JWT_ALG_PS384_gga889db178d8714ab67bc994f1d8faad33a3ad3c7e704886dd61dee0de5fa02072d" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33a3ad3c7e704886dd61dee0de5fa02072d"/>
+<keyword name="JWT_ALG_PS512" id="jwt_core_grp::JWT_ALG_PS512_gga889db178d8714ab67bc994f1d8faad33a727c838b47ad911681eb029cc8b55744" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33a727c838b47ad911681eb029cc8b55744"/>
+<keyword name="JWT_ALG_ES256K" id="jwt_core_grp::JWT_ALG_ES256K_gga889db178d8714ab67bc994f1d8faad33a7f760cf9ed49b80ecb78580ed381ff01" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33a7f760cf9ed49b80ecb78580ed381ff01"/>
+<keyword name="JWT_ALG_EDDSA" id="jwt_core_grp::JWT_ALG_EDDSA_gga889db178d8714ab67bc994f1d8faad33aab33738e67e3b23db72a3bc77043009b" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33aab33738e67e3b23db72a3bc77043009b"/>
+<keyword name="JWT_ALG_INVAL" id="jwt_core_grp::JWT_ALG_INVAL_gga889db178d8714ab67bc994f1d8faad33a199f5ce0e69c0160cc121cf6dbe9cb58" ref="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33a199f5ce0e69c0160cc121cf6dbe9cb58"/>
+<keyword name="jwt_callback_t)(const jwt_t *, jwt_config_t *)" id="jwt_config_grp::jwt_callback_t_ga44edddf2ce7034752c2b22283ad1010d" ref="group__jwt__config__grp.html#ga44edddf2ce7034752c2b22283ad1010d"/>
+<keyword name="JWT_CONFIG_DECLARE(__name)" id="jwt_config_grp::JWT_CONFIG_DECLARE_ga0816f65962b32e875a2ed9b6f0166bee" ref="group__jwt__config__grp.html#ga0816f65962b32e875a2ed9b6f0166bee"/>
+<keyword name="jwt_config_init(jwt_config_t *config)" id="jwt_config_grp::jwt_config_init_ga08ab7f9e1917072c0910ee5335d3b04a" ref="group__jwt__config__grp.html#ga08ab7f9e1917072c0910ee5335d3b04a"/>
+<keyword name="JWT_CRYPTO_OPS_GNUTLS" id="jwt_crypto_grp::JWT_CRYPTO_OPS_GNUTLS_ggaa1e2b1f241858d81b1bfb86018d3b3acaee34d6e9a11bfaa47e01c56a66682750" ref="group__jwt__crypto__grp.html#ggaa1e2b1f241858d81b1bfb86018d3b3acaee34d6e9a11bfaa47e01c56a66682750"/>
+<keyword name="JWT_CRYPTO_OPS_MBEDTLS" id="jwt_crypto_grp::JWT_CRYPTO_OPS_MBEDTLS_ggaa1e2b1f241858d81b1bfb86018d3b3aca4c5fd08d7061b5caba0f8698dc817306" ref="group__jwt__crypto__grp.html#ggaa1e2b1f241858d81b1bfb86018d3b3aca4c5fd08d7061b5caba0f8698dc817306"/>
+<keyword name="JWT_CRYPTO_OPS_NONE" id="jwt_crypto_grp::JWT_CRYPTO_OPS_NONE_ggaa1e2b1f241858d81b1bfb86018d3b3aca482aa19a4996aaddbfd0349356be92c2" ref="group__jwt__crypto__grp.html#ggaa1e2b1f241858d81b1bfb86018d3b3aca482aa19a4996aaddbfd0349356be92c2"/>
+<keyword name="JWT_CRYPTO_OPS_OPENSSL" id="jwt_crypto_grp::JWT_CRYPTO_OPS_OPENSSL_ggaa1e2b1f241858d81b1bfb86018d3b3aca5ebef71958d3135b13ada7bb72a63b02" ref="group__jwt__crypto__grp.html#ggaa1e2b1f241858d81b1bfb86018d3b3aca5ebef71958d3135b13ada7bb72a63b02"/>
+<keyword name="jwt_crypto_ops_supports_jwk(void)" id="jwt_crypto_grp::jwt_crypto_ops_supports_jwk_gad03cf6e8291772a1ff1d37a81f18a177" ref="group__jwt__crypto__grp.html#gad03cf6e8291772a1ff1d37a81f18a177"/>
+<keyword name="jwt_crypto_provider_t" id="jwt_crypto_grp::jwt_crypto_provider_t_gaa1e2b1f241858d81b1bfb86018d3b3ac" ref="group__jwt__crypto__grp.html#gaa1e2b1f241858d81b1bfb86018d3b3ac"/>
+<keyword name="JWT_CRYPTO_OPS_NONE" id="jwt_crypto_grp::JWT_CRYPTO_OPS_NONE_ggaa1e2b1f241858d81b1bfb86018d3b3aca482aa19a4996aaddbfd0349356be92c2" ref="group__jwt__crypto__grp.html#ggaa1e2b1f241858d81b1bfb86018d3b3aca482aa19a4996aaddbfd0349356be92c2"/>
+<keyword name="JWT_CRYPTO_OPS_OPENSSL" id="jwt_crypto_grp::JWT_CRYPTO_OPS_OPENSSL_ggaa1e2b1f241858d81b1bfb86018d3b3aca5ebef71958d3135b13ada7bb72a63b02" ref="group__jwt__crypto__grp.html#ggaa1e2b1f241858d81b1bfb86018d3b3aca5ebef71958d3135b13ada7bb72a63b02"/>
+<keyword name="JWT_CRYPTO_OPS_GNUTLS" id="jwt_crypto_grp::JWT_CRYPTO_OPS_GNUTLS_ggaa1e2b1f241858d81b1bfb86018d3b3acaee34d6e9a11bfaa47e01c56a66682750" ref="group__jwt__crypto__grp.html#ggaa1e2b1f241858d81b1bfb86018d3b3acaee34d6e9a11bfaa47e01c56a66682750"/>
+<keyword name="JWT_CRYPTO_OPS_MBEDTLS" id="jwt_crypto_grp::JWT_CRYPTO_OPS_MBEDTLS_ggaa1e2b1f241858d81b1bfb86018d3b3aca4c5fd08d7061b5caba0f8698dc817306" ref="group__jwt__crypto__grp.html#ggaa1e2b1f241858d81b1bfb86018d3b3aca4c5fd08d7061b5caba0f8698dc817306"/>
+<keyword name="jwt_decode(jwt_t **jwt, const char *token, const unsigned char *key, int key_len)" id="jwt_verify_grp::jwt_decode_ga4d498ffdcf1c95d67b81c224e2a447e5" ref="group__jwt__verify__grp.html#ga4d498ffdcf1c95d67b81c224e2a447e5"/>
+<keyword name="jwt_decode_2(jwt_t **jwt, const char *token, jwt_callback_t cb)" id="jwt_verify_grp::jwt_decode_2_gaf6811b9a47f36da1399297fc7710e8ad" ref="group__jwt__verify__grp.html#gaf6811b9a47f36da1399297fc7710e8ad"/>
+<keyword name="jwt_del_grants(jwt_t *jwt, const char *grant)" id="jwt_grant_grp::jwt_del_grants_ga0d8da61021d73817fb71bf8ffb7791b7" ref="group__jwt__grant__grp.html#ga0d8da61021d73817fb71bf8ffb7791b7"/>
+<keyword name="jwt_del_headers(jwt_t *jwt, const char *header)" id="jwt_header_grp::jwt_del_headers_gae5ebb283a76098e9a99f7fe13b18593f" ref="group__jwt__header__grp.html#gae5ebb283a76098e9a99f7fe13b18593f"/>
+<keyword name="jwt_dump_fp(jwt_t *jwt, FILE *fp, int pretty)" id="jwt_encode_grp::jwt_dump_fp_gacc77ae9e2214c9b07352a400758f1f4d" ref="group__jwt__encode__grp.html#gacc77ae9e2214c9b07352a400758f1f4d"/>
+<keyword name="jwt_dump_grants_str(jwt_t *jwt, int pretty)" id="jwt_encode_grp::jwt_dump_grants_str_ga219c406420f7f92960735433c69a304e" ref="group__jwt__encode__grp.html#ga219c406420f7f92960735433c69a304e"/>
+<keyword name="jwt_dump_str(jwt_t *jwt, int pretty)" id="jwt_encode_grp::jwt_dump_str_ga1bf8a1df0f944c027d40677404778290" ref="group__jwt__encode__grp.html#ga1bf8a1df0f944c027d40677404778290"/>
+<keyword name="jwt_dup(jwt_t *jwt)" id="jwt_core_grp::jwt_dup_gac11d4548c695e5781cae2a5148a7e240" ref="group__jwt__core__grp.html#gac11d4548c695e5781cae2a5148a7e240"/>
+<keyword name="jwt_encode_fp(jwt_t *jwt, FILE *fp)" id="jwt_encode_grp::jwt_encode_fp_ga2782abdbb190b626a5bd4eb3943b7b8d" ref="group__jwt__encode__grp.html#ga2782abdbb190b626a5bd4eb3943b7b8d"/>
+<keyword name="jwt_encode_str(jwt_t *jwt)" id="jwt_encode_grp::jwt_encode_str_ga124ccd21e6495dbbd1012f60d74202dd" ref="group__jwt__encode__grp.html#ga124ccd21e6495dbbd1012f60d74202dd"/>
+<keyword name="jwt_exception_str(unsigned int exceptions)" id="jwt_valid_grp::jwt_exception_str_ga9c29423f490268df9ec101a83ed96e5f" ref="group__jwt__valid__grp.html#ga9c29423f490268df9ec101a83ed96e5f"/>
+<keyword name="jwt_free(jwt_t *jwt)" id="jwt_core_grp::jwt_free_gafd51b076050815be44081439d1cb33fc" ref="group__jwt__core__grp.html#gafd51b076050815be44081439d1cb33fc"/>
+<keyword name="jwt_free_str(char *str)" id="jwt_encode_grp::jwt_free_str_ga1c6ff5f00e8722f5522fe7b36697ecdd" ref="group__jwt__encode__grp.html#ga1c6ff5f00e8722f5522fe7b36697ecdd"/>
+<keyword name="jwt_free_t)(void *)" id="jwt_memory_grp::jwt_free_t_gad3b3fc88482616b2883b786d0700c377" ref="group__jwt__memory__grp.html#gad3b3fc88482616b2883b786d0700c377"/>
+<keyword name="jwt_get_alg(const jwt_t *jwt)" id="jwt_alg_grp::jwt_get_alg_ga3e9cb111d566f55017d86d22dc545225" ref="group__jwt__alg__grp.html#ga3e9cb111d566f55017d86d22dc545225"/>
+<keyword name="jwt_get_alloc(jwt_malloc_t *pmalloc, jwt_realloc_t *prealloc, jwt_free_t *pfree)" id="jwt_memory_grp::jwt_get_alloc_ga8d96db3450596f2e38b549bd8f0e4ec5" ref="group__jwt__memory__grp.html#ga8d96db3450596f2e38b549bd8f0e4ec5"/>
+<keyword name="jwt_get_crypto_ops(void)" id="jwt_crypto_grp::jwt_get_crypto_ops_ga1ccd01c10c0f77ab1d247b1fff1f47b1" ref="group__jwt__crypto__grp.html#ga1ccd01c10c0f77ab1d247b1fff1f47b1"/>
+<keyword name="jwt_get_crypto_ops_t(void)" id="jwt_crypto_grp::jwt_get_crypto_ops_t_ga3f15e0ad1c6f8e2afae34c1d5bb03fcd" ref="group__jwt__crypto__grp.html#ga3f15e0ad1c6f8e2afae34c1d5bb03fcd"/>
+<keyword name="jwt_get_grant(jwt_t *jwt, const char *grant)" id="jwt_grant_grp::jwt_get_grant_ga371b128c850eef1c364fa199ab79304b" ref="group__jwt__grant__grp.html#ga371b128c850eef1c364fa199ab79304b"/>
+<keyword name="jwt_get_grant_bool(jwt_t *jwt, const char *grant)" id="jwt_grant_grp::jwt_get_grant_bool_ga439c70c683ebf8b44eb6cdcc7a88ae2f" ref="group__jwt__grant__grp.html#ga439c70c683ebf8b44eb6cdcc7a88ae2f"/>
+<keyword name="jwt_get_grant_int(jwt_t *jwt, const char *grant)" id="jwt_grant_grp::jwt_get_grant_int_gae48541a059b47945181102d6478bd2bb" ref="group__jwt__grant__grp.html#gae48541a059b47945181102d6478bd2bb"/>
+<keyword name="jwt_get_grants_json(jwt_t *jwt, const char *grant)" id="jwt_grant_grp::jwt_get_grants_json_gad17b899468a54b1270a55f9ff5ae1c6f" ref="group__jwt__grant__grp.html#gad17b899468a54b1270a55f9ff5ae1c6f"/>
+<keyword name="jwt_get_header(jwt_t *jwt, const char *header)" id="jwt_header_grp::jwt_get_header_ga721e3aff05b50f3859d4a725fd700710" ref="group__jwt__header__grp.html#ga721e3aff05b50f3859d4a725fd700710"/>
+<keyword name="jwt_get_header_bool(jwt_t *jwt, const char *header)" id="jwt_header_grp::jwt_get_header_bool_ga33a937ff813f648aef0ed1a5179aa75a" ref="group__jwt__header__grp.html#ga33a937ff813f648aef0ed1a5179aa75a"/>
+<keyword name="jwt_get_header_int(jwt_t *jwt, const char *header)" id="jwt_header_grp::jwt_get_header_int_gae245c9c95917566c0b135b39edd398fc" ref="group__jwt__header__grp.html#gae245c9c95917566c0b135b39edd398fc"/>
+<keyword name="jwt_get_headers_json(jwt_t *jwt, const char *header)" id="jwt_header_grp::jwt_get_headers_json_ga42eca709925d5bfcb9d0c5cfa11039f8" ref="group__jwt__header__grp.html#ga42eca709925d5bfcb9d0c5cfa11039f8"/>
+<keyword name="jwt_malloc_t)(size_t)" id="jwt_memory_grp::jwt_malloc_t_gae64b1a91c7e44845d2422f5a6bfa7972" ref="group__jwt__memory__grp.html#gae64b1a91c7e44845d2422f5a6bfa7972"/>
+<keyword name="jwt_new(jwt_t **jwt)" id="jwt_core_grp::jwt_new_ga9ce4e8fb6c2eb66e41b07a7a57d8a68a" ref="group__jwt__core__grp.html#ga9ce4e8fb6c2eb66e41b07a7a57d8a68a"/>
+<keyword name="jwt_realloc_t)(void *, size_t)" id="jwt_memory_grp::jwt_realloc_t_gaee904814d9c9266c68d2abff08fbc5af" ref="group__jwt__memory__grp.html#gaee904814d9c9266c68d2abff08fbc5af"/>
+<keyword name="jwt_set_alg(jwt_t *jwt, jwt_alg_t alg, const unsigned char *key, int len)" id="jwt_alg_grp::jwt_set_alg_ga4b2fe3a4afc420fa7fa9feecebf2c4d7" ref="group__jwt__alg__grp.html#ga4b2fe3a4afc420fa7fa9feecebf2c4d7"/>
+<keyword name="jwt_set_alloc(jwt_malloc_t pmalloc, jwt_realloc_t prealloc, jwt_free_t pfree)" id="jwt_memory_grp::jwt_set_alloc_ga1d0fb7527d55f7849d2195ff8fd28344" ref="group__jwt__memory__grp.html#ga1d0fb7527d55f7849d2195ff8fd28344"/>
+<keyword name="jwt_set_crypto_ops(const char *opname)" id="jwt_crypto_grp::jwt_set_crypto_ops_ga6749e9262b985d2b0b1f99f316356aa3" ref="group__jwt__crypto__grp.html#ga6749e9262b985d2b0b1f99f316356aa3"/>
+<keyword name="jwt_set_crypto_ops_t(jwt_crypto_provider_t opname)" id="jwt_crypto_grp::jwt_set_crypto_ops_t_ga1a03f32ccbc62bd04b4ae3a795d0bb08" ref="group__jwt__crypto__grp.html#ga1a03f32ccbc62bd04b4ae3a795d0bb08"/>
+<keyword name="jwt_str_alg(const char *alg)" id="jwt_alg_grp::jwt_str_alg_gaf15787af42ab0fc567a0a1fc5ef3edc6" ref="group__jwt__alg__grp.html#gaf15787af42ab0fc567a0a1fc5ef3edc6"/>
+<keyword name="jwt_t" id="jwt_core_grp::jwt_t_gabf0acfb990d245214216af589c1d0947" ref="group__jwt__core__grp.html#gabf0acfb990d245214216af589c1d0947"/>
+<keyword name="jwt_valid_add_grant(jwt_valid_t *jwt_valid, const char *grant, const char *val)" id="jwt_valid_grp::jwt_valid_add_grant_gab5e9e2dc5e0276ea2c21c050822c19e1" ref="group__jwt__valid__grp.html#gab5e9e2dc5e0276ea2c21c050822c19e1"/>
+<keyword name="jwt_valid_add_grant_bool(jwt_valid_t *jwt_valid, const char *grant, int val)" id="jwt_valid_grp::jwt_valid_add_grant_bool_gafa57cedcecda005a47161c462b2f0c9f" ref="group__jwt__valid__grp.html#gafa57cedcecda005a47161c462b2f0c9f"/>
+<keyword name="jwt_valid_add_grant_int(jwt_valid_t *jwt_valid, const char *grant, long val)" id="jwt_valid_grp::jwt_valid_add_grant_int_ga50c04450cc57bcd18717c25f18aed479" ref="group__jwt__valid__grp.html#ga50c04450cc57bcd18717c25f18aed479"/>
+<keyword name="jwt_valid_add_grants_json(jwt_valid_t *jwt_valid, const char *json)" id="jwt_valid_grp::jwt_valid_add_grants_json_ga9361112f9372d8de2f11c115314c2d71" ref="group__jwt__valid__grp.html#ga9361112f9372d8de2f11c115314c2d71"/>
+<keyword name="jwt_valid_del_grants(jwt_valid_t *jwt_valid, const char *grant)" id="jwt_valid_grp::jwt_valid_del_grants_ga929d87f2577cbb600de468b159d9f00d" ref="group__jwt__valid__grp.html#ga929d87f2577cbb600de468b159d9f00d"/>
+<keyword name="jwt_valid_exception_t" id="jwt_valid_grp::jwt_valid_exception_t_ga47ee94f9c08ff581f78590bfe024f6e4" ref="group__jwt__valid__grp.html#ga47ee94f9c08ff581f78590bfe024f6e4"/>
+<keyword name="JWT_VALIDATION_SUCCESS" id="jwt_valid_grp::JWT_VALIDATION_SUCCESS_gga47ee94f9c08ff581f78590bfe024f6e4a94bb9121f597e706e89322b0f9a7330b" ref="group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4a94bb9121f597e706e89322b0f9a7330b"/>
+<keyword name="JWT_VALIDATION_ERROR" id="jwt_valid_grp::JWT_VALIDATION_ERROR_gga47ee94f9c08ff581f78590bfe024f6e4ad2e58b1f8a8bc39518b1c973fa99ee6e" ref="group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4ad2e58b1f8a8bc39518b1c973fa99ee6e"/>
+<keyword name="JWT_VALIDATION_ALG_MISMATCH" id="jwt_valid_grp::JWT_VALIDATION_ALG_MISMATCH_gga47ee94f9c08ff581f78590bfe024f6e4abf0dc5dd94b521a118485a9522cd8cea" ref="group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4abf0dc5dd94b521a118485a9522cd8cea"/>
+<keyword name="JWT_VALIDATION_EXPIRED" id="jwt_valid_grp::JWT_VALIDATION_EXPIRED_gga47ee94f9c08ff581f78590bfe024f6e4a698be61a7f4bcf0dfd9894e1c6296e0b" ref="group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4a698be61a7f4bcf0dfd9894e1c6296e0b"/>
+<keyword name="JWT_VALIDATION_TOO_NEW" id="jwt_valid_grp::JWT_VALIDATION_TOO_NEW_gga47ee94f9c08ff581f78590bfe024f6e4a685c5270c214bf2484b65376e4b7459b" ref="group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4a685c5270c214bf2484b65376e4b7459b"/>
+<keyword name="JWT_VALIDATION_ISS_MISMATCH" id="jwt_valid_grp::JWT_VALIDATION_ISS_MISMATCH_gga47ee94f9c08ff581f78590bfe024f6e4a0dde2793247cd11fbf017212d8fd605f" ref="group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4a0dde2793247cd11fbf017212d8fd605f"/>
+<keyword name="JWT_VALIDATION_SUB_MISMATCH" id="jwt_valid_grp::JWT_VALIDATION_SUB_MISMATCH_gga47ee94f9c08ff581f78590bfe024f6e4ac8b2989c55deb3bdad631c61f1ed304d" ref="group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4ac8b2989c55deb3bdad631c61f1ed304d"/>
+<keyword name="JWT_VALIDATION_AUD_MISMATCH" id="jwt_valid_grp::JWT_VALIDATION_AUD_MISMATCH_gga47ee94f9c08ff581f78590bfe024f6e4acb9d53e3cc20a39c0827d77a071271e6" ref="group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4acb9d53e3cc20a39c0827d77a071271e6"/>
+<keyword name="JWT_VALIDATION_GRANT_MISSING" id="jwt_valid_grp::JWT_VALIDATION_GRANT_MISSING_gga47ee94f9c08ff581f78590bfe024f6e4a94eb7551ec626004a55798ecbd563d38" ref="group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4a94eb7551ec626004a55798ecbd563d38"/>
+<keyword name="JWT_VALIDATION_GRANT_MISMATCH" id="jwt_valid_grp::JWT_VALIDATION_GRANT_MISMATCH_gga47ee94f9c08ff581f78590bfe024f6e4a5b1db073c57082b557592b7115a8e363" ref="group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4a5b1db073c57082b557592b7115a8e363"/>
+<keyword name="jwt_valid_free(jwt_valid_t *jwt_valid)" id="jwt_valid_grp::jwt_valid_free_ga77db16a4a29ef6a607d6aff8012955b2" ref="group__jwt__valid__grp.html#ga77db16a4a29ef6a607d6aff8012955b2"/>
+<keyword name="jwt_valid_get_exp_leeway(jwt_valid_t *jwt_valid)" id="jwt_valid_grp::jwt_valid_get_exp_leeway_ga0dc43278963ec6474d5d7263c960e69c" ref="group__jwt__valid__grp.html#ga0dc43278963ec6474d5d7263c960e69c"/>
+<keyword name="jwt_valid_get_grant(jwt_valid_t *jwt_valid, const char *grant)" id="jwt_valid_grp::jwt_valid_get_grant_ga03b176d20c41a85a979c9671a9a02b6f" ref="group__jwt__valid__grp.html#ga03b176d20c41a85a979c9671a9a02b6f"/>
+<keyword name="jwt_valid_get_grant_bool(jwt_valid_t *jwt_valid, const char *grant)" id="jwt_valid_grp::jwt_valid_get_grant_bool_gabe7ce52fca00463c2b70aa367037db98" ref="group__jwt__valid__grp.html#gabe7ce52fca00463c2b70aa367037db98"/>
+<keyword name="jwt_valid_get_grant_int(jwt_valid_t *jwt_valid, const char *grant)" id="jwt_valid_grp::jwt_valid_get_grant_int_ga98a643ad3c8103539dee35c22a3adbb6" ref="group__jwt__valid__grp.html#ga98a643ad3c8103539dee35c22a3adbb6"/>
+<keyword name="jwt_valid_get_grants_json(jwt_valid_t *jwt_valid, const char *grant)" id="jwt_valid_grp::jwt_valid_get_grants_json_gacafaf1f062cd358bda89601570d194ad" ref="group__jwt__valid__grp.html#gacafaf1f062cd358bda89601570d194ad"/>
+<keyword name="jwt_valid_get_nbf_leeway(jwt_valid_t *jwt_valid)" id="jwt_valid_grp::jwt_valid_get_nbf_leeway_gafa9c96838053831dd239824ed5149879" ref="group__jwt__valid__grp.html#gafa9c96838053831dd239824ed5149879"/>
+<keyword name="jwt_valid_get_status(jwt_valid_t *jwt_valid)" id="jwt_valid_grp::jwt_valid_get_status_ga165d7857282f3cce9106b26369cf11ca" ref="group__jwt__valid__grp.html#ga165d7857282f3cce9106b26369cf11ca"/>
+<keyword name="jwt_valid_new(jwt_valid_t **jwt_valid, jwt_alg_t alg)" id="jwt_valid_grp::jwt_valid_new_gaede6b64d84fd8166ea16debe6efc826d" ref="group__jwt__valid__grp.html#gaede6b64d84fd8166ea16debe6efc826d"/>
+<keyword name="jwt_valid_set_exp_leeway(jwt_valid_t *jwt_valid, const time_t exp_leeway)" id="jwt_valid_grp::jwt_valid_set_exp_leeway_ga1ce0ec28e692a189d3c6819dc571f941" ref="group__jwt__valid__grp.html#ga1ce0ec28e692a189d3c6819dc571f941"/>
+<keyword name="jwt_valid_set_headers(jwt_valid_t *jwt_valid, int hdr)" id="jwt_valid_grp::jwt_valid_set_headers_gab29df6ee78d33bb846b13f95a1269e0d" ref="group__jwt__valid__grp.html#gab29df6ee78d33bb846b13f95a1269e0d"/>
+<keyword name="jwt_valid_set_nbf_leeway(jwt_valid_t *jwt_valid, const time_t nbf_leeway)" id="jwt_valid_grp::jwt_valid_set_nbf_leeway_ga55f1862ab8bb6297ee0163f77fe7c386" ref="group__jwt__valid__grp.html#ga55f1862ab8bb6297ee0163f77fe7c386"/>
+<keyword name="jwt_valid_set_now(jwt_valid_t *jwt_valid, const time_t now)" id="jwt_valid_grp::jwt_valid_set_now_gad6a97fc0bb3341ae7f19975095a8086a" ref="group__jwt__valid__grp.html#gad6a97fc0bb3341ae7f19975095a8086a"/>
+<keyword name="jwt_valid_t" id="jwt_valid_grp::jwt_valid_t_gac413377fbfc11671e8a8a66f45693e5d" ref="group__jwt__valid__grp.html#gac413377fbfc11671e8a8a66f45693e5d"/>
+<keyword name="jwt_validate(jwt_t *jwt, jwt_valid_t *jwt_valid)" id="jwt_valid_grp::jwt_validate_ga354a14a13a0c96dae2cc22c4fa790413" ref="group__jwt__valid__grp.html#ga354a14a13a0c96dae2cc22c4fa790413"/>
+<keyword name="JWT_VALIDATION_ALG_MISMATCH" id="jwt_valid_grp::JWT_VALIDATION_ALG_MISMATCH_gga47ee94f9c08ff581f78590bfe024f6e4abf0dc5dd94b521a118485a9522cd8cea" ref="group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4abf0dc5dd94b521a118485a9522cd8cea"/>
+<keyword name="JWT_VALIDATION_AUD_MISMATCH" id="jwt_valid_grp::JWT_VALIDATION_AUD_MISMATCH_gga47ee94f9c08ff581f78590bfe024f6e4acb9d53e3cc20a39c0827d77a071271e6" ref="group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4acb9d53e3cc20a39c0827d77a071271e6"/>
+<keyword name="JWT_VALIDATION_ERROR" id="jwt_valid_grp::JWT_VALIDATION_ERROR_gga47ee94f9c08ff581f78590bfe024f6e4ad2e58b1f8a8bc39518b1c973fa99ee6e" ref="group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4ad2e58b1f8a8bc39518b1c973fa99ee6e"/>
+<keyword name="JWT_VALIDATION_EXPIRED" id="jwt_valid_grp::JWT_VALIDATION_EXPIRED_gga47ee94f9c08ff581f78590bfe024f6e4a698be61a7f4bcf0dfd9894e1c6296e0b" ref="group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4a698be61a7f4bcf0dfd9894e1c6296e0b"/>
+<keyword name="JWT_VALIDATION_GRANT_MISMATCH" id="jwt_valid_grp::JWT_VALIDATION_GRANT_MISMATCH_gga47ee94f9c08ff581f78590bfe024f6e4a5b1db073c57082b557592b7115a8e363" ref="group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4a5b1db073c57082b557592b7115a8e363"/>
+<keyword name="JWT_VALIDATION_GRANT_MISSING" id="jwt_valid_grp::JWT_VALIDATION_GRANT_MISSING_gga47ee94f9c08ff581f78590bfe024f6e4a94eb7551ec626004a55798ecbd563d38" ref="group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4a94eb7551ec626004a55798ecbd563d38"/>
+<keyword name="JWT_VALIDATION_ISS_MISMATCH" id="jwt_valid_grp::JWT_VALIDATION_ISS_MISMATCH_gga47ee94f9c08ff581f78590bfe024f6e4a0dde2793247cd11fbf017212d8fd605f" ref="group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4a0dde2793247cd11fbf017212d8fd605f"/>
+<keyword name="JWT_VALIDATION_SUB_MISMATCH" id="jwt_valid_grp::JWT_VALIDATION_SUB_MISMATCH_gga47ee94f9c08ff581f78590bfe024f6e4ac8b2989c55deb3bdad631c61f1ed304d" ref="group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4ac8b2989c55deb3bdad631c61f1ed304d"/>
+<keyword name="JWT_VALIDATION_SUCCESS" id="jwt_valid_grp::JWT_VALIDATION_SUCCESS_gga47ee94f9c08ff581f78590bfe024f6e4a94bb9121f597e706e89322b0f9a7330b" ref="group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4a94bb9121f597e706e89322b0f9a7330b"/>
+<keyword name="JWT_VALIDATION_TOO_NEW" id="jwt_valid_grp::JWT_VALIDATION_TOO_NEW_gga47ee94f9c08ff581f78590bfe024f6e4a685c5270c214bf2484b65376e4b7459b" ref="group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4a685c5270c214bf2484b65376e4b7459b"/>
+<keyword name="jwt_verify(jwt_t **jwt, const char *token, jwt_config_t *config)" id="jwt_verify_grp::jwt_verify_gab0535d292e64c3688085cf0139aa8c8d" ref="group__jwt__verify__grp.html#gab0535d292e64c3688085cf0139aa8c8d"/>
+<keyword name="jwt_verify_wcb(jwt_t **jwt, const char *token, jwt_config_t *config, jwt_callback_t cb)" id="jwt_verify_grp::jwt_verify_wcb_gaddab273e09a8327e03f458be1cfb83b4" ref="group__jwt__verify__grp.html#gaddab273e09a8327e03f458be1cfb83b4"/>
+</keywords>
+<files>
+<file>LibJWT.svg</file>
+<file>annotated.html</file>
+<file>bc_s.png</file>
+<file>bc_sd.png</file>
+<file>classes.html</file>
+<file>closed.png</file>
+<file>deprecated.html</file>
+<file>dir_d44c64559bbebec7f509842c48db8b23.html</file>
+<file>doxygen-awesome-fragment-copy-button.js</file>
+<file>doxygen-awesome-interactive-toc.js</file>
+<file>doxygen-awesome-paragraph-link.js</file>
+<file>doxygen-awesome.css</file>
+<file>doxygen.css</file>
+<file>doxygen.svg</file>
+<file>doxygen_crawl.html</file>
+<file>dynsections.js</file>
+<file>favicon.ico</file>
+<file>functions.html</file>
+<file>functions_vars.html</file>
+<file>graph_legend.html</file>
+<file>graph_legend.svg</file>
+<file>group__advanced__grp.html</file>
+<file>group__advanced__grp.svg</file>
+<file>group__jwks__core__grp.html</file>
+<file>group__jwt__alg__grp.html</file>
+<file>group__jwt__alg__grp.svg</file>
+<file>group__jwt__config__grp.html</file>
+<file>group__jwt__config__grp.svg</file>
+<file>group__jwt__core__grp.html</file>
+<file>group__jwt__core__grp.svg</file>
+<file>group__jwt__crypto__grp.html</file>
+<file>group__jwt__crypto__grp.svg</file>
+<file>group__jwt__encode__grp.html</file>
+<file>group__jwt__encode__grp.svg</file>
+<file>group__jwt__grant__grp.html</file>
+<file>group__jwt__grant__grp.svg</file>
+<file>group__jwt__grp.html</file>
+<file>group__jwt__grp.svg</file>
+<file>group__jwt__header__grp.html</file>
+<file>group__jwt__header__grp.svg</file>
+<file>group__jwt__memory__grp.html</file>
+<file>group__jwt__memory__grp.svg</file>
+<file>group__jwt__valid__grp.html</file>
+<file>group__jwt__valid__grp.svg</file>
+<file>group__jwt__verify__grp.html</file>
+<file>group__jwt__verify__grp.svg</file>
+<file>index.html</file>
+<file>jquery.js</file>
+<file>libjwt.css</file>
+<file>minus.svg</file>
+<file>minusd.svg</file>
+<file>nav_f.png</file>
+<file>nav_fd.png</file>
+<file>nav_g.png</file>
+<file>nav_h.png</file>
+<file>nav_hd.png</file>
+<file>navtree.css</file>
+<file>open.png</file>
+<file>pages.html</file>
+<file>plus.svg</file>
+<file>plusd.svg</file>
+<file>resize.js</file>
+<file>splitbar.png</file>
+<file>splitbard.png</file>
+<file>structjwk__item__t.html</file>
+<file>structjwt__config__t.html</file>
+<file>svg.min.js</file>
+<file>sync_off.png</file>
+<file>sync_on.png</file>
+<file>tab_a.png</file>
+<file>tab_ad.png</file>
+<file>tab_b.png</file>
+<file>tab_bd.png</file>
+<file>tab_h.png</file>
+<file>tab_hd.png</file>
+<file>tab_s.png</file>
+<file>tab_sd.png</file>
+<file>tabs.css</file>
+<file>todo.html</file>
+<file>topics.html</file>
+</files>
+</filterSection>
+</QtHelpProject>

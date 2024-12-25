@@ -44,7 +44,7 @@
  <tr id="projectrow">
   <td id="projectlogo"><img alt="Logo" src="LibJWT.svg" height="100"/></td>
   <td id="projectalign">
-   <div id="projectname">LibJWT<span id="projectnumber">&#160;Dev</span>
+   <div id="projectname">LibJWT<span id="projectnumber">&#160;2.1.1</span>
    </div>
    <div id="projectbrief">The C JSON Web Token Library +JWK +JWKS</div>
   </td>
@@ -59,16 +59,6 @@
 $(function() { codefold.init(0); });
 /* @license-end */
 </script>
-<script type="text/javascript" src="menudata.js"></script>
-<script type="text/javascript" src="menu.js"></script>
-<script type="text/javascript">
-/* @license magnet:?xt=urn:btih:d3d9a9a6595521f9666a5e94cc830dab83b65699&amp;dn=expat.txt MIT */
-$(function() {
-  initMenu('',false,false,'search.php','Search',true);
-});
-/* @license-end */
-</script>
-<div id="main-nav"></div>
 </div><!-- top -->
 <div id="side-nav" class="ui-resizable side-nav-resizable">
   <div id="nav-tree">
@@ -98,11 +88,7 @@ $(function(){initNavTree('group__jwt__config__grp.html',''); initResizable(true)
 <div class="dynheader">
 Collaboration diagram for Configuration Type:</div>
 <div class="dyncontent">
-<div class="center"><img src="group__jwt__config__grp.png" border="0" usemap="#agroup____jwt____config____grp" alt=""/></div>
-<map name="agroup____jwt____config____grp" id="agroup____jwt____config____grp">
-<area shape="rect" title=" " alt="" coords="180,5,310,31"/>
-<area shape="rect" href="group__jwt__grp.html" title=" " alt="" coords="5,5,132,31"/>
-</map>
+<div class="center"><iframe scrolling="no" frameborder="0" src="group__jwt__config__grp.svg" width="316" height="36"><p><b>This browser is not able to show SVG: try Firefox, Chrome, Safari, or Opera instead.</b></p></iframe></div>
 </div>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="nested-classes" name="nested-classes"></a>
@@ -148,7 +134,10 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
+<b>Value:</b><div class="fragment"><div class="line">    <a class="code hl_struct" href="structjwt__config__t.html">jwt_config_t</a> __name = { { NULL }, { 0 }, <a class="code hl_enumvalue" href="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33a3249a71140a0bb4b3cb196fe15114b89">JWT_ALG_NONE</a>, NULL}</div>
+<div class="ttc" id="agroup__jwt__core__grp_html_gga889db178d8714ab67bc994f1d8faad33a3249a71140a0bb4b3cb196fe15114b89"><div class="ttname"><a href="group__jwt__core__grp.html#gga889db178d8714ab67bc994f1d8faad33a3249a71140a0bb4b3cb196fe15114b89">JWT_ALG_NONE</a></div><div class="ttdeci">@ JWT_ALG_NONE</div><div class="ttdef"><b>Definition</b> jwt.h:75</div></div>
+<div class="ttc" id="astructjwt__config__t_html"><div class="ttname"><a href="structjwt__config__t.html">jwt_config_t</a></div><div class="ttdoc">Structure used to manage configuration state.</div><div class="ttdef"><b>Definition</b> jwt.h:330</div></div>
+</div><!-- fragment -->
 <p>Decleration of a <a class="el" href="structjwt__config__t.html">jwt_config_t</a>. </p>
 <p>This is useful for scoped usage to avoid declaring it and running the <a class="el" href="#ga08ab7f9e1917072c0910ee5335d3b04a">jwt_config_init</a> function.</p>
 <div class="fragment"><div class="line"><span class="keywordtype">void</span> some_function(<span class="keyword">const</span> <span class="keywordtype">char</span> *token)</div>
@@ -165,11 +154,9 @@ Functions</h2></td></tr>
 <div class="line"> </div>
 <div class="line">    <span class="comment">// Success</span></div>
 <div class="line">}</div>
-<div class="ttc" id="agroup__jwt__config__grp_html_ga0816f65962b32e875a2ed9b6f0166bee"><div class="ttname"><a href="#ga0816f65962b32e875a2ed9b6f0166bee">JWT_CONFIG_DECLARE</a></div><div class="ttdeci">#define JWT_CONFIG_DECLARE(__name)</div><div class="ttdoc">Decleration of a jwt_config_t.</div><div class="ttdef"><b>Definition</b> <a href="jwt_8h_source.html#l00378">jwt.h:378</a></div></div>
+<div class="ttc" id="agroup__jwt__config__grp_html_ga0816f65962b32e875a2ed9b6f0166bee"><div class="ttname"><a href="#ga0816f65962b32e875a2ed9b6f0166bee">JWT_CONFIG_DECLARE</a></div><div class="ttdeci">#define JWT_CONFIG_DECLARE(__name)</div><div class="ttdoc">Decleration of a jwt_config_t.</div><div class="ttdef"><b>Definition</b> jwt.h:378</div></div>
 <div class="ttc" id="agroup__jwt__verify__grp_html_gab0535d292e64c3688085cf0139aa8c8d"><div class="ttname"><a href="group__jwt__verify__grp.html#gab0535d292e64c3688085cf0139aa8c8d">jwt_verify</a></div><div class="ttdeci">int jwt_verify(jwt_t **jwt, const char *token, jwt_config_t *config)</div><div class="ttdoc">Decode and verify a JWT.</div></div>
 </div><!-- fragment --> 
-<p class="definition">Definition at line <a class="el" href="jwt_8h_source.html#l00378">378</a> of file <a class="el" href="jwt_8h_source.html">jwt.h</a>.</p>
-
 </div>
 </div>
 <h2 class="groupheader">Typedef Documentation</h2>
@@ -187,8 +174,6 @@ Functions</h2></td></tr>
 
 <p>Callback for operations involving verification of tokens. </p>
 <p>Further details can be found in <a class="el" href="group__jwt__verify__grp.html">Token Verification</a>, specifically for <a class="el" href="group__jwt__verify__grp.html#gaddab273e09a8327e03f458be1cfb83b4">jwt_verify_wcb</a> </p>
-
-<p class="definition">Definition at line <a class="el" href="jwt_8h_source.html#l00387">387</a> of file <a class="el" href="jwt_8h_source.html">jwt.h</a>.</p>
 
 </div>
 </div>

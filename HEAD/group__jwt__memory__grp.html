@@ -44,7 +44,7 @@
  <tr id="projectrow">
   <td id="projectlogo"><img alt="Logo" src="LibJWT.svg" height="100"/></td>
   <td id="projectalign">
-   <div id="projectname">LibJWT<span id="projectnumber">&#160;Dev</span>
+   <div id="projectname">LibJWT<span id="projectnumber">&#160;2.1.1</span>
    </div>
    <div id="projectbrief">The C JSON Web Token Library +JWK +JWKS</div>
   </td>
@@ -59,16 +59,6 @@
 $(function() { codefold.init(0); });
 /* @license-end */
 </script>
-<script type="text/javascript" src="menudata.js"></script>
-<script type="text/javascript" src="menu.js"></script>
-<script type="text/javascript">
-/* @license magnet:?xt=urn:btih:d3d9a9a6595521f9666a5e94cc830dab83b65699&amp;dn=expat.txt MIT */
-$(function() {
-  initMenu('',false,false,'search.php','Search',true);
-});
-/* @license-end */
-</script>
-<div id="main-nav"></div>
 </div><!-- top -->
 <div id="side-nav" class="ui-resizable side-nav-resizable">
   <div id="nav-tree">
@@ -93,17 +83,10 @@ $(function(){initNavTree('group__jwt__memory__grp.html',''); initResizable(true)
   <div class="headertitle"><div class="title">Memory Handlers<div class="ingroups"><a class="el" href="group__advanced__grp.html">Advanced Functionality</a></div></div></div>
 </div><!--header-->
 <div class="contents">
-
-<p>These functions allow you to get or set memory allocation functions.  
-<a href="#details">More...</a></p>
 <div class="dynheader">
 Collaboration diagram for Memory Handlers:</div>
 <div class="dyncontent">
-<div class="center"><img src="group__jwt__memory__grp.png" border="0" usemap="#agroup____jwt____memory____grp" alt=""/></div>
-<map name="agroup____jwt____memory____grp" id="agroup____jwt____memory____grp">
-<area shape="rect" href="group__advanced__grp.html" title=" " alt="" coords="5,5,163,31"/>
-<area shape="rect" title="These functions allow you to get or set memory allocation functions." alt="" coords="211,5,335,31"/>
-</map>
+<div class="center"><iframe scrolling="no" frameborder="0" src="group__jwt__memory__grp.svg" width="340" height="36"><p><b>This browser is not able to show SVG: try Firefox, Chrome, Safari, or Opera instead.</b></p></iframe></div>
 </div>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="typedef-members" name="typedef-members"></a>
@@ -121,10 +104,8 @@ Typedefs</h2></td></tr>
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="func-members" name="func-members"></a>
 Functions</h2></td></tr>
 <tr class="memitem:ga1d0fb7527d55f7849d2195ff8fd28344" id="r_ga1d0fb7527d55f7849d2195ff8fd28344"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga1d0fb7527d55f7849d2195ff8fd28344">jwt_set_alloc</a> (<a class="el" href="#gae64b1a91c7e44845d2422f5a6bfa7972">jwt_malloc_t</a> pmalloc, <a class="el" href="#gaee904814d9c9266c68d2abff08fbc5af">jwt_realloc_t</a> prealloc, <a class="el" href="#gad3b3fc88482616b2883b786d0700c377">jwt_free_t</a> pfree)</td></tr>
-<tr class="memdesc:ga1d0fb7527d55f7849d2195ff8fd28344"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set functions to be used for allocating and freeing memory.  <br /></td></tr>
 <tr class="separator:ga1d0fb7527d55f7849d2195ff8fd28344"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ga8d96db3450596f2e38b549bd8f0e4ec5" id="r_ga8d96db3450596f2e38b549bd8f0e4ec5"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga8d96db3450596f2e38b549bd8f0e4ec5">jwt_get_alloc</a> (<a class="el" href="#gae64b1a91c7e44845d2422f5a6bfa7972">jwt_malloc_t</a> *pmalloc, <a class="el" href="#gaee904814d9c9266c68d2abff08fbc5af">jwt_realloc_t</a> *prealloc, <a class="el" href="#gad3b3fc88482616b2883b786d0700c377">jwt_free_t</a> *pfree)</td></tr>
-<tr class="memdesc:ga8d96db3450596f2e38b549bd8f0e4ec5"><td class="mdescLeft">&#160;</td><td class="mdescRight">Get functions used for allocating and freeing memory.  <br /></td></tr>
 <tr class="separator:ga8d96db3450596f2e38b549bd8f0e4ec5"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
@@ -144,8 +125,6 @@ Functions</h2></td></tr>
 
 <p>Prototype for free(3) </p>
 
-<p class="definition">Definition at line <a class="el" href="jwt_8h_source.html#l00230">230</a> of file <a class="el" href="jwt_8h_source.html">jwt.h</a>.</p>
-
 </div>
 </div>
 <a id="gae64b1a91c7e44845d2422f5a6bfa7972" name="gae64b1a91c7e44845d2422f5a6bfa7972"></a>
@@ -162,8 +141,6 @@ Functions</h2></td></tr>
 
 <p>Prototype for malloc(3) </p>
 
-<p class="definition">Definition at line <a class="el" href="jwt_8h_source.html#l00220">220</a> of file <a class="el" href="jwt_8h_source.html">jwt.h</a>.</p>
-
 </div>
 </div>
 <a id="gaee904814d9c9266c68d2abff08fbc5af" name="gaee904814d9c9266c68d2abff08fbc5af"></a>
@@ -179,8 +156,6 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 
 <p>Prototype for realloc(3) </p>
-
-<p class="definition">Definition at line <a class="el" href="jwt_8h_source.html#l00225">225</a> of file <a class="el" href="jwt_8h_source.html">jwt.h</a>.</p>
 
 </div>
 </div>
@@ -208,8 +183,7 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p>Get functions used for allocating and freeing memory. </p>
+<p>Get functions used for allocating and freeing memory.</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">pmalloc</td><td>Pointer to malloc function output variable, or NULL </td></tr>
@@ -244,8 +218,7 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p>Set functions to be used for allocating and freeing memory. </p>
+<p>Set functions to be used for allocating and freeing memory.</p>
 <p>By default, LibJWT uses malloc, realloc, and free for memory management. This function allows the user of the library to specify its own memory management functions. This is especially useful on Windows where mismatches in runtimes across DLLs can cause problems.</p>
 <p>The caller can specify either a valid function pointer for any of the parameters or NULL to use the corresponding default allocator function.</p>
 <p>Note that this function will also set the memory allocator for the Jansson library.</p>

@@ -44,7 +44,7 @@
  <tr id="projectrow">
   <td id="projectlogo"><img alt="Logo" src="LibJWT.svg" height="100"/></td>
   <td id="projectalign">
-   <div id="projectname">LibJWT<span id="projectnumber">&#160;Dev</span>
+   <div id="projectname">LibJWT<span id="projectnumber">&#160;2.1.1</span>
    </div>
    <div id="projectbrief">The C JSON Web Token Library +JWK +JWKS</div>
   </td>
@@ -59,16 +59,6 @@
 $(function() { codefold.init(0); });
 /* @license-end */
 </script>
-<script type="text/javascript" src="menudata.js"></script>
-<script type="text/javascript" src="menu.js"></script>
-<script type="text/javascript">
-/* @license magnet:?xt=urn:btih:d3d9a9a6595521f9666a5e94cc830dab83b65699&amp;dn=expat.txt MIT */
-$(function() {
-  initMenu('',false,false,'search.php','Search',true);
-});
-/* @license-end */
-</script>
-<div id="main-nav"></div>
 </div><!-- top -->
 <div id="side-nav" class="ui-resizable side-nav-resizable">
   <div id="nav-tree">
@@ -92,38 +82,25 @@ $(function(){initNavTree('group__jwt__encode__grp.html',''); initResizable(true)
   <div class="headertitle"><div class="title">Encoding and Output<div class="ingroups"><a class="el" href="group__jwt__grp.html">JSON Web Token</a></div></div></div>
 </div><!--header-->
 <div class="contents">
-
-<p>Functions for encoding a valid JWT optionally (but preferably) using JWA operation such as sigining or encryption.  
-<a href="#details">More...</a></p>
 <div class="dynheader">
 Collaboration diagram for Encoding and Output:</div>
 <div class="dyncontent">
-<div class="center"><img src="group__jwt__encode__grp.png" border="0" usemap="#agroup____jwt____encode____grp" alt=""/></div>
-<map name="agroup____jwt____encode____grp" id="agroup____jwt____encode____grp">
-<area shape="rect" title="Functions for encoding a valid JWT optionally (but preferably) using JWA operation such as sigining o..." alt="" coords="180,5,323,31"/>
-<area shape="rect" href="group__jwt__grp.html" title=" " alt="" coords="5,5,132,31"/>
-</map>
+<div class="center"><iframe scrolling="no" frameborder="0" src="group__jwt__encode__grp.svg" width="328" height="36"><p><b>This browser is not able to show SVG: try Firefox, Chrome, Safari, or Opera instead.</b></p></iframe></div>
 </div>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="func-members" name="func-members"></a>
 Functions</h2></td></tr>
 <tr class="memitem:gacc77ae9e2214c9b07352a400758f1f4d" id="r_gacc77ae9e2214c9b07352a400758f1f4d"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#gacc77ae9e2214c9b07352a400758f1f4d">jwt_dump_fp</a> (<a class="el" href="group__jwt__core__grp.html#gabf0acfb990d245214216af589c1d0947">jwt_t</a> *jwt, FILE *fp, int pretty)</td></tr>
-<tr class="memdesc:gacc77ae9e2214c9b07352a400758f1f4d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Output plain text representation to a FILE pointer.  <br /></td></tr>
 <tr class="separator:gacc77ae9e2214c9b07352a400758f1f4d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ga1bf8a1df0f944c027d40677404778290" id="r_ga1bf8a1df0f944c027d40677404778290"><td class="memItemLeft" align="right" valign="top">char *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga1bf8a1df0f944c027d40677404778290">jwt_dump_str</a> (<a class="el" href="group__jwt__core__grp.html#gabf0acfb990d245214216af589c1d0947">jwt_t</a> *jwt, int pretty)</td></tr>
-<tr class="memdesc:ga1bf8a1df0f944c027d40677404778290"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return plain text representation as a string.  <br /></td></tr>
 <tr class="separator:ga1bf8a1df0f944c027d40677404778290"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ga219c406420f7f92960735433c69a304e" id="r_ga219c406420f7f92960735433c69a304e"><td class="memItemLeft" align="right" valign="top">char *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga219c406420f7f92960735433c69a304e">jwt_dump_grants_str</a> (<a class="el" href="group__jwt__core__grp.html#gabf0acfb990d245214216af589c1d0947">jwt_t</a> *jwt, int pretty)</td></tr>
-<tr class="memdesc:ga219c406420f7f92960735433c69a304e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return plain text representation of grants as a string.  <br /></td></tr>
 <tr class="separator:ga219c406420f7f92960735433c69a304e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ga2782abdbb190b626a5bd4eb3943b7b8d" id="r_ga2782abdbb190b626a5bd4eb3943b7b8d"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga2782abdbb190b626a5bd4eb3943b7b8d">jwt_encode_fp</a> (<a class="el" href="group__jwt__core__grp.html#gabf0acfb990d245214216af589c1d0947">jwt_t</a> *jwt, FILE *fp)</td></tr>
-<tr class="memdesc:ga2782abdbb190b626a5bd4eb3943b7b8d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Fully encode a JWT object and write it to FILE.  <br /></td></tr>
 <tr class="separator:ga2782abdbb190b626a5bd4eb3943b7b8d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ga124ccd21e6495dbbd1012f60d74202dd" id="r_ga124ccd21e6495dbbd1012f60d74202dd"><td class="memItemLeft" align="right" valign="top">char *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga124ccd21e6495dbbd1012f60d74202dd">jwt_encode_str</a> (<a class="el" href="group__jwt__core__grp.html#gabf0acfb990d245214216af589c1d0947">jwt_t</a> *jwt)</td></tr>
-<tr class="memdesc:ga124ccd21e6495dbbd1012f60d74202dd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Fully encode a JWT object and return as a string.  <br /></td></tr>
 <tr class="separator:ga124ccd21e6495dbbd1012f60d74202dd"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ga1c6ff5f00e8722f5522fe7b36697ecdd" id="r_ga1c6ff5f00e8722f5522fe7b36697ecdd"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga1c6ff5f00e8722f5522fe7b36697ecdd">jwt_free_str</a> (char *str)</td></tr>
-<tr class="memdesc:ga1c6ff5f00e8722f5522fe7b36697ecdd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Free a string returned from the library.  <br /></td></tr>
 <tr class="separator:ga1c6ff5f00e8722f5522fe7b36697ecdd"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
@@ -152,8 +129,7 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p>Output plain text representation to a FILE pointer. </p>
+<p>Output plain text representation to a FILE pointer.</p>
 <p>This function will write a plain text representation of this JWT object without Base64 encoding. This only writes the header and body, and does not compute the signature or encryption (if such an algorithm were being used).</p>
 <dl class="section remark"><dt>Remarks</dt><dd>This may change the content of JWT header if algorithm is set on the JWT object. If algorithm is set (jwt_set_alg was called on the jwt object) then dumping JWT attempts to append 'typ' header. If the 'typ' header already exists, then it is left untouched, otherwise it is added with default value of "JWT".</dd></dl>
 <dl class="params"><dt>Parameters</dt><dd>
@@ -186,9 +162,8 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p>Return plain text representation of grants as a string. </p>
-<p>Similar to <a class="el" href="#ga1bf8a1df0f944c027d40677404778290" title="Return plain text representation as a string.">jwt_dump_str()</a> except that only a string containing the grants string is returned. The string must be freed by the caller.</p>
+<p>Return plain text representation of grants as a string.</p>
+<p>Similar to <a class="el" href="#ga1bf8a1df0f944c027d40677404778290">jwt_dump_str()</a> except that only a string containing the grants string is returned. The string must be freed by the caller.</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">jwt</td><td>Pointer to a JWT object. </td></tr>
@@ -218,9 +193,8 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p>Return plain text representation as a string. </p>
-<p>Similar to <a class="el" href="#gacc77ae9e2214c9b07352a400758f1f4d" title="Output plain text representation to a FILE pointer.">jwt_dump_fp()</a> except that a string is returned. The string must be freed by the caller.</p>
+<p>Return plain text representation as a string.</p>
+<p>Similar to <a class="el" href="#gacc77ae9e2214c9b07352a400758f1f4d">jwt_dump_fp()</a> except that a string is returned. The string must be freed by the caller.</p>
 <dl class="section remark"><dt>Remarks</dt><dd>This may change the content of JWT header if algorithm is set on the JWT object. If algorithm is set (jwt_set_alg was called on the jwt object) then dumping JWT attempts to append 'typ' header. If the 'typ' header already exists, then it is left untouched, otherwise it is added with default value of "JWT".</dd></dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
@@ -251,8 +225,7 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p>Fully encode a JWT object and write it to FILE. </p>
+<p>Fully encode a JWT object and write it to FILE.</p>
 <p>This will create and write the complete JWT object to FILE. All parts will be Base64 encoded and signatures or encryption will be applied if the algorithm specified requires it.</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
@@ -279,9 +252,8 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p>Fully encode a JWT object and return as a string. </p>
-<p>Similar to <a class="el" href="#ga2782abdbb190b626a5bd4eb3943b7b8d" title="Fully encode a JWT object and write it to FILE.">jwt_encode_fp()</a> except that a string is returned. The string must be freed by the caller. If you changed the allocation method using jwt_set_alloc, then you must use <a class="el" href="#ga1c6ff5f00e8722f5522fe7b36697ecdd" title="Free a string returned from the library.">jwt_free_str()</a> to free the memory.</p>
+<p>Fully encode a JWT object and return as a string.</p>
+<p>Similar to <a class="el" href="#ga2782abdbb190b626a5bd4eb3943b7b8d">jwt_encode_fp()</a> except that a string is returned. The string must be freed by the caller. If you changed the allocation method using jwt_set_alloc, then you must use <a class="el" href="#ga1c6ff5f00e8722f5522fe7b36697ecdd">jwt_free_str()</a> to free the memory.</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">jwt</td><td>Pointer to a JWT object. </td></tr>
@@ -306,11 +278,10 @@ Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-
-<p>Free a string returned from the library. </p>
+<p>Free a string returned from the library.</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">str</td><td>Pointer to a string previously created with <a class="el" href="#ga124ccd21e6495dbbd1012f60d74202dd" title="Fully encode a JWT object and return as a string.">jwt_encode_str()</a>. </td></tr>
+    <tr><td class="paramname">str</td><td>Pointer to a string previously created with <a class="el" href="#ga124ccd21e6495dbbd1012f60d74202dd">jwt_encode_str()</a>. </td></tr>
   </table>
   </dd>
 </dl>
