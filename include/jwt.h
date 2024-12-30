@@ -1443,7 +1443,7 @@ int jwt_valid_set_headers(jwt_valid_t *jwt_valid, int hdr);
  *     set appropriately.
  */
 JWT_EXPORT
-char *jwt_exception_str(unsigned int exceptions);
+char *jwt_exception_str(jwt_valid_exception_t exceptions);
 
 /**
  * @}
