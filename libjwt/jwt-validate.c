@@ -118,7 +118,7 @@ int jwt_valid_add_grant_bool(jwt_valid_t *jwt_valid, const char *grant, int val)
 
 int jwt_valid_add_grants_json(jwt_valid_t *jwt_valid, const char *json)
 {
-	json_auto_t *js_val;
+	json_auto_t *js_val = NULL;
 	int ret = -1;
 
 	if (!jwt_valid)

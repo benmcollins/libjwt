@@ -119,7 +119,7 @@ int jwt_add_grant_bool(jwt_t *jwt, const char *grant, int val)
 
 int jwt_add_grants_json(jwt_t *jwt, const char *json)
 {
-	json_auto_t *js_val;
+	json_auto_t *js_val = NULL;
 	int ret = -1;
 
 	if (!jwt)
@@ -248,7 +248,7 @@ int jwt_add_header_bool(jwt_t *jwt, const char *header, int val)
 
 int jwt_add_headers_json(jwt_t *jwt, const char *json)
 {
-	json_auto_t *js_val;
+	json_auto_t *js_val = NULL;
 	int ret = -1;
 
 	if (!jwt)
