@@ -53,6 +53,14 @@ static jwt_test_op_t jwt_test_ops[] = {
 	ck_assert_ptr_ne(__jwt, NULL);	\
 } while(0)
 
+#define CREATE_JWT(__j, __a, __k, __l) do {	\
+	JWT_CONFIG_DECLARE(__c);		\
+	__c.alg = __a;				\
+	__c.key = __k; __c.key_len = __l;	\
+	*__j = jwt_create(&__c);		\
+	ck_assert_ptr_ne(*__j, NULL);		\
+} while(0)
+
 #define JWT_TEST_MAIN(__title) ({					\
 	int number_failed = 0;						\
 	SRunner *sr;							\
@@ -161,7 +169,9 @@ static void __test_alg_key(const jwt_alg_t alg, const char *file, const char *pu
 	int ret = 0;
 	char *out;
 
-	ALLOC_JWT(&jwt);
+	read_key(file);
+	CREATE_JWT(&jwt, alg, t_config.key, t_config.key_len);
+	free_key();
 
 	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
 	ck_assert_int_eq(ret, 0);
@@ -173,11 +183,6 @@ static void __test_alg_key(const jwt_alg_t alg, const char *file, const char *pu
 	ck_assert_int_eq(ret, 0);
 
 	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
-	ck_assert_int_eq(ret, 0);
-
-	read_key(file);
-	ret = jwt_set_alg(jwt, alg, t_config.key, t_config.key_len);
-	free_key();
 	ck_assert_int_eq(ret, 0);
 
 	out = jwt_encode_str(jwt);
@@ -227,7 +232,9 @@ static void __compare_alg_key(const char *key_file, const char *jwt_str,
 	int ret = 0;
 	char *out;
 
-	ALLOC_JWT(&jwt);
+	read_key(key_file);
+	CREATE_JWT(&jwt, alg, t_config.key, t_config.key_len);
+	free_key();
 
 	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
 	ck_assert_int_eq(ret, 0);
@@ -239,11 +246,6 @@ static void __compare_alg_key(const char *key_file, const char *jwt_str,
 	ck_assert_int_eq(ret, 0);
 
 	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
-	ck_assert_int_eq(ret, 0);
-
-	read_key(key_file);
-	ret = jwt_set_alg(jwt, alg, t_config.key, t_config.key_len);
-	free_key();
 	ck_assert_int_eq(ret, 0);
 
 	out = jwt_encode_str(jwt);

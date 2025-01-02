@@ -161,6 +161,8 @@ static int pctx_to_pem(EVP_PKEY_CTX *pctx, OSSL_PARAM *params,
 		goto cleanup_pem;
 	}
 
+	/* We need to set provider before we attach anything that may need
+	 * cleaning up later. */
 	item->provider_data = pkey;
 	item->provider = JWT_CRYPTO_OPS_OPENSSL;
 

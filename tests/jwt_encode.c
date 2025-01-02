@@ -86,14 +86,15 @@ END_TEST
 START_TEST(test_jwt_encode_alg_none)
 {
 	const char res[] = "eyJhbGciOiJub25lIn0.eyJhdWQiOiJ3d3cucGx1Z2dlcnM"
-		"ubmwiLCJleHAiOjE0Nzc1MTQ4MTIsInN1YiI6IlBsdWdnZXJzIFNvZnR3YXJlIn0.";
+		"ubmwiLCJleHAiOjE0Nzc1MTQ4MTIsInN1YiI6IlBsdWdnZXJzIFNvZnR3Y"
+		"XJlIn0.";
 	jwt_t *jwt = NULL;
 	int ret = 0;
 	char *out;
 
 	SET_OPS();
 
-	ALLOC_JWT(&jwt);
+	CREATE_JWT(&jwt, JWT_ALG_NONE, NULL, 0);
 
 	ret = jwt_add_grant(jwt, "aud", "www.pluggers.nl");
 	ck_assert_int_eq(ret, 0);
@@ -102,9 +103,6 @@ START_TEST(test_jwt_encode_alg_none)
 	ck_assert_int_eq(ret, 0);
 
 	ret = jwt_add_grant(jwt, "sub", "Pluggers Software");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_set_alg(jwt, JWT_ALG_NONE, NULL, 0);
 	ck_assert_int_eq(ret, 0);
 
 	out = jwt_encode_str(jwt);
@@ -131,7 +129,7 @@ START_TEST(test_jwt_encode_hs256)
 
 	SET_OPS();
 
-	ALLOC_JWT(&jwt);
+	CREATE_JWT(&jwt, JWT_ALG_HS256, key256, sizeof(key256));
 
 	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
 	ck_assert_int_eq(ret, 0);
@@ -143,9 +141,6 @@ START_TEST(test_jwt_encode_hs256)
 	ck_assert_int_eq(ret, 0);
 
 	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_set_alg(jwt, JWT_ALG_HS256, key256, sizeof(key256));
 	ck_assert_int_eq(ret, 0);
 
 	out = jwt_encode_str(jwt);
@@ -174,7 +169,7 @@ START_TEST(test_jwt_encode_hs384)
 
 	SET_OPS();
 
-	ALLOC_JWT(&jwt);
+	CREATE_JWT(&jwt, JWT_ALG_HS384, key384, sizeof(key384));
 
 	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
 	ck_assert_int_eq(ret, 0);
@@ -186,9 +181,6 @@ START_TEST(test_jwt_encode_hs384)
 	ck_assert_int_eq(ret, 0);
 
 	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_set_alg(jwt, JWT_ALG_HS384, key384, sizeof(key384));
 	ck_assert_int_eq(ret, 0);
 
 	out = jwt_encode_str(jwt);
@@ -217,7 +209,7 @@ START_TEST(test_jwt_encode_hs512)
 
 	SET_OPS();
 
-	ALLOC_JWT(&jwt);
+	CREATE_JWT(&jwt, JWT_ALG_HS512, key512, sizeof(key512));
 
 	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
 	ck_assert_int_eq(ret, 0);
@@ -229,9 +221,6 @@ START_TEST(test_jwt_encode_hs512)
 	ck_assert_int_eq(ret, 0);
 
 	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_set_alg(jwt, JWT_ALG_HS512, key512, sizeof(key512));
 	ck_assert_int_eq(ret, 0);
 
 	out = jwt_encode_str(jwt);

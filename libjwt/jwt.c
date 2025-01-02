@@ -131,8 +131,88 @@ void jwt_scrub_key(jwt_t *jwt)
 		jwt_freemem(jwt->key);
 	}
 
+	/* We do not claim to handle memory for this */
+	jwt->jw_key = NULL;
+
 	jwt->key_len = 0;
 	jwt->alg = JWT_ALG_NONE;
+}
+
+jwt_t *jwt_create(jwt_config_t *config)
+{
+	jwt_t *new = NULL;
+	jwt_alg_t alg = config->alg;
+	int ret;
+
+	/* We require a config, otherwise call jwt_new() */
+	if (config == NULL) {
+		errno = EINVAL;
+		return NULL;
+	}
+
+	/* Make sure alg is sane */
+	if (alg < JWT_ALG_NONE || alg >= JWT_ALG_INVAL) {
+		errno = EINVAL;
+		return NULL;
+	}
+
+	/* If we have a jwt_item_t, make sure either the config or the key
+	 * has an alg, and sync them up. */
+        if (alg == JWT_ALG_NONE && config && config->jw_key) {
+		if (config->jw_key->alg == JWT_ALG_NONE) {
+			/* Invalid request */
+			errno = EINVAL;
+			return NULL;
+		}
+		alg = config->jw_key->alg;
+	}
+
+	if (alg == JWT_ALG_NONE) {
+		/* NONE should not have any keys */
+		if (config->jw_key || config->key || config->key_len) {
+	                errno = EINVAL;
+			return NULL;
+		}
+	} else {
+		if (config->jw_key) {
+			if (config->key || config->key_len) {
+				/* Cannot have both key and jw_key */
+				errno = EINVAL;
+				return NULL;
+			}
+			if (config->jw_key->alg != JWT_ALG_NONE &&
+			    alg != config->jw_key->alg) {
+				/* Mismatch */
+				errno = EINVAL;
+				return NULL;
+			}
+		} else if (!config->key || !config->key_len) {
+			/* Must have both of these */
+			errno = EINVAL;
+			return NULL;
+		}
+	}
+
+	ret = jwt_new(&new);
+	if (ret)
+		return NULL;
+
+	if (config->key) {
+		new->key_len = config->key_len;
+		new->key = jwt_malloc(new->key_len);
+		if (new->key == NULL) {
+			errno = ENOMEM;
+			jwt_freep(&new);
+		} else {
+			memcpy(new->key, config->key, config->key_len);
+		}
+	} else {
+		new->jw_key = config->jw_key;
+	}
+
+	new->alg = alg;
+
+	return new;
 }
 
 int jwt_set_alg(jwt_t *jwt, jwt_alg_t alg, const unsigned char *key, int len)
@@ -239,6 +319,9 @@ jwt_t *jwt_dup(jwt_t *jwt)
 	}
 
 	memset(new, 0, sizeof(jwt_t));
+
+	/* We do not claim to handle memory for this */
+	new->jw_key = jwt->jw_key;
 
 	if (jwt->key_len) {
 		new->alg = jwt->alg;

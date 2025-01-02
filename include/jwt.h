@@ -105,6 +105,7 @@ typedef enum {
 	JWT_CRYPTO_OPS_OPENSSL,		/**< OpenSSL Library */
 	JWT_CRYPTO_OPS_GNUTLS,		/**< GnuTLS Library */
 	JWT_CRYPTO_OPS_MBEDTLS,		/**< MBedTLS embedded library */
+	JWT_CRYPTO_OPS_ANY,		/**< Used internally for hmac keys */
 } jwt_crypto_provider_t;
 
 /** @ingroup jwks_core_grp
@@ -177,19 +178,20 @@ typedef enum {
  * @raisewarning Decide if we need to make this an opaque object
  */
 typedef struct {
-	jwk_key_type_t kty;	/**< The key type of this key					*/
-	char *pem;		/**< If not NULL, contains PEM string of this key		*/
-	jwt_crypto_provider_t provider; /**< Crypto provider that owns this key			*/
-	void *provider_data;	/**< Internal data used by the provider				*/
-	int is_private_key;	/**< Whether this is a public or private key			*/
-	char curve[256];	/**< Curve name of an ``"EC"`` or ``"OKP"`` key			*/
-	size_t bits;		/**< The number of bits in the key (may be 0)			*/
-	int error;		/**< Shows there is an error present in this key (unusable)	*/
-	char error_msg[256];	/**< Descriptive message for @ref jwk_item_t.error		*/
-	jwk_pub_key_use_t use;	/**< Value of the JWK ``"use"`` attribute			*/
-	jwk_key_op_t key_ops;	/**< Bitwise flags of ``"key_ops"`` supported for this key	*/
-	jwt_alg_t alg;		/**< Valid ``"alg"`` that this key can be used for		*/
-	char *kid;		/**< @rfc{7517,4.5}						*/
+	char *pem;		/**< If not NULL, contains PEM string of this key	*/
+	jwt_crypto_provider_t provider; /**< Crypto provider that owns this key         */
+	void *provider_data;	/**< Internal data used by the provider                 */
+	int is_private_key;	/**< Whether this is a public or private key            */
+	char curve[256];        /**< Curve name of an ``"EC"`` or ``"OKP"`` key         */
+	size_t bits;            /**< The number of bits in the key (may be 0)           */
+	int error;              /**< There was an error parsgint this key (unusable)    */
+	char error_msg[256];    /**< Descriptive message for @ref jwk_item_t.error      */
+	jwk_key_type_t kty;     /**< @rfc{7517,4.1} The key type of this key            */
+	jwk_pub_key_use_t use;  /**< @rfc{7517,4.2} How this key can be used            */
+	jwk_key_op_t key_ops;   /**< @rfc{7517,4.3} Key operations supported            */
+	jwt_alg_t alg;          /**< @rfc{7517,4.4} JWA Algorithm supported             */
+	char *kid;              /**< @rfc{7517,4.5} Key ID                              */
+	const char *json;       /**< The entire JSON string for this key                */
 } jwk_item_t;
 
 /** @ingroup jwt_valid_grp
@@ -336,6 +338,7 @@ typedef struct {
 		size_t key_len;		/**< Length of key material	*/
 		JWT_DEPRECATED int jwt_key_len;
 	};
+	jwk_item_t *jw_key;		/**< A JWK to use for key	*/
 	jwt_alg_t alg;			/**< For algorithm matching	*/
 	void *ctx;			/**< User controlled context	*/
 } jwt_config_t;
@@ -376,7 +379,7 @@ void jwt_config_init(jwt_config_t *config);
  * @endcode
  */
 #define JWT_CONFIG_DECLARE(__name) \
-	jwt_config_t __name = { { NULL }, { 0 }, JWT_ALG_NONE, NULL}
+	jwt_config_t __name = { { NULL }, { 0 }, NULL, JWT_ALG_NONE, NULL}
 
 /**
  * @brief Callback for operations involving verification of tokens.
@@ -404,6 +407,24 @@ typedef int (*jwt_callback_t)(const jwt_t *, jwt_config_t *);
  */
 
 /**
+ * @defgroup jwt_create_grp Create a JWT
+ * @{
+ */
+
+/**
+ * @brief Initial function to create a new JWT
+ *
+ * @raisewarning Complete documentation of jwt_create
+ */
+JWT_EXPORT
+jwt_t *jwt_create(jwt_config_t *config);
+
+/**
+ * @}
+ * @noop jwt_create_grp
+ */
+
+/**
  * @defgroup jwt_verify_grp Token Verification
  * @{
  */
@@ -416,7 +437,7 @@ typedef int (*jwt_callback_t)(const jwt_t *, jwt_config_t *);
  * @param jwt Pointer to a JWT object pointer
  * @param token Pointer to a nil terminated JWT string
  * @param config Pointer to a config structure to define how to verify the
- *   token
+ *   token. This can be NULL, in which case the token is simply decoded.
  * @return 0 on success, or an errno. On success, jwt will be allocated
  */
 JWT_EXPORT
@@ -432,10 +453,12 @@ int jwt_verify(jwt_t **jwt, const char *token, jwt_config_t *config);
  *
  * @raisewarning Complete documentation of jwt_verify_wcb
  *
+ * NOTE About NULL config and non-NULL cb and vice-a-versa
+ *
  * @param jwt Pointer to a JWT object pointer
  * @param token Pointer to a nil terminated JWT string
  * @param config Pointer to a config structure to define how to verify the
- *   token
+ *   token. This can be NULL, in which case the token is simply decoded.
  * @param cb Pointer to a callback
  * @return 0 on success, or an errno. On success, jwt will be allocated
  */
@@ -1116,6 +1139,19 @@ jwk_item_t *jwks_item_get(jwk_set_t *jwk_set, size_t index);
  */
 JWT_EXPORT
 void jwks_free(jwk_set_t *jwk_set);
+
+#if defined(__GNUC__) || defined(__clang__)
+/**
+ * @raisewarning Document jwks_freep
+ */
+static inline void jwks_freep(jwk_set_t **jwks) {
+	if (jwks) {
+		jwks_free(*jwks);
+		*jwks = NULL;
+	}
+}
+#define jwks_auto_t jwk_set_t __attribute__((cleanup(jwks_freep)))
+#endif
 
 /**
  * Free all memory associated with the nth jwt_item_t in a jwk_set

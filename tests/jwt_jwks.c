@@ -18,8 +18,10 @@ END_TEST
 
 static void __jwks_check(const char *json, const char *pem)
 {
+	JWT_CONFIG_DECLARE(config);
 	jwk_set_t *jwk_set = NULL;
-	jwk_item_t *item;
+	jwt_t *jwt = NULL;
+	jwk_item_t *item = NULL;
 	int strcmp_ret;
 
 	read_key(json);
@@ -37,10 +39,18 @@ static void __jwks_check(const char *json, const char *pem)
 	free_key();
 	ck_assert_int_eq(strcmp_ret, 0);
 
+	if (item->alg == JWT_ALG_NONE && item->kty == JWK_KEY_TYPE_RSA)
+		config.alg = JWT_ALG_RS256;
+
+	config.jw_key = item;
+	jwt = jwt_create(&config);
+	ck_assert_ptr_nonnull(jwt);
+
 	item = jwks_item_get(jwk_set, 1);
 	ck_assert_ptr_null(item);
 
-        jwks_free(jwk_set);
+	jwt_freep(&jwt);
+        jwks_freep(&jwk_set);
 }
 
 JWKS_KEY_TEST(ec_key_prime256v1);
