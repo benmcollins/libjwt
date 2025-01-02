@@ -14,7 +14,7 @@
 
 #include "jwt-private.h"
 
-const char *jwt_get_grant(jwt_t *jwt, const char *grant)
+const char *jwt_get_grant(const jwt_t *jwt, const char *grant)
 {
 	if (!jwt || !grant || !strlen(grant)) {
 		errno = EINVAL;
@@ -26,7 +26,7 @@ const char *jwt_get_grant(jwt_t *jwt, const char *grant)
 	return get_js_string(jwt->grants, grant);
 }
 
-long jwt_get_grant_int(jwt_t *jwt, const char *grant)
+long jwt_get_grant_int(const jwt_t *jwt, const char *grant)
 {
 	if (!jwt || !grant || !strlen(grant)) {
 		errno = EINVAL;
@@ -38,7 +38,7 @@ long jwt_get_grant_int(jwt_t *jwt, const char *grant)
 	return get_js_int(jwt->grants, grant);
 }
 
-int jwt_get_grant_bool(jwt_t *jwt, const char *grant)
+int jwt_get_grant_bool(const jwt_t *jwt, const char *grant)
 {
 	if (!jwt || !grant || !strlen(grant)) {
 		errno = EINVAL;
@@ -50,7 +50,7 @@ int jwt_get_grant_bool(jwt_t *jwt, const char *grant)
 	return get_js_bool(jwt->grants, grant);
 }
 
-char *jwt_get_grants_json(jwt_t *jwt, const char *grant)
+char *jwt_get_grants_json(const jwt_t *jwt, const char *grant)
 {
 	json_t *js_val = NULL;
 
@@ -146,7 +146,7 @@ int jwt_del_grants(jwt_t *jwt, const char *grant)
 	return 0;
 }
 
-const char *jwt_get_header(jwt_t *jwt, const char *header)
+const char *jwt_get_header(const jwt_t *jwt, const char *header)
 {
 	if (!jwt || !header || !strlen(header)) {
 		errno = EINVAL;
@@ -158,7 +158,7 @@ const char *jwt_get_header(jwt_t *jwt, const char *header)
 	return get_js_string(jwt->headers, header);
 }
 
-long jwt_get_header_int(jwt_t *jwt, const char *header)
+long jwt_get_header_int(const jwt_t *jwt, const char *header)
 {
 	if (!jwt || !header || !strlen(header)) {
 		errno = EINVAL;
@@ -170,7 +170,7 @@ long jwt_get_header_int(jwt_t *jwt, const char *header)
 	return get_js_int(jwt->headers, header);
 }
 
-int jwt_get_header_bool(jwt_t *jwt, const char *header)
+int jwt_get_header_bool(const jwt_t *jwt, const char *header)
 {
 	if (!jwt || !header || !strlen(header)) {
 		errno = EINVAL;
@@ -182,7 +182,7 @@ int jwt_get_header_bool(jwt_t *jwt, const char *header)
 	return get_js_bool(jwt->headers, header);
 }
 
-char *jwt_get_headers_json(jwt_t *jwt, const char *header)
+char *jwt_get_headers_json(const jwt_t *jwt, const char *header)
 {
 	json_t *js_val = NULL;
 

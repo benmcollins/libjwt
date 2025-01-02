@@ -268,7 +268,7 @@ dup_fail:
 	return new;
 }
 
-const char *get_js_string(json_t *js, const char *key)
+const char *get_js_string(const json_t *js, const char *key)
 {
 	const char *val = NULL;
 	json_t *js_val;
@@ -286,7 +286,7 @@ const char *get_js_string(json_t *js, const char *key)
 	return val;
 }
 
-long get_js_int(json_t *js, const char *key)
+long get_js_int(const json_t *js, const char *key)
 {
 	long val = -1;
 	json_t *js_val;
@@ -304,7 +304,7 @@ long get_js_int(json_t *js, const char *key)
 	return val;
 }
 
-int get_js_bool(json_t *js, const char *key)
+int get_js_bool(const json_t *js, const char *key)
 {
 	int val = -1;
 	json_t *js_val;

@@ -501,7 +501,7 @@ int jwt_decode_2(jwt_t **jwt, const char *token,
  *   values.
  */
 JWT_EXPORT
-const char *jwt_get_grant(jwt_t *jwt, const char *grant);
+const char *jwt_get_grant(const jwt_t *jwt, const char *grant);
 
 /**
  * Return the value of an integer grant.
@@ -520,7 +520,7 @@ const char *jwt_get_grant(jwt_t *jwt, const char *grant);
  *   values (e.g. arrays) or use jwt_get_grant() to get string values.
  */
 JWT_EXPORT
-long jwt_get_grant_int(jwt_t *jwt, const char *grant);
+long jwt_get_grant_int(const jwt_t *jwt, const char *grant);
 
 /**
  * Return the value of an boolean grant.
@@ -539,7 +539,7 @@ long jwt_get_grant_int(jwt_t *jwt, const char *grant);
  *   values (e.g. arrays) or use jwt_get_grant() to get string values.
  */
 JWT_EXPORT
-int jwt_get_grant_bool(jwt_t *jwt, const char *grant);
+int jwt_get_grant_bool(const jwt_t *jwt, const char *grant);
 
 /**
  * Return the value of a grant as JSON encoded object string.
@@ -555,7 +555,7 @@ int jwt_get_grant_bool(jwt_t *jwt, const char *grant);
  *     returned string must be freed by the caller.
  */
 JWT_EXPORT
-char *jwt_get_grants_json(jwt_t *jwt, const char *grant);
+char *jwt_get_grants_json(const jwt_t *jwt, const char *grant);
 
 /**
  * Add a new string grant to this JWT object.
@@ -677,7 +677,7 @@ int jwt_del_grants(jwt_t *jwt, const char *grant);
  *   values.
  */
 JWT_EXPORT
-const char *jwt_get_header(jwt_t *jwt, const char *header);
+const char *jwt_get_header(const jwt_t *jwt, const char *header);
 
 /**
  * Return the value of an integer header.
@@ -696,7 +696,7 @@ const char *jwt_get_header(jwt_t *jwt, const char *header);
  *   values (e.g. arrays) or use jwt_get_header() to get string values.
  */
 JWT_EXPORT
-long jwt_get_header_int(jwt_t *jwt, const char *header);
+long jwt_get_header_int(const jwt_t *jwt, const char *header);
 
 /**
  * Return the value of an boolean header.
@@ -715,7 +715,7 @@ long jwt_get_header_int(jwt_t *jwt, const char *header);
  *   values (e.g. arrays) or use jwt_get_header() to get string values.
  */
 JWT_EXPORT
-int jwt_get_header_bool(jwt_t *jwt, const char *header);
+int jwt_get_header_bool(const jwt_t *jwt, const char *header);
 
 /**
  * Return the value of a header as JSON encoded object string.
@@ -731,7 +731,7 @@ int jwt_get_header_bool(jwt_t *jwt, const char *header);
  *     returned string must be freed by the caller.
  */
 JWT_EXPORT
-char *jwt_get_headers_json(jwt_t *jwt, const char *header);
+char *jwt_get_headers_json(const jwt_t *jwt, const char *header);
 
 /**
  * Add a new string header to this JWT object.
