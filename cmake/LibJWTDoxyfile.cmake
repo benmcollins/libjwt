@@ -2,6 +2,7 @@
 
 set(DOXYGEN_PROJECT_LOGO "images/LibJWT.svg height=100")
 set(DOXYGEN_PROJECT_ICON "images/favicon.ico")
+set(DOXYGEN_INPUT_ENCODING "ISO-8859-1")
 set(DOXYGEN_STRIP_FROM_PATH ${CMAKE_SOURCE_DIR})
 set(DOXYGEN_OPTIMIZE_OUTPUT_FOR_C "YES")
 set(DOXYGEN_TYPEDEF_HIDES_STRUCT "YES")
@@ -53,19 +54,18 @@ set(DOXYGEN_SEARCHENGINE "NO")
 set(DOXYGEN_HTML_EXTRA_FILES "doxygen/doxygen-awesome-paragraph-link.js")
 string(APPEND DOXYGEN_HTML_EXTRA_FILES " \\\n\tdoxygen/doxygen-awesome-fragment-copy-button.js")
 string(APPEND DOXYGEN_HTML_EXTRA_FILES " \\\n\tdoxygen/doxygen-awesome-interactive-toc.js")
+string(APPEND DOXYGEN_HTML_EXTRA_FILES " \\\n\tdoxygen/maclara-pill.svg")
 
 # Base templates for ALIASES
 set(rfc_url "https://datatracker.ietf.org/doc/html/rfc")
-set(fa_i "<i class=\\\"fa-regular fa-file-lines\\\"></i>")
+set(fa_i "\\emoji :page_facing_up:")
 set(a_pre "<a target=\\\"_blank\\\" href=\\\"${rfc_url}")
 set(a_pre_b "<a type=\\\"button\\\" class=\\\"button\\\" target=\\\"_blank\\\" href=\\\"${rfc_url}")
 
 # Used for easily linking to RFC and RFC sections
-set(DOXYGEN_ALIASES "rfc{1}=\"${a_pre}\\1\\\"> ${fa_i} RFC-\\1</a>\"")
-string(APPEND DOXYGEN_ALIASES " \\\n\trfc{2}=\"${a_pre_b}\\1#section-\\2\\\"> ${fa_i} RFC-\\1 Sec \\2</a>\"")
-string(APPEND DOXYGEN_ALIASES " \\\n\trfc_t{2}=\"${a_pre}\\1#section-\\2\\\"> ${fa_i} RFC-\\1 Sec \\2</a>\"")
-string(APPEND DOXYGEN_ALIASES " \\\n\tfa{1}=\"<i class=\\\"fa-regular fa-\\1\\\"></i>\"")
-string(APPEND DOXYGEN_ALIASES " \\\n\tfa{2}=\"<i class=\\\"fa-\\1 fa-\\2\\\"></i>\"")
+set(DOXYGEN_ALIASES "rfc{1}=\"${fa_i} ${a_pre}\\1\\\">RFC-\\1</a>\"")
+string(APPEND DOXYGEN_ALIASES " \\\n\trfc{2}=\"${fa_i} ${a_pre_b}\\1#section-\\2\\\">RFC-\\1 Sec \\2</a>\"")
+string(APPEND DOXYGEN_ALIASES " \\\n\trfc_t{2}=\"${fa_i} ${a_pre}\\1#section-\\2\\\">RFC-\\1 Sec \\2</a>\"")
 
 set(DOXYGEN_VERBATIM_VARS DOXYGEN_EXAMPLE_PATTERNS DOXYGEN_PREDEFINED
 	DOXYGEN_HTML_EXTRA_STYLESHEET DOXYGEN_HTML_EXTRA_FILES

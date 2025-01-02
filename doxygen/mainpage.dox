@@ -1,6 +1,6 @@
 @mainpage Welcome to LibJWT
 
-@section standards @fa{lightbulb} Supported Standards
+@section standards \emoji :bulb: Supported Standards
 
 Standard            | RFC        | Description
 ------------------- | :--------: | --------------------------------------
@@ -15,7 +15,7 @@ Standard            | RFC        | Description
  library and are helpful to understand some of the specific standards that
  shaped the development of LibJWT.
 
-@section building @fa{diagram-project} Build Prerequisites
+@section building \emoji :construction: Build Prerequisites
 
 @subsection req Required
 
@@ -34,20 +34,20 @@ Standard            | RFC        | Description
 - <a href="https://github.com/libcheck/check/issues">Check Library</a> for unit testing
 - Doxygen
 
-@section docs @fa{file-code} Docs and Source
+@section docs \emoji :open_book: Docs and Source
 
-@fa{arrow-up-right-from-square} <a href="https://libjwt.io/">Release Docs</a>
+\emoji :link: <a href="https://libjwt.io/">Release Docs</a>
 
-@fa{arrow-up-right-from-square} <a href="https://libjwt.io/libjwt/HEAD">Dev (HEAD) Docs</a>
+\emoji :link: <a href="https://libjwt.io/libjwt/HEAD">Dev (HEAD) Docs</a>
 
-@fa{brands,github} <a href="https://github.com/benmcollins/libjwt">GitHub Repo</a>
+\emoji :link: <a href="https://github.com/benmcollins/libjwt">GitHub Repo</a>
 
-@section prebuilt @fa{box-open} Pre-built Packages
+@section prebuilt \emoji :package: Pre-built Packages
 
 LibJWT is available in most Linux distributions as well as through
 <a href="https://formulae.brew.sh/formula/libjwt#default">Homebrew</a>.
 
-@section instructions @fa{hammer} Build Instructions
+@section instructions \emoji :hammer: Build Instructions
 
 @subsection cmake With CMake:
 
