@@ -9,7 +9,7 @@
 cmake_minimum_required (VERSION 3.7...3.15)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
-# Extract info from configure.ac
+include(GNUInstallDirs)
 include(LibJWTVersions)
 include(GenerateExportHeader)
 
@@ -175,15 +175,15 @@ install(FILES LICENSE README.md
 # Install library
 install(TARGETS jwt
 	EXPORT ${LIBJWT_PROJECT}Targets
-	ARCHIVE DESTINATION lib
-	LIBRARY DESTINATION lib
+	ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+	LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
 	RUNTIME DESTINATION bin
 )
 
 # Install Static library
 install(TARGETS jwt_static
         EXPORT ${LIBJWT_PROJECT}StaticTargets
-        ARCHIVE DESTINATION lib
+	ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
 
 # For cmake users
@@ -203,7 +203,7 @@ configure_file(libjwt/libjwt.pc.in libjwt.pc @ONLY)
 install(FILES ${CMAKE_BINARY_DIR}/libjwt.pc
 	DESTINATION lib/pkgconfig)
 
-find_package(Doxygen 1.12)
+find_package(Doxygen 1.9)
 
 if (DOXYGEN_FOUND)
 	set(DOXYGEN_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/doxygen-doc)
