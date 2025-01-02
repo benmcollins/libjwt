@@ -1,0 +1,62 @@
+Source: libjwt
+Section: devel
+Priority: optional
+Maintainer: Debian IoT Maintainers <debian-iot-maintainers@lists.alioth.debian.org>
+Uploaders: Thorsten Alteholz <debian@alteholz.de>
+Build-Depends: debhelper-compat (= 13)
+	, pkgconf
+	, libjansson-dev
+	, libssl-dev
+	, check
+	, gnutls-dev
+	, quilt
+	, valgrind
+Build-Depends-Indep: doxygen, graphviz
+Standards-Version: 4.6.2
+Homepage: https://github.com/benmcollins/libjwt
+Vcs-Browser: https://salsa.debian.org/debian-iot-team/oauth2/libjwt
+Vcs-Git: https://salsa.debian.org/debian-iot-team/oauth2/libjwt.git
+Rules-Requires-Root: no
+
+Package: libjwt2
+Section: libs
+Multi-Arch: same
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: C library to handle JWT (JSON Web Token)
+ libjwt is a library which allows you to encode and decode
+ JSON Web Tokens (JWT).
+ .
+ JSON Web Tokens are an open, industry standard RFC 7519 method for
+ representing claims securely between two parties.
+
+Package: libjwt-dev
+Architecture: any
+Multi-Arch: same
+Section: libdevel
+Suggests: libjwt-doc
+Depends: libjwt2 (= ${binary:Version})
+        , ${misc:Depends}
+Description: C library to handle JWT (JSON Web Token) - development
+ libjwt is a library which allows you to encode and decode
+ JSON Web Tokens (JWT).
+ .
+ JSON Web Tokens are an open, industry standard RFC 7519 method for
+ representing claims securely between two parties.
+ .
+ This package contains the development files.
+
+Package: libjwt-doc
+Architecture: all
+Section: doc
+Depends: libjwt-dev (>= ${source:Version}),
+	libjwt-dev (<< ${source:Version}.1~),
+	${misc:Depends}
+Description: C library to handle JWT (JSON Web Token) - documentation
+ libjwt is a library which allows you to encode and decode
+ JSON Web Tokens (JWT).
+ .
+ JSON Web Tokens are an open, industry standard RFC 7519 method for
+ representing claims securely between two parties.
+ .
+ This package contains documentation in HTML format.
