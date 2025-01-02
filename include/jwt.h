@@ -1451,7 +1451,7 @@ char *jwt_exception_str(jwt_valid_exception_t exceptions);
  */
 
 /**
- * @defgroup advanced_grp Advanced Functionality
+ * @defgroup jwt_advanced_grp Advanced Functionality
  * @{
  */
 
