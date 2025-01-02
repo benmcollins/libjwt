@@ -28,6 +28,7 @@
 #  endif
 #endif
 
+JWT_NO_EXPORT
 extern struct jwt_crypto_ops *jwt_ops;
 
 #define jwks_write_error(__obj, __fmt, __args...)		\

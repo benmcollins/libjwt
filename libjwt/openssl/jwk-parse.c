@@ -199,6 +199,7 @@ cleanup_pem:
 }
 
 /* For EdDSA keys (EDDSA) */
+JWT_NO_EXPORT
 int openssl_process_eddsa(json_t *jwk, jwk_item_t *item)
 {
 	unsigned char *pub_bin = NULL, *priv_bin = NULL;
@@ -214,13 +215,14 @@ int openssl_process_eddsa(json_t *jwk, jwk_item_t *item)
 	d = json_object_get(jwk, "d");
 
 	if (x == NULL && d == NULL) {
-		jwks_write_error(item, "Need an 'x' or 'd' component and found neither");
+		jwks_write_error(item,
+			"Need an 'x' or 'd' component and found neither");
 		goto cleanup_eddsa;
 	}
 
 	if (d != NULL)
 		item->is_private_key = priv = 1;
-	
+
 	pctx = EVP_PKEY_CTX_new_from_name(NULL, "ED25519", NULL);
 	if (pctx == NULL) {
 		jwks_write_error(item, "Error creating pkey context");
@@ -273,6 +275,7 @@ cleanup_eddsa:
 
 /* For RSA keys (RS256, RS384, RS512). Also works for RSA-PSS
  * (PS256, PS384, PS512) */
+JWT_NO_EXPORT
 int openssl_process_rsa(json_t *jwk, jwk_item_t *item)
 {
 	OSSL_PARAM_BLD *build = NULL;
@@ -385,6 +388,7 @@ cleanup_rsa:
 }
 
 /* For EC Keys (ES256, ES384, ES512) */
+JWT_NO_EXPORT
 int openssl_process_ec(json_t *jwk, jwk_item_t *item)
 {
 	OSSL_PARAM *params = NULL;
@@ -468,6 +472,7 @@ cleanup_ec:
 	return ret;
 }
 
+JWT_NO_EXPORT
 void openssl_process_item_free(jwk_item_t *item)
 {
 	if (item == NULL || item->provider != JWT_CRYPTO_OPS_OPENSSL)
@@ -485,24 +490,28 @@ void openssl_process_item_free(jwk_item_t *item)
 
 static const char not_implemented[] = "OpenSSL Support for JWK requires 3.0 or higher";
 
+JWT_NO_EXPORT
 int openssl_process_eddsa(json_t *jwk, jwk_item_t *item)
 {
 	jwks_write_error(item, not_implemented);
 	return -1;
 }
 
+JWT_NO_EXPORT
 int openssl_process_rsa(json_t *jwk, jwk_item_t *item)
 {
 	jwks_write_error(item, not_implemented);
 	return -1;
 }
 
+JWT_NO_EXPORT
 int openssl_process_ec(json_t *jwk, jwk_item_t *item)
 {
 	jwks_write_error(item, not_implemented);
 	return -1;
 }
 
+JWT_NO_EXPORT
 void openssl_process_item_free(jwk_item_t *item)
 {
 	return;

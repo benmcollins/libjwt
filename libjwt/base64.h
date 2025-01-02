@@ -8,13 +8,13 @@
  * out is null-terminated encode string.
  * return values is out length, exclusive terminating `\0'
  */
-unsigned int
+JWT_NO_EXPORT unsigned int
 base64_encode(const unsigned char *in, unsigned int inlen, char *out);
 
 /*
  * return values is out length
  */
-unsigned int
+JWT_NO_EXPORT unsigned int
 base64_decode(const char *in, unsigned int inlen, unsigned char *out);
 
 #endif /* BASE64_H */
