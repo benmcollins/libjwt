@@ -19,8 +19,6 @@ set(CPACK_SET_DESTDIR "ON")
 
 set(CPACK_PACKAGE_CONTACT "Ben Collins <bcollins@ubuntu.com>")
 set(CPACK_IGNORE_FILES "/\\.git/" "\\.gitignore" "\\.swp\$" "\\.DS_Store" "\\.travis.yml")
-list(APPEND CPACK_IGNORE_FILES "/build/" "Makefile.*" "configure.ac" "/m4/" "Doxygen\\.mk")
-list(APPEND CPACK_IGNORE_FILES "/dist/" "jwt_export\\.h\\.in" "/m4-local/")
 
 string(TOLOWER ${CPACK_PACKAGE_NAME} CPACK_PACKAGE_NAME)
 if (NOT ${CPACK_SOURCE_PACKAGE_FILE_NAME} EQUAL "")
