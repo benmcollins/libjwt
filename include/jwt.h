@@ -1509,7 +1509,7 @@ void jwt_get_alloc(jwt_malloc_t *pmalloc, jwt_realloc_t *prealloc,
  * @defgroup jwt_crypto_grp Cryptographic Operations
  * Functions used to set and get which crypto operations are used
  *
- * LibJWT supports several crypto libaries, mainly "openssl" and "gnutls".
+ * LibJWT supports several crypto libraries, mainly "openssl" and "gnutls".
  * By default, if enabled, "openssl" is used.
  *
  * @warning Changing the crypto operations is not thread safe. You must
