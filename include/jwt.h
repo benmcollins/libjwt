@@ -431,17 +431,26 @@ jwt_t *jwt_create(jwt_config_t *config);
  *
  * Lots of cases to deal with.
  *
- * -# If the user passed a key/len pair:
+ * -# If the caller passed a key/len pair:
  *    - Then config.alg MUST NOT be none, and
  *    - The config.alg MUST match jwt.alg
  * -# If the user passed a jw_key:
+ *    - config.alg is not used (jw_key.alg is used if available)
  *    - It's valid for jw_key.alg to be none (missing) (RFC-7517:4.4)
  *    - If jw_key.alg is not none, it MUST match the JWT
+ *    - If jw_key.alg is none, then jwt.alg is compared against jwk.kty for
+ *      compatibility. e.g:
+ *      - jwt.alg RS256, RS384, and RS512 are suitable with jwk.kty RSA
+ *      - jwt.alg ES384 is not suitable with jwk.kty OKP
  * -# The user SHOULD NOT pass both types, but we allow it. However,
  *    checks for both keys MUST pass.
  * -# If the user did not pass a key of any kind:
  *    - Then jwt.alg MUST be none, and
  *    - The sig_len MUST be zero
+ *    - If the caller wishes to "peek" at a JWA token, (without verifying)
+ *      then they MUST use a callback function to inspect it. Information
+ *      from the callback can be passed between the cb and original caller
+ *      with the @ref jwt_config_t.ctx pointer.
  * -# If jwt.alg is none then sig_len MUST be zero, regardless of (4)
  *
  *
