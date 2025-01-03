@@ -104,6 +104,39 @@ static void jwk_process_values(json_t *jwk, jwk_item_t *item)
 	}
 }
 
+static int process_octet(json_t *jwk, jwk_item_t *item)
+{
+	unsigned char *bin_k = NULL;
+	const char *str_k;
+	json_t *k;
+	int len_k = 0;
+
+	k = json_object_get(jwk, "k");
+	if (k == NULL || !json_is_string(k)) {
+		jwks_write_error(item, "Invalid JWK: missing `k`");
+		return -1;
+	}
+
+	str_k = json_string_value(k);
+	if (str_k == NULL || !strlen(str_k)) {
+		jwks_write_error(item, "Invalid JWK: invalid `k`");
+		return -1;
+	}
+
+	bin_k = jwt_base64uri_decode(str_k, &len_k);
+	if (bin_k == NULL) {
+		jwks_write_error(item, "Invalid JWK: failed to decode `k`");
+		return -1;
+	}
+
+	item->is_private_key = 1;
+	item->provider = JWT_CRYPTO_OPS_ANY;
+	item->oct.key = bin_k;
+	item->oct.len = len_k;
+
+	return 0;
+}
+
 static jwk_item_t *jwk_process_one(jwk_set_t *jwk_set, json_t *jwk)
 {
 	const char *kty;
@@ -138,6 +171,9 @@ static jwk_item_t *jwk_process_one(jwk_set_t *jwk_set, json_t *jwk)
 	} else if (!jwt_strcmp(kty, "OKP")) {
 		item->kty = JWK_KEY_TYPE_OKP;
 		jwt_ops->process_eddsa(jwk, item);
+	} else if (!jwt_strcmp(kty, "oct")) {
+		item->kty = JWK_KEY_TYPE_OCT;
+		process_octet(jwk, item);
 	} else {
 		jwks_write_error(item, "Unknown or unsupported kty type '%s'", kty);
 		return item;
@@ -209,8 +245,10 @@ int jwks_item_free(jwk_set_t *jwk_set, size_t index)
 
 	item = todel->item;
 
-	/* Let the crypto ops clean their stuff up. */
-	jwt_ops->process_item_free(item);
+	if (item->provider == JWT_CRYPTO_OPS_ANY)
+		jwt_freemem(item->oct.key);
+	else
+		jwt_ops->process_item_free(item);
 
 	/* A few non-crypto specific things. */
 	jwt_freemem(item->kid);

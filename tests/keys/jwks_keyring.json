@@ -246,6 +246,21 @@
       "kty": "RSA",
       "n": "n_7RTQX1xlllgo-aqo5zd_-wqaRZwFWp3JJIUXryJ4d153J1gEYdz4RkjFO0X8kpv8qb5hdzWhhZHSItD-07LaQXP4lSUuiK1lJAT_YW51D37nCkWm839gAqEGdsWsYQCvqJKSJr4pWCZTEx2MEfikmmnaXPR_VOVgZSj9kIoKo-kFwlw9LGVBHYAeR_W-l5DJQK6Yha8Igi36hnvZqqHcQ4gkGUqEc__Tq2nyYNwvAN3ieZvtvL71rFW26FnuA4OwDER-TYSkAr8Z4wH2EdGno1GZQAegIm-yWblleCaBVOnlk8VcDO9PecTiAFjjWAbQiaFKlkf_plD7KE4tAamQ",
       "e": "AQAB"
+    },
+    {
+      "kty": "oct",
+      "alg": "HS512",
+      "k": "5VQGqfFoKucG-LLYFmW500OiaKIJtedo_RHjOvt4d1qJoTVi_4k95CKc_iF8xNR3NSbyndUvCPSp"
+    },
+    {
+      "kty": "oct",
+      "alg": "HS384",
+      "k": "Ot6zIlCpH4jwa8pYWYw2wXfwruuAlEE11C1jPCt5dlXBY6iWq-0isRy9MFK2L4Uj"
+    },
+    {
+      "kty": "oct",
+      "alg": "HS256",
+      "k": "0gmNspkRljssLSrldySnYUS-zhtCo5sqeqo_yl7n2XA"
     }
   ]
 }

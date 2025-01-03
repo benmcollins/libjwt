@@ -114,12 +114,14 @@ typedef enum {
  * Corresponds to the ``"kty"`` attribute of the JWK.
  *
  * @rfc{7517,4.1}
+ * @rfc(7518,6.1}
  */
 typedef enum {
 	JWK_KEY_TYPE_NONE = 0,		/**< Unused on valid keys */
 	JWK_KEY_TYPE_EC,		/**< Eliptic Curve keys */
 	JWK_KEY_TYPE_RSA,		/**< RSA keys (RSA and RSA-PSS) */
 	JWK_KEY_TYPE_OKP,		/**< Octet Key Pair (e.g. EDDSA) */
+	JWK_KEY_TYPE_OCT,		/**< Octet sequence (e.g. HS256) */
 } jwk_key_type_t;
 
 /** @ingroup jwks_core_grp
@@ -175,12 +177,18 @@ typedef enum {
  *  a nil terminated string of the key. The underlying crypto algorith may
  *  or may not support this. It's provided as a convenience.
  *
- * @raisewarning Decide if we need to make this an opaque object
+ * @raisewarning Decide if we need to make this an opaque object. Also, about that JSON...
  */
 typedef struct {
 	char *pem;		/**< If not NULL, contains PEM string of this key	*/
 	jwt_crypto_provider_t provider; /**< Crypto provider that owns this key         */
-	void *provider_data;	/**< Internal data used by the provider                 */
+	union {
+		void *provider_data;	/**< Internal data used by the provider		*/
+		struct {
+			void *key;
+			size_t len;
+		} oct;
+	};
 	int is_private_key;	/**< Whether this is a public or private key            */
 	char curve[256];        /**< Curve name of an ``"EC"`` or ``"OKP"`` key         */
 	size_t bits;            /**< The number of bits in the key (may be 0)           */

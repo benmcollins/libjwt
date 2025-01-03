@@ -1,0 +1,9 @@
+{
+  "keys": [
+    {
+      "kty": "oct",
+      "alg": "HS384",
+      "k": "Ot6zIlCpH4jwa8pYWYw2wXfwruuAlEE11C1jPCt5dlXBY6iWq-0isRy9MFK2L4Uj"
+    }
+  ]
+}

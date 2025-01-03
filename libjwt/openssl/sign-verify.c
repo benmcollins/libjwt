@@ -31,9 +31,16 @@ static int openssl_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 				 const char *str, unsigned int str_len)
 {
 	const EVP_MD *alg;
+	void *key;
+	size_t key_len;
 
-	if (jwt->config.jw_key)
-		return EINVAL;
+	if (jwt->config.jw_key) {
+		key = jwt->config.jw_key->oct.key;
+		key_len = jwt->config.jw_key->oct.len;
+	} else {
+		key = jwt->config.key;
+		key_len = jwt->config.key_len;
+	}
 
 	*out = NULL;
 
@@ -56,9 +63,8 @@ static int openssl_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 	if (*out == NULL)
 		return ENOMEM; // LCOV_EXCL_LINE
 
-	if (HMAC(alg, jwt->config.key, jwt->config.key_len,
-	     (const unsigned char *)str, str_len, (unsigned char *)*out,
-	     len) == NULL) {
+	if (HMAC(alg, key, key_len, (const unsigned char *)str, str_len,
+		 (unsigned char *)*out, len) == NULL) {
 		jwt_freemem(*out);
 		*out = NULL;
 		return EINVAL;
