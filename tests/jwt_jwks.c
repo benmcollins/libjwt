@@ -22,35 +22,73 @@ static void __jwks_check(const char *json, const char *pem)
 	jwk_set_t *jwk_set = NULL;
 	jwt_t *jwt = NULL;
 	jwk_item_t *item = NULL;
-	int strcmp_ret;
+	char *out = NULL;
+	int ret;
 
+	/* Load up the JWKS */
 	read_key(json);
 	jwk_set = jwks_create(t_config.key);
 	free_key();
 	ck_assert_ptr_nonnull(jwk_set);
 
 	ck_assert(!jwks_error(jwk_set));
+
+	/* Make sure we have one item and no errors */
 	item = jwks_item_get(jwk_set, 0);
 	ck_assert_ptr_nonnull(item);
 	ck_assert(!item->error);
 
+	/* Load our PEM to compare */
 	read_key(pem);
-	strcmp_ret = strcmp(item->pem, t_config.key);
+	ret = strcmp(item->pem, t_config.key);
 	free_key();
-	ck_assert_int_eq(strcmp_ret, 0);
+	ck_assert_int_eq(ret, 0);
 
-	if (item->alg == JWT_ALG_NONE && item->kty == JWK_KEY_TYPE_RSA)
+	/* Should only be one key in the set */
+	item = jwks_item_get(jwk_set, 1);
+	ck_assert_ptr_null(item);
+
+	/* Now create a token */
+	item = jwks_item_get(jwk_set, 0);
+	ck_assert_ptr_nonnull(item);
+
+	if (!item->is_private_key)
+		return;
+
+	if (item->alg == JWT_ALG_NONE && item->kty == JWK_KEY_TYPE_RSA) {
+		/* "alg" is optional, and it's missing in a few keys */
 		config.alg = JWT_ALG_RS256;
+	}
 
+	/* Use our JWK */
 	config.jw_key = item;
 	jwt = jwt_create(&config);
 	ck_assert_ptr_nonnull(jwt);
 
-	item = jwks_item_get(jwk_set, 1);
-	ck_assert_ptr_null(item);
+	/* Add some grants */
+	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
+        ck_assert_int_eq(ret, 0);
 
-	jwt_freep(&jwt);
-        jwks_freep(&jwk_set);
+        ret = jwt_add_grant(jwt, "sub", "user0");
+        ck_assert_int_eq(ret, 0);
+
+        ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
+        ck_assert_int_eq(ret, 0);
+
+        ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
+        ck_assert_int_eq(ret, 0);
+
+	/* Encode it */
+        out = jwt_encode_str(jwt);
+        ck_assert_ptr_ne(out, NULL);
+
+	/* Verify it using our JWK */
+        __verify_jwk(out, item);
+
+        jwt_free_str(out);
+
+        jwt_free(jwt);
+        jwks_free(jwk_set);
 }
 
 JWKS_KEY_TEST(ec_key_prime256v1);

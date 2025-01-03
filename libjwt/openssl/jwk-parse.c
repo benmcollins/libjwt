@@ -24,6 +24,8 @@
 #include <openssl/err.h>
 #include <openssl/param_build.h>
 
+#include "openssl/jwt-openssl.h"
+
 /* Sets a param for the public EC key */
 static void *set_ec_pub_key(OSSL_PARAM_BLD *build, json_t *jx, json_t *jy,
 			   const char *curve_name)
@@ -148,6 +150,7 @@ static unsigned char *set_one_octet(OSSL_PARAM_BLD *build,
 static int pctx_to_pem(EVP_PKEY_CTX *pctx, OSSL_PARAM *params,
 		       jwk_item_t *item, int priv)
 {
+	jwk_openssl_ctx_t *jwk_ctx = NULL;
 	BIO *bio = NULL;
 	EVP_PKEY *pkey = NULL;
 	char *src = NULL, *dest = NULL;
@@ -163,31 +166,38 @@ static int pctx_to_pem(EVP_PKEY_CTX *pctx, OSSL_PARAM *params,
 
 	/* We need to set provider before we attach anything that may need
 	 * cleaning up later. */
-	item->provider_data = pkey;
-	item->provider = JWT_CRYPTO_OPS_OPENSSL;
-
-	bio = BIO_new(BIO_s_mem());
-	if (bio == NULL) {
-		jwks_write_error(item, "Unable to allocate memory for PEM BIO");
+	jwk_ctx = jwt_malloc(sizeof(*jwk_ctx));
+	if (jwk_ctx == NULL) {
+		jwks_write_error(item, "Unable to allocate ctx");
 		goto cleanup_pem;
 	}
 
+	item->provider = JWT_CRYPTO_OPS_OPENSSL;
+	jwk_ctx->pkey = pkey;
+	item->provider_data = jwk_ctx;
+
+	/* From here after, we don't fail. PEM is optional. */
+	ret = 0;
+
+	bio = BIO_new(BIO_s_mem());
+	if (bio == NULL)
+		goto cleanup_pem;
+
 	if (priv)
-		ret = PEM_write_bio_PrivateKey(bio, pkey, NULL, NULL, 0, NULL, NULL);
+		ret = PEM_write_bio_PrivateKey(bio, pkey, NULL, NULL, 0,
+					       NULL, NULL);
 	else
 		ret = PEM_write_bio_PUBKEY(bio, pkey);
 
 	if (!ret) {
-		jwks_write_error(item, "Internal error converting key to PEM");
+		ret = 0;
 		goto cleanup_pem;
 	}
 
 	len = BIO_get_mem_data(bio, &src);
 	dest = OPENSSL_malloc(len + 1);
-	if (dest == NULL) {
-		jwks_write_error(item, "Error allocating memory for PEM");
+	if (dest == NULL)
 		goto cleanup_pem;
-	}
 
 	memcpy(dest, src, len);
 	dest[len] = '\0';
@@ -477,10 +487,14 @@ cleanup_ec:
 JWT_NO_EXPORT
 void openssl_process_item_free(jwk_item_t *item)
 {
+	jwk_openssl_ctx_t *jwk_ctx = NULL;
+
 	if (item == NULL || item->provider != JWT_CRYPTO_OPS_OPENSSL)
 		return;
 
-	EVP_PKEY_free(item->provider_data);
+	jwk_ctx = item->provider_data;
+	EVP_PKEY_free(jwk_ctx->pkey);
+	jwt_freemem(jwk_ctx);
 	OPENSSL_free(item->pem);
 
 	item->pem = NULL;

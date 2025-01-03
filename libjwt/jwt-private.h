@@ -40,11 +40,21 @@ extern struct jwt_crypto_ops *jwt_ops;
 
 struct jwt {
 	jwt_alg_t alg;
-	unsigned char *key;
-	int key_len;
-	jwk_item_t *jw_key;
+
+	/* We don't use these anymore. They are just here for
+	 * compatibility. */
+	unsigned char *key_unused;
+	int key_len_unused;
+
 	json_t *grants;
 	json_t *headers;
+
+	/* We use this instead */
+	struct {
+		void *key;
+		size_t key_len;
+		const jwk_item_t *jw_key;
+	} config;
 };
 
 struct jwt_valid {
@@ -106,6 +116,9 @@ JWT_NO_EXPORT
 extern struct jwt_crypto_ops jwt_mbedtls_ops;
 #endif
 
+JWT_NO_EXPORT
+int ops_compat(const jwk_item_t *item, const jwt_crypto_provider_t prov);
+
 /* Memory allocators. */
 JWT_NO_EXPORT
 void *jwt_malloc(size_t size);
@@ -155,5 +168,7 @@ int jwt_sign(jwt_t *jwt, char **out, unsigned int *len, const char *str,
 
 JWT_NO_EXPORT
 int __append_str(char **buf, const char *str);
+
+#define __trace() fprintf(stderr, "%s:%d\n", __func__, __LINE__)
 
 #endif /* JWT_PRIVATE_H */

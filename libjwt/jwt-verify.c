@@ -66,30 +66,6 @@ static int jwt_parse_head(jwt_t *jwt, char *head)
 	return 0;
 }
 
-/**
- * @brief Smoke test to save the user from themselves.
- */
-static int jwt_verify_alg(jwt_t *jwt, const void *key, const int key_len)
-{
-	int ret = 0;
-
-	if (jwt->alg == JWT_ALG_NONE) {
-		/* If the user gave us a key but the JWT has alg = none,
-		 * then we shouldn't even proceed. */
-		if (key || key_len)
-			ret = EINVAL;
-	} else if (!(key && (key_len > 0))) {
-		/* If alg != none, then we should have a key to use */
-		ret = EINVAL;
-	}
-
-	/* Releive ourselves of the burden of this secret. */
-	if (ret)
-		jwt_scrub_key(jwt);
-
-	return ret;
-}
-
 static int jwt_parse(jwt_t **jwt, const char *token, unsigned int *len)
 {
 	char *head = NULL;
@@ -139,50 +115,119 @@ parse_done:
 	return ret;
 }
 
-static int jwt_copy_key(jwt_t *jwt, const unsigned char *key, int key_len)
+static int jwt_copy_key(jwt_t *jwt, const jwt_config_t *config,
+			const unsigned int sig_len)
 {
-	int ret = 0;
+	/* Whack */
+	if ((config->key || config->key_len) && config->jw_key)
+		return EINVAL;
 
-	if (!key_len)
-		return 0;
+	if (config->key && config->key_len) {
+		char *buf;
 
-	/* Always allocate one extra byte. For PEM, it ensures against
-	 * not having a nil at the end (although all crypto backends
-	 * should honor length), and for binary keys, it wont hurt
-	 * because we use key_len for those operations. */
-	jwt->key = jwt_malloc(key_len + 1);
-	if (jwt->key == NULL)
-		return ENOMEM; // LCOV_EXCL_LINE
+		/* Always allocate one extra byte. For PEM, it ensures against
+		 * not having a nil at the end (although all crypto backends
+		 * should honor length), and for binary keys, it wont hurt
+		 * because we use key_len for those operations. */
+		buf = jwt_malloc(config->key_len + 1);
+		if (buf == NULL)
+			return ENOMEM; // LCOV_EXCL_LINE
 
-	jwt->key[key_len] = '\0';
+		buf[config->key_len] = '\0';
+		memcpy(buf, config->key, config->key_len);
 
-	memcpy(jwt->key, key, key_len);
-	jwt->key_len = key_len;
+		jwt->config.key = buf;
+		jwt->config.key_len = config->key_len;
+	} else if (config->jw_key) {
+		jwt->config.jw_key = config->jw_key;
+	} else if (sig_len) {
+		/* We have a sig and no key */
+		return EINVAL;
+	}
 
-	return ret;
+	return 0;
 }
 
-static int jwt_verify_complete(jwt_t **jwt, const unsigned char *key,
-			       int key_len, const char *token,
-			       unsigned int payload_len)
+/* This is after parsing and possibly a user callback. */
+static int __verify_config_post(const jwt_t *jwt, const jwt_config_t *config,
+				unsigned int sig_len)
 {
-	int ret = EINVAL;
+	/*
+	 * Lots of cases to deal with.
+	 *
+	 * 1) If the user passed a key/len pair:
+	 *    - Then config.alg MUST be other than none, and
+	 *    - The config.alg MUST match jwt.alg
+	 * 2) If the user passed a jw_key:
+	 *    - It's valid for jw_key.alg to be none (missing) (RFC-7517:4.4)
+	 *    - If jw_key.alg is not none, it MUST match the JWT
+	 * 3) The user SHOULD NOT pass both types, but we allow it. However,
+	 *    checks for both keys MUST pass.
+	 * 4) If the user did not pass a key of any kind:
+	 *    - Then jwt.alg MUST be none, and
+	 *    - The sig_len MUST be zero
+	 * 5) If jwt.alg is none then sig_len MUST be zero, regardless of (4)
+	 */
 
-	/* Make sure things make sense when it comes to alg and keys */
-	ret = jwt_verify_alg(*jwt, key, key_len);
-	if (ret)
-		goto decode_done;
+	/* Quick check on the JWT (avoids all kinds of CVE issues) (5) */
+	if (jwt->alg == JWT_ALG_NONE && sig_len)
+		return EINVAL;
 
-	/* Now we keep it */
-	ret = jwt_copy_key(*jwt, key, key_len);
-	if (ret)
-		goto decode_done;
+	/* Make sure caller isn't just peeking (use a cb for that) (4) */
+	if (!config || !(config->key || config->jw_key)) {
+		/* No key, but expecting one? */
+		if (jwt->alg != JWT_ALG_NONE || sig_len)
+			return EINVAL;
 
-	/* Check the signature, if needed. */
-	if ((*jwt)->alg != JWT_ALG_NONE) {
-		const char *sig = token + (payload_len + 1);
-		ret = jwt_verify_sig(*jwt, token, payload_len, sig);
+		/* If the user didn't pass a key, at this point we're safe. */
+		return 0;
 	}
+
+	/* Validate jw_key (2) */
+	if (config->jw_key) {
+		if (jwt->alg != JWT_ALG_NONE &&
+		    config->jw_key->alg != JWT_ALG_NONE &&
+		    jwt->alg != config->jw_key->alg) {
+				return EINVAL;
+		}
+	}
+
+	/* Validate key/len pair (1)  */
+	if (config->key || config->key_len) {
+		if (config->alg == JWT_ALG_NONE)
+			return EINVAL;
+		if (config->alg != jwt->alg)
+			return EINVAL;
+	}
+
+	return 0;
+}
+
+static int jwt_verify_complete(jwt_t **jwt, const jwt_config_t *config,
+			       const char *token, unsigned int payload_len)
+{
+	const char *sig;
+	unsigned int sig_len;
+	int ret = 0;
+
+	sig = token + (payload_len + 1);
+	sig_len = strlen(sig);
+
+	/* Check for conflicts in user request and JWT */
+	ret = __verify_config_post(*jwt, config, sig_len);
+	if (ret)
+		goto decode_done;
+
+	/* After all the checks, if we don't have a sig, we can move on. */
+	if (!sig_len)
+		return 0;
+
+	/* Preserve the key into jwt_t */
+	ret = jwt_copy_key(*jwt, config, sig_len);
+	if (ret)
+		goto decode_done;
+
+	ret = jwt_verify_sig(*jwt, token, payload_len, sig);
 
 decode_done:
 	if (ret)
@@ -196,6 +241,7 @@ int jwt_decode(jwt_t **jwt, const char *token, const unsigned char *key,
 	       int key_len)
 {
 	unsigned int payload_len;
+	JWT_CONFIG_DECLARE(config);
 	int ret;
 
 	if (jwt == NULL)
@@ -206,7 +252,10 @@ int jwt_decode(jwt_t **jwt, const char *token, const unsigned char *key,
 	if ((ret = jwt_parse(jwt, token, &payload_len)))
 		return ret;
 
-	return jwt_verify_complete(jwt, key, key_len, token, payload_len);
+	config.key = key;
+	config.key_len = key_len;
+
+	return jwt_verify_complete(jwt, &config, token, payload_len);
 }
 
 int jwt_decode_2(jwt_t **jwt, const char *token, jwt_callback_t cb)
@@ -246,16 +295,12 @@ int jwt_decode_2(jwt_t **jwt, const char *token, jwt_callback_t cb)
 		return ret;
 	}
 
-	return jwt_verify_complete(jwt, key.key, key.key_len, token,
-				   payload_len);
+	return jwt_verify_complete(jwt, &key, token, payload_len);
 }
 // LCOV_EXCL_STOP
 
 /*
  * If no callback then we act just like jwt_verify().
- *
- * If no config, but there is a callback, then we have to assume
- * you do not want us doing much for you.
  */
 int jwt_verify_wcb(jwt_t **jwt, const char *token, jwt_config_t *config,
 		   jwt_callback_t cb)
@@ -268,32 +313,12 @@ int jwt_verify_wcb(jwt_t **jwt, const char *token, jwt_config_t *config,
 
 	*jwt = NULL;
 
-	/* Quick smoke test */
-	if (cb == NULL && config) {
-		if (config->alg == JWT_ALG_NONE) {
-			if (config->key != NULL || config->key_len)
-				return EINVAL;
-		} else {
-			if (config->key == NULL || !config->key_len)
-				return EINVAL;
-		}
-	}
-
 	/* First parsing pass */
 	ret = jwt_parse(jwt, token, &payload_len);
 	if (ret)
 		return ret;
 
-	/* If the user requested an alg, do checks */
-	if (config && config->alg != JWT_ALG_NONE) {
-		/* Mismatch or no signature */
-		if ((config->alg != (*jwt)->alg) || !payload_len) {
-			jwt_freep(jwt);
-			return EINVAL;
-		}
-	}
-
-	/* Let them handle it now. */
+	/* Let the user handle this and update config */
 	if (cb) {
 		ret = cb(*jwt, config);
 		if (ret) {
@@ -303,10 +328,7 @@ int jwt_verify_wcb(jwt_t **jwt, const char *token, jwt_config_t *config,
 	}
 
 	/* Finish it up */
-	return jwt_verify_complete(jwt,
-		(config == NULL) ? NULL : config->key,
-		(config == NULL) ? 0 : config->key_len,
-		token, payload_len);
+	return jwt_verify_complete(jwt, config, token, payload_len);
 }
 
 int jwt_verify(jwt_t **jwt, const char *token, jwt_config_t *config)

@@ -620,6 +620,7 @@ static Suite *libjwt_suite(const char *title)
 #ifdef JWT_CONSTRUCTOR
 	tcase_add_test(tc_core, test_jwt_crypto_ops);
 #endif
+
 	tcase_add_loop_test(tc_core, test_jwt_new, 0, i);
 	tcase_add_loop_test(tc_core, test_jwt_dup, 0, i);
 	tcase_add_loop_test(tc_core, test_jwt_dup_signed, 0, i);

@@ -163,6 +163,21 @@ static void __verify_jwt(const char *jwt_str, const jwt_alg_t alg, const char *f
 }
 
 __attribute__((unused))
+static void __verify_jwk(const char *jwt_str, jwk_item_t *item)
+{
+	JWT_CONFIG_DECLARE(config);
+	jwt_auto_t *jwt = NULL;
+	int ret = 0;
+
+	config.jw_key = item;
+	ret = jwt_verify(&jwt, jwt_str, &config);
+	ck_assert_int_eq(ret, 0);
+	ck_assert_ptr_ne(jwt, NULL);
+
+	/* auto free */
+}
+
+__attribute__((unused))
 static void __test_alg_key(const jwt_alg_t alg, const char *file, const char *pub)
 {
 	jwt_auto_t *jwt = NULL;

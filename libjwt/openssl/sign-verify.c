@@ -23,12 +23,19 @@
 
 #include "jwt-private.h"
 
+#include "openssl/jwt-openssl.h"
+
 /* Routines to support crypto in LibJWT using OpenSSL. */
 
 static int openssl_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 				 const char *str, unsigned int str_len)
 {
 	const EVP_MD *alg;
+
+	if (jwt->config.jw_key)
+		return EINVAL;
+
+	*out = NULL;
 
 	switch (jwt->alg) {
 	/* HMAC */
@@ -49,9 +56,13 @@ static int openssl_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 	if (*out == NULL)
 		return ENOMEM; // LCOV_EXCL_LINE
 
-	HMAC(alg, jwt->key, jwt->key_len,
+	if (HMAC(alg, jwt->config.key, jwt->config.key_len,
 	     (const unsigned char *)str, str_len, (unsigned char *)*out,
-	     len);
+	     len) == NULL) {
+		jwt_freemem(*out);
+		*out = NULL;
+		return EINVAL;
+	}
 
 	return 0;
 }
@@ -59,35 +70,24 @@ static int openssl_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 static int openssl_verify_sha_hmac(jwt_t *jwt, const char *head,
 				   unsigned int head_len, const char *sig)
 {
-	unsigned char res[EVP_MAX_MD_SIZE];
+	char *res;
 	unsigned int res_len;
-	const EVP_MD *alg;
 	char *buf = NULL;
 	int ret;
 
-	switch (jwt->alg) {
-	case JWT_ALG_HS256:
-		alg = EVP_sha256();
-		break;
-	case JWT_ALG_HS384:
-		alg = EVP_sha384();
-		break;
-	case JWT_ALG_HS512:
-		alg = EVP_sha512();
-		break;
-	default:
-		return EINVAL;
-	}
-
-	HMAC(alg, jwt->key, jwt->key_len,
-	     (const unsigned char *)head, head_len, res, &res_len);
+	ret = openssl_sign_sha_hmac(jwt, &res, &res_len, head, head_len);
+	if (ret)
+		return ret;
 
 	ret = jwt_base64uri_encode(&buf, (char *)res, res_len);
-	if (ret <= 0)
+	if (ret <= 0) {
+		jwt_freemem(res);
 		return -ret;
+	}
 
 	ret = jwt_strcmp(buf, sig) ? EINVAL : 0;
 	jwt_freemem(buf);
+	jwt_freemem(res);
 
 	/* And now... */
 	return ret;
@@ -228,6 +228,7 @@ static int jwt_ec_d2i(jwt_t *jwt, char **out, unsigned int *len,
 static int openssl_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 				const char *str, unsigned int str_len)
 {
+	jwk_openssl_ctx_t *jwk_ctx = NULL;
 	EVP_MD_CTX *mdctx = NULL;
 	EVP_PKEY_CTX *pkey_ctx = NULL;
 	BIO *bufkey = NULL;
@@ -237,6 +238,13 @@ static int openssl_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 	unsigned char *sig = NULL;
 	int ret = 0;
 	size_t slen;
+
+	if (jwt->config.jw_key) {
+		if (!ops_compat(jwt->config.jw_key, JWT_CRYPTO_OPS_OPENSSL))
+		    return EINVAL;
+		jwk_ctx = jwt->config.jw_key->provider_data;
+		pkey = jwk_ctx->pkey;
+	}
 
 	switch (jwt->alg) {
 	/* RSA */
@@ -292,16 +300,19 @@ static int openssl_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		return EINVAL;
 	}
 
-	bufkey = BIO_new_mem_buf(jwt->key, jwt->key_len);
-	if (bufkey == NULL)
-		SIGN_ERROR(ENOMEM); // LCOV_EXCL_LINE
+	if (pkey == NULL) {
+		bufkey = BIO_new_mem_buf(jwt->config.key, jwt->config.key_len);
+		if (bufkey == NULL)
+			SIGN_ERROR(ENOMEM); // LCOV_EXCL_LINE
 
-	/* This uses OpenSSL's default passphrase callback if needed. The
-	 * library caller can override this in many ways, all of which are
-	 * outside of the scope of LibJWT and this is documented in jwt.h. */
-	pkey = PEM_read_bio_PrivateKey(bufkey, NULL, NULL, NULL);
-	if (pkey == NULL)
-		SIGN_ERROR(EINVAL);
+		/* This uses OpenSSL's default passphrase callback if needed.
+		 * The library caller can override this in many ways, all of
+		 * which are outside of the scope of LibJWT and this is
+		 * documented in jwt.h. */
+		pkey = PEM_read_bio_PrivateKey(bufkey, NULL, NULL, NULL);
+		if (pkey == NULL)
+			SIGN_ERROR(EINVAL);
+	}
 
 	if (type != EVP_PKEY_id(pkey))
 		SIGN_ERROR(EINVAL);
@@ -354,7 +365,8 @@ jwt_sign_sha_pem_done:
 		jwt_freemem(sig);
 
 	BIO_free(bufkey);
-	EVP_PKEY_free(pkey);
+	if (jwk_ctx == NULL)
+		EVP_PKEY_free(pkey);
 	EVP_MD_CTX_destroy(mdctx);
 
 	return ret;
@@ -365,6 +377,7 @@ jwt_sign_sha_pem_done:
 static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 				  unsigned int head_len, const char *sig_b64)
 {
+	jwk_openssl_ctx_t *jwk_ctx = NULL;
 	unsigned char *sig = NULL;
 	EVP_MD_CTX *mdctx = NULL;
 	EVP_PKEY_CTX *pkey_ctx = NULL;
@@ -377,6 +390,13 @@ static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 	BIO *bufkey = NULL;
 	int ret = 0;
 	int slen;
+
+	if (jwt->config.jw_key) {
+		if (!ops_compat(jwt->config.jw_key, JWT_CRYPTO_OPS_OPENSSL))
+			return EINVAL;
+		jwk_ctx = jwt->config.jw_key->provider_data;
+		pkey = jwk_ctx->pkey;
+	}
 
 	switch (jwt->alg) {
 	/* RSA */
@@ -436,16 +456,19 @@ static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 	if (sig == NULL)
 		VERIFY_ERROR(EINVAL);
 
-	bufkey = BIO_new_mem_buf(jwt->key, jwt->key_len);
-	if (bufkey == NULL)
-		VERIFY_ERROR(ENOMEM); // LCOV_EXCL_LINE
+	if (pkey == NULL) {
+		bufkey = BIO_new_mem_buf(jwt->config.key, jwt->config.key_len);
+		if (bufkey == NULL)
+			VERIFY_ERROR(ENOMEM); // LCOV_EXCL_LINE
 
-	/* This uses OpenSSL's default passphrase callback if needed. The
-	 * library caller can override this in many ways, all of which are
-	 * outside of the scope of LibJWT and this is documented in jwt.h. */
-	pkey = PEM_read_bio_PUBKEY(bufkey, NULL, NULL, NULL);
-	if (pkey == NULL)
-		VERIFY_ERROR(EINVAL);
+		/* This uses OpenSSL's default passphrase callback if needed.
+		 * The library caller can override this in many ways, all of
+		 * which are outside of the scope of LibJWT and this is
+		 * documented in jwt.h. */
+		pkey = PEM_read_bio_PUBKEY(bufkey, NULL, NULL, NULL);
+		if (pkey == NULL)
+			VERIFY_ERROR(EINVAL);
+	}
 
 	if (type != EVP_PKEY_id(pkey))
 		VERIFY_ERROR(EINVAL);
@@ -510,18 +533,14 @@ static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 
 jwt_verify_sha_pem_done:
 	BIO_free(bufkey);
-	EVP_PKEY_free(pkey);
+	if (jwk_ctx == NULL)
+		EVP_PKEY_free(pkey);
 	EVP_MD_CTX_destroy(mdctx);
 	jwt_freemem(sig);
 	ECDSA_SIG_free(ec_sig);
 
 	return ret;
 }
-
-int openssl_process_eddsa(json_t *jwk, jwk_item_t *item);
-int openssl_process_rsa(json_t *jwk, jwk_item_t *item);
-int openssl_process_ec(json_t *jwk, jwk_item_t *item);
-void openssl_process_item_free(jwk_item_t *item);
 
 /* Export our ops */
 struct jwt_crypto_ops jwt_openssl_ops = {

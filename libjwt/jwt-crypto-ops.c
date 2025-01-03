@@ -39,6 +39,20 @@ struct jwt_crypto_ops *jwt_ops = &jwt_mbedtls_ops;
 #error No crypto ops providers are enabled
 #endif
 
+int ops_compat(const jwk_item_t *item, const jwt_crypto_provider_t prov)
+{
+	if (item == NULL)
+		return 0;
+
+	if (item->provider == prov)
+		return 1;
+
+	if (item->provider == JWT_CRYPTO_OPS_ANY)
+		return 1;
+
+	return 0;
+}
+
 const char *jwt_get_crypto_ops(void)
 {
 	if (jwt_ops == NULL)

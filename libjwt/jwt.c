@@ -124,17 +124,17 @@ jwt_alg_t jwt_str_alg(const char *alg)
 
 void jwt_scrub_key(jwt_t *jwt)
 {
-	if (jwt->key) {
+	if (jwt->config.key) {
 		/* Overwrite it so it's gone from memory. */
-		memset(jwt->key, 0, jwt->key_len);
+		memset(jwt->config.key, 0, jwt->config.key_len);
 
-		jwt_freemem(jwt->key);
+		jwt_freemem(jwt->config.key);
 	}
 
 	/* We do not claim to handle memory for this */
-	jwt->jw_key = NULL;
+	jwt->config.jw_key = NULL;
 
-	jwt->key_len = 0;
+	jwt->config.key_len = 0;
 	jwt->alg = JWT_ALG_NONE;
 }
 
@@ -198,16 +198,16 @@ jwt_t *jwt_create(jwt_config_t *config)
 		return NULL;
 
 	if (config->key) {
-		new->key_len = config->key_len;
-		new->key = jwt_malloc(new->key_len);
-		if (new->key == NULL) {
+		new->config.key_len = config->key_len;
+		new->config.key = jwt_malloc(new->config.key_len);
+		if (new->config.key == NULL) {
 			errno = ENOMEM;
 			jwt_freep(&new);
 		} else {
-			memcpy(new->key, config->key, config->key_len);
+			memcpy(new->config.key, config->key, config->key_len);
 		}
 	} else {
-		new->jw_key = config->jw_key;
+		new->config.jw_key = config->jw_key;
 	}
 
 	new->alg = alg;
@@ -233,15 +233,15 @@ int jwt_set_alg(jwt_t *jwt, jwt_alg_t alg, const unsigned char *key, int len)
 		if (!key || len <= 0)
 			return EINVAL;
 
-		jwt->key = jwt_malloc(len);
-		if (!jwt->key)
+		jwt->config.key = jwt_malloc(len);
+		if (!jwt->config.key)
 			return ENOMEM; // LCOV_EXCL_LINE
 
-		memcpy(jwt->key, key, len);
+		memcpy(jwt->config.key, key, len);
 	}
 
 	jwt->alg = alg;
-	jwt->key_len = len;
+	jwt->config.key_len = len;
 
 	return 0;
 }
@@ -321,19 +321,19 @@ jwt_t *jwt_dup(jwt_t *jwt)
 	memset(new, 0, sizeof(jwt_t));
 
 	/* We do not claim to handle memory for this */
-	new->jw_key = jwt->jw_key;
+	new->config.jw_key = jwt->config.jw_key;
 
-	if (jwt->key_len) {
+	if (jwt->config.key_len) {
 		new->alg = jwt->alg;
-		new->key = jwt_malloc(jwt->key_len);
-		if (!new->key) {
+		new->config.key = jwt_malloc(jwt->config.key_len);
+		if (!new->config.key) {
 			// LCOV_EXCL_START
 			errno = ENOMEM;
 			goto dup_fail;
 			// LCOV_EXCL_STOP
 		}
-		memcpy(new->key, jwt->key, jwt->key_len);
-		new->key_len = jwt->key_len;
+		memcpy(new->config.key, jwt->config.key, jwt->config.key_len);
+		new->config.key_len = jwt->config.key_len;
 	}
 
 	new->grants = json_deep_copy(jwt->grants);

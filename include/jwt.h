@@ -142,7 +142,7 @@ typedef enum {
  * names correspond with the RFC.
  *
  * @code
- * if (@ref jwt_item_t.key_ops & (JWK_KEY_OP_SIGN | JWK_KEY_OP_ENCRYPT)) {
+ * if (@ref jwk_item_t.key_ops & (JWK_KEY_OP_SIGN | JWK_KEY_OP_ENCRYPT)) {
  *     ...
  * }
  * @endcode
@@ -426,6 +426,25 @@ jwt_t *jwt_create(jwt_config_t *config);
 
 /**
  * @defgroup jwt_verify_grp Token Verification
+ *
+ * @raisewarning Complete the details of this information
+ *
+ * Lots of cases to deal with.
+ *
+ * 1) If the user passed a key/len pair:
+ *    - Then config.alg MUST NOT be none, and
+ *    - The config.alg MUST match jwt.alg
+ * 2) If the user passed a jw_key:
+ *    - It's valid for jw_key.alg to be none (missing) (RFC-7517:4.4)
+ *    - If jw_key.alg is not none, it MUST match the JWT
+ * 3) The user SHOULD NOT pass both types, but we allow it. However,
+ *    checks for both keys MUST pass.
+ * 4) If the user did not pass a key of any kind:
+ *    - Then jwt.alg MUST be none, and
+ *    - The sig_len MUST be zero
+ * 5) If jwt.alg is none then sig_len MUST be zero, regardless of (4)
+ *
+ *
  * @{
  */
 
@@ -1154,7 +1173,7 @@ static inline void jwks_freep(jwk_set_t **jwks) {
 #endif
 
 /**
- * Free all memory associated with the nth jwt_item_t in a jwk_set
+ * Free all memory associated with the nth jwk_item_t in a jwk_set
  *
  * @param jwk_set A JWKS object
  * @param index the position of the item in the index
@@ -1164,8 +1183,8 @@ JWT_EXPORT
 int jwks_item_free(jwk_set_t *jwk_set, size_t index);
 
 /**
- * Free all memory associated with alljwt_item_t in a jwk_set. The
- * jwk_set becomes an empty set.
+ * Free all memory associated with all @ref jwk_item_t in a @ref jwk_set_t.
+ * The jwk_set_t becomes an empty set.
  *
  * @param jwk_set A JWKS object
  * @return The numbner of items deleted
