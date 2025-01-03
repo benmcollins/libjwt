@@ -1,5 +1,6 @@
 # Doxygen config. Only things that differ from the default
 
+set(DOXYGEN_MARKDOWN_ID_STYLE "GITHUB")
 set(DOXYGEN_PROJECT_LOGO "images/LibJWT.svg height=100")
 set(DOXYGEN_PROJECT_ICON "images/favicon.ico")
 set(DOXYGEN_INPUT_ENCODING "ISO-8859-1")

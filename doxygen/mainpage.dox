@@ -2,13 +2,12 @@
 
 @section standards \emoji :bulb: Supported Standards
 
-Standard            | RFC        | Description
-------------------- | :--------: | --------------------------------------
-``JWT``             | @rfc{7519} | JSON Web Token
-``JWA``             | @rfc{7518} | JSON Web Algorithms
-``JWS`` and ``JWE`` | @rfc{7518} | Specific types of JWA
-``JWK``             | @rfc{7517} | JSON Web Key
-``JWKS``            | @rfc{7517} | A set of JWK as an array of ``"keys"``
+Standard             | RFC        | Description
+-------------------- | :--------: | --------------------------------------
+``JWT``              | @rfc{7519} | JSON Web Token
+``JWA``              | @rfc{7518} | JSON Web Algorithms
+``JWS`` and ``JWE``  | @rfc{7518} | Specific types of JWA
+``JWK`` and ``JWKS`` | @rfc{7517} | JSON Web Keys and Sets
 
 @note Throughout this documentation you will see links such as the ones
  above to RFC documents. These are relevant to that particular part of the
