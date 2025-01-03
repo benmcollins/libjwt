@@ -11,7 +11,7 @@
 #define JWKS_KEY_TEST(__name)				\
 START_TEST(test_jwks_##__name)				\
 {							\
-	SET_OPS_JWK();					\
+	SET_OPS();					\
        __jwks_check(#__name ".json", #__name ".pem");	\
 }							\
 END_TEST
@@ -33,9 +33,17 @@ static void __jwks_check(const char *json, const char *pem)
 
 	ck_assert(!jwks_error(jwk_set));
 
-	/* Make sure we have one item and no errors */
+	/* Make sure we have one item */
 	item = jwks_item_get(jwk_set, 0);
 	ck_assert_ptr_nonnull(item);
+
+	/* If the key is not any provider, we need ops support. */
+	if (item->provider != JWT_CRYPTO_OPS_ANY &&
+	    !jwt_crypto_ops_supports_jwk()) {
+		ck_assert(item->error);
+		return;
+	}
+
 	ck_assert(!item->error);
 
 	/* Load our PEM to compare */

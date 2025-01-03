@@ -286,11 +286,6 @@ jwk_set_t *jwks_create(const char *jwk_json_str)
 	jwk_item_t *jwk_item;
 	size_t i;
 
-	if (!jwt_crypto_ops_supports_jwk()) {
-		errno = ENOSYS;
-		return NULL;
-	}
-
 	errno = 0;
 
 	jwk_set = jwt_malloc(sizeof *jwk_set);
@@ -313,9 +308,7 @@ jwk_set_t *jwks_create(const char *jwk_json_str)
 	/* Parse the JSON string. */
 	j_all = json_loads(jwk_json_str, JSON_DECODE_ANY, &error);
 	if (j_all == NULL) {
-		jwk_set->error = 1;
-		snprintf(jwk_set->error_msg, sizeof(jwk_set->error_msg),
-			 "%s: %s", error.source, error.text);
+		jwks_write_error(jwk_set, "%s: %s", error.source, error.text);
 		return jwk_set;
 	}
 

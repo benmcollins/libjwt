@@ -89,8 +89,8 @@ static jwt_test_op_t jwt_test_ops[] = {
 	if (!jwt_crypto_ops_supports_jwk()) {			\
 		errno = 0;					\
 		jwk_set_t *jwks = jwks_create(NULL);		\
-		ck_assert_ptr_null(jwks);			\
-		ck_assert_int_eq(errno, ENOSYS);		\
+		ck_assert_ptr_nonnull(jwks);			\
+		ck_assert_int_eq(errno, 0);			\
 		return;						\
 	}							\
 })
