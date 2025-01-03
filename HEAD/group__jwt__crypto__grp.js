@@ -4,7 +4,8 @@ var group__jwt__crypto__grp =
       [ "JWT_CRYPTO_OPS_NONE", "group__jwt__crypto__grp.html#ggaa1e2b1f241858d81b1bfb86018d3b3aca482aa19a4996aaddbfd0349356be92c2", null ],
       [ "JWT_CRYPTO_OPS_OPENSSL", "group__jwt__crypto__grp.html#ggaa1e2b1f241858d81b1bfb86018d3b3aca5ebef71958d3135b13ada7bb72a63b02", null ],
       [ "JWT_CRYPTO_OPS_GNUTLS", "group__jwt__crypto__grp.html#ggaa1e2b1f241858d81b1bfb86018d3b3acaee34d6e9a11bfaa47e01c56a66682750", null ],
-      [ "JWT_CRYPTO_OPS_MBEDTLS", "group__jwt__crypto__grp.html#ggaa1e2b1f241858d81b1bfb86018d3b3aca4c5fd08d7061b5caba0f8698dc817306", null ]
+      [ "JWT_CRYPTO_OPS_MBEDTLS", "group__jwt__crypto__grp.html#ggaa1e2b1f241858d81b1bfb86018d3b3aca4c5fd08d7061b5caba0f8698dc817306", null ],
+      [ "JWT_CRYPTO_OPS_ANY", "group__jwt__crypto__grp.html#ggaa1e2b1f241858d81b1bfb86018d3b3aca80b50ab76725eb24ce2c16199865d50a", null ]
     ] ],
     [ "jwt_crypto_ops_supports_jwk", "group__jwt__crypto__grp.html#gad03cf6e8291772a1ff1d37a81f18a177", null ],
     [ "jwt_get_crypto_ops", "group__jwt__crypto__grp.html#ga1ccd01c10c0f77ab1d247b1fff1f47b1", null ],

@@ -5,17 +5,17 @@
 <filterSection>
 <filterAttribute>doxygen</filterAttribute>
 <toc>
-<section title="LibJWT 2.1.1" ref="index.html">
+<section title="LibJWT 2.9.99" ref="index.html">
 <section title="Welcome to LibJWT" ref="index.html">
-<section title="Supported Standards" ref="index.html#standards"/>
-<section title="Build Prerequisites" ref="index.html#building">
+<section title="\u{1f4a1} Supported Standards" ref="index.html#standards"/>
+<section title="\u{1f6a7} Build Prerequisites" ref="index.html#building">
 <section title="Required" ref="index.html#req"/>
 <section title="One or more of these" ref="index.html#req_crypto"/>
 <section title="Optional" ref="index.html#optional"/>
 </section>
-<section title="Docs and Source" ref="index.html#docs"/>
-<section title="Pre-built Packages" ref="index.html#prebuilt"/>
-<section title="Build Instructions" ref="index.html#instructions">
+<section title="\u{1f4d6} Docs and Source" ref="index.html#docs"/>
+<section title="\u{1f4e6} Pre-built Packages" ref="index.html#prebuilt"/>
+<section title="\u{1f528} Build Instructions" ref="index.html#instructions">
 <section title="With CMake:" ref="index.html#cmake"/>
 <section title="Common" ref="index.html#common"/>
 </section>
@@ -52,6 +52,7 @@
 <section title="jwt_config_t" ref="structjwt__config__t.html">
 <section title="alg" ref="structjwt__config__t.html#aa1f5e081bba22bd5e0e90962b55d3305"/>
 <section title="ctx" ref="structjwt__config__t.html#a5b20a944b428896447108820ca861117"/>
+<section title="jw_key" ref="structjwt__config__t.html#abc613eedbd07027e1aed03baaf7b7a93"/>
 <section title="jwt_key" ref="structjwt__config__t.html#ad7ce7a24c7b944d94897cc5eac0ad8eb"/>
 <section title="jwt_key_len" ref="structjwt__config__t.html#adae9aa4116f2131edf0ac1089812bdca"/>
 <section title="key" ref="structjwt__config__t.html#ae0c3a81bd6e44a10a3863808fea31ab0"/>
@@ -60,6 +61,9 @@
 <section title="JWT_CONFIG_DECLARE" ref="group__jwt__config__grp.html#ga0816f65962b32e875a2ed9b6f0166bee"/>
 <section title="jwt_callback_t" ref="group__jwt__config__grp.html#ga44edddf2ce7034752c2b22283ad1010d"/>
 <section title="jwt_config_init" ref="group__jwt__config__grp.html#ga08ab7f9e1917072c0910ee5335d3b04a"/>
+</section>
+<section title="Create a JWT" ref="group__jwt__create__grp.html">
+<section title="jwt_create" ref="group__jwt__create__grp.html#ga7d5f4d5a83505c06faf9728bd7911908"/>
 </section>
 <section title="Token Verification" ref="group__jwt__verify__grp.html">
 <section title="jwt_decode" ref="group__jwt__verify__grp.html#ga4d498ffdcf1c95d67b81c224e2a447e5"/>
@@ -73,10 +77,10 @@
 <section title="jwt_add_grant_int" ref="group__jwt__grant__grp.html#gae4cdc69b259a0f2f98e3c07bf9038765"/>
 <section title="jwt_add_grants_json" ref="group__jwt__grant__grp.html#ga0509c745c45eebb41c278cebb0617a55"/>
 <section title="jwt_del_grants" ref="group__jwt__grant__grp.html#ga0d8da61021d73817fb71bf8ffb7791b7"/>
-<section title="jwt_get_grant" ref="group__jwt__grant__grp.html#ga371b128c850eef1c364fa199ab79304b"/>
-<section title="jwt_get_grant_bool" ref="group__jwt__grant__grp.html#ga439c70c683ebf8b44eb6cdcc7a88ae2f"/>
-<section title="jwt_get_grant_int" ref="group__jwt__grant__grp.html#gae48541a059b47945181102d6478bd2bb"/>
-<section title="jwt_get_grants_json" ref="group__jwt__grant__grp.html#gad17b899468a54b1270a55f9ff5ae1c6f"/>
+<section title="jwt_get_grant" ref="group__jwt__grant__grp.html#ga2131ddd80d3c138766573b87310bdb6e"/>
+<section title="jwt_get_grant_bool" ref="group__jwt__grant__grp.html#ga782d0fb87e79706e705ea5a989024abd"/>
+<section title="jwt_get_grant_int" ref="group__jwt__grant__grp.html#gafac50d1449e4ea9560258a68a07cfdda"/>
+<section title="jwt_get_grants_json" ref="group__jwt__grant__grp.html#ga5445b6af33ae868b763ae8d2139c089f"/>
 </section>
 <section title="Header Hanagement" ref="group__jwt__header__grp.html">
 <section title="jwt_add_header" ref="group__jwt__header__grp.html#ga1c0093b5b221f78bbd4e102d30870a27"/>
@@ -84,10 +88,10 @@
 <section title="jwt_add_header_int" ref="group__jwt__header__grp.html#ga250b312a2c57fa5664f3921950c88766"/>
 <section title="jwt_add_headers_json" ref="group__jwt__header__grp.html#ga283f3dc2d9686e4db73874ae9f446ac1"/>
 <section title="jwt_del_headers" ref="group__jwt__header__grp.html#gae5ebb283a76098e9a99f7fe13b18593f"/>
-<section title="jwt_get_header" ref="group__jwt__header__grp.html#ga721e3aff05b50f3859d4a725fd700710"/>
-<section title="jwt_get_header_bool" ref="group__jwt__header__grp.html#ga33a937ff813f648aef0ed1a5179aa75a"/>
-<section title="jwt_get_header_int" ref="group__jwt__header__grp.html#gae245c9c95917566c0b135b39edd398fc"/>
-<section title="jwt_get_headers_json" ref="group__jwt__header__grp.html#ga42eca709925d5bfcb9d0c5cfa11039f8"/>
+<section title="jwt_get_header" ref="group__jwt__header__grp.html#ga5563efb29cdd4bfe078a3e82fa6a873a"/>
+<section title="jwt_get_header_bool" ref="group__jwt__header__grp.html#gacb7171946cdc613c4800c1c0b279af4b"/>
+<section title="jwt_get_header_int" ref="group__jwt__header__grp.html#gaadd81a21b63c01106bd7943992687199"/>
+<section title="jwt_get_headers_json" ref="group__jwt__header__grp.html#ga7fffc3eb52315f54605dad87fbdb52cb"/>
 </section>
 <section title="Encoding and Output" ref="group__jwt__encode__grp.html">
 <section title="jwt_dump_fp" ref="group__jwt__encode__grp.html#gacc77ae9e2214c9b07352a400758f1f4d"/>
@@ -117,7 +121,7 @@
 <section title="JWT_VALIDATION_GRANT_MISSING" ref="group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4a94eb7551ec626004a55798ecbd563d38"/>
 <section title="JWT_VALIDATION_GRANT_MISMATCH" ref="group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4a5b1db073c57082b557592b7115a8e363"/>
 </section>
-<section title="jwt_exception_str" ref="group__jwt__valid__grp.html#ga9c29423f490268df9ec101a83ed96e5f"/>
+<section title="jwt_exception_str" ref="group__jwt__valid__grp.html#ga8371a7299dab709fa28fba7271d03a14"/>
 <section title="jwt_valid_add_grant" ref="group__jwt__valid__grp.html#gab5e9e2dc5e0276ea2c21c050822c19e1"/>
 <section title="jwt_valid_add_grant_bool" ref="group__jwt__valid__grp.html#gafa57cedcecda005a47161c462b2f0c9f"/>
 <section title="jwt_valid_add_grant_int" ref="group__jwt__valid__grp.html#ga50c04450cc57bcd18717c25f18aed479"/>
@@ -147,6 +151,7 @@
 <section title="error" ref="structjwk__item__t.html#ae5aef5762e38fc66625cedc461a32ece"/>
 <section title="error_msg" ref="structjwk__item__t.html#a2840975767dbdc020912682c06ebdb75"/>
 <section title="is_private_key" ref="structjwk__item__t.html#a58ab0832602b475e7c3a7009925db87e"/>
+<section title="json" ref="structjwk__item__t.html#a3593e9e89e76e6e8b605f01a1a8a2367"/>
 <section title="key_ops" ref="structjwk__item__t.html#a44fe44eb2d9c9466c48f19cd5f590e21"/>
 <section title="kid" ref="structjwk__item__t.html#a874da82b485b8c541ecd0f3f8fd12a0f"/>
 <section title="kty" ref="structjwk__item__t.html#ae2d7fed09d97d0ac3e6571e7c897d580"/>
@@ -189,7 +194,7 @@
 <section title="jwks_item_free_all" ref="group__jwks__core__grp.html#ga8b5403fd3d2e07199bb8afb2c053aa2e"/>
 <section title="jwks_item_get" ref="group__jwks__core__grp.html#gae00c8e06cbdf28d732452218940341a3"/>
 </section>
-<section title="Advanced Functionality" ref="group__advanced__grp.html">
+<section title="Advanced Functionality" ref="group__jwt__advanced__grp.html">
 <section title="Memory Handlers" ref="group__jwt__memory__grp.html">
 <section title="jwt_free_t" ref="group__jwt__memory__grp.html#gad3b3fc88482616b2883b786d0700c377"/>
 <section title="jwt_malloc_t" ref="group__jwt__memory__grp.html#gae64b1a91c7e44845d2422f5a6bfa7972"/>
@@ -203,6 +208,7 @@
 <section title="JWT_CRYPTO_OPS_OPENSSL" ref="group__jwt__crypto__grp.html#ggaa1e2b1f241858d81b1bfb86018d3b3aca5ebef71958d3135b13ada7bb72a63b02"/>
 <section title="JWT_CRYPTO_OPS_GNUTLS" ref="group__jwt__crypto__grp.html#ggaa1e2b1f241858d81b1bfb86018d3b3acaee34d6e9a11bfaa47e01c56a66682750"/>
 <section title="JWT_CRYPTO_OPS_MBEDTLS" ref="group__jwt__crypto__grp.html#ggaa1e2b1f241858d81b1bfb86018d3b3aca4c5fd08d7061b5caba0f8698dc817306"/>
+<section title="JWT_CRYPTO_OPS_ANY" ref="group__jwt__crypto__grp.html#ggaa1e2b1f241858d81b1bfb86018d3b3aca80b50ab76725eb24ce2c16199865d50a"/>
 </section>
 <section title="jwt_crypto_ops_supports_jwk" ref="group__jwt__crypto__grp.html#gad03cf6e8291772a1ff1d37a81f18a177"/>
 <section title="jwt_get_crypto_ops" ref="group__jwt__crypto__grp.html#ga1ccd01c10c0f77ab1d247b1fff1f47b1"/>
@@ -221,6 +227,7 @@
 <section title="error" ref="structjwk__item__t.html#ae5aef5762e38fc66625cedc461a32ece"/>
 <section title="error_msg" ref="structjwk__item__t.html#a2840975767dbdc020912682c06ebdb75"/>
 <section title="is_private_key" ref="structjwk__item__t.html#a58ab0832602b475e7c3a7009925db87e"/>
+<section title="json" ref="structjwk__item__t.html#a3593e9e89e76e6e8b605f01a1a8a2367"/>
 <section title="key_ops" ref="structjwk__item__t.html#a44fe44eb2d9c9466c48f19cd5f590e21"/>
 <section title="kid" ref="structjwk__item__t.html#a874da82b485b8c541ecd0f3f8fd12a0f"/>
 <section title="kty" ref="structjwk__item__t.html#ae2d7fed09d97d0ac3e6571e7c897d580"/>
@@ -232,6 +239,7 @@
 <section title="jwt_config_t" ref="structjwt__config__t.html">
 <section title="alg" ref="structjwt__config__t.html#aa1f5e081bba22bd5e0e90962b55d3305"/>
 <section title="ctx" ref="structjwt__config__t.html#a5b20a944b428896447108820ca861117"/>
+<section title="jw_key" ref="structjwt__config__t.html#abc613eedbd07027e1aed03baaf7b7a93"/>
 <section title="jwt_key" ref="structjwt__config__t.html#ad7ce7a24c7b944d94897cc5eac0ad8eb"/>
 <section title="jwt_key_len" ref="structjwt__config__t.html#adae9aa4116f2131edf0ac1089812bdca"/>
 <section title="key" ref="structjwt__config__t.html#ae0c3a81bd6e44a10a3863808fea31ab0"/>
@@ -252,6 +260,7 @@
 <keyword name="JSON Web Token" id="JSON Web Token_" ref="group__jwt__grp.html"/>
 <keyword name="Object Creation" id="Object Creation_" ref="group__jwt__core__grp.html"/>
 <keyword name="Configuration Type" id="Configuration Type_" ref="group__jwt__config__grp.html"/>
+<keyword name="Create a JWT" id="Create a JWT_" ref="group__jwt__create__grp.html"/>
 <keyword name="Token Verification" id="Token Verification_" ref="group__jwt__verify__grp.html"/>
 <keyword name="Grant Management" id="Grant Management_" ref="group__jwt__grant__grp.html"/>
 <keyword name="Header Hanagement" id="Header Hanagement_" ref="group__jwt__header__grp.html"/>
@@ -259,7 +268,7 @@
 <keyword name="Algorithm Management" id="Algorithm Management_" ref="group__jwt__alg__grp.html"/>
 <keyword name="JSON Web Key and Sets" id="JSON Web Key and Sets_" ref="group__jwks__core__grp.html"/>
 <keyword name="Validation Functions" id="Validation Functions_" ref="group__jwt__valid__grp.html"/>
-<keyword name="Advanced Functionality" id="Advanced Functionality_" ref="group__advanced__grp.html"/>
+<keyword name="Advanced Functionality" id="Advanced Functionality_" ref="group__jwt__advanced__grp.html"/>
 <keyword name="Memory Handlers" id="Memory Handlers_" ref="group__jwt__memory__grp.html"/>
 <keyword name="Cryptographic Operations" id="Cryptographic Operations_" ref="group__jwt__crypto__grp.html"/>
 <keyword name="Todo List" id="Todo List_" ref="todo.html"/>
@@ -273,6 +282,8 @@
 <keyword name="error" id="jwk_item_t::error_ae5aef5762e38fc66625cedc461a32ece" ref="structjwk__item__t.html#ae5aef5762e38fc66625cedc461a32ece"/>
 <keyword name="error_msg[256]" id="jwk_item_t::error_msg_a2840975767dbdc020912682c06ebdb75" ref="structjwk__item__t.html#a2840975767dbdc020912682c06ebdb75"/>
 <keyword name="is_private_key" id="jwk_item_t::is_private_key_a58ab0832602b475e7c3a7009925db87e" ref="structjwk__item__t.html#a58ab0832602b475e7c3a7009925db87e"/>
+<keyword name="json" id="jwk_item_t::json_a3593e9e89e76e6e8b605f01a1a8a2367" ref="structjwk__item__t.html#a3593e9e89e76e6e8b605f01a1a8a2367"/>
+<keyword name="jw_key" id="jwt_config_t::jw_key_abc613eedbd07027e1aed03baaf7b7a93" ref="structjwt__config__t.html#abc613eedbd07027e1aed03baaf7b7a93"/>
 <keyword name="jwt_key" id="jwt_config_t::jwt_key_ad7ce7a24c7b944d94897cc5eac0ad8eb" ref="structjwt__config__t.html#ad7ce7a24c7b944d94897cc5eac0ad8eb"/>
 <keyword name="jwt_key_len" id="jwt_config_t::jwt_key_len_adae9aa4116f2131edf0ac1089812bdca" ref="structjwt__config__t.html#adae9aa4116f2131edf0ac1089812bdca"/>
 <keyword name="key" id="jwt_config_t::key_ae0c3a81bd6e44a10a3863808fea31ab0" ref="structjwt__config__t.html#ae0c3a81bd6e44a10a3863808fea31ab0"/>
@@ -376,6 +387,8 @@
 <keyword name="jwt_callback_t)(const jwt_t *, jwt_config_t *)" id="jwt_config_grp::jwt_callback_t_ga44edddf2ce7034752c2b22283ad1010d" ref="group__jwt__config__grp.html#ga44edddf2ce7034752c2b22283ad1010d"/>
 <keyword name="JWT_CONFIG_DECLARE(__name)" id="jwt_config_grp::JWT_CONFIG_DECLARE_ga0816f65962b32e875a2ed9b6f0166bee" ref="group__jwt__config__grp.html#ga0816f65962b32e875a2ed9b6f0166bee"/>
 <keyword name="jwt_config_init(jwt_config_t *config)" id="jwt_config_grp::jwt_config_init_ga08ab7f9e1917072c0910ee5335d3b04a" ref="group__jwt__config__grp.html#ga08ab7f9e1917072c0910ee5335d3b04a"/>
+<keyword name="jwt_create(jwt_config_t *config)" id="jwt_create_grp::jwt_create_ga7d5f4d5a83505c06faf9728bd7911908" ref="group__jwt__create__grp.html#ga7d5f4d5a83505c06faf9728bd7911908"/>
+<keyword name="JWT_CRYPTO_OPS_ANY" id="jwt_crypto_grp::JWT_CRYPTO_OPS_ANY_ggaa1e2b1f241858d81b1bfb86018d3b3aca80b50ab76725eb24ce2c16199865d50a" ref="group__jwt__crypto__grp.html#ggaa1e2b1f241858d81b1bfb86018d3b3aca80b50ab76725eb24ce2c16199865d50a"/>
 <keyword name="JWT_CRYPTO_OPS_GNUTLS" id="jwt_crypto_grp::JWT_CRYPTO_OPS_GNUTLS_ggaa1e2b1f241858d81b1bfb86018d3b3acaee34d6e9a11bfaa47e01c56a66682750" ref="group__jwt__crypto__grp.html#ggaa1e2b1f241858d81b1bfb86018d3b3acaee34d6e9a11bfaa47e01c56a66682750"/>
 <keyword name="JWT_CRYPTO_OPS_MBEDTLS" id="jwt_crypto_grp::JWT_CRYPTO_OPS_MBEDTLS_ggaa1e2b1f241858d81b1bfb86018d3b3aca4c5fd08d7061b5caba0f8698dc817306" ref="group__jwt__crypto__grp.html#ggaa1e2b1f241858d81b1bfb86018d3b3aca4c5fd08d7061b5caba0f8698dc817306"/>
 <keyword name="JWT_CRYPTO_OPS_NONE" id="jwt_crypto_grp::JWT_CRYPTO_OPS_NONE_ggaa1e2b1f241858d81b1bfb86018d3b3aca482aa19a4996aaddbfd0349356be92c2" ref="group__jwt__crypto__grp.html#ggaa1e2b1f241858d81b1bfb86018d3b3aca482aa19a4996aaddbfd0349356be92c2"/>
@@ -386,6 +399,7 @@
 <keyword name="JWT_CRYPTO_OPS_OPENSSL" id="jwt_crypto_grp::JWT_CRYPTO_OPS_OPENSSL_ggaa1e2b1f241858d81b1bfb86018d3b3aca5ebef71958d3135b13ada7bb72a63b02" ref="group__jwt__crypto__grp.html#ggaa1e2b1f241858d81b1bfb86018d3b3aca5ebef71958d3135b13ada7bb72a63b02"/>
 <keyword name="JWT_CRYPTO_OPS_GNUTLS" id="jwt_crypto_grp::JWT_CRYPTO_OPS_GNUTLS_ggaa1e2b1f241858d81b1bfb86018d3b3acaee34d6e9a11bfaa47e01c56a66682750" ref="group__jwt__crypto__grp.html#ggaa1e2b1f241858d81b1bfb86018d3b3acaee34d6e9a11bfaa47e01c56a66682750"/>
 <keyword name="JWT_CRYPTO_OPS_MBEDTLS" id="jwt_crypto_grp::JWT_CRYPTO_OPS_MBEDTLS_ggaa1e2b1f241858d81b1bfb86018d3b3aca4c5fd08d7061b5caba0f8698dc817306" ref="group__jwt__crypto__grp.html#ggaa1e2b1f241858d81b1bfb86018d3b3aca4c5fd08d7061b5caba0f8698dc817306"/>
+<keyword name="JWT_CRYPTO_OPS_ANY" id="jwt_crypto_grp::JWT_CRYPTO_OPS_ANY_ggaa1e2b1f241858d81b1bfb86018d3b3aca80b50ab76725eb24ce2c16199865d50a" ref="group__jwt__crypto__grp.html#ggaa1e2b1f241858d81b1bfb86018d3b3aca80b50ab76725eb24ce2c16199865d50a"/>
 <keyword name="jwt_decode(jwt_t **jwt, const char *token, const unsigned char *key, int key_len)" id="jwt_verify_grp::jwt_decode_ga4d498ffdcf1c95d67b81c224e2a447e5" ref="group__jwt__verify__grp.html#ga4d498ffdcf1c95d67b81c224e2a447e5"/>
 <keyword name="jwt_decode_2(jwt_t **jwt, const char *token, jwt_callback_t cb)" id="jwt_verify_grp::jwt_decode_2_gaf6811b9a47f36da1399297fc7710e8ad" ref="group__jwt__verify__grp.html#gaf6811b9a47f36da1399297fc7710e8ad"/>
 <keyword name="jwt_del_grants(jwt_t *jwt, const char *grant)" id="jwt_grant_grp::jwt_del_grants_ga0d8da61021d73817fb71bf8ffb7791b7" ref="group__jwt__grant__grp.html#ga0d8da61021d73817fb71bf8ffb7791b7"/>
@@ -396,7 +410,7 @@
 <keyword name="jwt_dup(jwt_t *jwt)" id="jwt_core_grp::jwt_dup_gac11d4548c695e5781cae2a5148a7e240" ref="group__jwt__core__grp.html#gac11d4548c695e5781cae2a5148a7e240"/>
 <keyword name="jwt_encode_fp(jwt_t *jwt, FILE *fp)" id="jwt_encode_grp::jwt_encode_fp_ga2782abdbb190b626a5bd4eb3943b7b8d" ref="group__jwt__encode__grp.html#ga2782abdbb190b626a5bd4eb3943b7b8d"/>
 <keyword name="jwt_encode_str(jwt_t *jwt)" id="jwt_encode_grp::jwt_encode_str_ga124ccd21e6495dbbd1012f60d74202dd" ref="group__jwt__encode__grp.html#ga124ccd21e6495dbbd1012f60d74202dd"/>
-<keyword name="jwt_exception_str(unsigned int exceptions)" id="jwt_valid_grp::jwt_exception_str_ga9c29423f490268df9ec101a83ed96e5f" ref="group__jwt__valid__grp.html#ga9c29423f490268df9ec101a83ed96e5f"/>
+<keyword name="jwt_exception_str(jwt_valid_exception_t exceptions)" id="jwt_valid_grp::jwt_exception_str_ga8371a7299dab709fa28fba7271d03a14" ref="group__jwt__valid__grp.html#ga8371a7299dab709fa28fba7271d03a14"/>
 <keyword name="jwt_free(jwt_t *jwt)" id="jwt_core_grp::jwt_free_gafd51b076050815be44081439d1cb33fc" ref="group__jwt__core__grp.html#gafd51b076050815be44081439d1cb33fc"/>
 <keyword name="jwt_free_str(char *str)" id="jwt_encode_grp::jwt_free_str_ga1c6ff5f00e8722f5522fe7b36697ecdd" ref="group__jwt__encode__grp.html#ga1c6ff5f00e8722f5522fe7b36697ecdd"/>
 <keyword name="jwt_free_t)(void *)" id="jwt_memory_grp::jwt_free_t_gad3b3fc88482616b2883b786d0700c377" ref="group__jwt__memory__grp.html#gad3b3fc88482616b2883b786d0700c377"/>
@@ -404,14 +418,14 @@
 <keyword name="jwt_get_alloc(jwt_malloc_t *pmalloc, jwt_realloc_t *prealloc, jwt_free_t *pfree)" id="jwt_memory_grp::jwt_get_alloc_ga8d96db3450596f2e38b549bd8f0e4ec5" ref="group__jwt__memory__grp.html#ga8d96db3450596f2e38b549bd8f0e4ec5"/>
 <keyword name="jwt_get_crypto_ops(void)" id="jwt_crypto_grp::jwt_get_crypto_ops_ga1ccd01c10c0f77ab1d247b1fff1f47b1" ref="group__jwt__crypto__grp.html#ga1ccd01c10c0f77ab1d247b1fff1f47b1"/>
 <keyword name="jwt_get_crypto_ops_t(void)" id="jwt_crypto_grp::jwt_get_crypto_ops_t_ga3f15e0ad1c6f8e2afae34c1d5bb03fcd" ref="group__jwt__crypto__grp.html#ga3f15e0ad1c6f8e2afae34c1d5bb03fcd"/>
-<keyword name="jwt_get_grant(jwt_t *jwt, const char *grant)" id="jwt_grant_grp::jwt_get_grant_ga371b128c850eef1c364fa199ab79304b" ref="group__jwt__grant__grp.html#ga371b128c850eef1c364fa199ab79304b"/>
-<keyword name="jwt_get_grant_bool(jwt_t *jwt, const char *grant)" id="jwt_grant_grp::jwt_get_grant_bool_ga439c70c683ebf8b44eb6cdcc7a88ae2f" ref="group__jwt__grant__grp.html#ga439c70c683ebf8b44eb6cdcc7a88ae2f"/>
-<keyword name="jwt_get_grant_int(jwt_t *jwt, const char *grant)" id="jwt_grant_grp::jwt_get_grant_int_gae48541a059b47945181102d6478bd2bb" ref="group__jwt__grant__grp.html#gae48541a059b47945181102d6478bd2bb"/>
-<keyword name="jwt_get_grants_json(jwt_t *jwt, const char *grant)" id="jwt_grant_grp::jwt_get_grants_json_gad17b899468a54b1270a55f9ff5ae1c6f" ref="group__jwt__grant__grp.html#gad17b899468a54b1270a55f9ff5ae1c6f"/>
-<keyword name="jwt_get_header(jwt_t *jwt, const char *header)" id="jwt_header_grp::jwt_get_header_ga721e3aff05b50f3859d4a725fd700710" ref="group__jwt__header__grp.html#ga721e3aff05b50f3859d4a725fd700710"/>
-<keyword name="jwt_get_header_bool(jwt_t *jwt, const char *header)" id="jwt_header_grp::jwt_get_header_bool_ga33a937ff813f648aef0ed1a5179aa75a" ref="group__jwt__header__grp.html#ga33a937ff813f648aef0ed1a5179aa75a"/>
-<keyword name="jwt_get_header_int(jwt_t *jwt, const char *header)" id="jwt_header_grp::jwt_get_header_int_gae245c9c95917566c0b135b39edd398fc" ref="group__jwt__header__grp.html#gae245c9c95917566c0b135b39edd398fc"/>
-<keyword name="jwt_get_headers_json(jwt_t *jwt, const char *header)" id="jwt_header_grp::jwt_get_headers_json_ga42eca709925d5bfcb9d0c5cfa11039f8" ref="group__jwt__header__grp.html#ga42eca709925d5bfcb9d0c5cfa11039f8"/>
+<keyword name="jwt_get_grant(const jwt_t *jwt, const char *grant)" id="jwt_grant_grp::jwt_get_grant_ga2131ddd80d3c138766573b87310bdb6e" ref="group__jwt__grant__grp.html#ga2131ddd80d3c138766573b87310bdb6e"/>
+<keyword name="jwt_get_grant_bool(const jwt_t *jwt, const char *grant)" id="jwt_grant_grp::jwt_get_grant_bool_ga782d0fb87e79706e705ea5a989024abd" ref="group__jwt__grant__grp.html#ga782d0fb87e79706e705ea5a989024abd"/>
+<keyword name="jwt_get_grant_int(const jwt_t *jwt, const char *grant)" id="jwt_grant_grp::jwt_get_grant_int_gafac50d1449e4ea9560258a68a07cfdda" ref="group__jwt__grant__grp.html#gafac50d1449e4ea9560258a68a07cfdda"/>
+<keyword name="jwt_get_grants_json(const jwt_t *jwt, const char *grant)" id="jwt_grant_grp::jwt_get_grants_json_ga5445b6af33ae868b763ae8d2139c089f" ref="group__jwt__grant__grp.html#ga5445b6af33ae868b763ae8d2139c089f"/>
+<keyword name="jwt_get_header(const jwt_t *jwt, const char *header)" id="jwt_header_grp::jwt_get_header_ga5563efb29cdd4bfe078a3e82fa6a873a" ref="group__jwt__header__grp.html#ga5563efb29cdd4bfe078a3e82fa6a873a"/>
+<keyword name="jwt_get_header_bool(const jwt_t *jwt, const char *header)" id="jwt_header_grp::jwt_get_header_bool_gacb7171946cdc613c4800c1c0b279af4b" ref="group__jwt__header__grp.html#gacb7171946cdc613c4800c1c0b279af4b"/>
+<keyword name="jwt_get_header_int(const jwt_t *jwt, const char *header)" id="jwt_header_grp::jwt_get_header_int_gaadd81a21b63c01106bd7943992687199" ref="group__jwt__header__grp.html#gaadd81a21b63c01106bd7943992687199"/>
+<keyword name="jwt_get_headers_json(const jwt_t *jwt, const char *header)" id="jwt_header_grp::jwt_get_headers_json_ga7fffc3eb52315f54605dad87fbdb52cb" ref="group__jwt__header__grp.html#ga7fffc3eb52315f54605dad87fbdb52cb"/>
 <keyword name="jwt_malloc_t)(size_t)" id="jwt_memory_grp::jwt_malloc_t_gae64b1a91c7e44845d2422f5a6bfa7972" ref="group__jwt__memory__grp.html#gae64b1a91c7e44845d2422f5a6bfa7972"/>
 <keyword name="jwt_new(jwt_t **jwt)" id="jwt_core_grp::jwt_new_ga9ce4e8fb6c2eb66e41b07a7a57d8a68a" ref="group__jwt__core__grp.html#ga9ce4e8fb6c2eb66e41b07a7a57d8a68a"/>
 <keyword name="jwt_realloc_t)(void *, size_t)" id="jwt_memory_grp::jwt_realloc_t_gaee904814d9c9266c68d2abff08fbc5af" ref="group__jwt__memory__grp.html#gaee904814d9c9266c68d2abff08fbc5af"/>
@@ -487,15 +501,17 @@
 <file>functions_vars.html</file>
 <file>graph_legend.html</file>
 <file>graph_legend.svg</file>
-<file>group__advanced__grp.html</file>
-<file>group__advanced__grp.svg</file>
 <file>group__jwks__core__grp.html</file>
+<file>group__jwt__advanced__grp.html</file>
+<file>group__jwt__advanced__grp.svg</file>
 <file>group__jwt__alg__grp.html</file>
 <file>group__jwt__alg__grp.svg</file>
 <file>group__jwt__config__grp.html</file>
 <file>group__jwt__config__grp.svg</file>
 <file>group__jwt__core__grp.html</file>
 <file>group__jwt__core__grp.svg</file>
+<file>group__jwt__create__grp.html</file>
+<file>group__jwt__create__grp.svg</file>
 <file>group__jwt__crypto__grp.html</file>
 <file>group__jwt__crypto__grp.svg</file>
 <file>group__jwt__encode__grp.html</file>
@@ -515,6 +531,7 @@
 <file>index.html</file>
 <file>jquery.js</file>
 <file>libjwt.css</file>
+<file>maclara-pill.svg</file>
 <file>minus.svg</file>
 <file>minusd.svg</file>
 <file>nav_f.png</file>
@@ -532,6 +549,8 @@
 <file>splitbard.png</file>
 <file>structjwk__item__t.html</file>
 <file>structjwt__config__t.html</file>
+<file>structjwt__config__t__coll__graph.pdf</file>
+<file>structjwt__config__t__coll__graph.svg</file>
 <file>svg.min.js</file>
 <file>sync_off.png</file>
 <file>sync_on.png</file>

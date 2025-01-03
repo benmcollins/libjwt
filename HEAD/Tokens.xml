@@ -43,6 +43,13 @@
   </Token>
   <Token>
     <TokenIdentifier>
+      <Name>jwt_create_grp</Name>
+      <APILanguage>c</APILanguage>
+    </TokenIdentifier>
+    <Path>group__jwt__create__grp.html</Path>
+  </Token>
+  <Token>
+    <TokenIdentifier>
       <Name>jwt_verify_grp</Name>
       <APILanguage>c</APILanguage>
     </TokenIdentifier>
@@ -92,10 +99,10 @@
   </Token>
   <Token>
     <TokenIdentifier>
-      <Name>advanced_grp</Name>
+      <Name>jwt_advanced_grp</Name>
       <APILanguage>c</APILanguage>
     </TokenIdentifier>
-    <Path>group__advanced__grp.html</Path>
+    <Path>group__jwt__advanced__grp.html</Path>
   </Token>
   <Token>
     <TokenIdentifier>
@@ -211,6 +218,26 @@
     </TokenIdentifier>
     <Path>structjwk__item__t.html</Path>
     <Anchor>a58ab0832602b475e7c3a7009925db87e</Anchor>
+  </Token>
+  <Token>
+    <TokenIdentifier>
+      <Name>json</Name>
+      <APILanguage>cpp</APILanguage>
+      <Type>data</Type>
+      <Scope>jwk_item_t</Scope>
+    </TokenIdentifier>
+    <Path>structjwk__item__t.html</Path>
+    <Anchor>a3593e9e89e76e6e8b605f01a1a8a2367</Anchor>
+  </Token>
+  <Token>
+    <TokenIdentifier>
+      <Name>jw_key</Name>
+      <APILanguage>cpp</APILanguage>
+      <Type>data</Type>
+      <Scope>jwt_config_t</Scope>
+    </TokenIdentifier>
+    <Path>structjwt__config__t.html</Path>
+    <Anchor>abc613eedbd07027e1aed03baaf7b7a93</Anchor>
   </Token>
   <Token>
     <TokenIdentifier>
@@ -1244,6 +1271,26 @@
   </Token>
   <Token>
     <TokenIdentifier>
+      <Name>jwt_create</Name>
+      <APILanguage>c</APILanguage>
+      <Type>func</Type>
+    </TokenIdentifier>
+    <Path>group__jwt__create__grp.html</Path>
+    <Anchor>ga7d5f4d5a83505c06faf9728bd7911908</Anchor>
+    <DeclaredIn>jwt.h</DeclaredIn>
+  </Token>
+  <Token>
+    <TokenIdentifier>
+      <Name>JWT_CRYPTO_OPS_ANY</Name>
+      <APILanguage>c</APILanguage>
+      <Type>econst</Type>
+    </TokenIdentifier>
+    <Path>group__jwt__crypto__grp.html</Path>
+    <Anchor>ggaa1e2b1f241858d81b1bfb86018d3b3aca80b50ab76725eb24ce2c16199865d50a</Anchor>
+    <DeclaredIn>jwt.h</DeclaredIn>
+  </Token>
+  <Token>
+    <TokenIdentifier>
       <Name>JWT_CRYPTO_OPS_GNUTLS</Name>
       <APILanguage>c</APILanguage>
       <Type>econst</Type>
@@ -1340,6 +1387,16 @@
     </TokenIdentifier>
     <Path>group__jwt__crypto__grp.html</Path>
     <Anchor>ggaa1e2b1f241858d81b1bfb86018d3b3aca4c5fd08d7061b5caba0f8698dc817306</Anchor>
+    <DeclaredIn>jwt.h</DeclaredIn>
+  </Token>
+  <Token>
+    <TokenIdentifier>
+      <Name>JWT_CRYPTO_OPS_ANY</Name>
+      <APILanguage>c</APILanguage>
+      <Type>econst</Type>
+    </TokenIdentifier>
+    <Path>group__jwt__crypto__grp.html</Path>
+    <Anchor>ggaa1e2b1f241858d81b1bfb86018d3b3aca80b50ab76725eb24ce2c16199865d50a</Anchor>
     <DeclaredIn>jwt.h</DeclaredIn>
   </Token>
   <Token>
@@ -1449,7 +1506,7 @@
       <Type>func</Type>
     </TokenIdentifier>
     <Path>group__jwt__valid__grp.html</Path>
-    <Anchor>ga9c29423f490268df9ec101a83ed96e5f</Anchor>
+    <Anchor>ga8371a7299dab709fa28fba7271d03a14</Anchor>
     <DeclaredIn>jwt.h</DeclaredIn>
   </Token>
   <Token>
@@ -1529,7 +1586,7 @@
       <Type>func</Type>
     </TokenIdentifier>
     <Path>group__jwt__grant__grp.html</Path>
-    <Anchor>ga371b128c850eef1c364fa199ab79304b</Anchor>
+    <Anchor>ga2131ddd80d3c138766573b87310bdb6e</Anchor>
     <DeclaredIn>jwt.h</DeclaredIn>
   </Token>
   <Token>
@@ -1539,7 +1596,7 @@
       <Type>func</Type>
     </TokenIdentifier>
     <Path>group__jwt__grant__grp.html</Path>
-    <Anchor>ga439c70c683ebf8b44eb6cdcc7a88ae2f</Anchor>
+    <Anchor>ga782d0fb87e79706e705ea5a989024abd</Anchor>
     <DeclaredIn>jwt.h</DeclaredIn>
   </Token>
   <Token>
@@ -1549,7 +1606,7 @@
       <Type>func</Type>
     </TokenIdentifier>
     <Path>group__jwt__grant__grp.html</Path>
-    <Anchor>gae48541a059b47945181102d6478bd2bb</Anchor>
+    <Anchor>gafac50d1449e4ea9560258a68a07cfdda</Anchor>
     <DeclaredIn>jwt.h</DeclaredIn>
   </Token>
   <Token>
@@ -1559,7 +1616,7 @@
       <Type>func</Type>
     </TokenIdentifier>
     <Path>group__jwt__grant__grp.html</Path>
-    <Anchor>gad17b899468a54b1270a55f9ff5ae1c6f</Anchor>
+    <Anchor>ga5445b6af33ae868b763ae8d2139c089f</Anchor>
     <DeclaredIn>jwt.h</DeclaredIn>
   </Token>
   <Token>
@@ -1569,7 +1626,7 @@
       <Type>func</Type>
     </TokenIdentifier>
     <Path>group__jwt__header__grp.html</Path>
-    <Anchor>ga721e3aff05b50f3859d4a725fd700710</Anchor>
+    <Anchor>ga5563efb29cdd4bfe078a3e82fa6a873a</Anchor>
     <DeclaredIn>jwt.h</DeclaredIn>
   </Token>
   <Token>
@@ -1579,7 +1636,7 @@
       <Type>func</Type>
     </TokenIdentifier>
     <Path>group__jwt__header__grp.html</Path>
-    <Anchor>ga33a937ff813f648aef0ed1a5179aa75a</Anchor>
+    <Anchor>gacb7171946cdc613c4800c1c0b279af4b</Anchor>
     <DeclaredIn>jwt.h</DeclaredIn>
   </Token>
   <Token>
@@ -1589,7 +1646,7 @@
       <Type>func</Type>
     </TokenIdentifier>
     <Path>group__jwt__header__grp.html</Path>
-    <Anchor>gae245c9c95917566c0b135b39edd398fc</Anchor>
+    <Anchor>gaadd81a21b63c01106bd7943992687199</Anchor>
     <DeclaredIn>jwt.h</DeclaredIn>
   </Token>
   <Token>
@@ -1599,7 +1656,7 @@
       <Type>func</Type>
     </TokenIdentifier>
     <Path>group__jwt__header__grp.html</Path>
-    <Anchor>ga42eca709925d5bfcb9d0c5cfa11039f8</Anchor>
+    <Anchor>ga7fffc3eb52315f54605dad87fbdb52cb</Anchor>
     <DeclaredIn>jwt.h</DeclaredIn>
   </Token>
   <Token>

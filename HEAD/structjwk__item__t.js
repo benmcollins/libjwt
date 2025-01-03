@@ -6,6 +6,7 @@ var structjwk__item__t =
     [ "error", "structjwk__item__t.html#ae5aef5762e38fc66625cedc461a32ece", null ],
     [ "error_msg", "structjwk__item__t.html#a2840975767dbdc020912682c06ebdb75", null ],
     [ "is_private_key", "structjwk__item__t.html#a58ab0832602b475e7c3a7009925db87e", null ],
+    [ "json", "structjwk__item__t.html#a3593e9e89e76e6e8b605f01a1a8a2367", null ],
     [ "key_ops", "structjwk__item__t.html#a44fe44eb2d9c9466c48f19cd5f590e21", null ],
     [ "kid", "structjwk__item__t.html#a874da82b485b8c541ecd0f3f8fd12a0f", null ],
     [ "kty", "structjwk__item__t.html#ae2d7fed09d97d0ac3e6571e7c897d580", null ],

@@ -13,7 +13,7 @@ var group__jwt__valid__grp =
       [ "JWT_VALIDATION_GRANT_MISSING", "group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4a94eb7551ec626004a55798ecbd563d38", null ],
       [ "JWT_VALIDATION_GRANT_MISMATCH", "group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4a5b1db073c57082b557592b7115a8e363", null ]
     ] ],
-    [ "jwt_exception_str", "group__jwt__valid__grp.html#ga9c29423f490268df9ec101a83ed96e5f", null ],
+    [ "jwt_exception_str", "group__jwt__valid__grp.html#ga8371a7299dab709fa28fba7271d03a14", null ],
     [ "jwt_valid_add_grant", "group__jwt__valid__grp.html#gab5e9e2dc5e0276ea2c21c050822c19e1", null ],
     [ "jwt_valid_add_grant_bool", "group__jwt__valid__grp.html#gafa57cedcecda005a47161c462b2f0c9f", null ],
     [ "jwt_valid_add_grant_int", "group__jwt__valid__grp.html#ga50c04450cc57bcd18717c25f18aed479", null ],

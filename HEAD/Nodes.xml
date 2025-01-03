@@ -10,12 +10,12 @@
         <Path>index.html</Path>
       <Subnodes>
          <Node>
-          <Name>Supported Standards</Name>
+          <Name>\u{1f4a1} Supported Standards</Name>
           <Path>index.html</Path>
           <Anchor>standards</Anchor>
          </Node>
          <Node>
-          <Name>Build Prerequisites</Name>
+          <Name>\u{1f6a7} Build Prerequisites</Name>
           <Path>index.html</Path>
           <Anchor>building</Anchor>
         <Subnodes>
@@ -37,17 +37,17 @@
           </Subnodes>
          </Node>
          <Node>
-          <Name>Docs and Source</Name>
+          <Name>\u{1f4d6} Docs and Source</Name>
           <Path>index.html</Path>
           <Anchor>docs</Anchor>
          </Node>
          <Node>
-          <Name>Pre-built Packages</Name>
+          <Name>\u{1f4e6} Pre-built Packages</Name>
           <Path>index.html</Path>
           <Anchor>prebuilt</Anchor>
          </Node>
          <Node>
-          <Name>Build Instructions</Name>
+          <Name>\u{1f528} Build Instructions</Name>
           <Path>index.html</Path>
           <Anchor>instructions</Anchor>
         <Subnodes>
@@ -213,6 +213,11 @@
                 <Anchor>a5b20a944b428896447108820ca861117</Anchor>
                </Node>
                <Node>
+                <Name>jw_key</Name>
+                <Path>structjwt__config__t.html</Path>
+                <Anchor>abc613eedbd07027e1aed03baaf7b7a93</Anchor>
+               </Node>
+               <Node>
                 <Name>jwt_key</Name>
                 <Path>structjwt__config__t.html</Path>
                 <Anchor>ad7ce7a24c7b944d94897cc5eac0ad8eb</Anchor>
@@ -248,6 +253,17 @@
               <Name>jwt_config_init</Name>
               <Path>group__jwt__config__grp.html</Path>
               <Anchor>ga08ab7f9e1917072c0910ee5335d3b04a</Anchor>
+             </Node>
+            </Subnodes>
+           </Node>
+           <Node>
+            <Name>Create a JWT</Name>
+            <Path>group__jwt__create__grp.html</Path>
+          <Subnodes>
+             <Node>
+              <Name>jwt_create</Name>
+              <Path>group__jwt__create__grp.html</Path>
+              <Anchor>ga7d5f4d5a83505c06faf9728bd7911908</Anchor>
              </Node>
             </Subnodes>
            </Node>
@@ -309,22 +325,22 @@
              <Node>
               <Name>jwt_get_grant</Name>
               <Path>group__jwt__grant__grp.html</Path>
-              <Anchor>ga371b128c850eef1c364fa199ab79304b</Anchor>
+              <Anchor>ga2131ddd80d3c138766573b87310bdb6e</Anchor>
              </Node>
              <Node>
               <Name>jwt_get_grant_bool</Name>
               <Path>group__jwt__grant__grp.html</Path>
-              <Anchor>ga439c70c683ebf8b44eb6cdcc7a88ae2f</Anchor>
+              <Anchor>ga782d0fb87e79706e705ea5a989024abd</Anchor>
              </Node>
              <Node>
               <Name>jwt_get_grant_int</Name>
               <Path>group__jwt__grant__grp.html</Path>
-              <Anchor>gae48541a059b47945181102d6478bd2bb</Anchor>
+              <Anchor>gafac50d1449e4ea9560258a68a07cfdda</Anchor>
              </Node>
              <Node>
               <Name>jwt_get_grants_json</Name>
               <Path>group__jwt__grant__grp.html</Path>
-              <Anchor>gad17b899468a54b1270a55f9ff5ae1c6f</Anchor>
+              <Anchor>ga5445b6af33ae868b763ae8d2139c089f</Anchor>
              </Node>
             </Subnodes>
            </Node>
@@ -360,22 +376,22 @@
              <Node>
               <Name>jwt_get_header</Name>
               <Path>group__jwt__header__grp.html</Path>
-              <Anchor>ga721e3aff05b50f3859d4a725fd700710</Anchor>
+              <Anchor>ga5563efb29cdd4bfe078a3e82fa6a873a</Anchor>
              </Node>
              <Node>
               <Name>jwt_get_header_bool</Name>
               <Path>group__jwt__header__grp.html</Path>
-              <Anchor>ga33a937ff813f648aef0ed1a5179aa75a</Anchor>
+              <Anchor>gacb7171946cdc613c4800c1c0b279af4b</Anchor>
              </Node>
              <Node>
               <Name>jwt_get_header_int</Name>
               <Path>group__jwt__header__grp.html</Path>
-              <Anchor>gae245c9c95917566c0b135b39edd398fc</Anchor>
+              <Anchor>gaadd81a21b63c01106bd7943992687199</Anchor>
              </Node>
              <Node>
               <Name>jwt_get_headers_json</Name>
               <Path>group__jwt__header__grp.html</Path>
-              <Anchor>ga42eca709925d5bfcb9d0c5cfa11039f8</Anchor>
+              <Anchor>ga7fffc3eb52315f54605dad87fbdb52cb</Anchor>
              </Node>
             </Subnodes>
            </Node>
@@ -510,7 +526,7 @@
              <Node>
               <Name>jwt_exception_str</Name>
               <Path>group__jwt__valid__grp.html</Path>
-              <Anchor>ga9c29423f490268df9ec101a83ed96e5f</Anchor>
+              <Anchor>ga8371a7299dab709fa28fba7271d03a14</Anchor>
              </Node>
              <Node>
               <Name>jwt_valid_add_grant</Name>
@@ -648,6 +664,11 @@
               <Name>is_private_key</Name>
               <Path>structjwk__item__t.html</Path>
               <Anchor>a58ab0832602b475e7c3a7009925db87e</Anchor>
+             </Node>
+             <Node>
+              <Name>json</Name>
+              <Path>structjwk__item__t.html</Path>
+              <Anchor>a3593e9e89e76e6e8b605f01a1a8a2367</Anchor>
              </Node>
              <Node>
               <Name>key_ops</Name>
@@ -846,7 +867,7 @@
          </Node>
          <Node>
           <Name>Advanced Functionality</Name>
-          <Path>group__advanced__grp.html</Path>
+          <Path>group__jwt__advanced__grp.html</Path>
         <Subnodes>
            <Node>
             <Name>Memory Handlers</Name>
@@ -907,6 +928,11 @@
                 <Name>JWT_CRYPTO_OPS_MBEDTLS</Name>
                 <Path>group__jwt__crypto__grp.html</Path>
                 <Anchor>ggaa1e2b1f241858d81b1bfb86018d3b3aca4c5fd08d7061b5caba0f8698dc817306</Anchor>
+               </Node>
+               <Node>
+                <Name>JWT_CRYPTO_OPS_ANY</Name>
+                <Path>group__jwt__crypto__grp.html</Path>
+                <Anchor>ggaa1e2b1f241858d81b1bfb86018d3b3aca80b50ab76725eb24ce2c16199865d50a</Anchor>
                </Node>
               </Subnodes>
              </Node>
@@ -984,6 +1010,11 @@
               <Anchor>a58ab0832602b475e7c3a7009925db87e</Anchor>
              </Node>
              <Node>
+              <Name>json</Name>
+              <Path>structjwk__item__t.html</Path>
+              <Anchor>a3593e9e89e76e6e8b605f01a1a8a2367</Anchor>
+             </Node>
+             <Node>
               <Name>key_ops</Name>
               <Path>structjwk__item__t.html</Path>
               <Anchor>a44fe44eb2d9c9466c48f19cd5f590e21</Anchor>
@@ -1033,6 +1064,11 @@
               <Name>ctx</Name>
               <Path>structjwt__config__t.html</Path>
               <Anchor>a5b20a944b428896447108820ca861117</Anchor>
+             </Node>
+             <Node>
+              <Name>jw_key</Name>
+              <Path>structjwt__config__t.html</Path>
+              <Anchor>abc613eedbd07027e1aed03baaf7b7a93</Anchor>
              </Node>
              <Node>
               <Name>jwt_key</Name>
