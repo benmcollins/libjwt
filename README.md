@@ -6,6 +6,21 @@
 
 [![maClara](https://img.shields.io/badge/Sponsored%20by-maClara%2C%20LLC-blue?style=plastic&logoColor=blue)](https://maclara-llc.com)
 
+## :bulb: Supported Standards
+
+Standard             | RFC        | Description
+-------------------- | :--------: | --------------------------------------
+``JWT``              | :page_facing_up: [RFC-7519](https://datatracker.ietf.org/doc/html/rfc7519) | JSON Web Token
+``JWA``              | :page_facing_up: [RFC-7518](https://datatracker.ietf.org/doc/html/rfc7518) | JSON Web Algorithms
+``JWS`` and ``JWE``  | :page_facing_up: [RFC-7518](https://datatracker.ietf.org/doc/html/rfc7518) | Specific types of JWA
+``JWK`` and ``JWKS`` | :page_facing_up: [RFC-7517](https://datatracker.ietf.org/doc/html/rfc7517) | JSON Web Key & Sets
+
+> [!NOTE]
+> Throughout this documentation you will see links such as the ones
+> above to RFC documents. These are relevant to that particular part of the
+> library and are helpful to understand some of the specific standards that
+> shaped the development of LibJWT.
+
 ## :construction: Build Prerequisites
 
 ### Required
@@ -18,7 +33,8 @@
 - OpenSSL (>= 1.1.0)
 - GnuTLS (>= 3.6.0)
 
-**NOTE:** OpenSSL >= 3.0 is required for JWK and JWKS support
+> [!NOTE]
+> OpenSSL >= 3.0 is required for JWK and JWKS support
 
 ### Optional
 
