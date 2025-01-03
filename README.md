@@ -43,12 +43,10 @@ for Linux, macOS, and Windows.
 
 ### With CMake:
 
-@code{.sh}
-$ mkdir build
-$ cd build
-$ cmake ..
-$ make
-@endcode
+    $ mkdir build
+    $ cd build
+    $ cmake ..
+    $ make
 
 ### Extra Build Info
 If you have *libcheck* installed you can compile the test suite which you can
