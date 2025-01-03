@@ -4,7 +4,7 @@ set(LIBJWT_PROJECT		"LibJWT")
 set(LIBJWT_DESCRIPTION		"The C JSON Web Token Library +JWK +JWKS")
 set(LIBJWT_HOMEPAGE_URL		"https://libjwt.io")
 
-set(LIBJWT_VERSION_SET		2 1 1)
+set(LIBJWT_VERSION_SET		2 9 99)
 
 set(LIBJWT_SO_CRA		13 1 11)
 # SONAME History
