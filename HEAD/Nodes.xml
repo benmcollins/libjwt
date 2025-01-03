@@ -57,9 +57,9 @@
             <Anchor>cmake</Anchor>
            </Node>
            <Node>
-            <Name>Common</Name>
+            <Name>Extra Build Info</Name>
             <Path>index.html</Path>
-            <Anchor>common</Anchor>
+            <Anchor>extra</Anchor>
            </Node>
           </Subnodes>
          </Node>
@@ -671,6 +671,11 @@
               <Anchor>a3593e9e89e76e6e8b605f01a1a8a2367</Anchor>
              </Node>
              <Node>
+              <Name>key</Name>
+              <Path>structjwk__item__t.html</Path>
+              <Anchor>ab4f6c1d6586f6b8a63349b2f014f1f7c</Anchor>
+             </Node>
+             <Node>
               <Name>key_ops</Name>
               <Path>structjwk__item__t.html</Path>
               <Anchor>a44fe44eb2d9c9466c48f19cd5f590e21</Anchor>
@@ -684,6 +689,16 @@
               <Name>kty</Name>
               <Path>structjwk__item__t.html</Path>
               <Anchor>ae2d7fed09d97d0ac3e6571e7c897d580</Anchor>
+             </Node>
+             <Node>
+              <Name>len</Name>
+              <Path>structjwk__item__t.html</Path>
+              <Anchor>a379d62be0803bca022445adb82cd99e5</Anchor>
+             </Node>
+             <Node>
+              <Name>oct</Name>
+              <Path>structjwk__item__t.html</Path>
+              <Anchor>ae03055df75f8a3940fb071d5bbcc2379</Anchor>
              </Node>
              <Node>
               <Name>pem</Name>
@@ -793,6 +808,11 @@
               <Name>JWK_KEY_TYPE_OKP</Name>
               <Path>group__jwks__core__grp.html</Path>
               <Anchor>gga6ee53248054c67e9585aae9e937890f2ab42a328b8fc31e10c3f5e38e953c684c</Anchor>
+             </Node>
+             <Node>
+              <Name>JWK_KEY_TYPE_OCT</Name>
+              <Path>group__jwks__core__grp.html</Path>
+              <Anchor>gga6ee53248054c67e9585aae9e937890f2af2312e76e2727031b0641a9f21405b3c</Anchor>
              </Node>
             </Subnodes>
            </Node>
@@ -1015,6 +1035,11 @@
               <Anchor>a3593e9e89e76e6e8b605f01a1a8a2367</Anchor>
              </Node>
              <Node>
+              <Name>key</Name>
+              <Path>structjwk__item__t.html</Path>
+              <Anchor>ab4f6c1d6586f6b8a63349b2f014f1f7c</Anchor>
+             </Node>
+             <Node>
               <Name>key_ops</Name>
               <Path>structjwk__item__t.html</Path>
               <Anchor>a44fe44eb2d9c9466c48f19cd5f590e21</Anchor>
@@ -1028,6 +1053,16 @@
               <Name>kty</Name>
               <Path>structjwk__item__t.html</Path>
               <Anchor>ae2d7fed09d97d0ac3e6571e7c897d580</Anchor>
+             </Node>
+             <Node>
+              <Name>len</Name>
+              <Path>structjwk__item__t.html</Path>
+              <Anchor>a379d62be0803bca022445adb82cd99e5</Anchor>
+             </Node>
+             <Node>
+              <Name>oct</Name>
+              <Path>structjwk__item__t.html</Path>
+              <Anchor>ae03055df75f8a3940fb071d5bbcc2379</Anchor>
              </Node>
              <Node>
               <Name>pem</Name>

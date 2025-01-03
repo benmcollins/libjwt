@@ -10,6 +10,6 @@ var index =
     [ "\u{1f4e6} Pre-built Packages", "index.html#prebuilt", null ],
     [ "\u{1f528} Build Instructions", "index.html#instructions", [
       [ "With CMake:", "index.html#cmake", null ],
-      [ "Common", "index.html#common", null ]
+      [ "Extra Build Info", "index.html#extra", null ]
     ] ]
 ];

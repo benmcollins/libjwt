@@ -17,7 +17,7 @@
 <section title="\u{1f4e6} Pre-built Packages" ref="index.html#prebuilt"/>
 <section title="\u{1f528} Build Instructions" ref="index.html#instructions">
 <section title="With CMake:" ref="index.html#cmake"/>
-<section title="Common" ref="index.html#common"/>
+<section title="Extra Build Info" ref="index.html#extra"/>
 </section>
 </section>
 <section title="Todo List" ref="todo.html"/>
@@ -152,9 +152,12 @@
 <section title="error_msg" ref="structjwk__item__t.html#a2840975767dbdc020912682c06ebdb75"/>
 <section title="is_private_key" ref="structjwk__item__t.html#a58ab0832602b475e7c3a7009925db87e"/>
 <section title="json" ref="structjwk__item__t.html#a3593e9e89e76e6e8b605f01a1a8a2367"/>
+<section title="key" ref="structjwk__item__t.html#ab4f6c1d6586f6b8a63349b2f014f1f7c"/>
 <section title="key_ops" ref="structjwk__item__t.html#a44fe44eb2d9c9466c48f19cd5f590e21"/>
 <section title="kid" ref="structjwk__item__t.html#a874da82b485b8c541ecd0f3f8fd12a0f"/>
 <section title="kty" ref="structjwk__item__t.html#ae2d7fed09d97d0ac3e6571e7c897d580"/>
+<section title="len" ref="structjwk__item__t.html#a379d62be0803bca022445adb82cd99e5"/>
+<section title="oct" ref="structjwk__item__t.html#ae03055df75f8a3940fb071d5bbcc2379"/>
 <section title="pem" ref="structjwk__item__t.html#afecd2ad6ce52bf49a202999c184a9b2e"/>
 <section title="provider" ref="structjwk__item__t.html#a892ffdca6722b35e24d885f01edd6679"/>
 <section title="provider_data" ref="structjwk__item__t.html#a6cf519323148008f4549798d7df1d8f3"/>
@@ -178,6 +181,7 @@
 <section title="JWK_KEY_TYPE_EC" ref="group__jwks__core__grp.html#gga6ee53248054c67e9585aae9e937890f2ad7065b821b8699d3b42fe0c3263dd3b1"/>
 <section title="JWK_KEY_TYPE_RSA" ref="group__jwks__core__grp.html#gga6ee53248054c67e9585aae9e937890f2af1a4bf01f937df96d195572180f036d8"/>
 <section title="JWK_KEY_TYPE_OKP" ref="group__jwks__core__grp.html#gga6ee53248054c67e9585aae9e937890f2ab42a328b8fc31e10c3f5e38e953c684c"/>
+<section title="JWK_KEY_TYPE_OCT" ref="group__jwks__core__grp.html#gga6ee53248054c67e9585aae9e937890f2af2312e76e2727031b0641a9f21405b3c"/>
 </section>
 <section title="jwk_pub_key_use_t" ref="group__jwks__core__grp.html#gab30049eeae2a6ecdc0c9ae849b835b6b">
 <section title="JWK_PUB_KEY_USE_NONE" ref="group__jwks__core__grp.html#ggab30049eeae2a6ecdc0c9ae849b835b6baf3e36efeb7307384fa7f7dbee089573b"/>
@@ -228,9 +232,12 @@
 <section title="error_msg" ref="structjwk__item__t.html#a2840975767dbdc020912682c06ebdb75"/>
 <section title="is_private_key" ref="structjwk__item__t.html#a58ab0832602b475e7c3a7009925db87e"/>
 <section title="json" ref="structjwk__item__t.html#a3593e9e89e76e6e8b605f01a1a8a2367"/>
+<section title="key" ref="structjwk__item__t.html#ab4f6c1d6586f6b8a63349b2f014f1f7c"/>
 <section title="key_ops" ref="structjwk__item__t.html#a44fe44eb2d9c9466c48f19cd5f590e21"/>
 <section title="kid" ref="structjwk__item__t.html#a874da82b485b8c541ecd0f3f8fd12a0f"/>
 <section title="kty" ref="structjwk__item__t.html#ae2d7fed09d97d0ac3e6571e7c897d580"/>
+<section title="len" ref="structjwk__item__t.html#a379d62be0803bca022445adb82cd99e5"/>
+<section title="oct" ref="structjwk__item__t.html#ae03055df75f8a3940fb071d5bbcc2379"/>
 <section title="pem" ref="structjwk__item__t.html#afecd2ad6ce52bf49a202999c184a9b2e"/>
 <section title="provider" ref="structjwk__item__t.html#a892ffdca6722b35e24d885f01edd6679"/>
 <section title="provider_data" ref="structjwk__item__t.html#a6cf519323148008f4549798d7df1d8f3"/>
@@ -286,11 +293,14 @@
 <keyword name="jw_key" id="jwt_config_t::jw_key_abc613eedbd07027e1aed03baaf7b7a93" ref="structjwt__config__t.html#abc613eedbd07027e1aed03baaf7b7a93"/>
 <keyword name="jwt_key" id="jwt_config_t::jwt_key_ad7ce7a24c7b944d94897cc5eac0ad8eb" ref="structjwt__config__t.html#ad7ce7a24c7b944d94897cc5eac0ad8eb"/>
 <keyword name="jwt_key_len" id="jwt_config_t::jwt_key_len_adae9aa4116f2131edf0ac1089812bdca" ref="structjwt__config__t.html#adae9aa4116f2131edf0ac1089812bdca"/>
+<keyword name="key" id="jwk_item_t::key_ab4f6c1d6586f6b8a63349b2f014f1f7c" ref="structjwk__item__t.html#ab4f6c1d6586f6b8a63349b2f014f1f7c"/>
 <keyword name="key" id="jwt_config_t::key_ae0c3a81bd6e44a10a3863808fea31ab0" ref="structjwt__config__t.html#ae0c3a81bd6e44a10a3863808fea31ab0"/>
 <keyword name="key_len" id="jwt_config_t::key_len_a19588c92ee9c7f30bd6dbff6821207d9" ref="structjwt__config__t.html#a19588c92ee9c7f30bd6dbff6821207d9"/>
 <keyword name="key_ops" id="jwk_item_t::key_ops_a44fe44eb2d9c9466c48f19cd5f590e21" ref="structjwk__item__t.html#a44fe44eb2d9c9466c48f19cd5f590e21"/>
 <keyword name="kid" id="jwk_item_t::kid_a874da82b485b8c541ecd0f3f8fd12a0f" ref="structjwk__item__t.html#a874da82b485b8c541ecd0f3f8fd12a0f"/>
 <keyword name="kty" id="jwk_item_t::kty_ae2d7fed09d97d0ac3e6571e7c897d580" ref="structjwk__item__t.html#ae2d7fed09d97d0ac3e6571e7c897d580"/>
+<keyword name="len" id="jwk_item_t::len_a379d62be0803bca022445adb82cd99e5" ref="structjwk__item__t.html#a379d62be0803bca022445adb82cd99e5"/>
+<keyword name="oct" id="jwk_item_t::oct_ae03055df75f8a3940fb071d5bbcc2379" ref="structjwk__item__t.html#ae03055df75f8a3940fb071d5bbcc2379"/>
 <keyword name="pem" id="jwk_item_t::pem_afecd2ad6ce52bf49a202999c184a9b2e" ref="structjwk__item__t.html#afecd2ad6ce52bf49a202999c184a9b2e"/>
 <keyword name="provider" id="jwk_item_t::provider_a892ffdca6722b35e24d885f01edd6679" ref="structjwk__item__t.html#a892ffdca6722b35e24d885f01edd6679"/>
 <keyword name="provider_data" id="jwk_item_t::provider_data_a6cf519323148008f4549798d7df1d8f3" ref="structjwk__item__t.html#a6cf519323148008f4549798d7df1d8f3"/>
@@ -318,6 +328,7 @@
 <keyword name="JWK_KEY_OP_WRAP" id="jwks_core_grp::JWK_KEY_OP_WRAP_gga150285e933a3d456bcd8d87b906438a3a451f04d391cf27e7938c6b29324272c8" ref="group__jwks__core__grp.html#gga150285e933a3d456bcd8d87b906438a3a451f04d391cf27e7938c6b29324272c8"/>
 <keyword name="JWK_KEY_TYPE_EC" id="jwks_core_grp::JWK_KEY_TYPE_EC_gga6ee53248054c67e9585aae9e937890f2ad7065b821b8699d3b42fe0c3263dd3b1" ref="group__jwks__core__grp.html#gga6ee53248054c67e9585aae9e937890f2ad7065b821b8699d3b42fe0c3263dd3b1"/>
 <keyword name="JWK_KEY_TYPE_NONE" id="jwks_core_grp::JWK_KEY_TYPE_NONE_gga6ee53248054c67e9585aae9e937890f2a91865197de901ef236c5570a7c6897d9" ref="group__jwks__core__grp.html#gga6ee53248054c67e9585aae9e937890f2a91865197de901ef236c5570a7c6897d9"/>
+<keyword name="JWK_KEY_TYPE_OCT" id="jwks_core_grp::JWK_KEY_TYPE_OCT_gga6ee53248054c67e9585aae9e937890f2af2312e76e2727031b0641a9f21405b3c" ref="group__jwks__core__grp.html#gga6ee53248054c67e9585aae9e937890f2af2312e76e2727031b0641a9f21405b3c"/>
 <keyword name="JWK_KEY_TYPE_OKP" id="jwks_core_grp::JWK_KEY_TYPE_OKP_gga6ee53248054c67e9585aae9e937890f2ab42a328b8fc31e10c3f5e38e953c684c" ref="group__jwks__core__grp.html#gga6ee53248054c67e9585aae9e937890f2ab42a328b8fc31e10c3f5e38e953c684c"/>
 <keyword name="JWK_KEY_TYPE_RSA" id="jwks_core_grp::JWK_KEY_TYPE_RSA_gga6ee53248054c67e9585aae9e937890f2af1a4bf01f937df96d195572180f036d8" ref="group__jwks__core__grp.html#gga6ee53248054c67e9585aae9e937890f2af1a4bf01f937df96d195572180f036d8"/>
 <keyword name="jwk_key_type_t" id="jwks_core_grp::jwk_key_type_t_ga6ee53248054c67e9585aae9e937890f2" ref="group__jwks__core__grp.html#ga6ee53248054c67e9585aae9e937890f2"/>
@@ -325,6 +336,7 @@
 <keyword name="JWK_KEY_TYPE_EC" id="jwks_core_grp::JWK_KEY_TYPE_EC_gga6ee53248054c67e9585aae9e937890f2ad7065b821b8699d3b42fe0c3263dd3b1" ref="group__jwks__core__grp.html#gga6ee53248054c67e9585aae9e937890f2ad7065b821b8699d3b42fe0c3263dd3b1"/>
 <keyword name="JWK_KEY_TYPE_RSA" id="jwks_core_grp::JWK_KEY_TYPE_RSA_gga6ee53248054c67e9585aae9e937890f2af1a4bf01f937df96d195572180f036d8" ref="group__jwks__core__grp.html#gga6ee53248054c67e9585aae9e937890f2af1a4bf01f937df96d195572180f036d8"/>
 <keyword name="JWK_KEY_TYPE_OKP" id="jwks_core_grp::JWK_KEY_TYPE_OKP_gga6ee53248054c67e9585aae9e937890f2ab42a328b8fc31e10c3f5e38e953c684c" ref="group__jwks__core__grp.html#gga6ee53248054c67e9585aae9e937890f2ab42a328b8fc31e10c3f5e38e953c684c"/>
+<keyword name="JWK_KEY_TYPE_OCT" id="jwks_core_grp::JWK_KEY_TYPE_OCT_gga6ee53248054c67e9585aae9e937890f2af2312e76e2727031b0641a9f21405b3c" ref="group__jwks__core__grp.html#gga6ee53248054c67e9585aae9e937890f2af2312e76e2727031b0641a9f21405b3c"/>
 <keyword name="JWK_PUB_KEY_USE_ENC" id="jwks_core_grp::JWK_PUB_KEY_USE_ENC_ggab30049eeae2a6ecdc0c9ae849b835b6baefac5505199173f9c52530be55a54408" ref="group__jwks__core__grp.html#ggab30049eeae2a6ecdc0c9ae849b835b6baefac5505199173f9c52530be55a54408"/>
 <keyword name="JWK_PUB_KEY_USE_NONE" id="jwks_core_grp::JWK_PUB_KEY_USE_NONE_ggab30049eeae2a6ecdc0c9ae849b835b6baf3e36efeb7307384fa7f7dbee089573b" ref="group__jwks__core__grp.html#ggab30049eeae2a6ecdc0c9ae849b835b6baf3e36efeb7307384fa7f7dbee089573b"/>
 <keyword name="JWK_PUB_KEY_USE_SIG" id="jwks_core_grp::JWK_PUB_KEY_USE_SIG_ggab30049eeae2a6ecdc0c9ae849b835b6ba5c6c707d72a666971135ad6bec551b99" ref="group__jwks__core__grp.html#ggab30049eeae2a6ecdc0c9ae849b835b6ba5c6c707d72a666971135ad6bec551b99"/>

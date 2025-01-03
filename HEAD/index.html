@@ -91,9 +91,7 @@ $(function(){initNavTree('index.html',''); initResizable(true); });
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><code>JWS</code> and <code>JWE</code>   </td><td class="markdownTableBodyCenter"><span class="emoji">&#x1f4c4;</span> <a href="https://datatracker.ietf.org/doc/html/rfc7518" target="_blank">RFC-7518</a>   </td><td class="markdownTableBodyNone">Specific types of JWA    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><code>JWK</code>   </td><td class="markdownTableBodyCenter"><span class="emoji">&#x1f4c4;</span> <a href="https://datatracker.ietf.org/doc/html/rfc7517" target="_blank">RFC-7517</a>   </td><td class="markdownTableBodyNone">JSON Web Key    </td></tr>
-<tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><code>JWKS</code>   </td><td class="markdownTableBodyCenter"><span class="emoji">&#x1f4c4;</span> <a href="https://datatracker.ietf.org/doc/html/rfc7517" target="_blank">RFC-7517</a>   </td><td class="markdownTableBodyNone">A set of JWK as an array of <code>"keys"</code>   </td></tr>
+<td class="markdownTableBodyNone"><code>JWK</code> and <code>JWKS</code>   </td><td class="markdownTableBodyCenter"><span class="emoji">&#x1f4c4;</span> <a href="https://datatracker.ietf.org/doc/html/rfc7517" target="_blank">RFC-7517</a>   </td><td class="markdownTableBodyNone">JSON Web Keys and Sets   </td></tr>
 </table>
 <dl class="section note"><dt>Note</dt><dd>Throughout this documentation you will see links such as the ones above to RFC documents. These are relevant to that particular part of the library and are helpful to understand some of the specific standards that shaped the development of LibJWT.</dd></dl>
 <h1><a class="anchor" id="building"></a>
@@ -119,12 +117,12 @@ Optional</h2>
 </ul>
 <h1><a class="anchor" id="docs"></a>
 <span class="emoji">&#x1f4d6;</span> Docs and Source</h1>
-<p><span class="emoji">&#x1f517;</span> <a href="https://libjwt.io/">Release Docs</a></p>
-<p><span class="emoji">&#x1f517;</span> <a href="https://libjwt.io/libjwt/HEAD">Dev (HEAD) Docs</a></p>
+<p><span class="emoji">&#x1f517;</span> <a href="https://libjwt.io/">Release</a></p>
+<p><span class="emoji">&#x1f517;</span> <a href="https://libjwt.io/libjwt/HEAD">Development</a></p>
 <p><span class="emoji">&#x1f517;</span> <a href="https://github.com/benmcollins/libjwt">GitHub Repo</a></p>
 <h1><a class="anchor" id="prebuilt"></a>
 <span class="emoji">&#x1f4e6;</span> Pre-built Packages</h1>
-<p>LibJWT is available in most Linux distributions as well as through <a href="https://formulae.brew.sh/formula/libjwt#default">Homebrew</a>.</p>
+<p>LibJWT is available in most Linux distributions as well as through <a href="https://formulae.brew.sh/formula/libjwt#default">Homebrew</a> for Linux, macOS, and Windows.</p>
 <h1><a class="anchor" id="instructions"></a>
 <span class="emoji">&#x1f528;</span> Build Instructions</h1>
 <h2><a class="anchor" id="cmake"></a>
@@ -133,8 +131,8 @@ With CMake:</h2>
 <div class="line">$ cd build</div>
 <div class="line">$ cmake ..</div>
 <div class="line">$ make</div>
-</div><!-- fragment --><h2><a class="anchor" id="common"></a>
-Common</h2>
+</div><!-- fragment --><h2><a class="anchor" id="extra"></a>
+Extra Build Info</h2>
 <p>If you have <em>libcheck</em> installed you can compile the test suite which you can run using the <code>check</code> target.</p>
 <p>CMake will auto detect <em>OpenSSL</em> and <em>GnuTLS</em> and use one or both. There are CMake options to force either one on or off.   </p>
 </div></div><!-- PageDoc -->

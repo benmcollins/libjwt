@@ -264,6 +264,16 @@
       <Name>key</Name>
       <APILanguage>cpp</APILanguage>
       <Type>data</Type>
+      <Scope>jwk_item_t</Scope>
+    </TokenIdentifier>
+    <Path>structjwk__item__t.html</Path>
+    <Anchor>ab4f6c1d6586f6b8a63349b2f014f1f7c</Anchor>
+  </Token>
+  <Token>
+    <TokenIdentifier>
+      <Name>key</Name>
+      <APILanguage>cpp</APILanguage>
+      <Type>data</Type>
       <Scope>jwt_config_t</Scope>
     </TokenIdentifier>
     <Path>structjwt__config__t.html</Path>
@@ -308,6 +318,26 @@
     </TokenIdentifier>
     <Path>structjwk__item__t.html</Path>
     <Anchor>ae2d7fed09d97d0ac3e6571e7c897d580</Anchor>
+  </Token>
+  <Token>
+    <TokenIdentifier>
+      <Name>len</Name>
+      <APILanguage>cpp</APILanguage>
+      <Type>data</Type>
+      <Scope>jwk_item_t</Scope>
+    </TokenIdentifier>
+    <Path>structjwk__item__t.html</Path>
+    <Anchor>a379d62be0803bca022445adb82cd99e5</Anchor>
+  </Token>
+  <Token>
+    <TokenIdentifier>
+      <Name>oct</Name>
+      <APILanguage>cpp</APILanguage>
+      <Type>data</Type>
+      <Scope>jwk_item_t</Scope>
+    </TokenIdentifier>
+    <Path>structjwk__item__t.html</Path>
+    <Anchor>ae03055df75f8a3940fb071d5bbcc2379</Anchor>
   </Token>
   <Token>
     <TokenIdentifier>
@@ -581,6 +611,16 @@
   </Token>
   <Token>
     <TokenIdentifier>
+      <Name>JWK_KEY_TYPE_OCT</Name>
+      <APILanguage>c</APILanguage>
+      <Type>econst</Type>
+    </TokenIdentifier>
+    <Path>group__jwks__core__grp.html</Path>
+    <Anchor>gga6ee53248054c67e9585aae9e937890f2af2312e76e2727031b0641a9f21405b3c</Anchor>
+    <DeclaredIn>jwt.h</DeclaredIn>
+  </Token>
+  <Token>
+    <TokenIdentifier>
       <Name>JWK_KEY_TYPE_OKP</Name>
       <APILanguage>c</APILanguage>
       <Type>econst</Type>
@@ -647,6 +687,16 @@
     </TokenIdentifier>
     <Path>group__jwks__core__grp.html</Path>
     <Anchor>gga6ee53248054c67e9585aae9e937890f2ab42a328b8fc31e10c3f5e38e953c684c</Anchor>
+    <DeclaredIn>jwt.h</DeclaredIn>
+  </Token>
+  <Token>
+    <TokenIdentifier>
+      <Name>JWK_KEY_TYPE_OCT</Name>
+      <APILanguage>c</APILanguage>
+      <Type>econst</Type>
+    </TokenIdentifier>
+    <Path>group__jwks__core__grp.html</Path>
+    <Anchor>gga6ee53248054c67e9585aae9e937890f2af2312e76e2727031b0641a9f21405b3c</Anchor>
     <DeclaredIn>jwt.h</DeclaredIn>
   </Token>
   <Token>

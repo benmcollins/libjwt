@@ -105,20 +105,27 @@ Functions</h2></td></tr>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <p>Lots of cases to deal with.</p>
 <ol type="1">
-<li>If the user passed a key/len pair:<ul>
+<li>If the caller passes a key/len pair:<ul>
 <li>Then config.alg MUST NOT be none, and</li>
 <li>The config.alg MUST match jwt.alg</li>
 </ul>
 </li>
-<li>If the user passed a jw_key:<ul>
+<li>If the user passes a jw_key:<ul>
+<li>config.alg is not used (jw_key.alg is used if available)</li>
 <li>It's valid for jw_key.alg to be none (missing) (RFC-7517:4.4)</li>
 <li>If jw_key.alg is not none, it MUST match the JWT</li>
+<li>If jw_key.alg is none, then jwt.alg is compared against jwk.kty for compatibility. e.g:<ul>
+<li>jwt.alg RS256, RS384, and RS512 are suitable with jwk.kty RSA</li>
+<li>jwt.alg ES384 is not suitable with jwk.kty OKP</li>
+</ul>
+</li>
 </ul>
 </li>
 <li>The user SHOULD NOT pass both types, but we allow it. However, checks for both keys MUST pass.</li>
 <li>If the user did not pass a key of any kind:<ul>
 <li>Then jwt.alg MUST be none, and</li>
 <li>The sig_len MUST be zero</li>
+<li>If the caller wishes to "peek" at a JWA token, (without verifying) then they MUST use a callback function to inspect it. Information from the callback can be passed between the cb and original caller with the <a class="el" href="structjwt__config__t.html#a5b20a944b428896447108820ca861117">jwt_config_t::ctx</a> pointer.</li>
 </ul>
 </li>
 <li>If jwt.alg is none then sig_len MUST be zero, regardless of (4) </li>

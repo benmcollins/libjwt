@@ -99,10 +99,14 @@ Typedefs</h2></td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="enum-members" name="enum-members"></a>
 Enumerations</h2></td></tr>
-<tr class="memitem:ga6ee53248054c67e9585aae9e937890f2" id="r_ga6ee53248054c67e9585aae9e937890f2"><td class="memItemLeft" align="right" valign="top">enum &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga6ee53248054c67e9585aae9e937890f2">jwk_key_type_t</a> { <a class="el" href="#gga6ee53248054c67e9585aae9e937890f2a91865197de901ef236c5570a7c6897d9">JWK_KEY_TYPE_NONE</a> = 0
+<tr class="memitem:ga6ee53248054c67e9585aae9e937890f2" id="r_ga6ee53248054c67e9585aae9e937890f2"><td class="memItemLeft" align="right" valign="top">enum &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ga6ee53248054c67e9585aae9e937890f2">jwk_key_type_t</a> { <br />
+&#160;&#160;<a class="el" href="#gga6ee53248054c67e9585aae9e937890f2a91865197de901ef236c5570a7c6897d9">JWK_KEY_TYPE_NONE</a> = 0
 , <a class="el" href="#gga6ee53248054c67e9585aae9e937890f2ad7065b821b8699d3b42fe0c3263dd3b1">JWK_KEY_TYPE_EC</a>
 , <a class="el" href="#gga6ee53248054c67e9585aae9e937890f2af1a4bf01f937df96d195572180f036d8">JWK_KEY_TYPE_RSA</a>
 , <a class="el" href="#gga6ee53248054c67e9585aae9e937890f2ab42a328b8fc31e10c3f5e38e953c684c">JWK_KEY_TYPE_OKP</a>
+, <br />
+&#160;&#160;<a class="el" href="#gga6ee53248054c67e9585aae9e937890f2af2312e76e2727031b0641a9f21405b3c">JWK_KEY_TYPE_OCT</a>
+<br />
  }</td></tr>
 <tr class="memdesc:ga6ee53248054c67e9585aae9e937890f2"><td class="mdescLeft">&#160;</td><td class="mdescRight">JWK Key Types.  <a href="#ga6ee53248054c67e9585aae9e937890f2">More...</a><br /></td></tr>
 <tr class="separator:ga6ee53248054c67e9585aae9e937890f2"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -190,10 +194,10 @@ Functions</h2></td></tr>
 <div class="fragment"><div class="line"><span class="keywordflow">if</span> (@ref <a class="code hl_struct" href="structjwk__item__t.html">jwk_item_t</a>.<a class="code hl_variable" href="structjwk__item__t.html#a44fe44eb2d9c9466c48f19cd5f590e21">key_ops</a> &amp; (<a class="code hl_enumvalue" href="#gga150285e933a3d456bcd8d87b906438a3a893a71fda7261466815427686f349eef">JWK_KEY_OP_SIGN</a> | <a class="code hl_enumvalue" href="#gga150285e933a3d456bcd8d87b906438a3a1101574110cba3dd17ff829d728ceb5b">JWK_KEY_OP_ENCRYPT</a>)) {</div>
 <div class="line">    ...</div>
 <div class="line">}</div>
-<div class="ttc" id="agroup__jwks__core__grp_html_gga150285e933a3d456bcd8d87b906438a3a1101574110cba3dd17ff829d728ceb5b"><div class="ttname"><a href="#gga150285e933a3d456bcd8d87b906438a3a1101574110cba3dd17ff829d728ceb5b">JWK_KEY_OP_ENCRYPT</a></div><div class="ttdeci">@ JWK_KEY_OP_ENCRYPT</div><div class="ttdef"><b>Definition</b> jwt.h:156</div></div>
-<div class="ttc" id="agroup__jwks__core__grp_html_gga150285e933a3d456bcd8d87b906438a3a893a71fda7261466815427686f349eef"><div class="ttname"><a href="#gga150285e933a3d456bcd8d87b906438a3a893a71fda7261466815427686f349eef">JWK_KEY_OP_SIGN</a></div><div class="ttdeci">@ JWK_KEY_OP_SIGN</div><div class="ttdef"><b>Definition</b> jwt.h:154</div></div>
-<div class="ttc" id="astructjwk__item__t_html"><div class="ttname"><a href="structjwk__item__t.html">jwk_item_t</a></div><div class="ttdoc">Structural representation of a JWK.</div><div class="ttdef"><b>Definition</b> jwt.h:180</div></div>
-<div class="ttc" id="astructjwk__item__t_html_a44fe44eb2d9c9466c48f19cd5f590e21"><div class="ttname"><a href="structjwk__item__t.html#a44fe44eb2d9c9466c48f19cd5f590e21">jwk_item_t::key_ops</a></div><div class="ttdeci">jwk_key_op_t key_ops</div><div class="ttdef"><b>Definition</b> jwt.h:191</div></div>
+<div class="ttc" id="agroup__jwks__core__grp_html_gga150285e933a3d456bcd8d87b906438a3a1101574110cba3dd17ff829d728ceb5b"><div class="ttname"><a href="#gga150285e933a3d456bcd8d87b906438a3a1101574110cba3dd17ff829d728ceb5b">JWK_KEY_OP_ENCRYPT</a></div><div class="ttdeci">@ JWK_KEY_OP_ENCRYPT</div><div class="ttdef"><b>Definition</b> jwt.h:158</div></div>
+<div class="ttc" id="agroup__jwks__core__grp_html_gga150285e933a3d456bcd8d87b906438a3a893a71fda7261466815427686f349eef"><div class="ttname"><a href="#gga150285e933a3d456bcd8d87b906438a3a893a71fda7261466815427686f349eef">JWK_KEY_OP_SIGN</a></div><div class="ttdeci">@ JWK_KEY_OP_SIGN</div><div class="ttdef"><b>Definition</b> jwt.h:156</div></div>
+<div class="ttc" id="astructjwk__item__t_html"><div class="ttname"><a href="structjwk__item__t.html">jwk_item_t</a></div><div class="ttdoc">Structural representation of a JWK.</div><div class="ttdef"><b>Definition</b> jwt.h:182</div></div>
+<div class="ttc" id="astructjwk__item__t_html_a44fe44eb2d9c9466c48f19cd5f590e21"><div class="ttname"><a href="structjwk__item__t.html#a44fe44eb2d9c9466c48f19cd5f590e21">jwk_item_t::key_ops</a></div><div class="ttdeci">jwk_key_op_t key_ops</div><div class="ttdef"><b>Definition</b> jwt.h:199</div></div>
 </div><!-- fragment --><p><span class="emoji">&#x1f4c4;</span> <a href="https://datatracker.ietf.org/doc/html/rfc7517#section-4.3" type="button" class="button" target="_blank">RFC-7517 Sec 4.3</a> </p>
 <table class="fieldtable">
 <tr><th colspan="2">Enumerator</th></tr><tr><td class="fieldname"><a id="gga150285e933a3d456bcd8d87b906438a3a9054426563814eff0f4ea23def0e00f9" name="gga150285e933a3d456bcd8d87b906438a3a9054426563814eff0f4ea23def0e00f9"></a>JWK_KEY_OP_NONE&#160;</td><td class="fielddoc"><p>No key_op set </p>
@@ -234,7 +238,7 @@ Functions</h2></td></tr>
 
 <p>JWK Key Types. </p>
 <p>Corresponds to the <code>"kty"</code> attribute of the JWK.</p>
-<p><span class="emoji">&#x1f4c4;</span> <a href="https://datatracker.ietf.org/doc/html/rfc7517#section-4.1" type="button" class="button" target="_blank">RFC-7517 Sec 4.1</a> </p>
+<p><span class="emoji">&#x1f4c4;</span> <a href="https://datatracker.ietf.org/doc/html/rfc7517#section-4.1" type="button" class="button" target="_blank">RFC-7517 Sec 4.1</a> @rfc(7518,6.1} </p>
 <table class="fieldtable">
 <tr><th colspan="2">Enumerator</th></tr><tr><td class="fieldname"><a id="gga6ee53248054c67e9585aae9e937890f2a91865197de901ef236c5570a7c6897d9" name="gga6ee53248054c67e9585aae9e937890f2a91865197de901ef236c5570a7c6897d9"></a>JWK_KEY_TYPE_NONE&#160;</td><td class="fielddoc"><p>Unused on valid keys </p>
 </td></tr>
@@ -243,6 +247,8 @@ Functions</h2></td></tr>
 <tr><td class="fieldname"><a id="gga6ee53248054c67e9585aae9e937890f2af1a4bf01f937df96d195572180f036d8" name="gga6ee53248054c67e9585aae9e937890f2af1a4bf01f937df96d195572180f036d8"></a>JWK_KEY_TYPE_RSA&#160;</td><td class="fielddoc"><p>RSA keys (RSA and RSA-PSS) </p>
 </td></tr>
 <tr><td class="fieldname"><a id="gga6ee53248054c67e9585aae9e937890f2ab42a328b8fc31e10c3f5e38e953c684c" name="gga6ee53248054c67e9585aae9e937890f2ab42a328b8fc31e10c3f5e38e953c684c"></a>JWK_KEY_TYPE_OKP&#160;</td><td class="fielddoc"><p>Octet Key Pair (e.g. EDDSA) </p>
+</td></tr>
+<tr><td class="fieldname"><a id="gga6ee53248054c67e9585aae9e937890f2af2312e76e2727031b0641a9f21405b3c" name="gga6ee53248054c67e9585aae9e937890f2af2312e76e2727031b0641a9f21405b3c"></a>JWK_KEY_TYPE_OCT&#160;</td><td class="fielddoc"><p>Octet sequence (e.g. HS256) </p>
 </td></tr>
 </table>
 

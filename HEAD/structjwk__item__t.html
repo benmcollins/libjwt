@@ -93,8 +93,20 @@ Data Fields</h2></td></tr>
 <tr class="separator:afecd2ad6ce52bf49a202999c184a9b2e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a892ffdca6722b35e24d885f01edd6679" id="r_a892ffdca6722b35e24d885f01edd6679"><td class="memItemLeft" align="right" valign="top"><a class="el" href="group__jwt__crypto__grp.html#gaa1e2b1f241858d81b1bfb86018d3b3ac">jwt_crypto_provider_t</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a892ffdca6722b35e24d885f01edd6679">provider</a></td></tr>
 <tr class="separator:a892ffdca6722b35e24d885f01edd6679"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a6cf519323148008f4549798d7df1d8f3" id="r_a6cf519323148008f4549798d7df1d8f3"><td class="memItemLeft" align="right" valign="top">void *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a6cf519323148008f4549798d7df1d8f3">provider_data</a></td></tr>
-<tr class="separator:a6cf519323148008f4549798d7df1d8f3"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a20570f80d8d1dd78ba38374f6c0904ee" id="r_a20570f80d8d1dd78ba38374f6c0904ee"><td class="memItemLeft" >union {&#160;</td><td class="memItemRight" valign="bottom"></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a019b03e2ce1d72fbd21aa8bb0efeed7d" id="r_a019b03e2ce1d72fbd21aa8bb0efeed7d"><td class="memItemLeft" >&#160;&#160;&#160;void *&#160;&#160;&#160;<a class="el" href="#a6cf519323148008f4549798d7df1d8f3">provider_data</a>&#160;</td><td class="memItemRight" valign="bottom"></td></tr>
+<tr class="separator:a019b03e2ce1d72fbd21aa8bb0efeed7d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8fd15ba75e3486b4661e3e8a27eb6939" id="r_a8fd15ba75e3486b4661e3e8a27eb6939"><td class="memItemLeft" >&#160;&#160;&#160;struct {&#160;</td><td class="memItemRight" valign="bottom"></td></tr>
+<tr class="separator:ae03055df75f8a3940fb071d5bbcc2379"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa6bb2543010f825ab38036dc20264c42" id="r_aa6bb2543010f825ab38036dc20264c42"><td class="memItemLeft" >&#160;&#160;&#160;&#160;&#160;&#160;void *&#160;&#160;&#160;<a class="el" href="#ab4f6c1d6586f6b8a63349b2f014f1f7c">key</a>&#160;</td><td class="memItemRight" valign="bottom"></td></tr>
+<tr class="separator:aa6bb2543010f825ab38036dc20264c42"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a21a719ed5e71b72f218bdf8c1653cef7" id="r_a21a719ed5e71b72f218bdf8c1653cef7"><td class="memItemLeft" >&#160;&#160;&#160;&#160;&#160;&#160;size_t&#160;&#160;&#160;<a class="el" href="#a379d62be0803bca022445adb82cd99e5">len</a>&#160;</td><td class="memItemRight" valign="bottom"></td></tr>
+<tr class="separator:a21a719ed5e71b72f218bdf8c1653cef7"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8fd15ba75e3486b4661e3e8a27eb6939" id="r_a8fd15ba75e3486b4661e3e8a27eb6939"><td class="memItemLeft" valign="top">&#160;&#160;&#160;}&#160;&#160;&#160;<a class="el" href="#ae03055df75f8a3940fb071d5bbcc2379">oct</a>&#160;</td><td class="memItemRight" valign="bottom"></td></tr>
+<tr class="separator:a8fd15ba75e3486b4661e3e8a27eb6939"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a20570f80d8d1dd78ba38374f6c0904ee" id="r_a20570f80d8d1dd78ba38374f6c0904ee"><td class="memItemLeft" valign="top">};&#160;</td><td class="memItemRight" valign="bottom">&#160;</td><td class="memItemRight" valign="bottom"></td></tr>
+<tr class="separator:a20570f80d8d1dd78ba38374f6c0904ee"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a58ab0832602b475e7c3a7009925db87e" id="r_a58ab0832602b475e7c3a7009925db87e"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a58ab0832602b475e7c3a7009925db87e">is_private_key</a></td></tr>
 <tr class="separator:a58ab0832602b475e7c3a7009925db87e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3840bd4c87181411e0f3012c020787b3" id="r_a3840bd4c87181411e0f3012c020787b3"><td class="memItemLeft" align="right" valign="top">char&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a3840bd4c87181411e0f3012c020787b3">curve</a> [256]</td></tr>
@@ -123,6 +135,20 @@ Data Fields</h2></td></tr>
 <p>This data structure is produced by importing a JWK or JWKS into a <a class="el" href="group__jwks__core__grp.html#ga380f2d92f1d0d306420729f9789f5e50">jwk_set_t</a> object. Generally, you would not change any values here and only use this to probe the internal parser and possibly to decide whether a key applies to certain <a class="el" href="group__jwt__core__grp.html#gabf0acfb990d245214216af589c1d0947" title="Opaque JWT object.">jwt_t</a> for verification or signing.</p>
 <dl class="section remark"><dt>Remarks</dt><dd>If the <a class="el" href="#afecd2ad6ce52bf49a202999c184a9b2e">jwk_item_t::pem</a> field is not NULL, then it contains a nil terminated string of the key. The underlying crypto algorith may or may not support this. It's provided as a convenience. </dd></dl>
 </div><h2 class="groupheader">Field Documentation</h2>
+<a id="a20570f80d8d1dd78ba38374f6c0904ee" name="a20570f80d8d1dd78ba38374f6c0904ee"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a20570f80d8d1dd78ba38374f6c0904ee">&#9670;&#160;</a></span>[union]</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">union  { ... }  <a class="el" href="structjwk__item__t.html">jwk_item_t</a></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
 <a id="aae5092f40a4bfbe9155ddde65f5b933f" name="aae5092f40a4bfbe9155ddde65f5b933f"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#aae5092f40a4bfbe9155ddde65f5b933f">&#9670;&#160;</a></span>alg</h2>
 
@@ -228,6 +254,20 @@ Data Fields</h2></td></tr>
 
 </div>
 </div>
+<a id="ab4f6c1d6586f6b8a63349b2f014f1f7c" name="ab4f6c1d6586f6b8a63349b2f014f1f7c"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ab4f6c1d6586f6b8a63349b2f014f1f7c">&#9670;&#160;</a></span>key</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void* jwk_item_t::key</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
 <a id="a44fe44eb2d9c9466c48f19cd5f590e21" name="a44fe44eb2d9c9466c48f19cd5f590e21"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a44fe44eb2d9c9466c48f19cd5f590e21">&#9670;&#160;</a></span>key_ops</h2>
 
@@ -270,6 +310,34 @@ Data Fields</h2></td></tr>
       </table>
 </div><div class="memdoc">
 <p><span class="emoji">&#x1f4c4;</span> <a href="https://datatracker.ietf.org/doc/html/rfc7517#section-4.1" type="button" class="button" target="_blank">RFC-7517 Sec 4.1</a> The key type of this key </p>
+
+</div>
+</div>
+<a id="a379d62be0803bca022445adb82cd99e5" name="a379d62be0803bca022445adb82cd99e5"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a379d62be0803bca022445adb82cd99e5">&#9670;&#160;</a></span>len</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">size_t jwk_item_t::len</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="ae03055df75f8a3940fb071d5bbcc2379" name="ae03055df75f8a3940fb071d5bbcc2379"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ae03055df75f8a3940fb071d5bbcc2379">&#9670;&#160;</a></span>[struct]</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">struct  { ... }  jwk_item_t::oct</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
 
 </div>
 </div>
