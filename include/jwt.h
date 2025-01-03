@@ -431,10 +431,10 @@ jwt_t *jwt_create(jwt_config_t *config);
  *
  * Lots of cases to deal with.
  *
- * -# If the caller passed a key/len pair:
+ * -# If the caller passes a key/len pair:
  *    - Then config.alg MUST NOT be none, and
  *    - The config.alg MUST match jwt.alg
- * -# If the user passed a jw_key:
+ * -# If the user passes a jw_key:
  *    - config.alg is not used (jw_key.alg is used if available)
  *    - It's valid for jw_key.alg to be none (missing) (RFC-7517:4.4)
  *    - If jw_key.alg is not none, it MUST match the JWT

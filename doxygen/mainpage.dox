@@ -36,16 +36,17 @@ Standard            | RFC        | Description
 
 @section docs \emoji :open_book: Docs and Source
 
-\emoji :link: <a href="https://libjwt.io/">Release Docs</a>
+\emoji :link: <a href="https://libjwt.io/">Release</a>
 
-\emoji :link: <a href="https://libjwt.io/libjwt/HEAD">Dev (HEAD) Docs</a>
+\emoji :link: <a href="https://libjwt.io/libjwt/HEAD">Development</a>
 
 \emoji :link: <a href="https://github.com/benmcollins/libjwt">GitHub Repo</a>
 
 @section prebuilt \emoji :package: Pre-built Packages
 
 LibJWT is available in most Linux distributions as well as through
-<a href="https://formulae.brew.sh/formula/libjwt#default">Homebrew</a>.
+<a href="https://formulae.brew.sh/formula/libjwt#default">Homebrew</a>
+for Linux, macOS, and Windows.
 
 @section instructions \emoji :hammer: Build Instructions
 
@@ -58,7 +59,7 @@ $ cmake ..
 $ make
 @endcode
 
-@subsection common Common
+@subsection extra Extra Build Info
 
 If you have *libcheck* installed you can compile the test suite which you can
 run using the ``check`` target.

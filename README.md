@@ -6,44 +6,51 @@
 
 [![maClara](https://img.shields.io/badge/Sponsored%20by-maClara%2C%20LLC-blue?style=plastic&logoColor=blue)](https://maclara-llc.com)
 
-## Build Prerequisites
+## :construction: Build Prerequisites
 
 ### Required
+
 - [JANSSON](https://github.com/akheron/jansson) (>= 2.0)
 - CMake (>= 3.7)
 
-### Atleast one of these, you can use both
+### One or more of these
+
 - OpenSSL (>= 1.1.0)
 - GnuTLS (>= 3.6.0)
 
 **NOTE:** OpenSSL >= 3.0 is required for JWK and JWKS support
 
 ### Optional
+
 - [Check Library](https://github.com/libcheck/check/issues) for unit testing
 - Doxygen
 
-## Documentation
+## :books: Docs and Source
 
-- [v2.1.0 Release](https://libjwt.io/)
-- [Dev HEAD](https://libjwt.io/HEAD/)
+:link: [Release](https://libjwt.io/)
 
-## Pre-built Packages
+:link: [Development](https://libjwt.io/HEAD/)
+
+:link: [GitHub Repo](https://github.com/benmcollins/libjwt)
+
+## :package: Pre-built Packages
+
 LibJWT is available in most Linux distributions as well as through
-[Homebrew](https://formulae.brew.sh/formula/libjwt#default) for Linux,
-macOS, and Windows.
+[Homebrew](https://formulae.brew.sh/formula/libjwt#default)
+for Linux, macOS, and Windows.
 
-## Build Instructions
+## :hammer: Build Instructions
 
-**With CMake:**
+### With CMake:
 
-    $ mkdir build
-    $ cd build
-    $ cmake ..
-    ...
-    $ make
-    ...
+@code{.sh}
+$ mkdir build
+$ cd build
+$ cmake ..
+$ make
+@endcode
 
-### Common
+### Extra Build Info
 If you have *libcheck* installed you can compile the test suite which you can
 run using the ``check`` target.
 
