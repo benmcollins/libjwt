@@ -104,14 +104,25 @@ Functions</h2></td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <p>Lots of cases to deal with.</p>
-<p>1) If the user passed a key/len pair:</p><ul>
+<ol type="1">
+<li>If the user passed a key/len pair:<ul>
 <li>Then config.alg MUST NOT be none, and</li>
-<li>The config.alg MUST match jwt.alg 2) If the user passed a jw_key:</li>
-<li>It's valid for jw_key.alg to be none (missing) (RFC-7517:4.4)</li>
-<li>If jw_key.alg is not none, it MUST match the JWT 3) The user SHOULD NOT pass both types, but we allow it. However, checks for both keys MUST pass. 4) If the user did not pass a key of any kind:</li>
-<li>Then jwt.alg MUST be none, and</li>
-<li>The sig_len MUST be zero 5) If jwt.alg is none then sig_len MUST be zero, regardless of (4) </li>
+<li>The config.alg MUST match jwt.alg</li>
 </ul>
+</li>
+<li>If the user passed a jw_key:<ul>
+<li>It's valid for jw_key.alg to be none (missing) (RFC-7517:4.4)</li>
+<li>If jw_key.alg is not none, it MUST match the JWT</li>
+</ul>
+</li>
+<li>The user SHOULD NOT pass both types, but we allow it. However, checks for both keys MUST pass.</li>
+<li>If the user did not pass a key of any kind:<ul>
+<li>Then jwt.alg MUST be none, and</li>
+<li>The sig_len MUST be zero</li>
+</ul>
+</li>
+<li>If jwt.alg is none then sig_len MUST be zero, regardless of (4) </li>
+</ol>
 <h2 class="groupheader">Function Documentation</h2>
 <a id="ga4d498ffdcf1c95d67b81c224e2a447e5" name="ga4d498ffdcf1c95d67b81c224e2a447e5"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#ga4d498ffdcf1c95d67b81c224e2a447e5">&#9670;&#160;</a></span>jwt_decode()</h2>
