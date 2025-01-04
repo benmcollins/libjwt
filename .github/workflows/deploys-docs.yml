@@ -1,0 +1,57 @@
+name: LibJWT Documentation
+
+on:
+  push:
+    branches:
+      - "master"
+    tags:
+      - v*
+    paths:
+      - include/jwt.h
+      - doxygen/*
+      - cmake/LibJWTDoxyfile.cmake
+
+jobs:
+  build:
+    if: ${{github.ref == 'refs/heads/master'}}
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-tags: true
+    - uses: ConorMacBride/install-package@v1
+      with:
+        brew: gnutls openssl@3 jansson pkgconf cmake doxygen graphviz
+
+    - name: Build Head docs
+      run: |
+        cmake -B build
+        make -C build doxygen-doc
+        mkdir -p gh-pages
+        mv build/doxygen-doc/html gh-pages/HEAD
+        rm -rf build
+
+    - name: Build Latest tag docs
+      run: |
+        git checkout $(git describe --tags --abbrev=0)
+        cmake -B build
+        make -C build doxygen-doc
+        mv build/doxygen-doc/html/* gh-pages/
+        find gh-pages/ -type f -ls
+
+    - name: Upload pages
+      id: deployment
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: gh-pages/
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
