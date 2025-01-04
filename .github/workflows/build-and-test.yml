@@ -36,7 +36,7 @@ jobs:
       working-directory: ${{github.workspace}}/build
       run: |
         make check-code-coverage
-        bash <(curl -s https://codecov.io/bash) -X gcov
+        bash <(curl -s https://codecov.io/bash) -X gcov -t ${{ secrets.CODECOV_TOKEN }}
 
     - name: Documents
       working-directory: ${{github.workspace}}/build
