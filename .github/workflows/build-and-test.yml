@@ -39,7 +39,7 @@ jobs:
     - uses: codecov/codecov-action@v5.1.2
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        working-directory: ${{github.workspace}}/build
+        exclude: tests,examples,include/jwt.h,libjwt/ll.h,jansson.h
 
     - name: Documents
       working-directory: ${{github.workspace}}/build
