@@ -90,7 +90,7 @@ static void __jwks_check(const char *json, const char *pem)
 
 	/* Encode it */
         out = jwt_encode_str(jwt);
-        ck_assert_ptr_ne(out, NULL);
+        ck_assert_ptr_nonnull(out);
 
 	/* Verify it using our JWK */
         __verify_jwk(out, item);

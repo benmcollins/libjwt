@@ -28,6 +28,7 @@ static int gnutls_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 	int alg;
 	void *key;
 	size_t key_len;
+	int min_len = 0;
 
 	if (jwt->config.jw_key) {
 		key = jwt->config.jw_key->oct.key;
@@ -40,16 +41,22 @@ static int gnutls_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 	switch (jwt->alg) {
 	case JWT_ALG_HS256:
 		alg = GNUTLS_DIG_SHA256;
+		min_len = 32;
 		break;
 	case JWT_ALG_HS384:
 		alg = GNUTLS_DIG_SHA384;
+		min_len = 48;
 		break;
 	case JWT_ALG_HS512:
 		alg = GNUTLS_DIG_SHA512;
+		min_len = 64;
 		break;
 	default:
 		return EINVAL;
 	}
+
+	if (key_len < min_len)
+		return EINVAL;
 
 	*len = gnutls_hmac_get_len(alg);
 	*out = jwt_malloc(*len);

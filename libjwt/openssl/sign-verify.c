@@ -33,6 +33,7 @@ static int openssl_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 	const EVP_MD *alg;
 	void *key;
 	size_t key_len;
+	int min_len = 0;
 
 	if (jwt->config.jw_key) {
 		key = jwt->config.jw_key->oct.key;
@@ -48,16 +49,22 @@ static int openssl_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 	/* HMAC */
 	case JWT_ALG_HS256:
 		alg = EVP_sha256();
+		min_len = 32;
 		break;
 	case JWT_ALG_HS384:
 		alg = EVP_sha384();
+		min_len = 48;
 		break;
 	case JWT_ALG_HS512:
 		alg = EVP_sha512();
+		min_len = 64;
 		break;
 	default:
 		return EINVAL;
 	}
+
+	if (key_len < min_len)
+		return EINVAL;
 
 	*out = jwt_malloc(EVP_MAX_MD_SIZE);
 	if (*out == NULL)

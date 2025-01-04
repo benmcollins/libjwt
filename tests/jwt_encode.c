@@ -36,7 +36,7 @@ START_TEST(test_jwt_encode_fp)
 #else
 	out = fopen("/dev/null", "w");
 #endif
-	ck_assert_ptr_ne(out, NULL);
+	ck_assert_ptr_nonnull(out);
 
 	ret = jwt_encode_fp(jwt, out);
 	ck_assert_int_eq(ret, 0);
@@ -330,7 +330,7 @@ END_TEST
 START_TEST(test_jwt_encode_decode)
 {
 	JWT_CONFIG_DECLARE(t_config);
-	char *key = "somestring";
+	char *key = "somestringklasdlkadjaafjlasdjaslkfalskfjasfj";
 	jwt_t *mytoken, *ymtoken;
 	char *encoded;
 	int rc;
@@ -358,6 +358,28 @@ START_TEST(test_jwt_encode_decode)
 }
 END_TEST
 
+START_TEST(test_jwt_encode_too_short)
+{
+	char *key = "somestring";
+	jwt_t *mytoken;
+	char *encoded;
+
+	SET_OPS();
+
+	jwt_new(&mytoken);
+	jwt_add_grant(mytoken, "sub", "user0");
+	jwt_add_grant_int(mytoken, "iat", 1619130517);
+	jwt_add_grant_int(mytoken, "exp", 1619216917);
+	jwt_set_alg(mytoken, JWT_ALG_HS256, (unsigned char *)key, strlen(key));
+
+	encoded = jwt_encode_str(mytoken);
+	ck_assert_ptr_null(encoded);
+	ck_assert_int_eq(errno, EINVAL);
+
+	jwt_free(mytoken);
+}
+END_TEST
+
 static Suite *libjwt_suite(const char *title)
 {
 	Suite *s;
@@ -377,6 +399,7 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, test_jwt_encode_change_alg, 0, i);
 	tcase_add_loop_test(tc_core, test_jwt_encode_invalid, 0, i);
 	tcase_add_loop_test(tc_core, test_jwt_encode_decode, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_encode_too_short, 0, i);
 
 	tcase_set_timeout(tc_core, 30);
 
