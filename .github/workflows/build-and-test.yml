@@ -44,11 +44,11 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
 
     - if: startsWith(matrix.os, 'ubuntu') == true
-    - name: Memcheck on ${{ matrix.os }}
+      name: Memcheck on ${{ matrix.os }}
       working-directory: ${{github.workspace}}/build
       run: ctest -T memcheck
 
-    - if ${{ matrix.os }} == "macos-latest"
-    - name: Documents on ${{ matrix.os }}
+    - if: ${{ matrix.os }} == "macos-latest"
+      name: Documents on ${{ matrix.os }}
       working-directory: ${{github.workspace}}/build
       run: make doxygen-doc
