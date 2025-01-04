@@ -8,38 +8,47 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
     steps:
     - uses: actions/checkout@v4
 
     - uses: ConorMacBride/install-package@v1
       with:
-        brew: gnutls openssl@3 jansson pkgconf cmake check lcov doxygen graphviz
-        apt: gnutls-dev libssl-dev libjansson-dev pkg-config check lcov doxygen graphviz valgrind
+        brew: gnutls openssl@3 jansson pkgconf cmake doxygen graphviz
+        apt: gnutls-dev libssl-dev libjansson-dev pkg-config check lcov valgrind
 
-    - name: Configure CMake
+    - name: Configure CMake on ${{ matrix.os }}
       run: cmake -B ${{github.workspace}}/build -DENABLE_COVERAGE=YES
 
-    - name: Build
+    - name: Build on ${{ matrix.os }}
       working-directory: ${{github.workspace}}/build
       run: make
 
-    - name: Test
+    - name: Test on ${{ matrix.os }}
       working-directory: ${{github.workspace}}/build
       run: make check
 
-    - name: Coverage
+    - if: ${{ matrix.os }} == "ubuntu-latest"
+      name: Coverage on ${{ matrix.os }}
       working-directory: ${{github.workspace}}/build
       run: make check-code-coverage
 
-    - uses: codecov/codecov-action@v5.1.2
+    - if: ${{ matrix.os }} == "ubuntu-latest"
+      uses: codecov/codecov-action@v5.1.2
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
 
-    - name: Memcheck
+    - if: startsWith(matrix.os, 'ubuntu') == true
+    - name: Memcheck on ${{ matrix.os }}
       working-directory: ${{github.workspace}}/build
       run: ctest -T memcheck
-        
-    - name: Documents
+
+    - if ${{ matrix.os }} == "macos-latest"
+    - name: Documents on ${{ matrix.os }}
       working-directory: ${{github.workspace}}/build
       run: make doxygen-doc
