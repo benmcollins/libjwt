@@ -505,6 +505,33 @@ int jwt_base64uri_encode(char **_dst, const char *plain, int plain_len)
 	return i;
 }
 
+static int __check_hmac(const jwt_t *jwt)
+{
+	int min_len = 0;
+	int key_len = 0;
+
+	switch (jwt->alg) {
+	case JWT_ALG_HS256:
+		min_len = 32;
+		break;
+	case JWT_ALG_HS384:
+		min_len = 48;
+		break;
+	case JWT_ALG_HS512:
+		min_len = 64;
+		break;
+	default:
+		return -1;
+	}
+
+	if (jwt->config.jw_key)
+		key_len = jwt->config.jw_key->oct.len;
+	else
+		key_len = jwt->config.key_len;
+
+	return key_len < min_len ? -1 : 0;
+}
+
 int jwt_sign(jwt_t *jwt, char **out, unsigned int *len, const char *str,
 	     unsigned int str_len)
 {
@@ -513,6 +540,8 @@ int jwt_sign(jwt_t *jwt, char **out, unsigned int *len, const char *str,
 	case JWT_ALG_HS256:
 	case JWT_ALG_HS384:
 	case JWT_ALG_HS512:
+		if (__check_hmac(jwt))
+			return EINVAL;
 		return jwt_ops->sign_sha_hmac(jwt, out, len, str, str_len);
 
 	/* RSA */
