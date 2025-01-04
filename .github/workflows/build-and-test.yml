@@ -31,7 +31,6 @@ jobs:
     - uses: codecov/codecov-action@v5.1.2
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        gcov_include: ${{github.workspace}}/libjwt/*.c
         gcov_args: --filter libjwt/\*
 
     - name: Memcheck
