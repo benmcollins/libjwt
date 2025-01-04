@@ -12,10 +12,6 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - uses: codecov/codecov-action@v5.1.2
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-
     - uses: ConorMacBride/install-package@v1
       with:
         brew: gnutls openssl@3 jansson pkgconf cmake check lcov doxygen graphviz
@@ -38,9 +34,12 @@ jobs:
 
     - name: Coverage
       working-directory: ${{github.workspace}}/build
-      run: |
-        make check-code-coverage
-        codecov
+      run: make check-code-coverage
+
+    - uses: codecov/codecov-action@v5.1.2
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        working-directory: ${{github.workspace}}/build
 
     - name: Documents
       working-directory: ${{github.workspace}}/build
