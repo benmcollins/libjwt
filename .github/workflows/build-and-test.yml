@@ -1,4 +1,4 @@
-name: Build and Coverage
+name: LibJWT Unit Tests, Coverage, and Docs
 
 on:
   push:
@@ -11,47 +11,38 @@ jobs:
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v4
+    - uses: ConorMacBride/install-package@v1
       with:
-        brew: gnutls openssl@3 jansson pkgconf cmake doxygen graphviz
+        brew: gnutls openssl@3 jansson pkgconf cmake check
 
-    - name: Configure CMake
-      run: cmake -B ${{github.workspace}}/build
-
-    - name: Build
-      working-directory: ${{github.workspace}}/build
-      run: make
-
-    - name: Unit Tests
-      working-directory: ${{github.workspace}}/build
-      run: make check
-
-    - name: Documents
-      working-directory: ${{github.workspace}}/build
-      run: make doxygen-doc
+    - name: Build, Test, and Docs
+      uses: threeal/cmake-action@v2.1.0
+      with:
+        options: |
+          WITH_OPENSSL=YES
+          WITH_GNUTLS=YES
+          WITH_TESTS=YES
+        build-args: |
+          --
+          check
 
   build-linux:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-
     - uses: ConorMacBride/install-package@v1
       with:
         apt: gnutls-dev libssl-dev libjansson-dev pkg-config check lcov valgrind
 
-    - name: Configure CMake
-      run: cmake -B ${{github.workspace}}/build -ENABLE_COVERAGE=YES
-
-    - name: Build
-      working-directory: ${{github.workspace}}/build
-      run: make
-
-    - name: Unit Tests
-      working-directory: ${{github.workspace}}/build
-      run: make check
-
-    - name: Code Coverage
-      working-directory: ${{github.workspace}}/build
-      run: make check-code-coverage
+    - name: Build, Test, and Coverage
+      uses: threeal/cmake-action@v2.1.0
+      with:
+        options: |
+          ENABLE_COVERAGE=YES
+        build-args: |
+          --
+          check
+          check-code-coverage
 
     - uses: codecov/codecov-action@v5.1.2
       with:
