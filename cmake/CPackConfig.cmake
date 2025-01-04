@@ -18,7 +18,7 @@ set(CPACK_SOURCE_TBZ2 "ON")
 set(CPACK_SET_DESTDIR "ON")
 
 set(CPACK_PACKAGE_CONTACT "Ben Collins <bcollins@ubuntu.com>")
-set(CPACK_IGNORE_FILES "/\\.git/" "\\.gitignore" "\\.swp\$" "\\.DS_Store" "\\.travis.yml")
+set(CPACK_IGNORE_FILES "/\\.git/" "\\.gitignore" "\\.github/" "\\.swp\$" "\\.DS_Store")
 
 string(TOLOWER ${CPACK_PACKAGE_NAME} CPACK_PACKAGE_NAME)
 if (NOT ${CPACK_SOURCE_PACKAGE_FILE_NAME} EQUAL "")
