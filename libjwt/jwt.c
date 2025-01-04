@@ -210,10 +210,8 @@ jwt_t *jwt_create(jwt_config_t *config)
 		new->config.jw_key = config->jw_key;
 	}
 
-	if (new) {
+	if (new)
 		new->alg = alg;
-		jwt_validate_alg_keys(&new)
-	}
 
 	return new;
 }
