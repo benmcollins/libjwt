@@ -7,53 +7,58 @@ on:
     branches: [ "master" ]
 
 jobs:
-  build:
-    runs-on: ${{ matrix.os }}
+  build-macos:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        brew: gnutls openssl@3 jansson pkgconf cmake doxygen graphviz
 
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
+    - name: Configure CMake
+      run: cmake -B ${{github.workspace}}/build
 
+    - name: Build
+      working-directory: ${{github.workspace}}/build
+      run: make
+
+    - name: Unit Tests
+      working-directory: ${{github.workspace}}/build
+      run: make check
+
+    - name: Documents
+      working-directory: ${{github.workspace}}/build
+      run: make doxygen-doc
+
+  build-linux:
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
 
     - uses: ConorMacBride/install-package@v1
       with:
-        brew: gnutls openssl@3 jansson pkgconf cmake doxygen graphviz
         apt: gnutls-dev libssl-dev libjansson-dev pkg-config check lcov valgrind
 
-    - if: matrix.os == "ubuntu-latest"
-      name: Configure CMake on ${{ matrix.os }}
-      run: cmake -B ${{github.workspace}}/build -DENABLE_COVERAGE=YES -DWITH_GNUTLS=NO
+    - name: Configure CMake
+      run: cmake -B ${{github.workspace}}/build -ENABLE_COVERAGE=YES
 
-    - if: matrix.os == "macos-latest"
-      name: Configure CMake on ${{ matrix.os }}
-      run: cmake -B ${{github.workspace}}/build
-
-    - name: Build on ${{ matrix.os }}
+    - name: Build
       working-directory: ${{github.workspace}}/build
       run: make
 
-    - name: Test on ${{ matrix.os }}
+    - name: Unit Tests
       working-directory: ${{github.workspace}}/build
       run: make check
 
-    - if: matrix.os == "ubuntu-latest"
-      name: Coverage on ${{ matrix.os }}
+    - name: Code Coverage
       working-directory: ${{github.workspace}}/build
       run: make check-code-coverage
 
-    - if: matrix.os == "ubuntu-latest"
-      uses: codecov/codecov-action@v5.1.2
+    - uses: codecov/codecov-action@v5.1.2
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
+        files: ${{github.workspace}}/build/check-code-coverage.info
+        verbose: true
 
-    - if: startsWith(matrix.os, 'ubuntu') == true
-      name: Memcheck on ${{ matrix.os }}
+    - name: Memcheck
       working-directory: ${{github.workspace}}/build
       run: ctest -T memcheck
-
-    - if: matrix.os == "macos-latest"
-      name: Documents on ${{ matrix.os }}
-      working-directory: ${{github.workspace}}/build
-      run: make doxygen-doc
