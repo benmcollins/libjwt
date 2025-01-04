@@ -8,7 +8,7 @@ on:
       - v*
     paths:
       - include/jwt.h
-      - doxygen/*
+      - doxygen/**
       - cmake/LibJWTDoxyfile.cmake
 
 jobs:
