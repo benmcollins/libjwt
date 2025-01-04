@@ -34,12 +34,9 @@ jobs:
 
     - name: Coverage
       working-directory: ${{github.workspace}}/build
-      run: make check-code-coverage
-
-    - uses: codecov/codecov-action@v5.1.2
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        exclude: tests,examples,include/jwt.h,libjwt/ll.h,jansson.h
+      run: |
+        make check-code-coverage
+        bash <(curl -s https://codecov.io/bash) -X gcov
 
     - name: Documents
       working-directory: ${{github.workspace}}/build
