@@ -22,8 +22,13 @@ jobs:
         brew: gnutls openssl@3 jansson pkgconf cmake doxygen graphviz
         apt: gnutls-dev libssl-dev libjansson-dev pkg-config check lcov valgrind
 
-    - name: Configure CMake on ${{ matrix.os }}
-      run: cmake -B ${{github.workspace}}/build -DENABLE_COVERAGE=YES
+    - if: matrix.os == "ubuntu-latest"
+      name: Configure CMake on ${{ matrix.os }}
+      run: cmake -B ${{github.workspace}}/build -DENABLE_COVERAGE=YES -DWITH_GNUTLS=NO
+
+    - if: matrix.os == "macos-latest"
+      name: Configure CMake on ${{ matrix.os }}
+      run: cmake -B ${{github.workspace}}/build
 
     - name: Build on ${{ matrix.os }}
       working-directory: ${{github.workspace}}/build
@@ -33,12 +38,12 @@ jobs:
       working-directory: ${{github.workspace}}/build
       run: make check
 
-    - if: ${{ matrix.os }} == "ubuntu-latest"
+    - if: matrix.os == "ubuntu-latest"
       name: Coverage on ${{ matrix.os }}
       working-directory: ${{github.workspace}}/build
       run: make check-code-coverage
 
-    - if: ${{ matrix.os }} == "ubuntu-latest"
+    - if: matrix.os == "ubuntu-latest"
       uses: codecov/codecov-action@v5.1.2
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
@@ -48,7 +53,7 @@ jobs:
       working-directory: ${{github.workspace}}/build
       run: ctest -T memcheck
 
-    - if: ${{ matrix.os }} == "macos-latest"
+    - if: matrix.os == "macos-latest"
       name: Documents on ${{ matrix.os }}
       working-directory: ${{github.workspace}}/build
       run: make doxygen-doc
