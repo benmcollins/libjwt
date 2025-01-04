@@ -1,0 +1,47 @@
+name: Build and Coverage
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: codecov/codecov-action@v5.1.2
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+
+    - uses: ConorMacBride/install-package@v1
+      with:
+        brew: gnutls openssl@3 jansson pkgconf cmake check lcov doxygen graphviz
+        apt: gnutls-dev liblssl-dev libjansson-dev pkg-config check lcov doxygen graphviz valgrind
+
+    - name: Configure CMake
+      run: cmake -B ${{github.workspace}}/build -DENABLE_COVERAGE=YES
+
+    - name: Build
+      working-directory: ${{github.workspace}}/build
+      run: make
+
+    - name: Test
+      working-directory: ${{github.workspace}}/build
+      run: ctest
+
+    - name: Memcheck
+      working-directory: ${{github.workspace}}/build
+      run: ctest -T memcheck
+
+    - name: Coverage
+      working-directory: ${{github.workspace}}/build
+      run: |
+        make check-code-coverage
+        codecov
+
+    - name: Documents
+      working-directory: ${{github.workspace}}/build
+      run: make doxygen-doc
