@@ -26,12 +26,15 @@ jobs:
 
     - name: Test
       working-directory: ${{github.workspace}}/build
-      run: ctest
+      run: make check
+
+    - name: Coverage
+      working-directory: ${{github.workspace}}/build
+      run: make check-code-coverage
 
     - uses: codecov/codecov-action@v5.1.2
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        gcov_args: --filter libjwt/\*
 
     - name: Memcheck
       working-directory: ${{github.workspace}}/build
