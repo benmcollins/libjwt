@@ -3,12 +3,16 @@ name: LibJWT Unit Tests, Coverage, and Docs
 on:
   push:
     branches: [ "master" ]
+    paths-ignore:
+      - "doxygen/**"
+      - ".github/**"
+      - "images/**"
   pull_request:
     branches: [ "master" ]
-  paths_ignore:
-      - doxygen/**
-      - .github/**
-      - images/**
+    paths-ignore:
+      - "doxygen/**"
+      - ".github/**"
+      - "images/**"
 
 jobs:
   build-macos:
