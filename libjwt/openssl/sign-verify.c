@@ -103,7 +103,10 @@ static int openssl_verify_sha_hmac(jwt_t *jwt, const char *head,
 
 static int __degree_and_check(EVP_PKEY *pkey, jwt_t *jwt)
 {
-	int degree, curve_nid;
+	int degree, curve_nid, exp_nid = 0;
+
+	if (jwt->config.jw_key && jwt->config.jw_key->bits)
+		return jwt->config.jw_key->bits;
 
 #if OPENSSL_VERSION_NUMBER < 0x30000000L
 	const EC_GROUP *group;
@@ -139,9 +142,29 @@ static int __degree_and_check(EVP_PKEY *pkey, jwt_t *jwt)
 	EC_GROUP_free(group);
 #endif
 
-	/* We only perform this check for ES256K. All others we just check
-	 * the degree (bits). */
-	if (jwt->alg == JWT_ALG_ES256K && curve_nid != NID_secp256k1)
+	switch (jwt->alg) {
+	case JWT_ALG_ES256:
+		exp_nid = NID_X9_62_prime256v1;
+		break;
+	case JWT_ALG_ES384:
+		exp_nid = NID_secp384r1;
+		break;
+	case JWT_ALG_ES512:
+		exp_nid = NID_secp521r1;
+		break;
+	case JWT_ALG_ES256K:
+		exp_nid = NID_secp256k1;
+		break;
+	case JWT_ALG_EDDSA:
+		if (curve_nid == NID_ED448 || curve_nid == NID_ED25519)
+			return degree;
+		else
+			EC_ERROR(EINVAL);
+	default:
+		EC_ERROR(EINVAL);
+	}
+
+	if (curve_nid != exp_nid)
 		EC_ERROR(EINVAL);
 
 	return degree;

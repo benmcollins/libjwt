@@ -37,7 +37,8 @@ static const char jwt_es_invalid[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJpY
 START_TEST(test_jwt_encode_es256)
 {
 	SET_OPS();
-	__test_alg_key(JWT_ALG_ES256, "ec_key_prime256v1.pem", "ec_key_prime256v1_pub.pem");
+	__test_alg_key(JWT_ALG_ES256, "ec_key_prime256v1.pem",
+		       "ec_key_prime256v1_pub.pem");
 }
 END_TEST
 

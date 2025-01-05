@@ -190,6 +190,43 @@ START_TEST(test_jwt_encode_rsa_with_ec)
 }
 END_TEST
 
+START_TEST(test_jwt_encode_rsa_1024)
+{
+	JWT_CONFIG_DECLARE(config);
+	jwk_set_t *jwk_set = NULL;
+	jwk_item_t *item;
+	jwt_t *jwt = NULL;
+	char *out;
+	int ret = 0;
+
+	SET_OPS_JWK();
+
+	read_key("rsa_key_1024.json");
+	jwk_set = jwks_create(t_config.key);
+	free_key();
+
+	ck_assert_ptr_nonnull(jwk_set);
+	ck_assert(!jwks_error(jwk_set));
+
+	item = jwks_item_get(jwk_set, 0);
+	ck_assert_ptr_nonnull(item);
+	ck_assert(!item->error);
+
+	config.jw_key = item;
+	jwt = jwt_create(&config);
+	ck_assert_ptr_nonnull(jwt);
+
+	ret = jwt_add_grant(jwt, "sub", "user0");
+	ck_assert_int_eq(ret, 0);
+
+	/* Should fail from too few bits in key */
+	out = jwt_encode_str(jwt);
+	ck_assert_ptr_null(out);
+
+	jwt_free(jwt);
+}
+END_TEST
+
 START_TEST(test_jwt_verify_invalid_token)
 {
 	jwt_t *jwt = NULL;
@@ -308,6 +345,7 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, test_jwt_verify_invalid_cert, 0, i);
 	tcase_add_loop_test(tc_core, test_jwt_verify_invalid_cert_file, 0, i);
 	tcase_add_loop_test(tc_core, test_jwt_encode_invalid_key, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_encode_rsa_1024, 0, i);
 
 	tcase_set_timeout(tc_core, 120);
 

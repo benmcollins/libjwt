@@ -133,6 +133,7 @@ static int process_octet(json_t *jwk, jwk_item_t *item)
 	item->provider = JWT_CRYPTO_OPS_ANY;
 	item->oct.key = bin_k;
 	item->oct.len = len_k;
+	item->bits = len_k * 8;
 
 	return 0;
 }

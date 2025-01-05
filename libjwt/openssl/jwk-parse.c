@@ -176,6 +176,9 @@ static int pctx_to_pem(EVP_PKEY_CTX *pctx, OSSL_PARAM *params,
 	jwk_ctx->pkey = pkey;
 	item->provider_data = jwk_ctx;
 
+	EVP_PKEY_get_size_t_param(pkey, OSSL_PKEY_PARAM_BITS,
+				  &item->bits);
+
 	/* From here after, we don't fail. PEM is optional. */
 	ret = 0;
 

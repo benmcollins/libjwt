@@ -507,29 +507,84 @@ int jwt_base64uri_encode(char **_dst, const char *plain, int plain_len)
 
 static int __check_hmac(const jwt_t *jwt)
 {
-	int min_len = 0;
-	int key_len = 0;
+	int key_bits = 0;
+
+	if (jwt->config.jw_key)
+		key_bits = jwt->config.jw_key->bits;
+	else
+		key_bits = jwt->config.key_len * 8;
+
+	if (key_bits < 256)
+		return -1;
 
 	switch (jwt->alg) {
 	case JWT_ALG_HS256:
-		min_len = 32;
+		if (key_bits >= 256)
+			return 0;
 		break;
+
 	case JWT_ALG_HS384:
-		min_len = 48;
+		if (key_bits >= 384)
+			return 0;
 		break;
+
 	case JWT_ALG_HS512:
-		min_len = 64;
+		if (key_bits >= 512)
+			return 0;
 		break;
+
 	default:
 		return -1;
 	}
 
-	if (jwt->config.jw_key)
-		key_len = jwt->config.jw_key->oct.len;
-	else
-		key_len = jwt->config.key_len;
+	return -1;
+}
 
-	return key_len < min_len ? -1 : 0;
+static int __check_key_bits(const jwt_t *jwt)
+{
+	int key_bits = 0;
+
+	if (jwt->config.jw_key)
+		key_bits = jwt->config.jw_key->bits;
+
+	/* Ignore if we don't have it */
+	if (key_bits == 0)
+		return 0;
+
+	switch (jwt->alg) {
+	case JWT_ALG_RS256:
+	case JWT_ALG_RS384:
+	case JWT_ALG_RS512:
+
+	case JWT_ALG_PS256:
+	case JWT_ALG_PS384:
+	case JWT_ALG_PS512:
+		if (key_bits >= 2048)
+			return 0;
+		break;
+
+	case JWT_ALG_EDDSA:
+	case JWT_ALG_ES256K:
+	case JWT_ALG_ES256:
+		if (key_bits == 256)
+			return 0;
+		break;
+
+	case JWT_ALG_ES384:
+		if (key_bits == 384)
+			return 0;
+		break;
+
+	case JWT_ALG_ES512:
+		if (key_bits == 521)
+			return 0;
+		break;
+
+	default:
+		return -1;
+	}
+
+	return -1;
 }
 
 int jwt_sign(jwt_t *jwt, char **out, unsigned int *len, const char *str,
@@ -562,6 +617,8 @@ int jwt_sign(jwt_t *jwt, char **out, unsigned int *len, const char *str,
 
 	/* EdDSA */
 	case JWT_ALG_EDDSA:
+		if (__check_key_bits(jwt))
+			return EINVAL;
 		return jwt_ops->sign_sha_pem(jwt, out, len, str, str_len);
 
 	/* You wut, mate? */
