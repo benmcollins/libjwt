@@ -42,7 +42,7 @@ jobs:
         mkdir build
         cd build
         ../configure
-        make doxygen-dox
+        make doxygen-doc
         cd ..
         mv build/doxygen-doc/html/* gh-pages/
         rm -rf build
