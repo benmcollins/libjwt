@@ -185,14 +185,14 @@ typedef struct {
 	union {
 		void *provider_data;	/**< Internal data used by the provider		*/
 		struct {
-			void *key;
-			size_t len;
+			void *key;	/**< Used for HMAC key material			*/
+			size_t len;	/**< Length of HMAC key material		*/
 		} oct;
 	};
 	int is_private_key;	/**< Whether this is a public or private key            */
 	char curve[256];        /**< Curve name of an ``"EC"`` or ``"OKP"`` key         */
 	size_t bits;            /**< The number of bits in the key (may be 0)           */
-	int error;              /**< There was an error parsgint this key (unusable)    */
+	int error;              /**< There was an error parsing this key (unusable)    */
 	char error_msg[256];    /**< Descriptive message for @ref jwk_item_t.error      */
 	jwk_key_type_t kty;     /**< @rfc{7517,4.1} The key type of this key            */
 	jwk_pub_key_use_t use;  /**< @rfc{7517,4.2} How this key can be used            */
