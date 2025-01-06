@@ -210,15 +210,12 @@ static int jwt_encode(jwt_t *jwt, char **out)
 int jwt_encode_fp(jwt_t *jwt, FILE *fp)
 {
 	char_auto *str = NULL;
-	int ret;
 
-	ret = jwt_encode(jwt, &str);
-	if (ret)
-		return ret;
+	errno = jwt_encode(jwt, &str);
+	if (!errno)
+		fputs(str, fp);
 
-	fputs(str, fp);
-
-	return 0;
+	return errno;
 }
 
 char *jwt_encode_str(jwt_t *jwt)
