@@ -8,7 +8,7 @@
       "kid": "84b6e8b5-fa05-4669-bf38-0f78f5d1cc10",
       "kty": "EC",
       "alg": "ES512",
-      "crv": "secp521r1",
+      "crv": "P-521",
       "x": "_axE26pXWXesAjcTP_2Tfe4EcF4A3LuqgpIFzrftiztViq0-5deUvfcxuPIFk-ANVinlAOzgZWpFS0kheI7KJAY",
       "y": "3fOHn5ZTU08AAjau0CoZe9GSPUC4cnSy1nqetiKBW0YpBvhaY5FXnngvfHUHdmkFSVLCS6N-LXoi_dm0Fbo6snE"
     }

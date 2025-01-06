@@ -16,13 +16,12 @@ static const time_t expires = TS_CONST + 600L;
 
 static void __setup_jwt()
 {
-	jwt_new(&jwt);
+	EMPTY_JWT(jwt);
 	jwt_add_grant(jwt, "iss", "test");
 	jwt_add_grant(jwt, "sub", "user0");
 	jwt_add_grants_json(jwt, "{\"aud\": [\"svc1\",\"svc2\"]}");
 	jwt_add_grant_int(jwt, "iat", iat);
 	jwt_add_grant_bool(jwt, "admin", 1);
-	jwt_set_alg(jwt, JWT_ALG_NONE, NULL, 0);
 }
 
 static void __teardown_jwt()

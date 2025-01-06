@@ -12,22 +12,23 @@
 START_TEST(test_jwks_##__name)				\
 {							\
 	SET_OPS();					\
-       __jwks_check(#__name ".json", #__name ".pem");	\
+       __jwks_check(#__name ".json", "pem-files/"	\
+		#__name ".pem");			\
 }							\
 END_TEST
 
 static void __jwks_check(const char *json, const char *pem)
 {
 	JWT_CONFIG_DECLARE(config);
-	jwk_set_t *jwk_set = NULL;
-	jwt_t *jwt = NULL;
+	jwk_set_auto_t *jwk_set = NULL;
 	jwk_item_t *item = NULL;
+	jwt_auto_t *jwt = NULL;
 	char *out = NULL;
 	int ret;
 
-	/* Load up the JWKS */
-	read_key(json);
-	jwk_set = jwks_create(t_config.key);
+        /* Load up the JWKS */
+        read_key(json);
+	jwk_set = jwks_create(test_data.key);
 	free_key();
 	ck_assert_ptr_nonnull(jwk_set);
 
@@ -44,12 +45,9 @@ static void __jwks_check(const char *json, const char *pem)
 		return;
 	}
 
-	ck_assert(!item->error);
-
-	/* Load our PEM to compare */
 	if (item->kty != JWK_KEY_TYPE_OCT) {
 		read_key(pem);
-		ret = strcmp(item->pem, t_config.key);
+		ret = strcmp(item->pem, test_data.key);
 		free_key();
 		ck_assert_int_eq(ret, 0);
 	}
@@ -96,9 +94,6 @@ static void __jwks_check(const char *json, const char *pem)
         __verify_jwk(out, item);
 
         jwt_free_str(out);
-
-        jwt_free(jwt);
-        jwks_free(jwk_set);
 }
 
 JWKS_KEY_TEST(ec_key_prime256v1);
@@ -131,27 +126,23 @@ JWKS_KEY_TEST(oct_key_512);
 
 START_TEST(test_jwks_keyring_load)
 {
-	jwk_set_t *jwk_set = NULL;
 	jwk_item_t *item;
 	int i;
 
 	SET_OPS_JWK();
 
 	read_key("jwks_keyring.json");
-	jwk_set = jwks_create(t_config.key);
-	free_key();
 
-	ck_assert_ptr_nonnull(jwk_set);
-	ck_assert(!jwks_error(jwk_set));
+	ck_assert(!jwks_error(g_jwk_set));
 
-	for (i = 0; (item = jwks_item_get(jwk_set, i)); i++)
+	for (i = 0; (item = jwks_item_get(g_jwk_set, i)); i++)
 		ck_assert(!item->error);
 
 	ck_assert_int_eq(i, 22);
 
-	ck_assert(jwks_item_free(jwk_set, 3));
+	ck_assert(jwks_item_free(g_jwk_set, 3));
 
-	jwks_free(jwk_set);
+	free_key();
 }
 END_TEST
 
@@ -162,31 +153,24 @@ START_TEST(test_jwks_key_op_all_types)
 		JWK_KEY_OP_UNWRAP | JWK_KEY_OP_DERIVE_KEY |
 		JWK_KEY_OP_DERIVE_BITS;
 
-	jwk_set_t *jwk_set = NULL;
 	jwk_item_t *item;
 
 	SET_OPS_JWK();
 
 	read_key("jwks_test-1.json");
-	jwk_set = jwks_create(t_config.key);
-	free_key();
 
-	ck_assert_ptr_nonnull(jwk_set);
-	ck_assert(!jwks_error(jwk_set));
-
-	item = jwks_item_get(jwk_set, 0);
+	item = jwks_item_get(g_jwk_set, 0);
 	ck_assert_ptr_nonnull(item);
 	ck_assert(!item->error);
 
 	ck_assert_int_eq(item->key_ops, key_ops);
 
-	jwks_free(jwk_set);
+	free_key();
 }
 END_TEST
 
 START_TEST(test_jwks_key_op_bad_type)
 {
-	jwk_set_t *jwk_set = NULL;
 	jwk_item_t *item;
 	const char *msg = "JWK has an invalid value in key_op";
 	const char *kid = "264265c2-4ef0-4751-adbd-9739550afe5b";
@@ -194,13 +178,8 @@ START_TEST(test_jwks_key_op_bad_type)
 	SET_OPS_JWK();
 
 	read_key("jwks_test-2.json");
-	jwk_set = jwks_create(t_config.key);
-	free_key();
 
-	ck_assert_ptr_nonnull(jwk_set);
-	ck_assert(!jwks_error(jwk_set));
-
-	item = jwks_item_get(jwk_set, 0);
+	item = jwks_item_get(g_jwk_set, 0);
 	ck_assert_ptr_nonnull(item);
 
 	/* One item had a bad type (numeric). */
@@ -216,7 +195,7 @@ START_TEST(test_jwks_key_op_bad_type)
 	/* Check this key ID. */
 	ck_assert_str_eq(item->kid, kid);
 
-	jwks_free(jwk_set);
+	free_key();
 }
 END_TEST
 

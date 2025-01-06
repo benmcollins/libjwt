@@ -29,13 +29,8 @@ static int gnutls_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 	void *key;
 	size_t key_len;
 
-	if (jwt->config.jw_key) {
-		key = jwt->config.jw_key->oct.key;
-		key_len = jwt->config.jw_key->oct.len;
-	} else {
-		key = jwt->config.key;
-		key_len = jwt->config.key_len;
-	}
+	key = jwt->jw_key->oct.key;
+	key_len = jwt->jw_key->oct.len;
 
 	switch (jwt->alg) {
 	case JWT_ALG_HS256:
@@ -95,14 +90,14 @@ static int gnutls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		s_out_padding = 0;
 	size_t out_size;
 
-	if (jwt->config.jw_key != NULL)
+	if (jwt->jw_key != NULL)
 		return EINVAL;
 
 	gnutls_x509_privkey_t key;
 	gnutls_privkey_t privkey;
 	gnutls_datum_t key_dat = {
-		jwt->config.key,
-		jwt->config.key_len
+		(unsigned char *)jwt->jw_key->pem,
+		strlen(jwt->jw_key->pem)
 	};
 	gnutls_datum_t body_dat = {
 		(unsigned char *)str,
@@ -280,8 +275,8 @@ static int gnutls_verify_sha_pem(jwt_t *jwt, const char *head,
 {
 	gnutls_datum_t r, s;
 	gnutls_datum_t cert_dat = {
-		jwt->config.key,
-		jwt->config.key_len
+		(unsigned char *)jwt->jw_key->pem,
+		strlen(jwt->jw_key->pem)
 	};
 	gnutls_datum_t data = {
 		(unsigned char *)head,
@@ -291,9 +286,6 @@ static int gnutls_verify_sha_pem(jwt_t *jwt, const char *head,
 	gnutls_pubkey_t pubkey;
 	int alg, ret = 0, sig_len;
 	unsigned char *sig = NULL;
-
-	if (jwt->config.jw_key != NULL)
-		return EINVAL;
 
 	switch (jwt->alg) {
 	/* RSA */

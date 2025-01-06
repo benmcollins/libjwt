@@ -8,7 +8,7 @@
       "kid": "0c546438-14ec-47c7-8175-5d0baf204ec7",
       "kty": "EC",
       "alg": "ES256",
-      "crv": "prime256v1",
+      "crv": "P-256",
       "x": "Y--DdSpCZ5oF3j__h-SdNJIwvB5aI4AXzpRErGUjWrM",
       "y": "_bSTCXlDeU-pZZbOKDUVLANspSIeuKZfTM8rtXFG_RU"
     },
@@ -21,7 +21,7 @@
       "kid": "9b5f5809-fcdc-487a-bf5f-c4cf1759e981",
       "kty": "EC",
       "alg": "ES256",
-      "crv": "prime256v1",
+      "crv": "P-256",
       "x": "Y--DdSpCZ5oF3j__h-SdNJIwvB5aI4AXzpRErGUjWrM",
       "y": "_bSTCXlDeU-pZZbOKDUVLANspSIeuKZfTM8rtXFG_RU",
       "d": "wDvSCv8kxkqIVTYPpgEm4Efs6lKzf-95W8Qej4F1yEM"
@@ -60,7 +60,7 @@
       "kid": "3e564a06-b613-4c53-9bbb-0f4937460846",
       "kty": "EC",
       "alg": "ES384",
-      "crv": "secp384r1",
+      "crv": "P-384",
       "x": "omxC9ycc8AkXSwWQpu1kN5Fmgy_sD_KJqN3tlSZmUEZ3w3c6KYJfK97PMOSZQaUd",
       "y": "eydBoq_IOglQQOj8zLqubq5IpaaUiDQ50eJg79PvXuLiVUH98cBL_o8sDVB_sGzz"
     },
@@ -73,7 +73,7 @@
       "kid": "447c5d97-5cde-4abd-b277-e261f7f0e7dd",
       "kty": "EC",
       "alg": "ES384",
-      "crv": "secp384r1",
+      "crv": "P-384",
       "x": "omxC9ycc8AkXSwWQpu1kN5Fmgy_sD_KJqN3tlSZmUEZ3w3c6KYJfK97PMOSZQaUd",
       "y": "eydBoq_IOglQQOj8zLqubq5IpaaUiDQ50eJg79PvXuLiVUH98cBL_o8sDVB_sGzz",
       "d": "XiwoGqY2Zr02rTB2mF9wNNvtGLN06_JHWvhPQxZ5gkogjhIoOdfX09d3nXlPGHQ7"
@@ -86,7 +86,7 @@
       "kid": "61162a64-fe91-459a-8691-8e99af8fe678",
       "kty": "EC",
       "alg": "ES512",
-      "crv": "secp521r1",
+      "crv": "P-521",
       "x": "_axE26pXWXesAjcTP_2Tfe4EcF4A3LuqgpIFzrftiztViq0-5deUvfcxuPIFk-ANVinlAOzgZWpFS0kheI7KJAY",
       "y": "3fOHn5ZTU08AAjau0CoZe9GSPUC4cnSy1nqetiKBW0YpBvhaY5FXnngvfHUHdmkFSVLCS6N-LXoi_dm0Fbo6snE"
     },
@@ -99,7 +99,7 @@
       "kid": "945f34e7-376f-4702-9b83-5466b862cb05",
       "kty": "EC",
       "alg": "ES512",
-      "crv": "secp521r1",
+      "crv": "P-521",
       "x": "_axE26pXWXesAjcTP_2Tfe4EcF4A3LuqgpIFzrftiztViq0-5deUvfcxuPIFk-ANVinlAOzgZWpFS0kheI7KJAY",
       "y": "3fOHn5ZTU08AAjau0CoZe9GSPUC4cnSy1nqetiKBW0YpBvhaY5FXnngvfHUHdmkFSVLCS6N-LXoi_dm0Fbo6snE",
       "d": "p6rxb2PoAISjCCTxpTQOxv5arJ_N6Xibr0eyOAnlWcVk34m1W5323_6TcPGTtFQgEX9TWjNcp9W8HIuIyRdLnsI"
@@ -112,7 +112,7 @@
       "kid": "34a366c1-91a6-410a-9a0a-5710f2205126",
       "kty": "OKP",
       "crv": "Ed25519",
-      "alg": "EDDSA",
+      "alg": "EdDSA",
       "x": "HUj-14kN6N4i5qNVkfEhwKiCf-tSrvRHstQdtV8a5QM"
     },
     {
@@ -124,7 +124,7 @@
       "kid": "4a6621ad-d4e3-40a2-b891-e7be379a41cd",
       "kty": "OKP",
       "crv": "Ed25519",
-      "alg": "EDDSA",
+      "alg": "EdDSA",
       "d": "XY5oUZqGWVZhX7J09hG-rRnAKXiw1g_aBh-Bc52KZ_Y"
     },
     {

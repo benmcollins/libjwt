@@ -73,8 +73,7 @@ START_TEST(test_jwt_dump_fp)
 	ret = test_set_alloc();
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_new(&jwt);
-	ck_assert_int_eq(ret, 0);
+	jwt = jwt_create(NULL);
 	ck_assert_ptr_nonnull(jwt);
 
 	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
@@ -120,8 +119,7 @@ START_TEST(test_jwt_dump_str)
 	ret = test_set_alloc();
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_new(&jwt);
-	ck_assert_int_eq(ret, 0);
+	jwt = jwt_create(NULL);
 	ck_assert_ptr_nonnull(jwt);
 
 	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
@@ -186,8 +184,7 @@ START_TEST(test_jwt_dump_grants_str)
 	ret = test_set_alloc();
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_new(&jwt);
-	ck_assert_int_eq(ret, 0);
+	jwt = jwt_create(NULL);
 	ck_assert_ptr_nonnull(jwt);
 
 	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
@@ -234,8 +231,7 @@ END_TEST
 
 START_TEST(test_jwt_dump_str_alg_default_typ_header)
 {
-	jwt_t *jwt = NULL;
-	const char key[] = "My Passphrase";
+	jwt_test_auto_t *jwt = NULL;
 	int ret = 0;
 	char *out;
 	const char *val = NULL;
@@ -245,9 +241,7 @@ START_TEST(test_jwt_dump_str_alg_default_typ_header)
 	ret = test_set_alloc();
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_new(&jwt);
-	ck_assert_int_eq(ret, 0);
-	ck_assert_ptr_nonnull(jwt);
+	CREATE_JWT(jwt, "oct_key_256.json", JWT_ALG_HS256);
 
 	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
 	ck_assert_int_eq(ret, 0);
@@ -261,20 +255,22 @@ START_TEST(test_jwt_dump_str_alg_default_typ_header)
 	ret = jwt_add_grant_int(jwt, "iat", (long)time(NULL));
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_set_alg(jwt, JWT_ALG_HS256, (unsigned char *)key,
-			  strlen(key));
-	ck_assert_int_eq(ret, 0);
-
-	/* Test 'typ' header: should not be present, cause jwt's header has not been touched yet
-	 * by jwt_write_head, this is only called as a result of calling jwt_dump* methods. */
+	/*
+	 * Test 'typ' header: should not be present, cause jwt's header has
+	 * not been touched yet by jwt_write_head, this is only called as a
+	 * result of calling jwt_dump* methods.
+	 */
 	val = jwt_get_header(jwt, "typ");
 	ck_assert_ptr_null(val);
 
 	out = jwt_dump_str(jwt, 1);
 	ck_assert_ptr_nonnull(out);
 
-	/* Test 'typ' header: should be added with default value of 'JWT', cause 'alg' is set explicitly
-	 * and jwt's header has been processed by jwt_write_head. */
+	/*
+	 * Test 'typ' header: should be added with default value of 'JWT',
+	 * cause 'alg' is set explicitly and jwt's header has been processed
+	 * by jwt_write_head.
+	 */
 	val = jwt_get_header(jwt, "typ");
 	ck_assert_ptr_nonnull(val);
 	ck_assert_str_eq(val, "JWT");
@@ -284,22 +280,22 @@ START_TEST(test_jwt_dump_str_alg_default_typ_header)
 	out = jwt_dump_str(jwt, 0);
 	ck_assert_ptr_nonnull(out);
 
-	/* Test 'typ' header: should be added with default value of 'JWT', cause 'alg' is set explicitly
-	 * and jwt's header has been processed by jwt_write_head. */
+	/*
+	 * Test 'typ' header: should be added with default value of 'JWT',
+	 * cause 'alg' is set explicitly and jwt's header has been
+	 * processed by jwt_write_head.
+	 */
 	val = jwt_get_header(jwt, "typ");
 	ck_assert_ptr_nonnull(val);
 	ck_assert_str_eq(val, "JWT");
 
 	jwt_free_str(out);
-
-	jwt_free(jwt);
 }
 END_TEST
 
 START_TEST(test_jwt_dump_str_alg_custom_typ_header)
 {
-	jwt_t *jwt = NULL;
-	const char key[] = "My Passphrase";
+	jwt_test_auto_t *jwt = NULL;
 	int ret = 0;
 	char *out;
 	const char *val = NULL;
@@ -309,9 +305,7 @@ START_TEST(test_jwt_dump_str_alg_custom_typ_header)
 	ret = test_set_alloc();
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_new(&jwt);
-	ck_assert_int_eq(ret, 0);
-	ck_assert_ptr_nonnull(jwt);
+	CREATE_JWT(jwt, "oct_key_256.json", JWT_ALG_HS256);
 
 	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
 	ck_assert_int_eq(ret, 0);
@@ -333,10 +327,6 @@ START_TEST(test_jwt_dump_str_alg_custom_typ_header)
 	ck_assert_ptr_nonnull(val);
 	ck_assert_str_eq(val, "favourite");
 
-	ret = jwt_set_alg(jwt, JWT_ALG_HS256, (unsigned char *)key,
-			  strlen(key));
-	ck_assert_int_eq(ret, 0);
-
 	/* Test 'typ' header: should be left untouched. */
 	val = jwt_get_header(jwt, "typ");
 	ck_assert_ptr_nonnull(val);
@@ -361,8 +351,6 @@ START_TEST(test_jwt_dump_str_alg_custom_typ_header)
 	ck_assert_str_eq(val, "favourite");
 
 	jwt_free_str(out);
-
-	jwt_free(jwt);
 }
 END_TEST
 

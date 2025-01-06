@@ -206,6 +206,9 @@ int jwks_error(jwk_set_t *jwk_set)
 
 const char *jwks_error_msg(jwk_set_t *jwk_set)
 {
+	if (jwk_set == NULL)
+		return "Unknown error";
+
 	return jwk_set->error_msg;
 }
 
@@ -232,6 +235,9 @@ int jwks_item_free(jwk_set_t *jwk_set, size_t index)
 	struct jwk_list_item *list_item = NULL, *todel = NULL;
 	jwk_item_t *item;
         int i = 0;
+
+	if (jwk_set == NULL)
+		return 0;
 
 	list_for_each_entry(list_item, &jwk_set->head, node) {
 		if (i == index) {
@@ -266,6 +272,9 @@ int jwks_item_free_all(jwk_set_t *jwk_set)
 {
 	int i;
 
+	if (jwk_set == NULL)
+		return 0;
+
 	for (i = 0; jwks_item_free(jwk_set, 0); i++)
 		/* do nothing */;
 
@@ -274,6 +283,9 @@ int jwks_item_free_all(jwk_set_t *jwk_set)
 
 void jwks_free(jwk_set_t *jwk_set)
 {
+	if (jwk_set == NULL)
+		return;
+
 	jwks_item_free_all(jwk_set);
 	jwt_freemem(jwk_set);
 }

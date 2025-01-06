@@ -7,7 +7,7 @@
       "kid": "264265c2-4ef0-4751-adbd-9739550afe5b",
       "kty": "EC",
       "alg": "ES256",
-      "crv": "prime256v1",
+      "crv": "P-256",
       "x": "Y--DdSpCZ5oF3j__h-SdNJIwvB5aI4AXzpRErGUjWrM",
       "y": "_bSTCXlDeU-pZZbOKDUVLANspSIeuKZfTM8rtXFG_RU",
       "d": "wDvSCv8kxkqIVTYPpgEm4Efs6lKzf-95W8Qej4F1yEM"

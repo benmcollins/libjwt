@@ -16,74 +16,52 @@
 
 void usage(const char *name)
 {
-	/* TODO Might want to support JWT input via stdin */
-	printf("%s --key some-pub.pem --alg RS256 some-file.jwt\n", name);
+	printf("%s --key example.json --token eyJhb...\n", name);
 	printf("Options:\n"
-			"  -k --key KEY  The key to use for verification\n"
-			"  -a --alg ALG  The algorithm to use for verification\n"
-			"  -c --claim KEY=VALUE   Verify JWT has claim KEY with VALUE\n");
+			"  -k --key   KEY    A file in JWK (JSON) format containing the key\n"
+			"  -a --alg   ALG    The algorithm used (not needed if contained in JWK)\n"
+			"  -t --token TOKEN  A JSON Web Token\n");
 	exit(0);
 }
 
 int main(int argc, char *argv[])
 {
-	int exit_status = 0;
-	char opt_key_name[200] = "test-rsa256-pub.pem";
-	jwt_alg_t opt_alg = JWT_ALG_RS256;
-	char opt_jwt_name[200] = "test-rsa256.jwt";
-	int claims_count = 0;
-	int i = 0;
-	unsigned char key[10240];
-	size_t key_len;
+	char *key_file = NULL, *token = NULL;
+	jwt_alg_t opt_alg = JWT_ALG_NONE;
 	JWT_CONFIG_DECLARE(config);
-	FILE *fp_pub_key;
-	char jwt_str[2048];
-	size_t jwt_len;
-	FILE *fp_jwt;
-	int ret = 0;
-	jwt_valid_t *jwt_valid;
-	jwt_t *jwt = NULL;
-	int oc = 0;
-	char *optstr = "hk:a:c:";
+	jwt_auto_t *jwt = NULL;
+	jwk_set_auto_t *jwk_set = NULL;
+	jwk_item_t *item = NULL;
+	FILE *key_fp = NULL;
+	char key_data[BUFSIZ];
+	int key_len;
+	char oc, ret;
+
+	char *optstr = "hk:t:a";
 	struct option opttbl[] = {
 		{ "help",         no_argument,        NULL, 'h'         },
 		{ "key",          required_argument,  NULL, 'k'         },
+		{ "token",        required_argument,  NULL, 't'         },
 		{ "alg",          required_argument,  NULL, 'a'         },
-		{ "claim",        required_argument,  NULL, 'c'         },
 		{ NULL, 0, 0, 0 },
 	};
-	char *k = NULL, *v = NULL;
-	struct kv {
-		char *key;
-		char *val;
-	} opt_claims[100];
-	memset(opt_claims, 0, sizeof(opt_claims));
-
 
 	while ((oc = getopt_long(argc, argv, optstr, opttbl, NULL)) != -1) {
 		switch (oc) {
 		case 'k':
-			strncpy(opt_key_name, optarg, sizeof(opt_key_name));
-			opt_key_name[sizeof(opt_key_name) - 1] = '\0';
+			key_file = optarg;
+			break;
+
+		case 't':
+			token = optarg;
 			break;
 
 		case 'a':
 			opt_alg = jwt_str_alg(optarg);
 			if (opt_alg >= JWT_ALG_INVAL) {
-				fprintf(stderr, "%s is not supported algorithm, using RS256\n", optarg);
-				opt_alg = JWT_ALG_RS256;
-			}
-			break;
-
-		case 'c':
-			k = strtok(optarg, "=");
-			if (k) {
-				v = strtok(NULL, "=");
-				if (v) {
-					opt_claims[claims_count].key = strdup(k);
-					opt_claims[claims_count].val = strdup(v);
-					claims_count++;
-				}
+				fprintf(stderr, "%s is not a supported algorithm\n",
+					optarg);
+				exit(EXIT_FAILURE);
 			}
 			break;
 
@@ -94,77 +72,81 @@ int main(int argc, char *argv[])
 		default: /* '?' */
 			usage(basename(argv[0]));
 			exit(EXIT_FAILURE);
+			break;
 		}
 	}
 
-
-	if (optind == argc) {
-		fprintf(stderr, "Please provide name of jwt file\n");
+	if (token == NULL) {
+		fprintf(stderr, "--token is required\n");
 		exit(EXIT_FAILURE);
 	}
-	strncpy(opt_jwt_name, argv[optind], sizeof(opt_jwt_name) - 1);
-	opt_jwt_name[sizeof(opt_jwt_name) - 1] = '\0';
 
-	fprintf(stderr, "jwt verification: jwt %s pubkey %s algorithm %s\n",
-			opt_jwt_name, opt_key_name, jwt_alg_str(opt_alg));
-
-	/* Load pub key */
-	fp_pub_key = fopen(opt_key_name, "r");
-	key_len = fread(key, 1, sizeof(key), fp_pub_key);
-	fclose(fp_pub_key);
-	key[key_len] = '\0';
-	fprintf(stderr, "pub key loaded %s (%zu)!\n", opt_key_name, key_len);
-
-	/* Load jwt */
-	fp_jwt = fopen(opt_jwt_name, "r");
-	jwt_len = fread(jwt_str, 1, sizeof(jwt_str), fp_jwt);
-	fclose(fp_jwt);
-	jwt_str[jwt_len] = '\0';
-	fprintf(stderr, "jwt loaded %s (%zu)!\n", opt_jwt_name, jwt_len);
-
-	/* Setup validation */
-	ret = jwt_valid_new(&jwt_valid, opt_alg);
-	if (ret != 0 || jwt_valid == NULL) {
-		fprintf(stderr, "failed to allocate jwt_valid\n");
-		goto finish_valid;
+	if (key_file == NULL && opt_alg != JWT_ALG_NONE) {
+		fprintf(stderr, "Cannot verify without a --key file if alg "
+			"is not none\n");
+		exit(EXIT_FAILURE);
 	}
 
-	jwt_valid_set_headers(jwt_valid, 1);
-	jwt_valid_set_now(jwt_valid, time(NULL));
-	for (i = 0; i < claims_count; i++) {
-		jwt_valid_add_grant(jwt_valid, opt_claims[i].key, opt_claims[i].val);
+	fprintf(stderr, "JWT verification:\n"
+			"  Token    : %s\n"
+			"  Key File : %s\n"
+			"  Algorithm: %s\n\n",
+			token, key_file ?: "no key needed",
+			jwt_alg_str(opt_alg));
+
+	/* Load JWK key */
+	if (key_file) {
+		key_fp = fopen(key_file, "r");
+		if (key_fp == NULL) {
+			perror(key_file);
+			exit(EXIT_FAILURE);
+		}
+		key_len = fread(key_data, 1, sizeof(key_data), key_fp);
+		fclose(key_fp);
+		key_data[key_len] = '\0';
+
+		/* Setup JWK Set */
+		jwk_set = jwks_create(key_data);
+		if (jwk_set == NULL || jwks_error(jwk_set)) {
+			fprintf(stderr, "ERR: Could not read JWK: %s\n",
+				jwks_error_msg(jwk_set));
+			exit(EXIT_FAILURE);
+		}
+		/* Get the first key */
+		item = jwks_item_get(jwk_set, 0);
+		if (item->error) {
+			fprintf(stderr, "ERR: Could not read JWK: %s\n",
+				item->error_msg);
+			exit(EXIT_FAILURE);
+		}
+
+		if (item->alg == JWT_ALG_NONE && opt_alg == JWT_ALG_NONE) {
+			fprintf(stderr, "Cannot find a valid algorithm in the "
+				" JWK. You need to set it with --alg\n");
+			exit(EXIT_FAILURE);
+		}
+
+		if (item->alg != JWT_ALG_NONE && opt_alg != JWT_ALG_NONE &&
+		    item->alg != opt_alg) {
+			fprintf(stderr, "Key algorithm does not match --alg argument\n");
+			exit(EXIT_FAILURE);
+		}
 	}
 
 	/* Decode jwt */
-	config.key = key;
-	config.key_len = key_len;
+	config.jw_key = item;
 	config.alg = opt_alg;
-	ret = jwt_verify(&jwt, jwt_str, &config);
+	ret = jwt_verify(&jwt, token, &config);
 	if (ret != 0 || jwt == NULL) {
-		fprintf(stderr, "invalid jwt\n");
-		exit_status = 1;
-		goto finish;
+		fprintf(stderr, "JWT could not be verified\n");
+		exit(EXIT_FAILURE);
 	}
 
-	fprintf(stderr, "jwt decoded successfully!\n");
-
-	/* Validate jwt */
-	if (jwt_validate(jwt, jwt_valid) != 0) {
-		fprintf(stderr, "jwt failed to validate: %08x\n", jwt_valid_get_status(jwt_valid));
-		jwt_dump_fp(jwt, stderr, 1);
-		exit_status = 1;
-		goto finish;
-	}
-
-	fprintf(stderr, "JWT is authentic! sub: %s\n", jwt_get_grant(jwt, "sub"));
+	fprintf(stderr, "JWT %s successfully!\n",
+		token ? "verified" : "decoded");
 
 	jwt_dump_fp(jwt, stdout, 1);
 
-finish:
-	jwt_free(jwt);
-finish_valid:
-	jwt_valid_free(jwt_valid);
-
-	return exit_status;
+	exit(EXIT_SUCCESS);
 }
 

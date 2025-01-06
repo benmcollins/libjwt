@@ -18,7 +18,7 @@ void usage(const char *name)
 {
 	printf("%s OPTIONS\n", name);
 	printf("Options:\n"
-			"  -k --key KEY  The private key to use for signing\n"
+			"  -k --key KEY  The private JWK to use for signing (.json)\n"
 			"  -a --alg ALG  The algorithm to use for signing\n"
 			"  -c --claim KEY=VALUE  A claim to add to JWT\n"
 			"  -j --json '{key1:value1}'  A json to add to JWT\n"
@@ -28,9 +28,8 @@ void usage(const char *name)
 
 int main(int argc, char *argv[])
 {
-	char *opt_key_name = "test-rsa256.pem";
-	int free_key = 0;
-	jwt_alg_t opt_alg = JWT_ALG_RS256;
+	char *opt_key_name = NULL;
+	jwt_alg_t opt_alg = JWT_ALG_NONE;
 	time_t iat = time(NULL);
 
 	int oc = 0;
@@ -47,30 +46,32 @@ int main(int argc, char *argv[])
 	char *k = NULL, *v = NULL;
 	int claims_count = 0;
 	int i = 0;
-	unsigned char key[10240];
+	char key[BUFSIZ];
 	size_t key_len = 0;
 	FILE *fp_priv_key;
 	int ret = 0;
-	jwt_t *jwt = NULL;
+	jwt_auto_t *jwt = NULL;
+	jwk_set_auto_t *jwk_set = NULL;
+	jwk_item_t *item = NULL;
 	struct kv {
 		char *key;
 		char *val;
 	} opt_claims[100];
 	memset(opt_claims, 0, sizeof(opt_claims));
 	char* opt_json = NULL;
+	JWT_CONFIG_DECLARE(config);
 
 	while ((oc = getopt_long(argc, argv, optstr, opttbl, NULL)) != -1) {
 		switch (oc) {
 		case 'k':
-			opt_key_name = strdup(optarg);
-			free_key = 1;
+			opt_key_name = optarg;
 			break;
 
 		case 'a':
 			opt_alg = jwt_str_alg(optarg);
 			if (opt_alg >= JWT_ALG_INVAL) {
-				fprintf(stderr, "%s is not supported algorithm, using RS256\n", optarg);
-				opt_alg = JWT_ALG_RS256;
+				fprintf(stderr, "%s is not supported algorithm\n", optarg);
+				exit(EXIT_FAILURE);
 			}
 			break;
 
@@ -79,16 +80,14 @@ int main(int argc, char *argv[])
 			if (k) {
 				v = strtok(NULL, "=");
 				if (v) {
-					opt_claims[claims_count].key = strdup(k);
-					opt_claims[claims_count].val = strdup(v);
+					opt_claims[claims_count].key = k;
+					opt_claims[claims_count].val = v;
 					claims_count++;
 				}
 			}
 			break;
 		case 'j':
-			if (optarg != NULL) {
-				opt_json = strdup(optarg);
-			}
+			opt_json = optarg;
 			break;
 
 		case 'h':
@@ -114,10 +113,39 @@ int main(int argc, char *argv[])
 		fclose(fp_priv_key);
 		key[key_len] = '\0';
 		fprintf(stderr, "priv key loaded %s (%zu)!\n", opt_key_name, key_len);
+
+		/* Setup JWK Set */
+		jwk_set = jwks_create(key);
+		if (jwk_set == NULL || jwks_error(jwk_set)) {
+			fprintf(stderr, "ERR: Could not read JWK: %s\n",
+				jwks_error_msg(jwk_set));
+			exit(EXIT_FAILURE);
+		}
+		/* Get the first key */
+		item = jwks_item_get(jwk_set, 0);
+		if (item->error) {
+			fprintf(stderr, "ERR: Could not read JWK: %s\n",
+				item->error_msg);
+			exit(EXIT_FAILURE);
+		}
+
+		if (item->alg == JWT_ALG_NONE && opt_alg == JWT_ALG_NONE) {
+		fprintf(stderr, "Cannot find a valid algorithm in the "
+			" JWK. You need to set it with --alg\n");
+			exit(EXIT_FAILURE);
+		}
+
+		if (item->alg != JWT_ALG_NONE && opt_alg != JWT_ALG_NONE &&
+			item->alg != opt_alg) {
+			fprintf(stderr, "Key algorithm does not match --alg argument\n");
+			exit(EXIT_FAILURE);
+		}
 	}
 
-	ret = jwt_new(&jwt);
-	if (ret != 0 || jwt == NULL) {
+	config.jw_key = item;
+	config.alg = opt_alg;
+	jwt = jwt_create(&config);
+	if (jwt == NULL) {
 		fprintf(stderr, "invalid jwt\n");
 		goto finish;
 	}
@@ -136,12 +164,6 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	ret = jwt_set_alg(jwt, opt_alg, opt_alg == JWT_ALG_NONE ? NULL : key, opt_alg == JWT_ALG_NONE ? 0 : key_len);
-	if (ret < 0) {
-		fprintf(stderr, "jwt incorrect algorithm\n");
-		goto finish;
-	}
-
 	jwt_dump_fp(jwt, stderr, 1);
 
 	fprintf(stderr, "jwt algo %s!\n", jwt_alg_str(opt_alg));
@@ -150,15 +172,8 @@ int main(int argc, char *argv[])
 	printf("%s\n", out);
 
 	jwt_free_str(out);
+
 finish:
-	if (opt_json != NULL)
-		free(opt_json);
-
-	jwt_free(jwt);
-
-	if (free_key)
-		free(opt_key_name);
-
 	return 0;
 }
 

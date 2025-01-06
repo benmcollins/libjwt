@@ -120,7 +120,7 @@ typedef enum {
 	JWK_KEY_TYPE_NONE = 0,		/**< Unused on valid keys */
 	JWK_KEY_TYPE_EC,		/**< Eliptic Curve keys */
 	JWK_KEY_TYPE_RSA,		/**< RSA keys (RSA and RSA-PSS) */
-	JWK_KEY_TYPE_OKP,		/**< Octet Key Pair (e.g. EDDSA) */
+	JWK_KEY_TYPE_OKP,		/**< Octet Key Pair (e.g. EdDSA) */
 	JWK_KEY_TYPE_OCT,		/**< Octet sequence (e.g. HS256) */
 } jwk_key_type_t;
 
@@ -252,32 +252,6 @@ typedef void (*jwt_free_t)(void *);
  */
 
 /**
- * Allocate a new, empty, JWT object.
- *
- * This is used to create a new object that would be passed to one of
- * the @ref jwt_encode_grp functions once setup.
- *
- * @code
- * {
- *     jwt_t *MyJWT = NULL;
- *
- *     if (jwt_new(&MyJWT))
- *         ...handle error...
- *
- *     ...create JWT...
- *
- *     jwt_free(MyJWT);
- * }
- * @endcode
- *
- * @param jwt Pointer to a JWT object pointer. Will be allocated on
- *   success.
- * @return 0 on success, valid errno otherwise.
- */
-JWT_EXPORT
-int jwt_new(jwt_t **jwt);
-
-/**
  * Free a JWT object and any other resources it is using.
  *
  * After calling, the JWT object referenced will no longer be valid and
@@ -338,17 +312,9 @@ jwt_t *jwt_dup(jwt_t *jwt);
  * @brief Structure used to manage configuration state
  */
 typedef struct {
-	union {
-		const void *key;	/**< Pointer to key material	*/
-		JWT_DEPRECATED const void *jwt_key;
-	};
-	union {
-		size_t key_len;		/**< Length of key material	*/
-		JWT_DEPRECATED int jwt_key_len;
-	};
-	jwk_item_t *jw_key;		/**< A JWK to use for key	*/
-	jwt_alg_t alg;			/**< For algorithm matching	*/
-	void *ctx;			/**< User controlled context	*/
+	jwk_item_t *jw_key;	/**< A JWK to use for key	*/
+	jwt_alg_t alg;		/**< For algorithm matching	*/
+	void *ctx;		/**< User controlled context	*/
 } jwt_config_t;
 
 /**
@@ -387,7 +353,7 @@ void jwt_config_init(jwt_config_t *config);
  * @endcode
  */
 #define JWT_CONFIG_DECLARE(__name) \
-	jwt_config_t __name = { { NULL }, { 0 }, NULL, JWT_ALG_NONE, NULL}
+	jwt_config_t __name = { NULL, JWT_ALG_NONE, NULL}
 
 /**
  * @brief Callback for operations involving verification of tokens.
@@ -396,18 +362,6 @@ void jwt_config_init(jwt_config_t *config);
  * for @ref jwt_verify_wcb
  */
 typedef int (*jwt_callback_t)(const jwt_t *, jwt_config_t *);
-
-/**< @cond JWT_BACKWARD_COMPAT */
-/**
- * @brief Backward compatibility for @ref jwt_decode_2
- */
-#define jwt_key_p_t jwt_callback_t
-
-/**
- * @brief Backward compatibility for @ref jwt_decode_2
- */
-#define jwt_key_t jwt_config_t
-/**< @endcond */
 
 /**
  * @}
@@ -501,35 +455,6 @@ int jwt_verify(jwt_t **jwt, const char *token, jwt_config_t *config);
 JWT_EXPORT
 int jwt_verify_wcb(jwt_t **jwt, const char *token,
 		   jwt_config_t *config, jwt_callback_t cb);
-
-/**
- * @brief Decode a JWT
- *
- * @deprecated See @ref jwt_verify instead.
- *
- * @param jwt Pointer to a JWT object pointer
- * @param token Pointer to a nil terminated JWT string
- * @param key Pointer to key
- * @param key_len The length of the above key.
- * @return 0 on success, or an errno. On success, jwt will be allocated
- */
-JWT_DEPRECATED_EXPORT
-int jwt_decode(jwt_t **jwt, const char *token,
-	       const unsigned char *key, int key_len);
-
-/**
- * @brief Decode a JWT with a user provided callback
- *
- * @deprecated See @ref jwt_verify_wcb instead.
- *
- * @param jwt Pointer to a JWT object pointer
- * @param token Pointer to a nil terminated JWT string
- * @param cb Pointer to a callback
- * @return 0 on success, or an errno. On success, jwt will be allocated
- */
-JWT_DEPRECATED_EXPORT
-int jwt_decode_2(jwt_t **jwt, const char *token,
-		 jwt_callback_t cb);
 
 /**
  * @}
@@ -1186,7 +1111,7 @@ static inline void jwks_freep(jwk_set_t **jwks) {
 		*jwks = NULL;
 	}
 }
-#define jwks_auto_t jwk_set_t __attribute__((cleanup(jwks_freep)))
+#define jwk_set_auto_t jwk_set_t __attribute__((cleanup(jwks_freep)))
 #endif
 
 /**

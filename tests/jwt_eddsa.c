@@ -8,35 +8,35 @@
 
 #include "jwt_tests.h"
 
-static const char jwt_eddsa[] = "eyJhbGciOiJFRERTQSIsInR5cCI6IkpXVCJ9.eyJpYX"
-	"QiOjE0NzU5ODA1NDUsImlzcyI6ImZpbGVzLm1hY2xhcmEtbGxjLmNvbSIsInJlZiI6I"
-	"lhYWFgtWVlZWS1aWlpaLUFBQUEtQ0NDQyIsInN1YiI6InVzZXIwIn0.19ip2DFFjaZ_"
-	"UFVCo0OtdwuzSmOYModleJVeFcAjb_4hrAAf0pZSf8O78pivbXLJenEIsaZ9REFOauB"
-	"eDxbTBw";
+static const char jwt_eddsa[] = "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJpY"
+	"XQiOjE3MzYxMjA1OTIsImlzcyI6ImRpc2suc3dpc3NkaXNrLmNvbSIsInN1YiI6InV"
+	"zZXIwIn0.m28yyGiulqE9CUbZ64oSlec7TglR6DvVWohayJvJsJzk65RLx99gycRig"
+	"aYjKKNe0e0Fff3BsIAlh3A-ptkmAg";
 
 START_TEST(test_jwt_encode_eddsa)
 {
 	SET_OPS();
-	__test_alg_key(JWT_ALG_EDDSA, "eddsa_key_ed25519.pem", "eddsa_key_ed25519_pub.pem");
+	__test_alg_key(JWT_ALG_EDDSA, "eddsa_key_ed25519.json",
+		       "eddsa_key_ed25519_pub.json");
 }
 END_TEST
 
 START_TEST(test_jwt_verify_eddsa)
 {
 	SET_OPS();
-	__verify_jwt(jwt_eddsa, JWT_ALG_EDDSA, "eddsa_key_ed25519_pub.pem");
+	__verify_jwt(jwt_eddsa, JWT_ALG_EDDSA, "eddsa_key_ed25519_pub.json");
 }
 END_TEST
 
 START_TEST(test_jwt_encode_eddsa_with_rsa)
 {
-	jwt_t *jwt = NULL;
+	jwt_test_auto_t *jwt = NULL;
 	int ret = 0;
 	char *out;
 
 	SET_OPS();
 
-	ALLOC_JWT(&jwt);
+	CREATE_JWT(jwt, "rsa_key_4096.json", JWT_ALG_EDDSA);
 
 	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
 	ck_assert_int_eq(ret, 0);
@@ -50,16 +50,9 @@ START_TEST(test_jwt_encode_eddsa_with_rsa)
 	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
 	ck_assert_int_eq(ret, 0);
 
-	read_key("rsa_key_4096.pem");
-	ret = jwt_set_alg(jwt, JWT_ALG_EDDSA, t_config.key, t_config.key_len);
-	free_key();
-	ck_assert_int_eq(ret, 0);
-
 	out = jwt_encode_str(jwt);
 	ck_assert_ptr_eq(out, NULL);
 	ck_assert_int_eq(errno, EINVAL);
-
-	jwt_free(jwt);
 }
 END_TEST
 

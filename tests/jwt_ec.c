@@ -37,55 +37,55 @@ static const char jwt_es_invalid[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJpY
 START_TEST(test_jwt_encode_es256)
 {
 	SET_OPS();
-	__test_alg_key(JWT_ALG_ES256, "ec_key_prime256v1.pem",
-		       "ec_key_prime256v1_pub.pem");
+	__test_alg_key(JWT_ALG_ES256, "ec_key_prime256v1.json",
+		       "ec_key_prime256v1_pub.json");
 }
 END_TEST
 
 START_TEST(test_jwt_verify_es256)
 {
 	SET_OPS();
-	__verify_jwt(jwt_es256, JWT_ALG_ES256, "ec_key_prime256v1_pub.pem");
+	__verify_jwt(jwt_es256, JWT_ALG_ES256, "ec_key_prime256v1_pub.json");
 }
 END_TEST
 
 START_TEST(test_jwt_encode_es384)
 {
 	SET_OPS();
-	__test_alg_key(JWT_ALG_ES384, "ec_key_secp384r1.pem", "ec_key_secp384r1_pub.pem");
+	__test_alg_key(JWT_ALG_ES384, "ec_key_secp384r1.json", "ec_key_secp384r1_pub.json");
 }
 END_TEST
 
 START_TEST(test_jwt_verify_es384)
 {
 	SET_OPS();
-	__verify_jwt(jwt_es384, JWT_ALG_ES384, "ec_key_secp384r1_pub.pem");
+	__verify_jwt(jwt_es384, JWT_ALG_ES384, "ec_key_secp384r1_pub.json");
 }
 END_TEST
 
 START_TEST(test_jwt_encode_es512)
 {
 	SET_OPS();
-	__test_alg_key(JWT_ALG_ES512, "ec_key_secp521r1.pem", "ec_key_secp521r1_pub.pem");
+	__test_alg_key(JWT_ALG_ES512, "ec_key_secp521r1.json", "ec_key_secp521r1_pub.json");
 }
 END_TEST
 
 START_TEST(test_jwt_verify_es512)
 {
 	SET_OPS();
-	__verify_jwt(jwt_es512, JWT_ALG_ES512, "ec_key_secp521r1_pub.pem");
+	__verify_jwt(jwt_es512, JWT_ALG_ES512, "ec_key_secp521r1_pub.json");
 }
 END_TEST
 
 START_TEST(test_jwt_encode_ec_with_rsa)
 {
-	jwt_t *jwt = NULL;
+	jwt_test_auto_t *jwt = NULL;
 	int ret = 0;
 	char *out;
 
 	SET_OPS();
 
-	ALLOC_JWT(&jwt);
+	CREATE_JWT(jwt, "rsa_key_4096.json", JWT_ALG_ES384);
 
 	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
 	ck_assert_int_eq(ret, 0);
@@ -99,16 +99,11 @@ START_TEST(test_jwt_encode_ec_with_rsa)
 	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
 	ck_assert_int_eq(ret, 0);
 
-	read_key("rsa_key_4096.pem");
-	ret = jwt_set_alg(jwt, JWT_ALG_ES384, t_config.key, t_config.key_len);
-	free_key();
 	ck_assert_int_eq(ret, 0);
 
 	out = jwt_encode_str(jwt);
 	ck_assert_ptr_eq(out, NULL);
 	ck_assert_int_eq(errno, EINVAL);
-
-	jwt_free(jwt);
 }
 END_TEST
 
@@ -119,7 +114,7 @@ START_TEST(test_jwt_verify_invalid_token)
 
 	SET_OPS();
 
-	read_key("ec_key_secp384r1.pem");
+	read_key("ec_key_secp384r1.json");
 	ret = jwt_verify(&jwt, jwt_es_invalid, &t_config);
 	free_key();
 	ck_assert_int_ne(ret, 0);
@@ -134,7 +129,7 @@ START_TEST(test_jwt_verify_invalid_alg)
 
 	SET_OPS();
 
-	read_key("ec_key_secp384r1.pem");
+	read_key("ec_key_secp384r1.json");
 	ret = jwt_verify(&jwt, jwt_es256, &t_config);
 	free_key();
 	ck_assert_int_ne(ret, 0);
@@ -149,60 +144,11 @@ START_TEST(test_jwt_verify_invalid_cert)
 
 	SET_OPS();
 
-	read_key("ec_key_secp521r1_pub.pem");
+	read_key("ec_key_secp521r1_pub.json");
 	ret = jwt_verify(&jwt, jwt_es256, &t_config);
 	free_key();
 	ck_assert_int_ne(ret, 0);
 	ck_assert_ptr_eq(jwt, NULL);
-}
-END_TEST
-
-START_TEST(test_jwt_verify_invalid_cert_file)
-{
-	jwt_t *jwt = NULL;
-	int ret = 0;
-
-	SET_OPS();
-
-	read_key("ec_key_invalid_pub.pem");
-	ret = jwt_verify(&jwt, jwt_es256, &t_config);
-	free_key();
-	ck_assert_int_ne(ret, 0);
-	ck_assert_ptr_eq(jwt, NULL);
-}
-END_TEST
-
-START_TEST(test_jwt_encode_invalid_key)
-{
-	jwt_t *jwt = NULL;
-	int ret = 0;
-	char *out = NULL;
-
-	SET_OPS();
-
-	ALLOC_JWT(&jwt);
-
-	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant(jwt, "sub", "user0");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
-	ck_assert_int_eq(ret, 0);
-
-	read_key("ec_key_invalid.pem");
-	ret = jwt_set_alg(jwt, JWT_ALG_ES512, t_config.key, t_config.key_len);
-	free_key();
-	ck_assert_int_eq(ret, 0);
-
-	out = jwt_encode_str(jwt);
-	ck_assert_ptr_eq(out, NULL);
-
-	jwt_free(jwt);
 }
 END_TEST
 
@@ -226,8 +172,6 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, test_jwt_verify_invalid_token, 0, i);
 	tcase_add_loop_test(tc_core, test_jwt_verify_invalid_alg, 0, i);
 	tcase_add_loop_test(tc_core, test_jwt_verify_invalid_cert, 0, i);
-	tcase_add_loop_test(tc_core, test_jwt_verify_invalid_cert_file, 0, i);
-	tcase_add_loop_test(tc_core, test_jwt_encode_invalid_key, 0, i);
 
 	tcase_set_timeout(tc_core, 30);
 

@@ -1,4 +1,4 @@
-/* Copyright (C) 2024 maClara, LLC <info@maclara-llc.com>
+/* Copyright (C) 2024-2025 maClara, LLC <info@maclara-llc.com>
    This file is part of the JWT C Library
 
    SPDX-License-Identifier:  MPL-2.0
@@ -28,7 +28,7 @@
 #include <jwt.h>
 #include "jwt-private.h"
 
-static int ec_count, rsa_count, eddsa_count, rsa_pss_count;
+static int ec_count, rsa_count, eddsa_count, rsa_pss_count, hmac_count;
 
 static void print_openssl_errors_and_exit()
 {
@@ -64,39 +64,50 @@ static const char *uuidv4(void)
 	return uuid;
 }
 
-/* Get the number of bits of an EC key and return the JWT alg type based
- * on the result. */
-static const char *ec_alg_type(EVP_PKEY *pkey)
+/* Set the alg and crv for an EC key */
+static void ec_alg_type(EVP_PKEY *pkey, char crv[32], char alg[32])
 {
-	int degree, curve_nid;
-	EC_GROUP *group;
-	char curve_name[256];
+	char __named_crv[32];
+	char *__alg = NULL, *__crv = NULL;
+	size_t bits;
 
-	EVP_PKEY_get_group_name(pkey, curve_name, sizeof(curve_name), NULL);
+	crv[0] = alg[0] = '\0';
 
-	curve_nid = OBJ_txt2nid(curve_name);
+	EVP_PKEY_get_size_t_param(pkey, OSSL_PKEY_PARAM_BITS,
+				  &bits);
 
-	/* Short circuit this special case. */
-	if (curve_nid == NID_secp256k1)
-		return "ES256K";
+	EVP_PKEY_get_group_name(pkey, __named_crv, sizeof(__named_crv), NULL);
 
-	group = EC_GROUP_new_by_curve_name(curve_nid);
-
-	degree = EC_GROUP_get_degree(group);
-	EC_GROUP_free(group);
-
-	switch (degree) {
+	switch (bits) {
 	case 256:
-		return "ES256";
+		if (!strcmp(__crv, "secp256k1")) {
+			__alg = "ES256K";
+			__crv = "secp256k1";
+		} else {
+			__alg = "ES256";
+			__crv = "P-256";
+		}
+		break;
+
 	case 384:
-		return "ES384";
+		__alg = "ES384";
+		__crv = "P-384";
+		break;
+
 	case 521:
-		return "ES512";
+		__alg = "ES512";
+		__crv = "P-521";
+		break;
 	}
 
-	/* Just guess at this point */
-	fprintf(stderr, "Unexpected EC degree [%d], defaulting to ES256\n", degree);
-	return "ES256";
+	if (!__alg || !__crv) {
+		fprintf(stderr, "EC: Unknown curve %s with %ld bits\n",
+			__named_crv, bits);
+		return;
+	}
+
+	strcpy(crv, __crv);
+	strcpy(alg, __alg);
 }
 
 /* Retrieves and b64url-encodes a single OSSL BIGNUM param and adds it to
@@ -122,16 +133,6 @@ static void get_one_bn(EVP_PKEY *pkey, const char *ossl_param,
 	jwt_freemem(b64);
 }
 
-/* Retrieves a single OSSL string param and adds it to the  JSON object. */
-static void get_one_string(EVP_PKEY *pkey, const char *ossl_param,
-			   json_t *jwk, const char *name)
-{
-	char buf[256];
-	size_t len = sizeof(buf);
-	EVP_PKEY_get_utf8_string_param(pkey, ossl_param, buf, len, NULL);
-	json_object_set_new(jwk, name, json_string(buf));
-}
-
 /* Retrieves and b64url-encodes a single OSSL octet param and adds it to
  * the JSON object as a string. */
 static void get_one_octet(EVP_PKEY *pkey, const char *ossl_param,
@@ -149,11 +150,12 @@ static void get_one_octet(EVP_PKEY *pkey, const char *ossl_param,
 /* For ECC Keys (ES256, ES384, ES512) */
 static void process_ec_key(EVP_PKEY *pkey, int priv, json_t *jwk)
 {
-	const char *alg_type = ec_alg_type(pkey);
+	char alg_type[32], crv[32];
+
+	ec_alg_type(pkey, crv, alg_type);
 
 	json_object_set_new(jwk, "alg", json_string(alg_type));
-
-	get_one_string(pkey, OSSL_PKEY_PARAM_GROUP_NAME, jwk, "crv");
+	json_object_set_new(jwk, "crv", json_string(crv));
 
 	get_one_bn(pkey, OSSL_PKEY_PARAM_EC_PUB_X, jwk, "x");
 	get_one_bn(pkey, OSSL_PKEY_PARAM_EC_PUB_Y, jwk, "y");
@@ -161,7 +163,7 @@ static void process_ec_key(EVP_PKEY *pkey, int priv, json_t *jwk)
 		get_one_bn(pkey, OSSL_PKEY_PARAM_PRIV_KEY, jwk, "d");
 }
 
-/* For EdDSA keys (EDDSA) */
+/* For EdDSA keys */
 static void process_eddsa_key(EVP_PKEY *pkey, int priv, json_t *jwk)
 {
 	if (priv)
@@ -188,16 +190,38 @@ static void process_rsa_key(EVP_PKEY *pkey, int priv, json_t *jwk)
 	get_one_bn(pkey, OSSL_PKEY_PARAM_RSA_COEFFICIENT1, jwk, "qi");
 }
 
+static void process_hmac_key(json_t *jwk, const unsigned char *key, size_t len)
+{
+	char *b64;
+
+	json_object_set_new(jwk, "kty", json_string("oct"));
+
+	jwt_base64uri_encode(&b64, (char *)key, len);
+	json_object_set_new(jwk, "k", json_string(b64));
+	jwt_freemem(b64);
+
+	if (len >= 32 && len < 48)
+		json_object_set_new(jwk, "alg", json_string("HS256"));
+	else if (len >= 48 && len < 64)
+		json_object_set_new(jwk, "alg", json_string("HS384"));
+	else if (len >= 64)
+		json_object_set_new(jwk, "alg", json_string("HS512"));
+
+	hmac_count++;
+}
+
 static json_t *parse_one_file(const char *file)
 {
 	int priv = 0;
 	FILE *fp;
 	EVP_PKEY *pkey;
 	json_t *jwk, *ops;
+	size_t len = 0;
+	unsigned char file_buf[64];
 
 	fp = fopen(file, "r");
 	if (!fp) {
-		perror("Error opening PEM file");
+		perror("Error opening file");
 		exit(EXIT_FAILURE);
 	}
 
@@ -209,26 +233,42 @@ static json_t *parse_one_file(const char *file)
 		pkey = PEM_read_PrivateKey(fp, NULL, NULL, NULL);
 		priv = 1;
 	}
-	fclose(fp);
 
 	if (pkey == NULL) {
-		fprintf(stderr, "Error parsing key file\n");
-		print_openssl_errors_and_exit();
+		/* Check length to see if it can be HMAC */
+		fseek(fp, 0, SEEK_END);
+		len = ftell(fp);
+		if (len != 32 && len != 48 && len != 64) {
+			fprintf(stderr, "Error parsing key file\n");
+			print_openssl_errors_and_exit();
+		}
+
+		rewind(fp);
+		len = fread(file_buf, 1, len, fp);
+		priv = 1;
 	}
+
+	fclose(fp);
 
 	/* Setup json object */
 	jwk = json_object();
-	json_object_set_new(jwk, "use", json_string("sig"));
-
-	/* Add key ops */
-	ops = json_array();
-	json_array_append_new(ops, json_string("verify"));
-	if (priv)
+	if (!priv) {
+		/* Key use */
+		json_object_set_new(jwk, "use", json_string("sig"));
+	} else {
+		/* Key ops */
+		ops = json_array();
 		json_array_append_new(ops, json_string("sign"));
-	json_object_set_new(jwk, "key_ops", ops);
+		json_object_set_new(jwk, "key_ops", ops);
+	}
 
 	/* Use uuidv4 for "kid" */
 	json_object_set_new(jwk, "kid", json_string(uuidv4()));
+
+	if (len) {
+		process_hmac_key(jwk, file_buf, len);
+		return jwk;
+	}
 
 	/* Process per key type params */
 	switch (EVP_PKEY_get_base_id(pkey)) {
@@ -247,7 +287,15 @@ static json_t *parse_one_file(const char *file)
 	case EVP_PKEY_ED25519:
 		json_object_set_new(jwk, "kty", json_string("OKP"));
 		json_object_set_new(jwk, "crv", json_string("Ed25519"));
-		json_object_set_new(jwk, "alg", json_string("EDDSA"));
+		json_object_set_new(jwk, "alg", json_string("EdDSA"));
+		process_eddsa_key(pkey, priv, jwk);
+		eddsa_count++;
+		break;
+
+	case EVP_PKEY_ED448:
+		json_object_set_new(jwk, "kty", json_string("OKP"));
+		json_object_set_new(jwk, "crv", json_string("Ed448"));
+		json_object_set_new(jwk, "alg", json_string("EdDSA"));
 		process_eddsa_key(pkey, priv, jwk);
 		eddsa_count++;
 		break;
@@ -301,6 +349,8 @@ int main(int argc, char **argv)
 		fprintf(stderr, "  RSA-PSS: %d\n", rsa_pss_count);
 	if (eddsa_count)
 		fprintf(stderr, "  EdDSA  : %d\n", eddsa_count);
+	if (hmac_count)
+		fprintf(stderr, "  HMAC   : %d\n", hmac_count);
 	fprintf(stderr, "\n");
 
 	fprintf(stderr, "Generating JWKS...\n");

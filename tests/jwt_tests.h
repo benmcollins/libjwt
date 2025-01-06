@@ -46,19 +46,20 @@ static jwt_test_op_t jwt_test_ops[] = {
 #endif
 };
 
-/* Macro to allocate a new JWT with checks. */
-#define ALLOC_JWT(__jwt) do {		\
-	int __ret = jwt_new(__jwt);	\
-	ck_assert_int_eq(__ret, 0);	\
-	ck_assert_ptr_ne(__jwt, NULL);	\
+#define EMPTY_JWT(__jwt) do {		\
+	__jwt = jwt_create(NULL);	\
+	ck_assert_ptr_nonnull(__jwt);	\
 } while(0)
 
-#define CREATE_JWT(__j, __a, __k, __l) do {	\
-	JWT_CONFIG_DECLARE(__c);		\
-	__c.alg = __a;				\
-	__c.key = __k; __c.key_len = __l;	\
-	*__j = jwt_create(&__c);		\
-	ck_assert_ptr_ne(*__j, NULL);		\
+#define jwt_test_auto_t jwt_t __attribute__((cleanup(jwt_test_free)))
+
+#define CREATE_JWT(__j, __f, __a) do {	\
+	JWT_CONFIG_DECLARE(__c);	\
+	read_key(__f);			\
+	__c.alg = __a;			\
+	__c.jw_key = g_item;		\
+	__j = jwt_create(&__c);		\
+	ck_assert_ptr_nonnull(__j);	\
 } while(0)
 
 #define JWT_TEST_MAIN(__title) ({					\
@@ -95,18 +96,26 @@ static jwt_test_op_t jwt_test_ops[] = {
 	}							\
 })
 
+__attribute__((unused)) static jwk_set_t *g_jwk_set;
+__attribute__((unused)) static jwk_item_t *g_item;
+
 __attribute__((unused)) static JWT_CONFIG_DECLARE(t_config);
+
+__attribute__((unused))
+static struct {
+	char *key;
+	size_t key_len;
+} test_data;
 
 __attribute__((unused))
 static void read_key(const char *key_file)
 {
 	FILE *fp = fopen(key_file, "r");
-	char *key_path, *t;
+	char *key_path;
 	int ret = 0;
 
 	/* This can cause cascading failures if CK_FORK=no */
-	ck_assert_ptr_null(t_config.key);
-	ck_assert_int_eq(t_config.key_len, 0);
+	ck_assert_ptr_null(g_jwk_set);
 
 	ret = asprintf(&key_path, KEYDIR "/%s", key_file);
 	ck_assert_int_gt(ret, 0);
@@ -118,34 +127,55 @@ static void read_key(const char *key_file)
 	ret = fseek(fp, 0, SEEK_END);
 	ck_assert_int_eq(ret, 0);
 
-	t_config.key_len = ftell(fp);
-	t = malloc(t_config.key_len + 1);
-	ck_assert_ptr_nonnull(t);
+	test_data.key_len = ftell(fp);
+	test_data.key = malloc(test_data.key_len + 1);
+	ck_assert_ptr_nonnull(test_data.key);
 
 	rewind(fp);
 
-	t_config.key_len = fread(t, 1, t_config.key_len, fp);
-	ck_assert_int_ne(t_config.key_len, 0);
+	test_data.key_len = fread(test_data.key, 1, test_data.key_len, fp);
+	ck_assert_int_ne(test_data.key_len, 0);
 
 	ck_assert_int_eq(ferror(fp), 0);
 
 	fclose(fp);
 
-	t[t_config.key_len] = '\0';
-	t_config.key = t;
+	if (strstr(key_file, ".pem") != NULL)
+		return;
+
+	g_jwk_set = jwks_create(test_data.key);
+	ck_assert_ptr_nonnull(g_jwk_set);
+
+	g_item = jwks_item_get(g_jwk_set, 0);
+	ck_assert_ptr_nonnull(g_item);
+
+	t_config.jw_key = g_item;
 }
 
 __attribute__((unused))
 static void free_key(void)
 {
-	free((void *)(t_config.key));
+	jwks_free(g_jwk_set);
 	jwt_config_init(&t_config);
+	g_jwk_set = NULL;
+	g_item = NULL;
+	test_data.key_len = 0;
+	free(test_data.key);
+	test_data.key = NULL;
 }
 
 __attribute__((unused))
-static void __verify_jwt(const char *jwt_str, const jwt_alg_t alg, const char *file)
+static void jwt_test_free(jwt_t **jwt)
 {
-	jwt_t *jwt = NULL;
+	free_key();
+	jwt_freep(jwt);
+}
+
+__attribute__((unused))
+static void __verify_jwt(const char *jwt_str, const jwt_alg_t alg,
+			 const char *file)
+{
+	jwt_auto_t *jwt = NULL;
 	int ret = 0;
 
 	read_key(file);
@@ -155,11 +185,11 @@ static void __verify_jwt(const char *jwt_str, const jwt_alg_t alg, const char *f
 	ret = jwt_verify(&jwt, jwt_str, &t_config);
 	free_key();
 	ck_assert_int_eq(ret, 0);
-	ck_assert_ptr_ne(jwt, NULL);
+	ck_assert_ptr_nonnull(jwt);
 
 	ck_assert_int_eq(jwt_get_alg(jwt), alg);
 
-	jwt_free(jwt);
+	free_key();
 }
 
 __attribute__((unused))
@@ -172,7 +202,7 @@ static void __verify_jwk(const char *jwt_str, jwk_item_t *item)
 	config.jw_key = item;
 	ret = jwt_verify(&jwt, jwt_str, &config);
 	ck_assert_int_eq(ret, 0);
-	ck_assert_ptr_ne(jwt, NULL);
+	ck_assert_ptr_nonnull(jwt);
 
 	/* auto free */
 }
@@ -184,9 +214,7 @@ static void __test_alg_key(const jwt_alg_t alg, const char *file, const char *pu
 	int ret = 0;
 	char *out;
 
-	read_key(file);
-	CREATE_JWT(&jwt, alg, t_config.key, t_config.key_len);
-	free_key();
+	CREATE_JWT(jwt, file, alg);
 
 	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
 	ck_assert_int_eq(ret, 0);
@@ -201,7 +229,9 @@ static void __test_alg_key(const jwt_alg_t alg, const char *file, const char *pu
 	ck_assert_int_eq(ret, 0);
 
 	out = jwt_encode_str(jwt);
-	ck_assert_ptr_ne(out, NULL);
+	ck_assert_ptr_nonnull(out);
+
+	free_key();
 
 	__verify_jwt(out, alg, pub);
 
@@ -215,7 +245,7 @@ static void __verify_alg_key(const char *key_file, const char *jwt_str,
 			     const jwt_alg_t alg)
 {
 	jwt_valid_t *jwt_valid = NULL;
-	jwt_t *jwt = NULL;
+	jwt_auto_t *jwt = NULL;
 	int ret = 0;
 
 	read_key(key_file);
@@ -223,7 +253,6 @@ static void __verify_alg_key(const char *key_file, const char *jwt_str,
 	t_config.alg = alg;
 
 	ret = jwt_verify(&jwt, jwt_str, &t_config);
-	free_key();
 
 	ck_assert_int_eq(ret, 0);
 	ck_assert_ptr_nonnull(jwt);
@@ -236,20 +265,19 @@ static void __verify_alg_key(const char *key_file, const char *jwt_str,
 	ck_assert_int_eq(JWT_VALIDATION_SUCCESS, ret);
 
 	jwt_valid_free(jwt_valid);
-	jwt_free(jwt);
+
+	free_key();
 }
 
 __attribute__((unused))
 static void __compare_alg_key(const char *key_file, const char *jwt_str,
 			      const jwt_alg_t alg)
 {
-	jwt_t *jwt = NULL;
+	jwt_test_auto_t *jwt = NULL;
 	int ret = 0;
 	char *out;
 
-	read_key(key_file);
-	CREATE_JWT(&jwt, alg, t_config.key, t_config.key_len);
-	free_key();
+	CREATE_JWT(jwt, key_file, alg);
 
 	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
 	ck_assert_int_eq(ret, 0);
@@ -264,12 +292,11 @@ static void __compare_alg_key(const char *key_file, const char *jwt_str,
 	ck_assert_int_eq(ret, 0);
 
 	out = jwt_encode_str(jwt);
-	ck_assert_ptr_ne(out, NULL);
+	ck_assert_ptr_nonnull(out);
 
 	ck_assert_str_eq(out, jwt_str);
 
 	jwt_free_str(out);
-	jwt_free(jwt);
 }
 
 #endif /* JWT_TESTS_H */

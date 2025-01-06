@@ -34,13 +34,8 @@ static int openssl_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 	void *key;
 	size_t key_len;
 
-	if (jwt->config.jw_key) {
-		key = jwt->config.jw_key->oct.key;
-		key_len = jwt->config.jw_key->oct.len;
-	} else {
-		key = jwt->config.key;
-		key_len = jwt->config.key_len;
-	}
+	key = jwt->jw_key->oct.key;
+	key_len = jwt->jw_key->oct.len;
 
 	*out = NULL;
 
@@ -99,105 +94,43 @@ static int openssl_verify_sha_hmac(jwt_t *jwt, const char *head,
 	return ret;
 }
 
-#define EC_ERROR(__err) { return -(__err); }
-
 static int __degree_and_check(EVP_PKEY *pkey, jwt_t *jwt)
 {
-	int degree, curve_nid, exp_nid = 0;
-
-	if (jwt->config.jw_key && jwt->config.jw_key->bits)
-		return jwt->config.jw_key->bits;
-
-#if OPENSSL_VERSION_NUMBER < 0x30000000L
-	const EC_GROUP *group;
-	const EC_KEY *ec_key;
-
-	ec_key = EVP_PKEY_get0_EC_KEY(pkey);
-	if (ec_key == NULL)
-		EC_ERROR(EINVAL);
-
-	group = EC_KEY_get0_group(ec_key);
-	if (group == NULL)
-		EC_ERROR(EINVAL);
-
-	curve_nid = EC_GROUP_get_curve_name(group);
-	degree = EC_GROUP_get_degree(group);
-#else
-	EC_GROUP *group;
-	char curve_name[80];
-	size_t len;
-
-	if (!EVP_PKEY_get_group_name(pkey, curve_name, sizeof(curve_name), &len))
-		EC_ERROR(EINVAL);
-	curve_name[len] = '\0';
-
-	curve_nid = OBJ_txt2nid(curve_name);
-	if (curve_nid == NID_undef)
-		EC_ERROR(EINVAL);
-	group = EC_GROUP_new_by_curve_name(curve_nid);
-	if (group == NULL)
-		EC_ERROR(EINVAL);
-
-	degree = EC_GROUP_get_degree(group);
-	EC_GROUP_free(group);
-#endif
+	int bits = jwt->jw_key->bits;
 
 	switch (jwt->alg) {
 	case JWT_ALG_ES256:
-		exp_nid = NID_X9_62_prime256v1;
+		if (bits != 256 || strcmp(jwt->jw_key->curve, "P-256"))
+			return 0;
 		break;
+
 	case JWT_ALG_ES384:
-		exp_nid = NID_secp384r1;
+		if (bits != 384 || strcmp(jwt->jw_key->curve, "P-384"))
+                        return 0;
 		break;
+
 	case JWT_ALG_ES512:
-		exp_nid = NID_secp521r1;
+		if (bits != 521 || strcmp(jwt->jw_key->curve, "P-521"))
+                        return 0;
 		break;
+
 	case JWT_ALG_ES256K:
-		exp_nid = NID_secp256k1;
+		if (bits != 256 || strcmp(jwt->jw_key->curve, "secp256k1"))
+                        return 0;
 		break;
+
 	case JWT_ALG_EDDSA:
-		if (curve_nid == NID_ED448 || curve_nid == NID_ED25519)
-			return degree;
-		else
-			EC_ERROR(EINVAL);
+		if (bits != 256 ||
+		    (strcasecmp(jwt->jw_key->curve, "Ed25519") &&
+		     strcasecmp(jwt->jw_key->curve, "Ed448")))
+			return 0;
+		break;
+
 	default:
-		EC_ERROR(EINVAL);
+		return 0;
 	}
 
-	if (curve_nid != exp_nid)
-		EC_ERROR(EINVAL);
-
-	return degree;
-}
-
-static int jwt_degree_for_key(EVP_PKEY *pkey, jwt_t *jwt)
-{
-	int degree = __degree_and_check(pkey, jwt);
-
-	if (degree < 0)
-		return degree;
-
-	/* Final check for matching degree */
-	switch (jwt->alg) {
-	case JWT_ALG_ES256:
-	case JWT_ALG_ES256K:
-		if (degree != 256)
-			EC_ERROR(EINVAL);
-		break;
-	case JWT_ALG_ES384:
-		if (degree != 384)
-			EC_ERROR(EINVAL);
-		break;
-	case JWT_ALG_ES512:
-		/* This is not a typo. ES512 uses secp521r1 */
-		if (degree != 521)
-			EC_ERROR(EINVAL);
-		break;
-	default:
-		EC_ERROR(EINVAL);
-	}
-
-	return degree;
+	return bits;
 }
 
 static int jwt_ec_d2i(jwt_t *jwt, char **out, unsigned int *len,
@@ -211,9 +144,9 @@ static int jwt_ec_d2i(jwt_t *jwt, char **out, unsigned int *len,
 	unsigned char *buf;
 	int degree;
 
-	degree = jwt_degree_for_key(pkey, jwt);
-	if (degree < 0)
-		return -degree;
+	degree = __degree_and_check(pkey, jwt);
+	if (degree <= 0)
+		return EINVAL;
 
 	/* Get the sig from the DER encoded version. */
 	ec_sig = d2i_ECDSA_SIG(NULL, (const unsigned char **)&sig, slen);
@@ -268,12 +201,11 @@ static int openssl_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 	int ret = 0;
 	size_t slen;
 
-	if (jwt->config.jw_key) {
-		if (!ops_compat(jwt->config.jw_key, JWT_CRYPTO_OPS_OPENSSL))
-		    return EINVAL;
-		jwk_ctx = jwt->config.jw_key->provider_data;
-		pkey = jwk_ctx->pkey;
-	}
+	if (!ops_compat(jwt->jw_key, JWT_CRYPTO_OPS_OPENSSL))
+		return EINVAL;
+
+	jwk_ctx = jwt->jw_key->provider_data;
+	pkey = jwk_ctx->pkey;
 
 	switch (jwt->alg) {
 	/* RSA */
@@ -322,25 +254,15 @@ static int openssl_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 	/* EdDSA */
 	case JWT_ALG_EDDSA:
 		alg = NULL;
-		type = EVP_PKEY_ED25519;
+		if (EVP_PKEY_id(pkey) == EVP_PKEY_ED25519 ||
+		    EVP_PKEY_id(pkey) == EVP_PKEY_ED448)
+			type = EVP_PKEY_id(pkey);
+		else
+			type = -1;
 		break;
 
 	default:
 		return EINVAL;
-	}
-
-	if (pkey == NULL) {
-		bufkey = BIO_new_mem_buf(jwt->config.key, jwt->config.key_len);
-		if (bufkey == NULL)
-			SIGN_ERROR(ENOMEM); // LCOV_EXCL_LINE
-
-		/* This uses OpenSSL's default passphrase callback if needed.
-		 * The library caller can override this in many ways, all of
-		 * which are outside of the scope of LibJWT and this is
-		 * documented in jwt.h. */
-		pkey = PEM_read_bio_PrivateKey(bufkey, NULL, NULL, NULL);
-		if (pkey == NULL)
-			SIGN_ERROR(EINVAL);
 	}
 
 	if (type != EVP_PKEY_id(pkey))
@@ -420,12 +342,10 @@ static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 	int ret = 0;
 	int slen;
 
-	if (jwt->config.jw_key) {
-		if (!ops_compat(jwt->config.jw_key, JWT_CRYPTO_OPS_OPENSSL))
-			return EINVAL;
-		jwk_ctx = jwt->config.jw_key->provider_data;
-		pkey = jwk_ctx->pkey;
-	}
+	if (!ops_compat(jwt->jw_key, JWT_CRYPTO_OPS_OPENSSL))
+		return EINVAL;
+	jwk_ctx = jwt->jw_key->provider_data;
+	pkey = jwk_ctx->pkey;
 
 	switch (jwt->alg) {
 	/* RSA */
@@ -474,7 +394,11 @@ static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 	/* EdDSA */
 	case JWT_ALG_EDDSA:
 		alg = NULL;
-		type = EVP_PKEY_ED25519;
+		if (EVP_PKEY_id(pkey) == EVP_PKEY_ED25519 ||
+		    EVP_PKEY_id(pkey) == EVP_PKEY_ED448)
+			type = EVP_PKEY_id(pkey);
+		else
+			type = -1;
 		break;
 
 	default:
@@ -485,20 +409,6 @@ static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 	if (sig == NULL)
 		VERIFY_ERROR(EINVAL);
 
-	if (pkey == NULL) {
-		bufkey = BIO_new_mem_buf(jwt->config.key, jwt->config.key_len);
-		if (bufkey == NULL)
-			VERIFY_ERROR(ENOMEM); // LCOV_EXCL_LINE
-
-		/* This uses OpenSSL's default passphrase callback if needed.
-		 * The library caller can override this in many ways, all of
-		 * which are outside of the scope of LibJWT and this is
-		 * documented in jwt.h. */
-		pkey = PEM_read_bio_PUBKEY(bufkey, NULL, NULL, NULL);
-		if (pkey == NULL)
-			VERIFY_ERROR(EINVAL);
-	}
-
 	if (type != EVP_PKEY_id(pkey))
 		VERIFY_ERROR(EINVAL);
 
@@ -508,13 +418,13 @@ static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 		int degree;
 		unsigned char *p;
 
+		degree = __degree_and_check(pkey, jwt);
+		if (degree <= 0)
+			VERIFY_ERROR(-degree);
+
 		ec_sig = ECDSA_SIG_new();
 		if (ec_sig == NULL)
 			VERIFY_ERROR(ENOMEM); // LCOV_EXCL_LINE
-
-		degree = jwt_degree_for_key(pkey, jwt);
-		if (degree < 0)
-			VERIFY_ERROR(-degree);
 
 		bn_len = (degree + 7) / 8;
 		if ((bn_len * 2) != slen)

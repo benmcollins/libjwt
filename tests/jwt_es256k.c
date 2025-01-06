@@ -23,7 +23,8 @@ START_TEST(test_jwt_encode_es256k)
 {
 	SET_OPS();
 	SKIP_IF("gnutls");
-	__test_alg_key(JWT_ALG_ES256K, "ec_key_secp256k1.pem", "ec_key_secp256k1_pub.pem");
+	__test_alg_key(JWT_ALG_ES256K, "ec_key_secp256k1.json",
+		       "ec_key_secp256k1_pub.json");
 }
 END_TEST
 
@@ -31,44 +32,7 @@ START_TEST(test_jwt_verify_es256k)
 {
 	SET_OPS();
 	SKIP_IF("gnutls");
-	__verify_jwt(jwt_es256k, JWT_ALG_ES256K, "ec_key_secp256k1_pub.pem");
-}
-END_TEST
-
-START_TEST(test_jwt_encode_es256k_with_ec)
-{
-	SKIP_IF("gnutls");
-	jwt_t *jwt = NULL;
-	int ret = 0;
-	char *out;
-
-	SET_OPS();
-	SKIP_IF("gnutls");
-
-	ALLOC_JWT(&jwt);
-
-	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant(jwt, "sub", "user0");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
-	ck_assert_int_eq(ret, 0);
-
-	read_key("ec_key_prime256v1.pem");
-	ret = jwt_set_alg(jwt, JWT_ALG_ES256K, t_config.key, t_config.key_len);
-	free_key();
-	ck_assert_int_eq(ret, 0);
-
-	out = jwt_encode_str(jwt);
-	ck_assert_ptr_eq(out, NULL);
-	ck_assert_int_eq(errno, EINVAL);
-
-	jwt_free(jwt);
+	__verify_jwt(jwt_es256k, JWT_ALG_ES256K, "ec_key_secp256k1_pub.json");
 }
 END_TEST
 
@@ -84,7 +48,6 @@ static Suite *libjwt_suite(const char *title)
 
 	tcase_add_loop_test(tc_core, test_jwt_encode_es256k, 0, i);
 	tcase_add_loop_test(tc_core, test_jwt_verify_es256k, 0, i);
-	tcase_add_loop_test(tc_core, test_jwt_encode_es256k_with_ec, 0, i);
 
 	tcase_set_timeout(tc_core, 30);
 

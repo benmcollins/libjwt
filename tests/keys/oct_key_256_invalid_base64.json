@@ -1,0 +1,13 @@
+{
+  "keys": [
+    {
+      "key_ops": [
+        "sign"
+      ],
+      "kid": "8b5a52de-6449-4745-9712-64cd79a0b837",
+      "kty": "oct",
+      "k": "MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5WFk",
+      "alg": "HS256"
+    }
+  ]
+}

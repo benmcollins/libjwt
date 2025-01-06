@@ -77,7 +77,7 @@ const char *jwt_alg_str(jwt_alg_t alg)
 	case JWT_ALG_PS512:
 		return "PS512";
 	case JWT_ALG_EDDSA:
-		return "EDDSA";
+		return "EdDSA";
 	default:
 		return NULL;
 	}
@@ -116,7 +116,7 @@ jwt_alg_t jwt_str_alg(const char *alg)
 		return JWT_ALG_PS384;
 	else if (!jwt_strcmp(alg, "PS512"))
 		return JWT_ALG_PS512;
-	else if (!jwt_strcmp(alg, "EDDSA"))
+	else if (!jwt_strcmp(alg, "EdDSA"))
 		return JWT_ALG_EDDSA;
 
 	return JWT_ALG_INVAL;
@@ -124,127 +124,74 @@ jwt_alg_t jwt_str_alg(const char *alg)
 
 void jwt_scrub_key(jwt_t *jwt)
 {
-	if (jwt->config.key) {
-		/* Overwrite it so it's gone from memory. */
-		memset(jwt->config.key, 0, jwt->config.key_len);
+	jwt->jw_key = NULL;
+	jwt->alg = JWT_ALG_NONE;
+}
 
-		jwt_freemem(jwt->config.key);
+JWT_NO_EXPORT
+jwt_t *jwt_new(void)
+{
+	jwt_t *jwt = jwt_malloc(sizeof(*jwt));
+
+	if (!jwt)
+		return NULL;
+
+	memset(jwt, 0, sizeof(*jwt));
+
+	jwt->grants = json_object();
+	if (!jwt->grants) {
+		jwt_freep(&jwt);
+		return NULL;
 	}
 
-	/* We do not claim to handle memory for this */
-	jwt->config.jw_key = NULL;
+	jwt->headers = json_object();
+	if (!jwt->headers) {
+		jwt_freep(&jwt);
+		return NULL;
+	}
 
-	jwt->config.key_len = 0;
-	jwt->alg = JWT_ALG_NONE;
+	return jwt;
 }
 
 jwt_t *jwt_create(jwt_config_t *config)
 {
 	jwt_t *new = NULL;
-	jwt_alg_t alg = config->alg;
-	int ret;
+	jwt_alg_t alg;
 
-	/* We require a config, otherwise call jwt_new() */
-	if (config == NULL) {
-		errno = EINVAL;
+	/* Just an insecure JWT */
+	if (config == NULL)
+		return jwt_new();
+
+	/* At this point, we expect a key. */
+	if (config->jw_key == NULL)
 		return NULL;
-	}
+
+	if (config->alg == JWT_ALG_NONE && config->jw_key->alg == JWT_ALG_NONE)
+		return NULL;
+
+	/* If both are set, they need to match. */
+	if (config->alg != JWT_ALG_NONE &&
+	    config->jw_key->alg != JWT_ALG_NONE &&
+	    config->alg != config->jw_key->alg)
+		return NULL;
+
+	if (config->alg != JWT_ALG_NONE)
+		alg = config->alg;
+	else
+		alg = config->jw_key->alg;
 
 	/* Make sure alg is sane */
-	if (alg < JWT_ALG_NONE || alg >= JWT_ALG_INVAL) {
-		errno = EINVAL;
-		return NULL;
-	}
-
-	/* If we have a jwt_item_t, make sure either the config or the key
-	 * has an alg, and sync them up. */
-        if (alg == JWT_ALG_NONE && config && config->jw_key) {
-		if (config->jw_key->alg == JWT_ALG_NONE) {
-			/* Invalid request */
-			errno = EINVAL;
-			return NULL;
-		}
-		alg = config->jw_key->alg;
-	}
-
-	if (alg == JWT_ALG_NONE) {
-		/* NONE should not have any keys */
-		if (config->jw_key || config->key || config->key_len) {
-	                errno = EINVAL;
-			return NULL;
-		}
-	} else {
-		if (config->jw_key) {
-			if (config->key || config->key_len) {
-				/* Cannot have both key and jw_key */
-				errno = EINVAL;
-				return NULL;
-			}
-			if (config->jw_key->alg != JWT_ALG_NONE &&
-			    alg != config->jw_key->alg) {
-				/* Mismatch */
-				errno = EINVAL;
-				return NULL;
-			}
-		} else if (!config->key || !config->key_len) {
-			/* Must have both of these */
-			errno = EINVAL;
-			return NULL;
-		}
-	}
-
-	ret = jwt_new(&new);
-	if (ret)
+	if (alg < JWT_ALG_NONE || alg >= JWT_ALG_INVAL)
 		return NULL;
 
-	if (config->key) {
-		new->config.key_len = config->key_len;
-		new->config.key = jwt_malloc(new->config.key_len);
-		if (new->config.key == NULL) {
-			errno = ENOMEM;
-			jwt_freep(&new);
-		} else {
-			memcpy(new->config.key, config->key, config->key_len);
-		}
-	} else {
-		new->config.jw_key = config->jw_key;
-	}
+	new = jwt_new();
 
-	if (new)
+	if (new) {
+		new->jw_key = config->jw_key;
 		new->alg = alg;
+	}
 
 	return new;
-}
-
-int jwt_set_alg(jwt_t *jwt, jwt_alg_t alg, const unsigned char *key, int len)
-{
-	/* No matter what happens here, we do this. */
-	jwt_scrub_key(jwt);
-
-	if (alg < JWT_ALG_NONE || alg >= JWT_ALG_INVAL)
-		return EINVAL;
-
-	switch (alg) {
-	case JWT_ALG_NONE:
-		if (key || len)
-			return EINVAL;
-		break;
-
-	default:
-		if (!key || len <= 0)
-			return EINVAL;
-
-		jwt->config.key = jwt_malloc(len);
-		if (!jwt->config.key)
-			return ENOMEM; // LCOV_EXCL_LINE
-
-		memcpy(jwt->config.key, key, len);
-	}
-
-	jwt->alg = alg;
-	jwt->config.key_len = len;
-
-	return 0;
 }
 
 jwt_alg_t jwt_get_alg(const jwt_t *jwt)
@@ -253,36 +200,6 @@ jwt_alg_t jwt_get_alg(const jwt_t *jwt)
 		return JWT_ALG_INVAL;
 
 	return jwt->alg;
-}
-
-int jwt_new(jwt_t **jwt)
-{
-	if (!jwt)
-		return EINVAL;
-
-	*jwt = jwt_malloc(sizeof(jwt_t));
-	if (!*jwt)
-		return ENOMEM; // LCOV_EXCL_LINE
-
-	memset(*jwt, 0, sizeof(jwt_t));
-
-	(*jwt)->grants = json_object();
-	if (!(*jwt)->grants) {
-		// LCOV_EXCL_START
-		jwt_freep(jwt);
-		return ENOMEM;
-		// LCOV_EXCL_STOP
-	}
-
-	(*jwt)->headers = json_object();
-	if (!(*jwt)->headers) {
-		// LCOV_EXCL_START
-		jwt_freep(jwt);
-		return ENOMEM;
-		// LCOV_EXCL_STOP
-	}
-
-	return 0;
 }
 
 void jwt_free(jwt_t *jwt)
@@ -311,7 +228,7 @@ jwt_t *jwt_dup(jwt_t *jwt)
 
 	errno = 0;
 
-	new = jwt_malloc(sizeof(jwt_t));
+	new = jwt_malloc(sizeof(*new));
 	if (!new) {
 		// LCOV_EXCL_START
 		errno = ENOMEM;
@@ -321,21 +238,8 @@ jwt_t *jwt_dup(jwt_t *jwt)
 
 	memset(new, 0, sizeof(jwt_t));
 
-	/* We do not claim to handle memory for this */
-	new->config.jw_key = jwt->config.jw_key;
-
-	if (jwt->config.key_len) {
-		new->alg = jwt->alg;
-		new->config.key = jwt_malloc(jwt->config.key_len);
-		if (!new->config.key) {
-			// LCOV_EXCL_START
-			errno = ENOMEM;
-			goto dup_fail;
-			// LCOV_EXCL_STOP
-		}
-		memcpy(new->config.key, jwt->config.key, jwt->config.key_len);
-		new->config.key_len = jwt->config.key_len;
-	}
+	new->jw_key = jwt->jw_key;
+	new->alg = jwt->alg;
 
 	new->grants = json_deep_copy(jwt->grants);
 	if (!new->grants)
@@ -507,12 +411,7 @@ int jwt_base64uri_encode(char **_dst, const char *plain, int plain_len)
 
 static int __check_hmac(const jwt_t *jwt)
 {
-	int key_bits = 0;
-
-	if (jwt->config.jw_key)
-		key_bits = jwt->config.jw_key->bits;
-	else
-		key_bits = jwt->config.key_len * 8;
+	int key_bits = jwt->jw_key->bits;
 
 	if (key_bits < 256)
 		return -1;
@@ -542,10 +441,7 @@ static int __check_hmac(const jwt_t *jwt)
 
 static int __check_key_bits(const jwt_t *jwt)
 {
-	int key_bits = 0;
-
-	if (jwt->config.jw_key)
-		key_bits = jwt->config.jw_key->bits;
+	int key_bits = jwt->jw_key->bits;
 
 	/* Ignore if we don't have it */
 	if (key_bits == 0)

@@ -122,12 +122,9 @@ static BIGNUM *set_one_bn(OSSL_PARAM_BLD *build, const char *ossl_name,
 
 /* Sets a single OSSL string param. */
 static void set_one_string(OSSL_PARAM_BLD *build, const char *ossl_name,
-			   json_t *val)
+			   const char *str)
 {
-	const char *str = json_string_value(val);
-	int len = json_string_length(val);
-
-	OSSL_PARAM_BLD_push_utf8_string(build, ossl_name, str, len);
+	OSSL_PARAM_BLD_push_utf8_string(build, ossl_name, str, strlen(str));
 }
 
 /* b64url-decodes a single octet and creates an OSSL param. */
@@ -213,7 +210,7 @@ cleanup_pem:
 	return ret;
 }
 
-/* For EdDSA keys (EDDSA) */
+/* For EdDSA keys */
 JWT_NO_EXPORT
 int openssl_process_eddsa(json_t *jwk, jwk_item_t *item)
 {
@@ -402,6 +399,20 @@ cleanup_rsa:
 	return ret;
 }
 
+static const char *ec_crv_to_ossl_name(const char *crv)
+{
+	const char *ret = crv;
+
+	if (!strcmp(crv, "P-256"))
+		ret = "prime256v1";
+	else if (!strcmp(crv, "P-384"))
+		ret = "secp384r1";
+	else if (!strcmp(crv, "P-521"))
+		ret = "secp521r1";
+
+	return ret;
+}
+
 /* For EC Keys (ES256, ES384, ES512) */
 JWT_NO_EXPORT
 int openssl_process_ec(json_t *jwk, jwk_item_t *item)
@@ -411,6 +422,7 @@ int openssl_process_ec(json_t *jwk, jwk_item_t *item)
 	json_t *crv, *x, *y, *d;
 	EVP_PKEY_CTX *pctx = NULL;
 	const char *crv_str;
+	const char *ossl_crv;
 	BIGNUM *bn = NULL;
 	int priv = 0, ret = -1;
 	void *pub_key = NULL;
@@ -453,12 +465,15 @@ int openssl_process_ec(json_t *jwk, jwk_item_t *item)
 		goto cleanup_ec;
 	}
 
-	set_one_string(build, OSSL_PKEY_PARAM_GROUP_NAME, crv);
-	pub_key = set_ec_pub_key(build, x, y, crv_str);
+	ossl_crv = ec_crv_to_ossl_name(crv_str);
+	set_one_string(build, OSSL_PKEY_PARAM_GROUP_NAME, ossl_crv);
+	pub_key = set_ec_pub_key(build, x, y, ossl_crv);
 	if (pub_key == NULL) {
 		jwks_write_error(item, "Error generating pub key from components");
 		goto cleanup_ec;
 	}
+
+	strncpy(item->curve, crv_str, sizeof(item->curve) - 1);
 
 	if (priv) {
 		bn = set_one_bn(build, OSSL_PKEY_PARAM_PRIV_KEY, d);
