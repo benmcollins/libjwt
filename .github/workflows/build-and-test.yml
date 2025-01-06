@@ -3,13 +3,13 @@ name: LibJWT Build, Unit Tests, and Coverage
 on:
   workflow_dispatch:
   push:
-    branches: [ "test-builds" ]
+    branches: [ "master" ]
     paths-ignore:
       - "doxygen/**"
       - ".github/**"
       - "images/**"
   pull_request:
-    branches: [ "test-builds" ]
+    branches: [ "master" ]
     paths-ignore:
       - "doxygen/**"
       - ".github/**"
