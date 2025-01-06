@@ -60,15 +60,6 @@ typedef struct jwk_set jwk_set_t;
  *
  * These are the supported algorithm types for LibJWT.
  *
- * @warning You should not assume that this directly relates to what may be
- *  in the JWT header. The internal state of the jwt_t object and the JSON
- *  data are only guarateed to be in sync during encoding and decoding.
- *
- * @note For HMAC algorithms, the key can be any data, even binary. However,
- *   for all the other algorithms, the key is expected to be in a format
- *   that the underlying @ref jwt_crypto_grp can interpret. Generally, PEM
- *   is a safe bet.
- *
  * @rfc{7518,3.1}
  */
 typedef enum {
@@ -127,7 +118,7 @@ typedef enum {
 /** @ingroup jwks_core_grp
  * @brief Usage types for JWK public keys
  *
- * Corresponds to the ``"use"`` attribute in a valid JWK.
+ * Corresponds to the ``"use"`` attribute in a JWK the represents a public key.
  *
  * @rfc{7517,4.2}
  **/
@@ -140,11 +131,13 @@ typedef enum {
 /** @ingroup jwks_core_grp
  * @brief Allowed key operations for JWK private keys
  *
- * A JWK can support one or more of these bitwise flag  operations. The
- * names correspond with the RFC.
+ * Corresponds to the ``"key_ops"`` attribute in a JWK that represents a private
+ * key. These can be bitwise compares to the key_ops attribute of a @ref
+ * jwk_item_t. These flags are used internally to decide if a JWK can be used
+ * for cartain operations.
  *
  * @code
- * if (@ref jwk_item_t.key_ops & (JWK_KEY_OP_SIGN | JWK_KEY_OP_ENCRYPT)) {
+ * if (jwk_item_t.key_ops & (JWK_KEY_OP_SIGN | JWK_KEY_OP_ENCRYPT)) {
  *     ...
  * }
  * @endcode
@@ -177,7 +170,8 @@ typedef enum {
  *  a nil terminated string of the key. The underlying crypto algorith may
  *  or may not support this. It's provided as a convenience.
  *
- * @raisewarning Decide if we need to make this an opaque object. Also, about that JSON...
+ * @raisewarning Decide if we need to make this an opaque object. Also, about
+ *  that JSON...
  */
 typedef struct {
 	char *pem;		/**< If not NULL, contains PEM string of this key	*/
@@ -192,7 +186,7 @@ typedef struct {
 	int is_private_key;	/**< Whether this is a public or private key            */
 	char curve[256];        /**< Curve name of an ``"EC"`` or ``"OKP"`` key         */
 	size_t bits;            /**< The number of bits in the key (may be 0)           */
-	int error;              /**< There was an error parsing this key (unusable)    */
+	int error;              /**< There was an error parsing this key (unusable)	*/
 	char error_msg[256];    /**< Descriptive message for @ref jwk_item_t.error      */
 	jwk_key_type_t kty;     /**< @rfc{7517,4.1} The key type of this key            */
 	jwk_pub_key_use_t use;  /**< @rfc{7517,4.2} How this key can be used            */
@@ -212,16 +206,16 @@ typedef struct {
  * @todo @rfc_t{7519,4.1.7} ``"jti"`` JWT ID
  */
 typedef enum {
-	JWT_VALIDATION_SUCCESS		= 0x0000,	/**< Validation succeeded			*/
-	JWT_VALIDATION_ERROR		= 0x0001,	/**< General failures				*/
-	JWT_VALIDATION_ALG_MISMATCH	= 0x0002,	/**< @rfc_t{7518,3.1} ``"alg"`` Algorithm	*/
-	JWT_VALIDATION_EXPIRED		= 0x0004,	/**< @rfc_t{7519,4.1.4} ``"exp"`` Expired	*/
-	JWT_VALIDATION_TOO_NEW		= 0x0008,	/**< @rfc_t{7519,4.1.5} ``"nbf"`` Not Before	*/
-	JWT_VALIDATION_ISS_MISMATCH	= 0x0010,	/**< @rfc_t{7519,4.1.1} ``"iss"`` Issuer	*/
-	JWT_VALIDATION_SUB_MISMATCH	= 0x0020,	/**< @rfc_t{7519,4.1.2} ``"sub"`` Subject	*/
-	JWT_VALIDATION_AUD_MISMATCH	= 0x0040,	/**< @rfc_t{7519,4.1.3} ``"aud"`` Audience	*/
-	JWT_VALIDATION_GRANT_MISSING	= 0x0080,	/**< User-defined Grant missing			*/
-	JWT_VALIDATION_GRANT_MISMATCH	= 0x0100,	/**< User-defined Grant mismatch		*/
+JWT_VALIDATION_SUCCESS		= 0x0000, /**< Validation succeeded			*/
+JWT_VALIDATION_ERROR		= 0x0001, /**< General failures				*/
+JWT_VALIDATION_ALG_MISMATCH	= 0x0002, /**< @rfc_t{7518,3.1} ``"alg"`` Algorithm	*/
+JWT_VALIDATION_EXPIRED		= 0x0004, /**< @rfc_t{7519,4.1.4} ``"exp"`` Expired	*/
+JWT_VALIDATION_TOO_NEW		= 0x0008, /**< @rfc_t{7519,4.1.5} ``"nbf"`` Not Before	*/
+JWT_VALIDATION_ISS_MISMATCH	= 0x0010, /**< @rfc_t{7519,4.1.1} ``"iss"`` Issuer	*/
+JWT_VALIDATION_SUB_MISMATCH	= 0x0020, /**< @rfc_t{7519,4.1.2} ``"sub"`` Subject	*/
+JWT_VALIDATION_AUD_MISMATCH	= 0x0040, /**< @rfc_t{7519,4.1.3} ``"aud"`` Audience	*/
+JWT_VALIDATION_GRANT_MISSING	= 0x0080, /**< User-defined Grant missing		*/
+JWT_VALIDATION_GRANT_MISMATCH	= 0x0100, /**< User-defined Grant mismatch		*/
 } jwt_valid_exception_t;
 
 /** @ingroup jwt_memory_grp
@@ -245,14 +239,14 @@ typedef void (*jwt_free_t)(void *);
  */
 
 /**
- * @defgroup jwt_core_grp Object Creation
+ * @defgroup jwt_core_grp Object Management
  *
- * Functions used to create and destroy JWT objects.
+ * Utility functions for JWT objects.
  * @{
  */
 
 /**
- * Free a JWT object and any other resources it is using.
+ * @brief Free a JWT object and any other resources it is using.
  *
  * After calling, the JWT object referenced will no longer be valid and
  * its memory will be freed.
@@ -264,7 +258,11 @@ void jwt_free(jwt_t *jwt);
 
 #if defined(__GNUC__) || defined(__clang__)
 /**
- * @raisewarning Document jwt_freep
+ * @brief Helper function to free a JWT and set the pointer to NULL
+ *
+ * This is mainly to use with the jwt_auto_t type.
+ *
+ * @param Pointer to a pointer for a jwt_t object
  */
 static inline void jwt_freep(jwt_t **jwt) {
 	if (jwt) {
@@ -272,17 +270,42 @@ static inline void jwt_freep(jwt_t **jwt) {
 		*jwt = NULL;
 	}
 }
+/**
+ * @brief Scoped cleanup type for jwt_t
+ *
+ * Declaring a jwt_t with jwt_auto_t will ensure that the memory used by it is
+ * cleaned up when the variable goes our of scope (e.g. when a function
+ * returns).
+ *
+ * @warning Make sure to initialize thsi to NULL when declaring with this type.
+ *
+ * @code
+ * void my_app_check_token(const char *token)
+ * {
+ *     jwt_auto_t *myjwt = NULL;
+ *
+ *     // ...
+ *
+ *     myjwt = jwt_create(NULL);
+ *
+ *     // ...
+ *
+ *     return; // myjwt will be freed here automatically
+ * }
+ * @endcode
+ */
 #define jwt_auto_t jwt_t __attribute__((cleanup(jwt_freep)))
 #endif
 
 /**
  * Duplicate an existing JWT object.
  *
- * Copies all grants and algorithm specific bits to a new JWT object.
+ * Copies all grants and algorithm specific bits to a new JWT object. This
+ * includes the JWK that is associated with it, if it exists. However, the JWT
+ * is only copied by reference, and is not, itself, duplicated.
  *
  * @param jwt Pointer to a JWT object.
- * @return A new object on success, NULL on error with errno set
- *     appropriately.
+ * @return A new object on success, NULL on error with errno set appropriately.
  */
 JWT_EXPORT
 jwt_t *jwt_dup(jwt_t *jwt);
@@ -295,12 +318,12 @@ jwt_t *jwt_dup(jwt_t *jwt);
 /**
  * @defgroup jwt_config_grp Configuration Type
  *
- * The JWT configuration tools are setup to allow an agnostic way to handle
- * state between different functions. The specific uses of the tools varies
+ * The JWT configuration type is setup to allow an agnostic way to handle
+ * state between different functions. The specific uses of the type varies
  * according to whether you are providing or consuming tokens. These aspects
  * are documented in the other sections.
  *
- * This section is a light intro of config types and common usage.
+ * This section is a light intro of config type and common usage.
  *
  * @remark LibJWT does not internally modify or set information in the
  *  @ref jwt_config_t object. Certain values will determine how LibJWT
