@@ -136,6 +136,8 @@ static void read_key(const char *key_file)
 	test_data.key_len = fread(test_data.key, 1, test_data.key_len, fp);
 	ck_assert_int_ne(test_data.key_len, 0);
 
+	test_data.key[test_data.key_len] = '\0';
+
 	ck_assert_int_eq(ferror(fp), 0);
 
 	fclose(fp);
