@@ -20,12 +20,14 @@ jobs:
     - uses: actions/checkout@v4
       with:
         fetch-tags: true
+        fetch-depth: 0
     - uses: ConorMacBride/install-package@v1
       with:
         brew: gnutls openssl@3 jansson pkgconf cmake doxygen graphviz
 
     - name: Build Head docs
       run: |
+        set -e
         cmake -B build
         make -C build doxygen-doc
         mkdir -p gh-pages
@@ -34,11 +36,11 @@ jobs:
 
     - name: Build Latest tag docs
       run: |
+        set -e
         git checkout $(git describe --tags --abbrev=0)
         cmake -B build
         make -C build doxygen-doc
         mv build/doxygen-doc/html/* gh-pages/
-        find gh-pages/ -type f -ls
 
     - name: Upload pages
       id: deployment
