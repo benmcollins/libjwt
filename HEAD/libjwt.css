@@ -1,0 +1,19 @@
+a.button {
+  background-color: #EFF4FF;
+  border: none;
+  color: #2557D6;
+  padding: 10px 20px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  margin-right: 13px;
+  margin-left: -1px;
+  margin-bottom: 10px;
+  border-radius: 100px;
+  cursor: pointer;
+  transition: box-shadow 0.5s ease;
+}
+
+a.button:hover {
+  box-shadow: inset 0em 0em 0em 10em #DCE6FF;
+}

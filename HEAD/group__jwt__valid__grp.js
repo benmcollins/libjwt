@@ -1,0 +1,36 @@
+var group__jwt__valid__grp =
+[
+    [ "jwt_valid_t", "group__jwt__valid__grp.html#gac413377fbfc11671e8a8a66f45693e5d", null ],
+    [ "jwt_valid_exception_t", "group__jwt__valid__grp.html#ga47ee94f9c08ff581f78590bfe024f6e4", [
+      [ "JWT_VALIDATION_SUCCESS", "group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4a94bb9121f597e706e89322b0f9a7330b", null ],
+      [ "JWT_VALIDATION_ERROR", "group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4ad2e58b1f8a8bc39518b1c973fa99ee6e", null ],
+      [ "JWT_VALIDATION_ALG_MISMATCH", "group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4abf0dc5dd94b521a118485a9522cd8cea", null ],
+      [ "JWT_VALIDATION_EXPIRED", "group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4a698be61a7f4bcf0dfd9894e1c6296e0b", null ],
+      [ "JWT_VALIDATION_TOO_NEW", "group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4a685c5270c214bf2484b65376e4b7459b", null ],
+      [ "JWT_VALIDATION_ISS_MISMATCH", "group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4a0dde2793247cd11fbf017212d8fd605f", null ],
+      [ "JWT_VALIDATION_SUB_MISMATCH", "group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4ac8b2989c55deb3bdad631c61f1ed304d", null ],
+      [ "JWT_VALIDATION_AUD_MISMATCH", "group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4acb9d53e3cc20a39c0827d77a071271e6", null ],
+      [ "JWT_VALIDATION_GRANT_MISSING", "group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4a94eb7551ec626004a55798ecbd563d38", null ],
+      [ "JWT_VALIDATION_GRANT_MISMATCH", "group__jwt__valid__grp.html#gga47ee94f9c08ff581f78590bfe024f6e4a5b1db073c57082b557592b7115a8e363", null ]
+    ] ],
+    [ "jwt_exception_str", "group__jwt__valid__grp.html#ga8371a7299dab709fa28fba7271d03a14", null ],
+    [ "jwt_valid_add_grant", "group__jwt__valid__grp.html#gab5e9e2dc5e0276ea2c21c050822c19e1", null ],
+    [ "jwt_valid_add_grant_bool", "group__jwt__valid__grp.html#gafa57cedcecda005a47161c462b2f0c9f", null ],
+    [ "jwt_valid_add_grant_int", "group__jwt__valid__grp.html#ga50c04450cc57bcd18717c25f18aed479", null ],
+    [ "jwt_valid_add_grants_json", "group__jwt__valid__grp.html#ga9361112f9372d8de2f11c115314c2d71", null ],
+    [ "jwt_valid_del_grants", "group__jwt__valid__grp.html#ga929d87f2577cbb600de468b159d9f00d", null ],
+    [ "jwt_valid_free", "group__jwt__valid__grp.html#ga77db16a4a29ef6a607d6aff8012955b2", null ],
+    [ "jwt_valid_get_exp_leeway", "group__jwt__valid__grp.html#ga0dc43278963ec6474d5d7263c960e69c", null ],
+    [ "jwt_valid_get_grant", "group__jwt__valid__grp.html#ga03b176d20c41a85a979c9671a9a02b6f", null ],
+    [ "jwt_valid_get_grant_bool", "group__jwt__valid__grp.html#gabe7ce52fca00463c2b70aa367037db98", null ],
+    [ "jwt_valid_get_grant_int", "group__jwt__valid__grp.html#ga98a643ad3c8103539dee35c22a3adbb6", null ],
+    [ "jwt_valid_get_grants_json", "group__jwt__valid__grp.html#gacafaf1f062cd358bda89601570d194ad", null ],
+    [ "jwt_valid_get_nbf_leeway", "group__jwt__valid__grp.html#gafa9c96838053831dd239824ed5149879", null ],
+    [ "jwt_valid_get_status", "group__jwt__valid__grp.html#ga165d7857282f3cce9106b26369cf11ca", null ],
+    [ "jwt_valid_new", "group__jwt__valid__grp.html#gaede6b64d84fd8166ea16debe6efc826d", null ],
+    [ "jwt_valid_set_exp_leeway", "group__jwt__valid__grp.html#ga1ce0ec28e692a189d3c6819dc571f941", null ],
+    [ "jwt_valid_set_headers", "group__jwt__valid__grp.html#gab29df6ee78d33bb846b13f95a1269e0d", null ],
+    [ "jwt_valid_set_nbf_leeway", "group__jwt__valid__grp.html#ga55f1862ab8bb6297ee0163f77fe7c386", null ],
+    [ "jwt_valid_set_now", "group__jwt__valid__grp.html#gad6a97fc0bb3341ae7f19975095a8086a", null ],
+    [ "jwt_validate", "group__jwt__valid__grp.html#ga354a14a13a0c96dae2cc22c4fa790413", null ]
+];

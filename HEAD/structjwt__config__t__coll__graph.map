@@ -1,0 +1,5 @@
+<map id="jwt_config_t" name="jwt_config_t">
+<area shape="rect" id="Node000001" title="Structure used to manage configuration state." alt="" coords="5,94,97,120"/>
+<area shape="rect" id="Node000002" href="$structjwk__item__t.html" title="Structural representation of a JWK." alt="" coords="9,5,93,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="54,47,54,94,48,94,48,47"/>
+</map>

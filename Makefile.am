@@ -1,3 +1,13 @@
 ACLOCAL_AMFLAGS = -I m4
 
-SUBDIRS = include libjwt
+EXTRA_DIST = README.md README.cmake.md CMakeLists.txt cmake images
+
+SUBDIRS = include libjwt tests dist
+if BUILD_EXAMPLES
+SUBDIRS += examples
+endif
+
+include $(top_srcdir)/doxygen.mk
+
+check-valgrind check-code-coverage: all
+	$(MAKE) $(AM_MAKEFLAGS) -C tests $@
