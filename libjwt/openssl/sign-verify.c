@@ -119,13 +119,6 @@ static int __degree_and_check(EVP_PKEY *pkey, jwt_t *jwt)
                         return 0;
 		break;
 
-	case JWT_ALG_EDDSA:
-		if (bits != 256 ||
-		    (strcasecmp(jwt->jw_key->curve, "Ed25519") &&
-		     strcasecmp(jwt->jw_key->curve, "Ed448")))
-			return 0;
-		break;
-
 	default:
 		return 0;
 	}

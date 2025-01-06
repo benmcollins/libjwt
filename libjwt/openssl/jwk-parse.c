@@ -218,24 +218,45 @@ int openssl_process_eddsa(json_t *jwk, jwk_item_t *item)
 	OSSL_PARAM *params = NULL;
 	OSSL_PARAM_BLD *build = NULL;
 	EVP_PKEY_CTX *pctx = NULL;
-	json_t *x, *d;
+	json_t *x, *d, *crv;
+	const char *crv_str;
 	int priv = 0;
 	int ret = -1;
 
 	/* EdDSA only need one or the other. */
 	x = json_object_get(jwk, "x");
 	d = json_object_get(jwk, "d");
+	crv = json_object_get(jwk, "crv");
 
 	if (x == NULL && d == NULL) {
 		jwks_write_error(item,
 			"Need an 'x' or 'd' component and found neither");
 		goto cleanup_eddsa;
 	}
+	if (crv == NULL || !json_is_string(crv)) {
+		jwks_write_error(item,
+                        "No curve component found for EdDSA key");
+		goto cleanup_eddsa;
+	}
 
 	if (d != NULL)
 		item->is_private_key = priv = 1;
 
-	pctx = EVP_PKEY_CTX_new_from_name(NULL, "ED25519", NULL);
+	crv_str = json_string_value(crv);
+	if (!strcmp(crv_str, "Ed25519"))
+		pctx = EVP_PKEY_CTX_new_from_name(NULL, "ED25519", NULL);
+	else if (!strcmp(crv_str, "Ed448"))
+		pctx = EVP_PKEY_CTX_new_from_name(NULL, "ED448", NULL);
+	else {
+		jwks_write_error(item,
+                        "Unknown curve [%s] (note, curves are case sensitive)",
+			crv_str);
+		goto cleanup_eddsa;
+	}
+
+	strncpy(item->curve, crv_str, sizeof(item->curve) - 1);
+	item->curve[sizeof(item->curve) - 1] = '\0';
+
 	if (pctx == NULL) {
 		jwks_write_error(item, "Error creating pkey context");
 		goto cleanup_eddsa;
@@ -440,7 +461,7 @@ int openssl_process_ec(json_t *jwk, jwk_item_t *item)
 	}
 
 	crv_str = json_string_value(crv);
-	strncpy(item->curve, crv_str, sizeof(item->curve));
+	strncpy(item->curve, crv_str, sizeof(item->curve) - 1);
 	item->curve[sizeof(item->curve) - 1] = '\0';
 
 	/* Only private keys contain this field */
@@ -472,8 +493,6 @@ int openssl_process_ec(json_t *jwk, jwk_item_t *item)
 		jwks_write_error(item, "Error generating pub key from components");
 		goto cleanup_ec;
 	}
-
-	strncpy(item->curve, crv_str, sizeof(item->curve) - 1);
 
 	if (priv) {
 		bn = set_one_bn(build, OSSL_PKEY_PARAM_PRIV_KEY, d);
