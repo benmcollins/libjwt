@@ -5,11 +5,15 @@
 #include <string.h>
 #include <errno.h>
 #include <time.h>
+#include <unistd.h>
 
 #include "jwt_tests.h"
-
 START_TEST(test_jwt_encode_fp)
 {
+	const char exp[] = "eyJhbGciOiJub25lIn0.eyJpYXQiOjE0NzU5ODA1NDUsIml"
+		"zcyI6ImZpbGVzLm1hY2xhcmEtbGxjLmNvbSIsInJlZiI6IlhYWFgtWVlZW"
+		"S1aWlpaLUFBQUEtQ0NDQyIsInN1YiI6InVzZXIwIn0.";
+	char read_back[BUFSIZ];
 	FILE *out;
 	jwt_t *jwt = NULL;
 	int ret = 0;
@@ -30,16 +34,22 @@ START_TEST(test_jwt_encode_fp)
 	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
 	ck_assert_int_eq(ret, 0);
 
-	/* TODO Write to actual file and read back to validate output. */
-#ifdef _WIN32
-	out = fopen("nul", "w");
-#else
-	out = fopen("/dev/null", "w");
-#endif
+	out = fopen("test_outfile.txt", "w");
 	ck_assert_ptr_nonnull(out);
 
 	ret = jwt_encode_fp(jwt, out);
 	ck_assert_int_eq(ret, 0);
+	fclose(out);
+
+	out = fopen("test_outfile.txt", "r");
+	ck_assert_ptr_nonnull(out);
+	ret = fread(read_back, 1, sizeof(read_back), out);
+	ck_assert_int_gt(ret, 0);
+	read_back[ret] = '\0';
+	fclose(out);
+	unlink("test_outfile.txt");
+
+	ck_assert_str_eq(exp, read_back);
 
 	fclose(out);
 
