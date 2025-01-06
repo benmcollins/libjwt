@@ -275,6 +275,7 @@ START_TEST(test_jwt_encode_decode)
 
 	encoded = jwt_encode_str(mytoken);
 
+	t_config.alg = JWT_ALG_HS256;
 	rc = jwt_verify(&ymtoken, encoded, &t_config);
 	ck_assert_int_eq(rc, 0);
 

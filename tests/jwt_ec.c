@@ -79,31 +79,16 @@ END_TEST
 
 START_TEST(test_jwt_encode_ec_with_rsa)
 {
+	JWT_CONFIG_DECLARE(config);
 	jwt_test_auto_t *jwt = NULL;
-	int ret = 0;
-	char *out;
 
 	SET_OPS();
 
-	CREATE_JWT(jwt, "rsa_key_4096.json", JWT_ALG_ES384);
-
-	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant(jwt, "sub", "user0");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
-	ck_assert_int_eq(ret, 0);
-
-	ck_assert_int_eq(ret, 0);
-
-	out = jwt_encode_str(jwt);
-	ck_assert_ptr_eq(out, NULL);
-	ck_assert_int_eq(errno, EINVAL);
+	read_key("rsa_key_4096.json");
+	config.alg = JWT_ALG_ES384;
+	config.jw_key = g_item;
+	jwt = jwt_create(&config);
+        ck_assert_ptr_null(jwt);
 }
 END_TEST
 

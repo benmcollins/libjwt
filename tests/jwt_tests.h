@@ -202,6 +202,7 @@ static void __verify_jwk(const char *jwt_str, jwk_item_t *item)
 	int ret = 0;
 
 	config.jw_key = item;
+	config.alg = item->alg;
 	ret = jwt_verify(&jwt, jwt_str, &config);
 	ck_assert_int_eq(ret, 0);
 	ck_assert_ptr_nonnull(jwt);
