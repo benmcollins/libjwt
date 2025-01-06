@@ -1,6 +1,7 @@
 name: LibJWT Documentation
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - "master"
@@ -15,9 +16,6 @@ jobs:
   build:
     if: ${{github.ref == 'refs/heads/master'}}
     runs-on: macos-latest
-    permissions:
-      id-token: write
-      pages: write
     steps:
     - uses: actions/checkout@v4
       with:
@@ -49,6 +47,10 @@ jobs:
         path: gh-pages/
 
   deploy:
+    permissions:
+      id-token: write
+      pages: write
+      deployments: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
