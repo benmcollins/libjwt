@@ -1,14 +1,15 @@
 name: LibJWT Build, Unit Tests, and Coverage
 
 on:
+  workflow_dispatch:
   push:
-    branches: [ "master" ]
+    branches: [ "test-builds" ]
     paths-ignore:
       - "doxygen/**"
       - ".github/**"
       - "images/**"
   pull_request:
-    branches: [ "master" ]
+    branches: [ "test-builds" ]
     paths-ignore:
       - "doxygen/**"
       - ".github/**"
@@ -23,7 +24,7 @@ jobs:
       with:
         brew: gnutls openssl@3 jansson pkgconf cmake check
 
-    - name: Build, Test, and Docs
+    - name: Build and Test
       uses: threeal/cmake-action@v2.1.0
       with:
         options: |
@@ -54,6 +55,7 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: ${{github.workspace}}/build/check-code-coverage.info
+        disable_search: true
         verbose: true
 
     - name: Memcheck
