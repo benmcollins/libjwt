@@ -119,46 +119,26 @@ parse_done:
 static int __verify_config_post(const jwt_t *jwt, const jwt_config_t *config,
 				unsigned int sig_len)
 {
-	/*
-	 * Lots of cases to deal with.
-	 *
-	 * 1) If the user passed a jw_key:
-	 *    - It's valid for jw_key.alg to be none (missing) (RFC-7517:4.4)
-	 *    - If jw_key.alg is not none, it MUST match the JWT
-	 * 2) If the user did not pass a key:
-	 *    - Then jwt.alg MUST be none, and
-	 *    - The sig_len MUST be zero
-	 * 3) If jwt.alg is none then sig_len MUST be zero, regardless of (2)
-	 * 4) If sig_len is 0, and the user passed a key or set an alg, we
-	 *    fail
-	 */
-
-	/* No sig, but caller is expecting something (4) */
-	if (!sig_len && (jwt->alg != JWT_ALG_NONE ||
-			 (config && (config->alg != JWT_ALG_NONE ||
-				     config->jw_key != NULL))))
-		return EINVAL;
-
-	/* Quick check on the JWT (avoids all kinds of CVE issues) (3) */
-	if (sig_len && (jwt->alg == JWT_ALG_NONE || config == NULL))
-		return EINVAL;
-
-	/* Make sure caller isn't just peeking (use a cb for that) (2) */
-	if (!config || !config->jw_key) {
-		/* No key, but expecting one? */
-		if (jwt->alg != JWT_ALG_NONE || sig_len)
-			return EINVAL;
-
-		/* If the user didn't pass a key, at this point we're safe. */
+	/* The easy out; insecure JWT, and the caller expects it. */
+	if (config->alg == JWT_ALG_NONE && config->jw_key == NULL && !sig_len &&
+			jwt->alg == JWT_ALG_NONE)
 		return 0;
-	}
 
-	/* Validate jw_key (1) */
-	if (jwt->alg != JWT_ALG_NONE &&
-	    config->jw_key->alg != JWT_ALG_NONE &&
-	    jwt->alg != config->jw_key->alg) {
-			return EINVAL;
-	}
+	/* The quick fail. The caller and JWT disagree. */
+	if (config->alg != jwt->alg)
+		return EINVAL;
+
+	/* At this point, someone is expecting a sig and we also know the
+	 * caller and the JWT token agree on the alg. */
+
+	/* We require a key and a signature. */
+	if (config->jw_key == NULL || !sig_len)
+		return EINVAL;
+
+	/* If the key has an alg, it must match the caller. */
+	if (config->jw_key->alg != JWT_ALG_NONE &&
+	    config->jw_key->alg != config->alg)
+		return EINVAL;
 
 	return 0;
 }
@@ -203,7 +183,7 @@ int jwt_verify_wcb(jwt_t **jwt, const char *token, jwt_config_t *config,
 	unsigned int payload_len;
 	int ret;
 
-	if (jwt == NULL)
+	if (jwt == NULL || config == NULL)
 		return EINVAL;
 
 	*jwt = NULL;
