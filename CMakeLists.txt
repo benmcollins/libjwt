@@ -46,8 +46,8 @@ if (WITH_GNUTLS)
 	if (NOT GNUTLS_AUTO)
 		set(GNUTLS_REQUIRED REQUIRED)
 	endif()
-	pkg_check_modules(GNUTLS gnutls>=3.6.0 IMPORTED_TARGET
-			  ${GNUTLS_REQUIRED})
+	# pkg_check_modules(GNUTLS gnutls>=3.6.0 IMPORTED_TARGET
+	#		  ${GNUTLS_REQUIRED})
 endif()
 
 if (WITH_OPENSSL)
