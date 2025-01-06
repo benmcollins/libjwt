@@ -128,6 +128,11 @@ jwt_t *jwt_new(void);
 	}				\
 })
 
+static inline void jwt_freememp(char **mem) {
+	jwt_freemem(*mem);
+}
+#define char_auto char  __attribute__((cleanup(jwt_freememp)))
+
 /* Helper routines to handle base64url encoding without percent padding
  * as defined in RFC-4648. */
 JWT_NO_EXPORT
