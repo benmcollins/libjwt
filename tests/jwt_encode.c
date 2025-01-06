@@ -51,8 +51,6 @@ START_TEST(test_jwt_encode_fp)
 
 	ck_assert_str_eq(exp, read_back);
 
-	fclose(out);
-
 	jwt_free(jwt);
 }
 END_TEST
