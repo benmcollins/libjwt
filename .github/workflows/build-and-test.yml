@@ -1,4 +1,4 @@
-name: LibJWT Unit Tests, Coverage, and Docs
+name: LibJWT Build, Unit Tests, and Coverage
 
 on:
   push:
@@ -27,8 +27,6 @@ jobs:
       uses: threeal/cmake-action@v2.1.0
       with:
         options: |
-          WITH_OPENSSL=YES
-          WITH_GNUTLS=YES
           WITH_TESTS=YES
         build-args: |
           --
