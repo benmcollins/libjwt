@@ -80,7 +80,7 @@ static void ec_alg_type(EVP_PKEY *pkey, char crv[32], char alg[32])
 
 	switch (bits) {
 	case 256:
-		if (!strcmp(__crv, "secp256k1")) {
+		if (!strcmp(__named_crv, "secp256k1")) {
 			__alg = "ES256K";
 			__crv = "secp256k1";
 		} else {

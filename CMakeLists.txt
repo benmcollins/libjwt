@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2024 maClara, LLC <info@maclara-llc.com>
+# Copyright (C) 2015-2025 maClara, LLC <info@maclara-llc.com>
 # This file is part of the JWT C Library
 #
 # SPDX-License-Identifier:  MPL-2.0
@@ -122,6 +122,20 @@ function(jwt_add_extra)
 		"${CMAKE_BINARY_DIR}/${Extra_DIR}")
 endfunction()
 
+function(jwt_add_tool)
+	set(oneValueArgs NAME SRC DIR)
+	cmake_parse_arguments(Tool "" "${oneValueArgs}" "" ${ARGN})
+
+	add_executable(${Tool_NAME} ${Tool_SRC})
+	target_link_libraries(${Tool_NAME}  PRIVATE jwt_static PkgConfig::OPENSSL)
+	# target_link_libraries(${Tool_NAME} PRIVATE jwt)
+	set_target_properties(${Tool_NAME} PROPERTIES
+		RUNTIME_OUTPUT_DIRECTORY
+		"${CMAKE_BINARY_DIR}/tools")
+	install(TARGETS ${Tool_NAME}
+		RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+endfunction()
+
 if (WITH_EXAMPLES)
 	jwt_add_extra(NAME jwtauth
 		      SRC examples/main-auth.c
@@ -129,21 +143,12 @@ if (WITH_EXAMPLES)
 	jwt_add_extra(NAME jwtgen
                       SRC examples/main-gen.c
                       DIR examples)
-
-	jwt_add_extra(NAME jwt_to_pem
-                      SRC tests/keys/jwks/jwk_to_pem.c
-                      DIR tools)
-
-	if (OPENSSL_FOUND)
-		add_executable(pem_to_jwk tests/keys/jwks/pem_to_jwk.c)
-		# For now, this program uses some libjwt internals, so it
-		# has to link to the static library
-		target_link_libraries(pem_to_jwk PRIVATE jwt_static PkgConfig::OPENSSL)
-		set_target_properties(pem_to_jwk  PROPERTIES
-			RUNTIME_OUTPUT_DIRECTORY
-			"${CMAKE_BINARY_DIR}/tools")
-	endif()
 endif()
+
+jwt_add_tool(NAME jwk2key
+	      SRC tests/keys/jwks/jwk2key.c)
+jwt_add_tool(NAME key2jwk
+              SRC tests/keys/jwks/key2jwk.c)
 
 # We need one of the things above to even work
 if (NOT HAVE_CRYPTO)
@@ -164,7 +169,7 @@ set_target_properties(jwt PROPERTIES
 	SOVERSION ${LIBJWT_COMPATVERSION}
 )
 
-add_definitions(-D_GNU_SOURCE)
+add_definitions(-D_GNU_SOURCE -O3 -Wall -Werror)
 add_definitions(-DKEYDIR=\"${CMAKE_SOURCE_DIR}/tests/keys\")
 
 # Install header
@@ -210,7 +215,15 @@ find_package(Doxygen 1.9)
 if (DOXYGEN_FOUND)
 	set(DOXYGEN_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/doxygen-doc)
 	include(LibJWTDoxyfile)
-	doxygen_add_docs(doxygen-doc include/jwt.h)
+	doxygen_add_docs(doxygen-doc ALL include/jwt.h)
+
+	install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/doxygen-doc/man/man3/
+		DESTINATION ${CMAKE_INSTALL_MANDIR}/man3
+		FILES_MATCHING PATTERN "man3/J*.3"
+		PATTERN "man3/jw*.3")
+
+	install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/doxygen-doc/html/
+		DESTINATION  ${CMAKE_INSTALL_DOCDIR}/html/)
 endif()
 
 option(ENABLE_COVERAGE "Enable code coverage rules" OFF)
