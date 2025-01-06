@@ -6,10 +6,11 @@ set(LIBJWT_HOMEPAGE_URL		"https://libjwt.io")
 
 set(LIBJWT_VERSION_SET		2 9 99)
 
-set(LIBJWT_SO_CRA		13 1 11)
+set(LIBJWT_SO_CRA		14 0 0)
 # SONAME History
 # v1.12.1      0 => 1
 # v1.15.0      1 => 2
+# v3.0.0       2 => 14
 # http://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html
 
 string(TOLOWER ${LIBJWT_PROJECT} LIBJWT_PROJECT_LOWER)
