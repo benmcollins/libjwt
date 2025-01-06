@@ -38,9 +38,13 @@ jobs:
       run: |
         set -e
         git checkout $(git describe --tags --abbrev=0)
-        cmake -B build
-        make -C build doxygen-doc
+        autoreconf -fi
+        mkdir build
+        ../configure
+        make doxygen-dox
+        cd ..
         mv build/doxygen-doc/html/* gh-pages/
+        rm -rf build
 
     - name: Upload pages
       id: deployment
