@@ -1,4 +1,4 @@
-/* Copyright (C) 2015-2024 maClara, LLC <info@maclara-llc.com>
+/* Copyright (C) 2015-2025 maClara, LLC <info@maclara-llc.com>
    This file is part of the JWT C Library
 
    SPDX-License-Identifier:  MPL-2.0
@@ -27,7 +27,7 @@ static int write_js(const json_t *js, char **buf, int pretty)
 {
 	/* Sort keys for repeatability */
 	size_t flags = JSON_SORT_KEYS;
-	char_auto *serial;
+	char_auto *serial = NULL;
 
 	if (pretty) {
 		APPEND_STR(buf, "\n");
