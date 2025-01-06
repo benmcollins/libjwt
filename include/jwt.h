@@ -1034,7 +1034,7 @@ jwt_alg_t jwt_str_alg(const char *alg);
  */
 
 /**
- * Create a new JWKS object for later use in validating JWTs.
+ * @brief Create a new JWKS object from a null terminated string
  *
  * This function expects a JSON string either as a single object
  * for one JWK or as an array of objects under a key of "keys" (as
@@ -1047,12 +1047,58 @@ jwt_alg_t jwt_str_alg(const char *alg);
  *
  * @param jwk_json_str JSON string representation of a single key
  *   or array of "keys". If NULL is passed, an empty jwk_set_t is
- *   created.
+ *   created. Must be null terminated.
  * @return A valid jwt_set_t on success. On failure, either NULL
  *   or a jwt_set_t with error set. NULL generally means ENOMEM.
  */
 JWT_EXPORT
 jwk_set_t *jwks_create(const char *jwk_json_str);
+
+/**
+ * @brief Create a new JWKS object from a string of known lenght
+ *
+ * Useful if the string is not null terminated. Otherwise, it works the same
+ * as jwks_create().
+ *
+ * @param jwk_json_str JSON string representation of a single key
+ *   or array of "keys".
+ * @param len The length of jwk_json_str that represents the key(s) being
+ *   read.
+ * @return A valid jwt_set_t on success. On failure, either NULL
+ *   or a jwt_set_t with error set. NULL generally means ENOMEM.
+ */
+JWT_EXPORT
+jwk_set_t *jwks_create_strlen(const char *jwk_json_str, const size_t len);
+
+/**
+ * @brief Create a new JWKS object from a file
+ *
+ * The JSON will be read from a file on the system. Must be readable by the
+ * running process. The end result of this function is the same as jwks_create.
+ *
+ * @param file_name A file containing a JSON representation of a single key
+ *   or array of "keys".
+ * @return A valid jwt_set_t on success. On failure, either NULL
+ *   or a jwt_set_t with error set. NULL generally means ENOMEM.
+ */
+JWT_EXPORT
+jwk_set_t *jwks_create_fromfile(const char *file_name);
+
+/**
+ * @brief Create a new JWKS object from a FILE pointer
+ *
+ * The JSON will be read from a FILE pointer. The end result of this function
+ * is the same as jwks_create. The FILE pointer must be set to the starting
+ * position of the JWK data. This function will read until it reaches EOF or
+ * invalid JSON data.
+ *
+ * @param input A FILE pointer where the JSON representation of a single key
+ *   or array of "keys" can be fread() from.
+ * @return A valid jwt_set_t on success. On failure, either NULL
+ *   or a jwt_set_t with error set. NULL generally means ENOMEM.
+ */
+JWT_EXPORT
+jwk_set_t *jwks_create_fromfp(FILE *input);
 
 /**
  * Add a jwk_item_t to an existing jwk_set_t

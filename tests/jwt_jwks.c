@@ -133,9 +133,7 @@ START_TEST(test_jwks_keyring_load)
 
 	SET_OPS_JWK();
 
-	read_key("jwks_keyring.json");
-
-	ck_assert(!jwks_error(g_jwk_set));
+	read_json("jwks_keyring.json");
 
 	for (i = 0; (item = jwks_item_get(g_jwk_set, i)); i++)
 		ck_assert(!item->error);
@@ -159,7 +157,7 @@ START_TEST(test_jwks_key_op_all_types)
 
 	SET_OPS_JWK();
 
-	read_key("jwks_test-1.json");
+	read_jsonfp("jwks_test-1.json");
 
 	item = jwks_item_get(g_jwk_set, 0);
 	ck_assert_ptr_nonnull(item);

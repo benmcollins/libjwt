@@ -290,55 +290,121 @@ void jwks_free(jwk_set_t *jwk_set)
 	jwt_freemem(jwk_set);
 }
 
-jwk_set_t *jwks_create(const char *jwk_json_str)
+static jwk_set_t *jwks_new(void)
 {
-	json_auto_t *j_all = NULL;
-	json_t *j_array = NULL, *j_item = NULL;
-	json_error_t error;
 	jwk_set_t *jwk_set;
-	jwk_item_t *jwk_item;
-	size_t i;
-
-	errno = 0;
 
 	jwk_set = jwt_malloc(sizeof *jwk_set);
-	if (jwk_set == NULL) {
-		/* Yes, malloc(3) will set this, but just in case. */
-		// LCOV_EXCL_START
-		errno = ENOMEM;
+	if (jwk_set == NULL)
 		return NULL;
-		// LCOV_EXCL_STOP
-	}
 
 	memset(jwk_set, 0, sizeof(*jwk_set));
 	INIT_LIST_HEAD(&jwk_set->head);
 
-	/* Just an empty set */
-	if (jwk_json_str == NULL) {
+	return jwk_set;
+}
+
+static jwk_set_t *jwks_process(jwk_set_t *jwk_set, json_t *j_all, json_error_t *error)
+{
+	json_t *j_array = NULL, *j_item = NULL;
+	jwk_item_t *jwk_item;
+	size_t i;
+
+	if (j_all == NULL) {
+		jwks_write_error(jwk_set, "%s: %s", error->source, error->text);
 		return jwk_set;
 	}
+
+        /* Check for "keys" as in a JWKS */
+        j_array = json_object_get(j_all, "keys");
+
+        if (j_array == NULL) {
+                /* Assume a single JSON Object for one JWK */
+                jwk_item = jwk_process_one(jwk_set, j_all);
+                jwks_item_add(jwk_set, jwk_item);
+        } else {
+                /* We have a list, so parse them all. */
+                json_array_foreach(j_array, i, j_item) {
+                        jwk_item = jwk_process_one(jwk_set, j_item);
+                        jwks_item_add(jwk_set, jwk_item);
+                }
+        }
+
+        return jwk_set;
+}
+#define __FLAG_EMPTY	(void *)0xfffff00d
+jwk_set_t *jwks_create_strlen(const char *jwk_json_str, const size_t len)
+{
+	json_auto_t *j_all = NULL;
+	json_error_t error;
+	jwk_set_t *jwk_set;
+
+	if (jwk_json_str == NULL)
+		return NULL;
+
+	jwk_set = jwks_new();
+	if (jwk_set == NULL)
+		return NULL;
+
+	/* Just an empty set. */
+	if (jwk_json_str == __FLAG_EMPTY)
+		return jwk_set;
 
 	/* Parse the JSON string. */
-	j_all = json_loads(jwk_json_str, JSON_DECODE_ANY, &error);
-	if (j_all == NULL) {
-		jwks_write_error(jwk_set, "%s: %s", error.source, error.text);
-		return jwk_set;
-	}
+	j_all = json_loadb(jwk_json_str, len, JSON_DECODE_ANY, &error);
 
-	/* Check for "keys" as in a JWKS */
-	j_array = json_object_get(j_all, "keys");
+	return jwks_process(jwk_set, j_all, &error);
+}
 
-	if (j_array == NULL) {
-		/* Assume a single JSON Object for one JWK */
-		jwk_item = jwk_process_one(jwk_set, j_all);
-		jwks_item_add(jwk_set, jwk_item);
+jwk_set_t *jwks_create(const char *jwk_json_str)
+{
+	const char *real_str = jwk_json_str;
+	size_t len;
+
+	if (real_str == NULL) {
+		real_str = __FLAG_EMPTY;
+		len = 0;
 	} else {
-		/* We have a list, so parse them all. */
-		json_array_foreach(j_array, i, j_item) {
-			jwk_item = jwk_process_one(jwk_set, j_item);
-			jwks_item_add(jwk_set, jwk_item);
-		}
+		len = strlen(real_str);
 	}
 
-	return jwk_set;
+	return jwks_create_strlen(real_str, len);
+}
+
+jwk_set_t *jwks_create_fromfile(const char *file_name)
+{
+	json_auto_t *j_all = NULL;
+	json_error_t error;
+	jwk_set_t *jwk_set;
+
+	if (file_name == NULL)
+		return NULL;
+
+	jwk_set = jwks_new();
+	if (jwk_set == NULL)
+		return NULL;
+
+	/* Parse the JSON string. */
+	j_all = json_load_file(file_name, JSON_DECODE_ANY, &error);
+
+	return jwks_process(jwk_set, j_all, &error);
+}
+
+jwk_set_t *jwks_create_fromfp(FILE *input)
+{
+	json_auto_t *j_all = NULL;
+	json_error_t error;
+	jwk_set_t *jwk_set;
+
+	if (input == NULL)
+		return NULL;
+
+	jwk_set = jwks_new();
+	if (jwk_set == NULL)
+		return NULL;
+
+	/* Parse the JSON string. */
+	j_all = json_loadf(input, JSON_DECODE_ANY, &error);
+
+	return jwks_process(jwk_set, j_all, &error);
 }
