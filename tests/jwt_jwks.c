@@ -66,6 +66,8 @@ static void __jwks_check(const char *json, const char *pem)
 	if (item->alg == JWT_ALG_NONE && item->kty == JWK_KEY_TYPE_RSA) {
 		/* "alg" is optional, and it's missing in a few keys */
 		config.alg = JWT_ALG_RS256;
+	} else {
+		config.alg = item->alg;
 	}
 
 	/* Use our JWK */

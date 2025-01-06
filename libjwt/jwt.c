@@ -139,16 +139,10 @@ jwt_t *jwt_new(void)
 	memset(jwt, 0, sizeof(*jwt));
 
 	jwt->grants = json_object();
-	if (!jwt->grants) {
-		jwt_freep(&jwt);
-		return NULL;
-	}
-
 	jwt->headers = json_object();
-	if (!jwt->headers) {
+
+	if (!jwt->grants || !jwt->headers)
 		jwt_freep(&jwt);
-		return NULL;
-	}
 
 	return jwt;
 }
@@ -156,7 +150,6 @@ jwt_t *jwt_new(void)
 jwt_t *jwt_create(jwt_config_t *config)
 {
 	jwt_t *new = NULL;
-	jwt_alg_t alg;
 
 	/* Just an insecure JWT */
 	if (config == NULL)
@@ -166,29 +159,20 @@ jwt_t *jwt_create(jwt_config_t *config)
 	if (config->jw_key == NULL)
 		return NULL;
 
-	if (config->alg == JWT_ALG_NONE && config->jw_key->alg == JWT_ALG_NONE)
+	/* We also expect the caller to know what they want. */
+	if (config->alg <= JWT_ALG_NONE || config->alg >= JWT_ALG_INVAL)
 		return NULL;
 
-	/* If both are set, they need to match. */
-	if (config->alg != JWT_ALG_NONE &&
-	    config->jw_key->alg != JWT_ALG_NONE &&
+	/* If the key has it set, it must match. */
+	if (config->jw_key->alg != JWT_ALG_NONE &&
 	    config->alg != config->jw_key->alg)
-		return NULL;
-
-	if (config->alg != JWT_ALG_NONE)
-		alg = config->alg;
-	else
-		alg = config->jw_key->alg;
-
-	/* Make sure alg is sane */
-	if (alg < JWT_ALG_NONE || alg >= JWT_ALG_INVAL)
 		return NULL;
 
 	new = jwt_new();
 
 	if (new) {
 		new->jw_key = config->jw_key;
-		new->alg = alg;
+		new->alg = config->alg;
 	}
 
 	return new;
