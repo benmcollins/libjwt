@@ -210,7 +210,7 @@ configure_file(libjwt/libjwt.pc.in libjwt.pc @ONLY)
 install(FILES ${CMAKE_BINARY_DIR}/libjwt.pc
 	DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
 
-find_package(Doxygen 1.9)
+find_package(Doxygen 1.12)
 
 if (DOXYGEN_FOUND)
 	set(DOXYGEN_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/doxygen-doc)
