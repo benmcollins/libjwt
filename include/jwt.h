@@ -105,7 +105,7 @@ typedef enum {
  * Corresponds to the ``"kty"`` attribute of the JWK.
  *
  * @rfc{7517,4.1}
- * @rfc(7518,6.1}
+ * @rfc{7518,6.1}
  */
 typedef enum {
 	JWK_KEY_TYPE_NONE = 0,		/**< Unused on valid keys */
@@ -389,7 +389,9 @@ typedef int (*jwt_callback_t)(const jwt_t *, jwt_config_t *);
  */
 
 /**
- * @defgroup jwt_create_grp Create a JWT
+ * @defgroup jwt_create_grp Creation
+ *
+ * @raisewarning Complete overview of JWT create group
  * @{
  */
 
@@ -407,9 +409,12 @@ jwt_t *jwt_create(jwt_config_t *config);
  */
 
 /**
- * @defgroup jwt_verify_grp Token Verification
+ * @defgroup jwt_verify_grp Verification
  *
- * @raisewarning Complete the details of this information
+ * LibJWT provides mechanisms to verify a JWT including the signature block.
+ * Many aspects of this verification are defined by the relevant RFCs.
+ *
+ * @raisewarning Need more indepth information
  *
  * @{
  */
@@ -1196,7 +1201,11 @@ void jwks_free(jwk_set_t *jwk_set);
 
 #if defined(__GNUC__) || defined(__clang__)
 /**
- * @raisewarning Document jwks_freep
+ * @brief Helper function to free a JWK Set and set the pointer to NULL
+ *
+ * This is mainly to use with the jwt_set_auto_t type.
+ *
+ * @param Pointer to a pointer for a jwt_set_t object
  */
 static inline void jwks_freep(jwk_set_t **jwks) {
 	if (jwks) {

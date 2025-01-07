@@ -65,7 +65,7 @@ set(a_pre_b "<a type=\\\"button\\\" class=\\\"button\\\" target=\\\"_blank\\\" h
 
 # Used for easily linking to RFC and RFC sections
 set(DOXYGEN_ALIASES "rfc{1}=\"${fa_i} ${a_pre}\\1\\\">RFC-\\1</a>\"")
-string(APPEND DOXYGEN_ALIASES " \\\n\trfc{2}=\"${fa_i} ${a_pre_b}\\1#section-\\2\\\">RFC-\\1 Sec \\2</a>\"")
+string(APPEND DOXYGEN_ALIASES " \\\n\trfc{2}=\"${a_pre_b}\\1#section-\\2\\\">RFC-\\1 Sec \\2</a>\"")
 string(APPEND DOXYGEN_ALIASES " \\\n\trfc_t{2}=\"${fa_i} ${a_pre}\\1#section-\\2\\\">RFC-\\1 Sec \\2</a>\"")
 
 set(DOXYGEN_VERBATIM_VARS DOXYGEN_EXAMPLE_PATTERNS DOXYGEN_PREDEFINED
