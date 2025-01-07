@@ -215,6 +215,34 @@ typedef void (*jwt_free_t)(void *);
  */
 
 /**
+ * @brief Check JWT for error condition
+ *
+ * The relevance of this is dependent on whether this is a JWT being created,
+ * or one being verified. See those functions for more information. Either way,
+ * if a JWT has an error, it cannot be trusted.
+ *
+ * @param jwt Pointer to a jwt_t object
+ * @return 0 if no error, 1 if there is
+ *
+ * @remark When creating a JWT and verifying one, you shoudl always check this
+ *  state.
+ */
+JWT_EXPORT
+int jwt_error(const jwt_t *jwt);
+
+/**
+ * @brief Print an error message from a JWT
+ *
+ * If jwt_error() shows an an error condition, this will give you a better idea
+ * of the actual error being reported.
+ *
+ * @param jwt Pointer to a jwt_t object
+ * @return A string message. The string may be empty.
+ */
+JWT_EXPORT
+const char *jwt_error_msg(const jwt_t *jwt);
+
+/**
  * @brief Free a JWT object and any other resources it is using.
  *
  * After calling, the JWT object referenced will no longer be valid and
@@ -336,9 +364,9 @@ void jwt_config_init(jwt_config_t *config);
  *
  *     // Setup my_config with key, alg type, etc
  *
- *     ret = jwt_verify(&my_jwt, token, &my_config);
- *     if (ret)
- *         return ret;
+ *     my_jwt = jwt_verify(token, &my_config);
+ *     if (my_jwt == NULL || jwt_error(my_jwt))
+ *         ...;
  *
  *     // Success
  * }
@@ -389,16 +417,34 @@ jwt_t *jwt_create(jwt_config_t *config);
 /**
  * @brief Decode and verify a JWT
  *
- * @raisewarning Complete documentation of jwt_verify
+ * In order to verify a token, the config param MUST set jw_key and alg. Both
+ * are required. On return, you should inspect the resulting jwt_t for error
+ * using jwt_error(). You can print a message with jwt_error_msg().
  *
- * @param jwt Pointer to a JWT object pointer
+ * In order to verify, several things must be true:
+ * - The value of config.alg MUST match the value of alg in the token.
+ * - The value of config.jw_key.alg, if not "none" must also match the token
+ * - The token MUST have a signature block.
+ * - The key MUST be usable for the operation, either via the "use" attribute
+ *   being "sig" or the "key_ops" attribute have the "verify" bit set.
+ * - The defined signature MUST pass.
+ *
+ * If you want to decode an unsigned JWT, these MUST be true:
+ * - The config.alg and jwt.alg MUST be "none"
+ * - The config.jw_key MUST be NULL
+ * - The signature block in the token MUST be empty
+ *
+ * If you want to inspect a signed token, you should use jwt_verify_wcb() and
+ * use a callback function.
+ *
  * @param token Pointer to a nil terminated JWT string
  * @param config Pointer to a config structure to define how to verify the
- *   token. This can be NULL, in which case the token is simply decoded.
- * @return 0 on success, or an errno. On success, jwt will be allocated
+ *  token. This can be NULL, in which case the token is simply decoded.
+ * @return Pointer to a jwt_t object or NULL. Generally a NULL is unlikely. The
+ *  object should be checked with jwt_error() to check for errors.
  */
 JWT_EXPORT
-int jwt_verify(jwt_t **jwt, const char *token, jwt_config_t *config);
+jwt_t *jwt_verify(const char *token, jwt_config_t *config);
 
 /**
  * @brief Decode and verify a JWT, with user callback
@@ -408,20 +454,26 @@ int jwt_verify(jwt_t **jwt, const char *token, jwt_config_t *config);
  * This allows the user to perform some extra verification, and even provide a
  * key after decoding (e.g. to match a ``"kid"``).
  *
- * @raisewarning Complete documentation of jwt_verify_wcb
+ * The callback function is performed after initial parsing of the head and
+ * body parts of the token, but before verification. The callback can then
+ * inspect portions of the JWT, update the config (e.g. to set an alg or a
+ * jw_key).
  *
- * NOTE About NULL config and non-NULL cb and vice-a-versa
+ * The callback function can return non-zero to stop processing immediately.
+ * If the callback function returns zero, it does not mean that further
+ * verification will succeed. All aspects of jwt_verify() must still be
+ * followed.
  *
- * @param jwt Pointer to a JWT object pointer
  * @param token Pointer to a nil terminated JWT string
  * @param config Pointer to a config structure to define how to verify the
- *   token. This can be NULL, in which case the token is simply decoded.
+ *  token. This can be NULL, in which case the token is simply decoded.
  * @param cb Pointer to a callback
- * @return 0 on success, or an errno. On success, jwt will be allocated
+ * @return Pointer to a jwt_t object or NULL. Generally a NULL is unlikely. The
+ *  object should be checked with jwt_error() to check for errors.
  */
 JWT_EXPORT
-int jwt_verify_wcb(jwt_t **jwt, const char *token,
-		   jwt_config_t *config, jwt_callback_t cb);
+jwt_t *jwt_verify_wcb(const char *token, jwt_config_t *config,
+		      jwt_callback_t cb);
 
 /**
  * @}
@@ -1103,7 +1155,7 @@ jwk_set_t *jwks_create_fromfp(FILE *input);
  * @return 0 if no error exists, 1 if it does exists.
  */
 JWT_EXPORT
-int jwks_error(jwk_set_t *jwk_set);
+int jwks_error(const jwk_set_t *jwk_set);
 
 /**
  * @brief Check if there is an error within the jwk_set and any of
@@ -1120,7 +1172,7 @@ int jwks_error_any(jwk_set_t *jwk_set);
  * length string is valid if jwos_error() returns non-zero.
  *
  * @param jwk_set An existing jwk_set_t
- * @return NULL on error, valid string otherwise
+ * @return A string message. The string may be empty.
  */
 JWT_EXPORT
 const char *jwks_error_msg(const jwk_set_t *jwk_set);

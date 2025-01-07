@@ -95,45 +95,42 @@ END_TEST
 START_TEST(test_jwt_verify_invalid_token)
 {
 	jwt_t *jwt = NULL;
-	int ret = 0;
 
 	SET_OPS();
 
 	read_key("ec_key_secp384r1.json");
-	ret = jwt_verify(&jwt, jwt_es_invalid, &t_config);
+	jwt = jwt_verify(jwt_es_invalid, &t_config);
 	free_key();
-	ck_assert_int_ne(ret, 0);
-	ck_assert_ptr_eq(jwt, NULL);
+	ck_assert_ptr_nonnull(jwt);
+	ck_assert_int_ne(jwt_error(jwt), 0);
 }
 END_TEST
 
 START_TEST(test_jwt_verify_invalid_alg)
 {
 	jwt_t *jwt = NULL;
-	int ret = 0;
 
 	SET_OPS();
 
 	read_key("ec_key_secp384r1.json");
-	ret = jwt_verify(&jwt, jwt_es256, &t_config);
+	jwt = jwt_verify(jwt_es256, &t_config);
 	free_key();
-	ck_assert_int_ne(ret, 0);
-	ck_assert_ptr_eq(jwt, NULL);
+	ck_assert_ptr_nonnull(jwt);
+	ck_assert_int_ne(jwt_error(jwt), 0);
 }
 END_TEST
 
 START_TEST(test_jwt_verify_invalid_cert)
 {
 	jwt_t *jwt = NULL;
-	int ret = 0;
 
 	SET_OPS();
 
 	read_key("ec_key_secp521r1_pub.json");
-	ret = jwt_verify(&jwt, jwt_es256, &t_config);
+	jwt = jwt_verify(jwt_es256, &t_config);
 	free_key();
-	ck_assert_int_ne(ret, 0);
-	ck_assert_ptr_eq(jwt, NULL);
+	ck_assert_ptr_nonnull(jwt);
+	ck_assert_int_ne(jwt_error(jwt), 0);
 }
 END_TEST
 

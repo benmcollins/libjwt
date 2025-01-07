@@ -269,10 +269,9 @@ END_TEST
 
 START_TEST(test_jwt_encode_decode)
 {
-	jwt_test_auto_t *mytoken;
-	jwt_auto_t *ymtoken;
+	jwt_test_auto_t *mytoken = NULL;
+	jwt_auto_t *ymtoken = NULL;
 	char *encoded;
-	int rc;
 
 	SET_OPS();
 
@@ -284,8 +283,9 @@ START_TEST(test_jwt_encode_decode)
 	encoded = jwt_encode_str(mytoken);
 
 	t_config.alg = JWT_ALG_HS256;
-	rc = jwt_verify(&ymtoken, encoded, &t_config);
-	ck_assert_int_eq(rc, 0);
+	ymtoken = jwt_verify(encoded, &t_config);
+	ck_assert_ptr_nonnull(ymtoken);
+        ck_assert_int_eq(jwt_error(ymtoken), 0);
 
 	free(encoded);
 }

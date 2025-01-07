@@ -254,7 +254,7 @@ int jwks_item_key_bits(const jwk_item_t *item)
 	return item->bits;
 }
 
-int jwks_error(jwk_set_t *jwk_set)
+int jwks_error(const jwk_set_t *jwk_set)
 {
 	return jwk_set->error ? 1 : 0;
 }

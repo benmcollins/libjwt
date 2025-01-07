@@ -97,13 +97,12 @@ START_TEST(test_jwt_verify)
 			     "cmUuY29tIiwic3ViIjoidXNlcjAifQ.";
 	jwt_alg_t alg;
 	jwt_auto_t *jwt = NULL;
-	int ret;
 
 	SET_OPS();
 
-	ret = jwt_verify(&jwt, token, &config);
-	ck_assert_int_eq(ret, 0);
+	jwt = jwt_verify(token, &config);
 	ck_assert_ptr_nonnull(jwt);
+	ck_assert_int_eq(jwt_error(jwt), 0);
 
 	alg = jwt_get_alg(jwt);
 	ck_assert_int_eq(alg, JWT_ALG_NONE);
@@ -133,15 +132,14 @@ START_TEST(test_jwt_verify_wcb_alg_none)
 	JWT_CONFIG_DECLARE(config);
 	jwt_alg_t alg = JWT_ALG_HS256;
 	jwt_auto_t *jwt = NULL;
-	int ret;
 
 	SET_OPS();
 
 	config.ctx = &alg;
 
-	ret = jwt_verify_wcb(&jwt, token, &config, test_jwt_verify_alg_none_cb);
-	ck_assert_int_eq(ret, 0);
+	jwt = jwt_verify_wcb(token, &config, test_jwt_verify_alg_none_cb);
 	ck_assert_ptr_nonnull(jwt);
+	ck_assert_int_eq(jwt_error(jwt), 0);
 
 	ck_assert_int_eq(alg, JWT_ALG_NONE);
 
@@ -156,13 +154,12 @@ START_TEST(test_jwt_verify_invalid_final_dot)
 			     "eyJpc3MiOiJmaWxlcy5jeXBocmUuY29tIiwic"
 			     "3ViIjoidXNlcjAifQ";
 	jwt_auto_t *jwt = NULL;
-	int ret;
 
 	SET_OPS();
 
-	ret = jwt_verify(&jwt, token, &config);
-	ck_assert_int_eq(ret, EINVAL);
-	ck_assert_ptr_null(jwt);
+	jwt = jwt_verify(token, &config);
+	ck_assert_ptr_nonnull(jwt);
+	ck_assert_int_ne(jwt_error(jwt), 0);
 }
 END_TEST
 
@@ -173,13 +170,12 @@ START_TEST(test_jwt_verify_invalid_alg)
 			     "eyJpc3MiOiJmaWxlcy5jeXBocmUuY29tIiwic"
 			     "3ViIjoidXNlcjAifQ.";
 	jwt_auto_t *jwt = NULL;
-	int ret;
 
 	SET_OPS();
 
-	ret = jwt_verify(&jwt, token, &config);
-	ck_assert_int_eq(ret, EINVAL);
-	ck_assert_ptr_null(jwt);
+	jwt = jwt_verify(token, &config);
+	ck_assert_ptr_nonnull(jwt);
+	ck_assert_int_ne(jwt_error(jwt), 0);
 }
 END_TEST
 
@@ -194,25 +190,25 @@ START_TEST(test_jwt_verify_dot_dot)
 	SET_OPS();
 
 	/* Two dots */
-	ret = jwt_verify(&jwt, token, &config);
-	ck_assert_int_ne(ret, 0);
-	ck_assert_ptr_null(jwt);
+	jwt = jwt_verify(token, &config);
+	ck_assert_ptr_nonnull(jwt);
+	ck_assert_int_ne(jwt_error(jwt), 0);
 
 	/* One dot */
 	ret = strlen(token);
 	token[ret - 1] = '\0';
 
-	ret = jwt_verify(&jwt, token, &config);
-	ck_assert_int_ne(ret, 0);
-	ck_assert_ptr_null(jwt);
+	jwt = jwt_verify(token, &config);
+	ck_assert_ptr_nonnull(jwt);
+	ck_assert_int_ne(jwt_error(jwt), 0);
 
 	/* No dot */
 	ret = strlen(token);
 	token[ret - 1] = '\0';
 
-	ret = jwt_verify(&jwt, token, &config);
-	ck_assert_int_ne(ret, 0);
-	ck_assert_ptr_null(jwt);
+	jwt = jwt_verify(token, &config);
+	ck_assert_ptr_nonnull(jwt);
+	ck_assert_int_ne(jwt_error(jwt), 0);
 }
 
 /* { "typ": "JWT", "alg": "none" } . {} . */
@@ -221,13 +217,12 @@ START_TEST(test_jwt_verify_empty_body)
 	JWT_CONFIG_DECLARE(config);
 	const char token[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.e30.";
 	jwt_auto_t *jwt = NULL;
-	int ret;
 
 	SET_OPS();
 
-	ret = jwt_verify(&jwt, token, &config);
-	ck_assert_int_eq(ret, 0);
+	jwt = jwt_verify(token, &config);
 	ck_assert_ptr_nonnull(jwt);
+        ck_assert_int_eq(jwt_error(jwt), 0);
 }
 
 /* { "typ": "JWT", "alg": "HS256" } . { "test": 1 } . */
@@ -236,13 +231,12 @@ START_TEST(test_jwt_verify_nokey_alg_hs256)
 	JWT_CONFIG_DECLARE(config);
 	const char token[] = "eyJ0eXAiOiJBTEwiLCJhbGciOiJOT05FIn0.eyJ0ZXN0IjoxfQ.";
 	jwt_auto_t *jwt = NULL;
-	int ret;
 
 	SET_OPS();
 
-	ret = jwt_verify(&jwt, token, &config);
-	ck_assert_int_ne(ret, 0);
-	ck_assert_ptr_null(jwt);
+	jwt = jwt_verify(token, &config);
+	ck_assert_ptr_nonnull(jwt);
+        ck_assert_int_ne(jwt_error(jwt), 0);
 }
 END_TEST
 
@@ -252,13 +246,12 @@ START_TEST(test_jwt_verify_ignore_typ)
 	JWT_CONFIG_DECLARE(config);
 	const char token[] = "eyJ0eXAiOiJBTEwiLCJhbGciOiJub25lIn0.eyJ0ZXN0IjoxfQ.";
 	jwt_auto_t *jwt = NULL;
-	int ret;
 
 	SET_OPS();
 
-	ret = jwt_verify(&jwt, token, &config);
-	ck_assert_int_eq(ret, 0);
+	jwt = jwt_verify(token, &config);
 	ck_assert_ptr_nonnull(jwt);
+        ck_assert_int_eq(jwt_error(jwt), 0);
 }
 END_TEST
 
@@ -269,13 +262,12 @@ START_TEST(test_jwt_verify_invalid_head)
 			     "eyJpc3MiOiJmaWxlcy5jeXBocmUuY29tIiwic"
 			     "3ViIjoidXNlcjAifQ.";
 	jwt_auto_t *jwt = NULL;
-	int ret;
 
 	SET_OPS();
 
-	ret = jwt_verify(&jwt, token, &config);
-	ck_assert_int_eq(ret, EINVAL);
-	ck_assert_ptr_null(jwt);
+	jwt = jwt_verify(token, &config);
+	ck_assert_ptr_nonnull(jwt);
+	ck_assert_int_ne(jwt_error(jwt), 0);
 }
 END_TEST
 
@@ -286,7 +278,6 @@ START_TEST(test_jwt_verify_alg_none_with_key)
 			     "3ViIjoidXNlcjAifQ.";
 	JWT_CONFIG_DECLARE(config);
 	jwt_auto_t *jwt = NULL;
-	int ret;
 
 	SET_OPS();
 
@@ -294,9 +285,9 @@ START_TEST(test_jwt_verify_alg_none_with_key)
 	ck_assert_ptr_nonnull(g_item);
 	config.jw_key = g_item;
 
-	ret = jwt_verify(&jwt, token, &config);
-	ck_assert_int_eq(ret, EINVAL);
-	ck_assert_ptr_null(jwt);
+	jwt = jwt_verify(token, &config);
+	ck_assert_ptr_nonnull(jwt);
+	ck_assert_int_ne(jwt_error(jwt), 0);
 
 	free_key();
 }
@@ -309,13 +300,12 @@ START_TEST(test_jwt_verify_invalid_body)
 			     "eyJpc3MiOiJmaWxlcy5jeBocmUuY29tIiwic"
 			     "3ViIjoidXNlcjAifQ.";
 	jwt_auto_t *jwt = NULL;
-	int ret;
 
 	SET_OPS();
 
-	ret = jwt_verify(&jwt, token, &config);
-	ck_assert_int_eq(ret, EINVAL);
-	ck_assert_ptr_null(jwt);
+	jwt = jwt_verify(token, &config);
+	ck_assert_ptr_nonnull(jwt);
+	ck_assert_int_ne(jwt_error(jwt), 0);
 }
 END_TEST
 
@@ -326,7 +316,6 @@ START_TEST(test_jwt_verify_hs256)
 		"OjE3MzYxMTM5OTIsInN1YiI6InVzZXIwIn0.74dWICs1ezbHNBrPSmop3o"
 		"zc4GQ8YdZISXCxZX8LAjk";
 	jwt_auto_t *jwt = NULL;
-	int ret;
 
 	SET_OPS();
 
@@ -334,9 +323,9 @@ START_TEST(test_jwt_verify_hs256)
 	config.jw_key = g_item;
 	config.alg = JWT_ALG_HS256;
 
-	ret = jwt_verify(&jwt, token, &config);
-	ck_assert_int_eq(ret, 0);
+	jwt = jwt_verify(token, &config);
 	ck_assert_ptr_nonnull(jwt);
+	ck_assert_int_eq(jwt_error(jwt), 0);
 
 	free_key();
 }
@@ -351,13 +340,12 @@ START_TEST(test_jwt_verify_hs256_no_key_alg)
 			     "OiJmaWxlcy5jeXBocmUuY29tIiwic3ViIjoidXNlcjAif"
 			     "Q.dLFbrHVViu1e3VD1yeCd9aaLNed-bfXhSsF0Gh56fBg";
 	jwt_auto_t *jwt = NULL;
-	int ret;
 
 	SET_OPS();
 
-	ret = jwt_verify(&jwt, token, &config);
-	ck_assert_int_ne(ret, 0);
-	ck_assert_ptr_null(jwt);
+	jwt = jwt_verify(token, &config);
+	ck_assert_ptr_nonnull(jwt);
+	ck_assert_int_ne(jwt_error(jwt), 0);
 }
 END_TEST
 
@@ -372,7 +360,6 @@ START_TEST(test_jwt_verify_hs256_issue_1)
 		"ImlhdCI6MTQ4ODgxOTYwMCwidXNlcm5hbWUiOiJoZWxsby53b3JsZCJ9.t"
 		"JoAl_pvq95hK7GKqsp5TU462pLTbmSYZc1fAHzcqWM";
 	jwt_auto_t *jwt = NULL;
-	int ret;
 
 	SET_OPS();
 
@@ -381,9 +368,9 @@ START_TEST(test_jwt_verify_hs256_issue_1)
 	config.jw_key = g_item;
 	config.alg = JWT_ALG_HS256;
 
-	ret = jwt_verify(&jwt, token, &config);
-	ck_assert_int_eq(ret, 0);
+	jwt = jwt_verify(token, &config);
 	ck_assert_ptr_nonnull(jwt);
+	ck_assert_int_eq(jwt_error(jwt), 0);
 
 	free_key();
 }
@@ -396,7 +383,6 @@ START_TEST(test_jwt_verify_hs256_issue_2)
 		"OjE3MzYxMTQyOTIsInN1YiI6InVzZXIwIn0.CjttUxGvPjKIh1Cz8RAOoB"
 		"9i6xHKexJAsWzKwd6C7uM";
 	jwt_auto_t *jwt = NULL;
-	int ret;
 
 	SET_OPS();
 
@@ -404,9 +390,9 @@ START_TEST(test_jwt_verify_hs256_issue_2)
 	config.jw_key = g_item;
 	config.alg = JWT_ALG_HS256;
 
-	ret = jwt_verify(&jwt, token, &config);
-	ck_assert_int_eq(ret, 0);
+	jwt = jwt_verify(token, &config);
 	ck_assert_ptr_nonnull(jwt);
+	ck_assert_int_eq(jwt_error(jwt), 0);
 
 	free_key();
 }
@@ -419,7 +405,6 @@ START_TEST(test_jwt_verify_hs384)
 		"OjE3MzYxMTQxMTAsInN1YiI6InVzZXIwIn0.9bqi8aIAAS1L8uaOCFum-z"
 		"oHC96tJOuDHW9GzE7uUQbXPyg6FmXQ9LS92D1aQi82";
 	jwt_auto_t *jwt = NULL;
-	int ret;
 
 	SET_OPS();
 
@@ -427,9 +412,9 @@ START_TEST(test_jwt_verify_hs384)
 	config.jw_key = g_item;
 	config.alg = JWT_ALG_HS384;
 
-	ret = jwt_verify(&jwt, token, &config);
-	ck_assert_int_eq(ret, 0);
+	jwt = jwt_verify(token, &config);
 	ck_assert_ptr_nonnull(jwt);
+	ck_assert_int_eq(jwt_error(jwt), 0);
 
 	free_key();
 }
@@ -443,7 +428,6 @@ START_TEST(test_jwt_verify_hs512)
 		"kDHgi_EVbJBHvCt72mE7oVFJ9qU8WCx5ACMbyIuWdgvOozTUVCSHL6RtDo"
 		"JMq4JQ";
 	jwt_auto_t *jwt = NULL;
-        int ret;
 
 	SET_OPS();
 
@@ -451,9 +435,9 @@ START_TEST(test_jwt_verify_hs512)
 	config.jw_key = g_item;
 	config.alg = JWT_ALG_HS512;
 
-	ret = jwt_verify(&jwt, token, &config);
-	ck_assert_int_eq(ret, 0);
+	jwt = jwt_verify(token, &config);
 	ck_assert_ptr_nonnull(jwt);
+	ck_assert_int_eq(jwt_error(jwt), 0);
 
 	free_key();
 }
@@ -477,7 +461,6 @@ START_TEST(test_jwt_verify_wcb_hs512)
 			     "lh5uGT238te6kSacnVzBbC6qwzVMT1806oa1Y8_8EOg";
 	JWT_CONFIG_DECLARE(config);
 	jwt_auto_t *jwt = NULL;
-        int ret;
 
 	SET_OPS();
 
@@ -485,10 +468,9 @@ START_TEST(test_jwt_verify_wcb_hs512)
 
 	config.alg = JWT_ALG_HS512;
 
-	ret = jwt_verify_wcb(&jwt, token, &config,
-			     &test_jwt_verify_wcb_hs512_kp);
-	ck_assert_int_eq(ret, 0);
+	jwt = jwt_verify_wcb(token, &config, &test_jwt_verify_wcb_hs512_kp);
 	ck_assert_ptr_nonnull(jwt);
+	ck_assert_int_eq(jwt_error(jwt), 0);
 
 	ck_assert_ptr_eq(config.jw_key, g_item);
 
@@ -505,16 +487,15 @@ START_TEST(test_jwt_verify_wcb_invalid)
 			     "GgU6LOe4";
 	JWT_CONFIG_DECLARE(config);
 	jwt_auto_t *jwt = NULL;
-	int ret;
 
 	SET_OPS();
 
 	config.alg = JWT_ALG_HS512;
 
-	ret = jwt_verify_wcb(&jwt, token, &config,
-			     &test_jwt_verify_wcb_hs512_kp);
-	ck_assert_int_eq(ret, EINVAL);
-	ck_assert_ptr_null(jwt);
+	jwt = jwt_verify_wcb(token, &config, &test_jwt_verify_wcb_hs512_kp);
+	ck_assert_ptr_nonnull(jwt);
+	ck_assert_int_ne(jwt_error(jwt), 0);
+	ck_assert_str_eq(jwt_error_msg(jwt), "User callback returned error");
 }
 END_TEST
 
@@ -525,16 +506,16 @@ START_TEST(test_jwt_verify_wcb_invalid_body)
 			     "3ViIjoidXNlcjAifQ.";
 	JWT_CONFIG_DECLARE(config);
 	jwt_auto_t *jwt = NULL;
-	int ret;
 
 	SET_OPS();
 
 	config.alg = JWT_ALG_HS512;
 
-	ret = jwt_verify_wcb(&jwt, token, &config,
+	jwt = jwt_verify_wcb(token, &config,
 			     &test_jwt_verify_wcb_hs512_kp);
-	ck_assert_int_eq(ret, EINVAL);
-	ck_assert_ptr_null(jwt);
+	ck_assert_ptr_nonnull(jwt);
+	ck_assert_int_ne(jwt_error(jwt), 0);
+	ck_assert_str_eq(jwt_error_msg(jwt), "Error parsing body");
 }
 END_TEST
 
@@ -545,7 +526,6 @@ START_TEST(test_jwt_verify_invalid_base64)
 			     "OiJmaWxlcy5jeXBocmUuY29tIiwic3ViIjoidXNlcjAif"
 			     "Q.dLFbrHVViu1e3VD1yeCd9aaLNed-bfXhSsF0Gh56fBga";
 	jwt_auto_t *jwt = NULL;
-	int ret;
 
 	SET_OPS();
 
@@ -553,9 +533,9 @@ START_TEST(test_jwt_verify_invalid_base64)
 	config.jw_key = g_item;
 	config.alg = JWT_ALG_HS256;
 
-	ret = jwt_verify(&jwt, token, &config);
-	ck_assert_int_ne(ret, 0);
-	ck_assert_ptr_null(jwt);
+	jwt = jwt_verify(token, &config);
+	ck_assert_ptr_nonnull(jwt);
+        ck_assert_int_ne(jwt_error(jwt), 0);
 }
 END_TEST
 

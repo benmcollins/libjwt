@@ -122,6 +122,17 @@ jwt_alg_t jwt_str_alg(const char *alg)
 	return JWT_ALG_INVAL;
 }
 
+int jwt_error(const jwt_t *jwt)
+{
+	return jwt->error;
+}
+
+const char *jwt_error_msg(const jwt_t *jwt)
+{
+	return jwt->error_msg;
+}
+
+JWT_NO_EXPORT
 void jwt_scrub_key(jwt_t *jwt)
 {
 	jwt->jw_key = NULL;
@@ -507,15 +518,17 @@ int jwt_sign(jwt_t *jwt, char **out, unsigned int *len, const char *str,
 	}
 }
 
-int jwt_verify_sig(jwt_t *jwt, const char *head, unsigned int head_len,
-		   const char *sig)
+jwt_t *jwt_verify_sig(jwt_t *jwt, const char *head, unsigned int head_len,
+		      const char *sig)
 {
 	switch (jwt->alg) {
 	/* HMAC */
 	case JWT_ALG_HS256:
 	case JWT_ALG_HS384:
 	case JWT_ALG_HS512:
-		return jwt_ops->verify_sha_hmac(jwt, head, head_len, sig);
+		if (jwt_ops->verify_sha_hmac(jwt, head, head_len, sig))
+			jwks_write_error(jwt, "Token failed verification");
+		break;
 
 	/* RSA */
 	case JWT_ALG_RS256:
@@ -535,12 +548,16 @@ int jwt_verify_sig(jwt_t *jwt, const char *head, unsigned int head_len,
 
 	/* EdDSA */
 	case JWT_ALG_EDDSA:
-		return jwt_ops->verify_sha_pem(jwt, head, head_len, sig);
+		if (jwt_ops->verify_sha_pem(jwt, head, head_len, sig))
+			jwks_write_error(jwt, "Token failed verification");
+		break;
 
 	/* You wut, mate? */
 	default:
-		return EINVAL;
+		jwks_write_error(jwt, "Unsupported algorithm, could not verify");
 	}
+
+	return jwt;
 }
 
 void jwt_config_init(jwt_config_t *config)

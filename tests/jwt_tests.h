@@ -211,16 +211,15 @@ static void __verify_jwt(const char *jwt_str, const jwt_alg_t alg,
 			 const char *file)
 {
 	jwt_auto_t *jwt = NULL;
-	int ret = 0;
 
 	read_key(file);
 
 	t_config.alg = alg;
 
-	ret = jwt_verify(&jwt, jwt_str, &t_config);
+	jwt = jwt_verify(jwt_str, &t_config);
 	free_key();
-	ck_assert_int_eq(ret, 0);
 	ck_assert_ptr_nonnull(jwt);
+        ck_assert_int_eq(jwt_error(jwt), 0);
 
 	ck_assert_int_eq(jwt_get_alg(jwt), alg);
 
@@ -232,15 +231,12 @@ static void __verify_jwk(const char *jwt_str, const jwk_item_t *item)
 {
 	JWT_CONFIG_DECLARE(config);
 	jwt_auto_t *jwt = NULL;
-	int ret = 0;
 
 	config.jw_key = item;
 	config.alg = jwks_item_alg(item);
-	ret = jwt_verify(&jwt, jwt_str, &config);
-	ck_assert_int_eq(ret, 0);
+	jwt = jwt_verify(jwt_str, &config);
 	ck_assert_ptr_nonnull(jwt);
-
-	/* auto free */
+        ck_assert_int_eq(jwt_error(jwt), 0);
 }
 
 __attribute__((unused))
@@ -288,10 +284,9 @@ static void __verify_alg_key(const char *key_file, const char *jwt_str,
 
 	t_config.alg = alg;
 
-	ret = jwt_verify(&jwt, jwt_str, &t_config);
-
-	ck_assert_int_eq(ret, 0);
+	jwt = jwt_verify(jwt_str, &t_config);
 	ck_assert_ptr_nonnull(jwt);
+	ck_assert_int_eq(jwt_error(jwt), 0);
 
 	ck_assert_int_eq(alg, jwt_get_alg(jwt));
 

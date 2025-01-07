@@ -42,7 +42,7 @@ static int jwt_parse_body(jwt_t *jwt, char *body)
 
 	jwt->grants = jwt_base64uri_decode_to_json(body);
 	if (!jwt->grants)
-		return EINVAL;
+		return 1;
 
 	return 0;
 }
@@ -56,67 +56,69 @@ static int jwt_parse_head(jwt_t *jwt, char *head)
 
 	jwt->headers = jwt_base64uri_decode_to_json(head);
 	if (!jwt->headers)
-		return EINVAL;
+		return 1;
 
 	alg = get_js_string(jwt->headers, "alg");
 	jwt->alg = jwt_str_alg(alg);
 	if (jwt->alg >= JWT_ALG_INVAL)
-		return EINVAL;
+		return 1;
 
 	return 0;
 }
 
-static int jwt_parse(jwt_t **jwt, const char *token, unsigned int *len)
+static int jwt_parse(jwt_t *jwt, const char *token, unsigned int *len)
 {
-	char *head = NULL;
+	char_auto *head = NULL;
 	char *body, *sig;
-	int ret = EINVAL;
 
 	head = jwt_strdup(token);
 
-	if (!head)
-		return ENOMEM; // LCOV_EXCL_LINE
+	if (!head) {
+		jwks_write_error(jwt, "Error allocating memory");
+		return 1;
+	}
 
 	/* Find the components. */
 	for (body = head; body[0] != '.'; body++) {
-		if (body[0] == '\0')
-			goto parse_done;
+		if (body[0] == '\0') {
+			jwks_write_error(jwt,
+				"No dot found looking for end of header");
+			return 1;
+		}
 	}
 
 	body[0] = '\0';
 	body++;
 
 	for (sig = body; sig[0] != '.'; sig++) {
-		if (sig[0] == '\0')
-			goto parse_done;
+		if (sig[0] == '\0') {
+			jwks_write_error(jwt,
+				"No dot found looking for end of body");
+			return 1;
+		}
 	}
 
 	sig[0] = '\0';
 
 	/* Now that we have everything split up, let's check out the
 	 * header. */
-	*jwt = jwt_new();
-	if (*jwt == NULL)
-		goto parse_done;
-
-	if ((ret = jwt_parse_head((*jwt), head)))
-		goto parse_done;
-
-	ret = jwt_parse_body((*jwt), body);
-parse_done:
-	if (ret) {
-		jwt_freep(jwt);
-	} else {
-		*len = sig - head;
+	if (jwt_parse_head(jwt, head)) {
+		jwks_write_error(jwt, "Error parsing header");
+		return 1;
 	}
 
-	jwt_freemem(head);
+	if (jwt_parse_body(jwt, body)) {
+		jwks_write_error(jwt, "Error parsing body");
+		return 1;
+	}
 
-	return ret;
+	*len = sig - head;
+
+	return 0;
 }
 
 /* This is after parsing and possibly a user callback. */
-static int __verify_config_post(const jwt_t *jwt, const jwt_config_t *config,
+static int __verify_config_post(jwt_t *jwt, const jwt_config_t *config,
 				unsigned int sig_len)
 {
 	/* The easy out; insecure JWT, and the caller expects it. */
@@ -125,88 +127,113 @@ static int __verify_config_post(const jwt_t *jwt, const jwt_config_t *config,
 		return 0;
 
 	/* The quick fail. The caller and JWT disagree. */
-	if (config->alg != jwt->alg)
-		return EINVAL;
+	if (config->alg != jwt->alg) {
+		jwks_write_error(jwt, "JWT alg does not match expected value");
+		return 1;
+	}
 
 	/* At this point, someone is expecting a sig and we also know the
 	 * caller and the JWT token agree on the alg. */
 
 	/* We require a key and a signature. */
-	if (config->jw_key == NULL || !sig_len)
-		return EINVAL;
+	if (config->jw_key == NULL || !sig_len) {
+		jwks_write_error(jwt, "JWT does not contain a signature");
+		return 1;
+	}
 
 	/* If the key has an alg, it must match the caller. */
 	if (config->jw_key->alg != JWT_ALG_NONE &&
-	    config->jw_key->alg != config->alg)
-		return EINVAL;
+	    config->jw_key->alg != config->alg) {
+		jwks_write_error(jwt, "JWT alg does not much the key being used");
+		return 1;
+	}
 
 	return 0;
 }
 
-static int jwt_verify_complete(jwt_t **jwt, const jwt_config_t *config,
-			       const char *token, unsigned int payload_len)
+static jwt_t *jwt_verify_complete(jwt_t *jwt, const jwt_config_t *config,
+				  const char *token, unsigned int payload_len)
 {
 	const char *sig;
 	unsigned int sig_len;
-	int ret = 0;
 
 	sig = token + (payload_len + 1);
 	sig_len = strlen(sig);
 
 	/* Check for conflicts in user request and JWT */
-	ret = __verify_config_post(*jwt, config, sig_len);
-	if (ret)
-		goto decode_done;
+	if (__verify_config_post(jwt, config, sig_len))
+		return jwt;
 
 	/* After all the checks, if we don't have a sig, we can move on. */
 	if (!sig_len)
-		return 0;
+		return jwt;
 
 	/* At this point, config is never NULL */
-        (*jwt)->jw_key = config->jw_key;
+	jwt->jw_key = config->jw_key;
 
-	ret = jwt_verify_sig(*jwt, token, payload_len, sig);
-
-decode_done:
-	if (ret)
-		jwt_freep(jwt);
-
-	return ret;
+	return jwt_verify_sig(jwt, token, payload_len, sig);
 }
 
 /*
  * If no callback then we act just like jwt_verify().
  */
-int jwt_verify_wcb(jwt_t **jwt, const char *token, jwt_config_t *config,
-		   jwt_callback_t cb)
+jwt_t *jwt_verify_wcb(const char *token, jwt_config_t *config,
+		      jwt_callback_t cb)
 {
 	unsigned int payload_len;
-	int ret;
+	jwt_t *jwt = NULL;
 
-	if (jwt == NULL || config == NULL)
-		return EINVAL;
+	if (config == NULL)
+		return NULL;
 
-	*jwt = NULL;
+	jwt = jwt_new();
+	if (jwt == NULL)
+		return NULL;
 
-	/* First parsing pass */
-	ret = jwt_parse(jwt, token, &payload_len);
-	if (ret)
-		return ret;
+	/* First parsing pass, error will be set for us */
+	if (jwt_parse(jwt, token, &payload_len))
+		return jwt;
 
 	/* Let the user handle this and update config */
-	if (cb) {
-		ret = cb(*jwt, config);
-		if (ret) {
-			jwt_freep(jwt);
-			return ret;
-		}
+	if (cb && cb(jwt, config)) {
+		jwks_write_error(jwt, "User callback returned error");
+		return jwt;
 	}
 
 	/* Finish it up */
 	return jwt_verify_complete(jwt, config, token, payload_len);
 }
 
-int jwt_verify(jwt_t **jwt, const char *token, jwt_config_t *config)
+jwt_t *jwt_verify(const char *token, jwt_config_t *config)
 {
-	return jwt_verify_wcb(jwt, token, config, NULL);
+	return jwt_verify_wcb(token, config, NULL);
 }
+
+#if 0
+jwt_t *jwt_verify_jwks(jwk_set_t *jwk_set, const char *token)
+{
+	JWT_CONFIG_DECLARE(config);
+
+	if (token == NULL || jwk_set == NULL)
+		return NULL;
+
+	*jwt = jwt_new();
+	if (*jwt == NULL)
+		return NULL;
+
+	config.ctx = jwk_set;
+
+	ret = jwt_parse(jwt, token, &payload_len);
+	if (ret) {
+		jwks_write_error(jwt, "Error parsing token");
+		return jwt;
+	}
+
+	if (jwt->alg == JWT_ALG_NONE) {
+		jwks_write_error(jwt, "Token does not have an 'alg' attribute");
+		return jwt;
+	}
+
+	ret = 
+}
+#endif

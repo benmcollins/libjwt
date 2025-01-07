@@ -132,16 +132,15 @@ END_TEST
 START_TEST(test_jwt_verify_invalid_rsa_pss)
 {
 	jwt_t *jwt = NULL;
-	int ret = 0;
 
 	SET_OPS();
 
 	read_key(PS_KEY_PUB_256);
 	t_config.alg = JWT_ALG_PS256;
-	ret = jwt_verify(&jwt, jwt_ps256_2048_invalid, &t_config);
+	jwt = jwt_verify(jwt_ps256_2048_invalid, &t_config);
 	free_key();
-	ck_assert_int_ne(ret, 0);
-	ck_assert_ptr_eq(jwt, NULL);
+	ck_assert_ptr_nonnull(jwt);
+	ck_assert_int_ne(jwt_error(jwt), 0);
 }
 END_TEST
 

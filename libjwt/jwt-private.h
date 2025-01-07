@@ -46,6 +46,9 @@ struct jwt {
 	json_t *headers;
 
 	const jwk_item_t *jw_key;
+
+	int error;
+	char error_msg[256];
 };
 
 struct jwt_valid {
@@ -59,7 +62,8 @@ struct jwt_valid {
 };
 
 /* Yes, this is a bit of overhead, but it keeps me from having to
- * expose list.h in jwt.h. */
+ * expose list.h in jwt.h.
+ * XXX We no longer need to abstract this. */
 typedef struct jwk_list_item {
 	ll_t node;
 	jwk_item_t *item;
@@ -193,7 +197,7 @@ JWT_NO_EXPORT
 void jwt_scrub_key(jwt_t *jwt);
 
 JWT_NO_EXPORT
-int jwt_verify_sig(jwt_t *jwt, const char *head, unsigned int head_len,
+jwt_t *jwt_verify_sig(jwt_t *jwt, const char *head, unsigned int head_len,
                    const char *sig);
 JWT_NO_EXPORT
 int jwt_sign(jwt_t *jwt, char **out, unsigned int *len, const char *str,

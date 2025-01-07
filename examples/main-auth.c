@@ -136,9 +136,10 @@ int main(int argc, char *argv[])
 	/* Decode jwt */
 	config.jw_key = item;
 	config.alg = opt_alg;
-	ret = jwt_verify(&jwt, token, &config);
-	if (ret != 0 || jwt == NULL) {
-		fprintf(stderr, "JWT could not be verified\n");
+	jwt = jwt_verify(token, &config);
+	if (jwt == NULL || jwt_error(jwt)) {
+		fprintf(stderr, "JWT could not be verified: %s\n",
+			jwt ? jwt_error_msg(jwt) : "Unknown reason");
 		exit(EXIT_FAILURE);
 	}
 

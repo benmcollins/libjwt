@@ -84,9 +84,9 @@ START_TEST(test_jwt_validate_rs256)
 	t_config.alg = JWT_ALG_RS256;
 
 	read_key("rsa_key_2048_pub.json");
-	ret = jwt_verify(&jwt, jwt_rs256_2048, &t_config);
-	ck_assert_int_eq(ret, 0);
+	jwt = jwt_verify(jwt_rs256_2048, &t_config);
 	ck_assert_ptr_nonnull(jwt);
+	ck_assert_int_eq(jwt_error(jwt), 0);
 
 	jwt_valid_new(&jwt_valid, JWT_ALG_RS256);
 	ck_assert_ptr_nonnull(jwt_valid);
@@ -192,30 +192,28 @@ END_TEST
 START_TEST(test_jwt_verify_invalid_token)
 {
 	jwt_t *jwt = NULL;
-	int ret = 0;
 
 	SET_OPS();
 
 	read_key("rsa_key_2048.json");
-	ret = jwt_verify(&jwt, jwt_rs256_invalid, &t_config);
+	jwt = jwt_verify(jwt_rs256_invalid, &t_config);
 	free_key();
-	ck_assert_int_ne(ret, 0);
-	ck_assert_ptr_null(jwt);
+	ck_assert_ptr_nonnull(jwt);
+        ck_assert_int_ne(jwt_error(jwt), 0);
 }
 END_TEST
 
 START_TEST(test_jwt_verify_invalid_cert)
 {
 	jwt_t *jwt = NULL;
-	int ret = 0;
 
 	SET_OPS();
 
 	read_key("rsa_key_8192_pub.json");
-	ret = jwt_verify(&jwt, jwt_rs256_2048, &t_config);
+	jwt = jwt_verify(jwt_rs256_2048, &t_config);
 	free_key();
-	ck_assert_int_ne(ret, 0);
-	ck_assert_ptr_null(jwt);
+	ck_assert_ptr_nonnull(jwt);
+        ck_assert_int_ne(jwt_error(jwt), 0);
 }
 END_TEST
 
