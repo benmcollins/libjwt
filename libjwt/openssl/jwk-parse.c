@@ -147,7 +147,6 @@ static unsigned char *set_one_octet(OSSL_PARAM_BLD *build,
 static int pctx_to_pem(EVP_PKEY_CTX *pctx, OSSL_PARAM *params,
 		       jwk_item_t *item, int priv)
 {
-	jwk_openssl_ctx_t *jwk_ctx = NULL;
 	BIO *bio = NULL;
 	EVP_PKEY *pkey = NULL;
 	char *src = NULL, *dest = NULL;
@@ -161,17 +160,8 @@ static int pctx_to_pem(EVP_PKEY_CTX *pctx, OSSL_PARAM *params,
 		goto cleanup_pem;
 	}
 
-	/* We need to set provider before we attach anything that may need
-	 * cleaning up later. */
-	jwk_ctx = jwt_malloc(sizeof(*jwk_ctx));
-	if (jwk_ctx == NULL) {
-		jwks_write_error(item, "Unable to allocate ctx");
-		goto cleanup_pem;
-	}
-
 	item->provider = JWT_CRYPTO_OPS_OPENSSL;
-	jwk_ctx->pkey = pkey;
-	item->provider_data = jwk_ctx;
+	item->provider_data = pkey;
 
 	EVP_PKEY_get_size_t_param(pkey, OSSL_PKEY_PARAM_BITS,
 				  &item->bits);
@@ -524,14 +514,10 @@ cleanup_ec:
 JWT_NO_EXPORT
 void openssl_process_item_free(jwk_item_t *item)
 {
-	jwk_openssl_ctx_t *jwk_ctx = NULL;
-
 	if (item == NULL || item->provider != JWT_CRYPTO_OPS_OPENSSL)
 		return;
 
-	jwk_ctx = item->provider_data;
-	EVP_PKEY_free(jwk_ctx->pkey);
-	jwt_freemem(jwk_ctx);
+	EVP_PKEY_free(item->provider_data);
 	OPENSSL_free(item->pem);
 
 	item->pem = NULL;

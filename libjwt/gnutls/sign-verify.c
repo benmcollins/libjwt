@@ -19,6 +19,8 @@
 
 #include "jwt-private.h"
 
+#include "jwt-gnutls.h"
+
 /**
  * libjwt Cryptographic Signature/Verification function definitions
  */
@@ -28,6 +30,9 @@ static int gnutls_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 	int alg;
 	void *key;
 	size_t key_len;
+
+	if (!ops_compat(jwt->jw_key, JWT_CRYPTO_OPS_OPENSSL))
+		return EINVAL;
 
 	key = jwt->jw_key->oct.key;
 	key_len = jwt->jw_key->oct.len;
@@ -90,7 +95,10 @@ static int gnutls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		s_out_padding = 0;
 	size_t out_size;
 
-	if (jwt->jw_key != NULL)
+	if (jwt->alg == JWT_ALG_ES256K)
+		return ENOTSUP;
+
+	if (jwt->jw_key->pem == NULL)
 		return EINVAL;
 
 	gnutls_x509_privkey_t key;
@@ -274,10 +282,6 @@ static int gnutls_verify_sha_pem(jwt_t *jwt, const char *head,
 				 unsigned int head_len, const char *sig_b64)
 {
 	gnutls_datum_t r, s;
-	gnutls_datum_t cert_dat = {
-		(unsigned char *)jwt->jw_key->pem,
-		strlen(jwt->jw_key->pem)
-	};
 	gnutls_datum_t data = {
 		(unsigned char *)head,
 		head_len
@@ -286,6 +290,17 @@ static int gnutls_verify_sha_pem(jwt_t *jwt, const char *head,
 	gnutls_pubkey_t pubkey;
 	int alg, ret = 0, sig_len;
 	unsigned char *sig = NULL;
+
+	if (jwt->jw_key->pem == NULL)
+		return EINVAL;
+
+	gnutls_datum_t cert_dat = {
+		(unsigned char *)jwt->jw_key->pem,
+		strlen(jwt->jw_key->pem)
+	};
+
+	if (jwt->alg == JWT_ALG_ES256K)
+		return ENOTSUP;
 
 	switch (jwt->alg) {
 	/* RSA */
@@ -342,8 +357,29 @@ static int gnutls_verify_sha_pem(jwt_t *jwt, const char *head,
 	}
 
 	if ((ret = gnutls_pubkey_import(pubkey, &cert_dat, GNUTLS_X509_FMT_PEM))) {
-		ret = EINVAL;
-		goto verify_clean_pubkey;
+		gnutls_privkey_t privkey;
+
+		/* Try loading as a private key, and extracting the pubkey. This is pefectly
+		 * legit. A JWK can have a private key with key_ops of SIGN and VERIFY. */
+		if (gnutls_privkey_init(&privkey)) {
+			ret = ENOMEM;
+			goto verify_clean_pubkey;
+		}
+
+		/* Try loading as a private key, and extracting the pubkey */
+		if (gnutls_privkey_import_x509_raw(privkey, &cert_dat, GNUTLS_X509_FMT_PEM, NULL, 0)) {
+			ret = EINVAL;
+			gnutls_privkey_deinit(privkey);
+			goto verify_clean_pubkey;
+		}
+
+		ret = gnutls_pubkey_import_privkey(pubkey, privkey, 0, 0);
+		gnutls_privkey_deinit(privkey);
+
+		if (ret) {
+			ret = EINVAL;
+			goto verify_clean_pubkey;
+		}
 	}
 
 	/* Rebuild signature using r and s extracted from sig when jwt->alg
@@ -401,11 +437,6 @@ verify_clean_sig:
 	return ret;
 }
 
-int gnutls_process_eddsa(json_t *jwk, jwk_item_t *item);
-int gnutls_process_rsa(json_t *jwk, jwk_item_t *item);
-int gnutls_process_ec(json_t *jwk, jwk_item_t *item);
-void gnutls_process_item_free(jwk_item_t *item);
-
 /* Export our ops */
 struct jwt_crypto_ops jwt_gnutls_ops = {
 	.name			= "gnutls",
@@ -417,9 +448,9 @@ struct jwt_crypto_ops jwt_gnutls_ops = {
 	.verify_sha_pem		= gnutls_verify_sha_pem,
 
 	/* Needs to be implemented */
-	.jwk_implemented	= 0,
-	.process_eddsa		= gnutls_process_eddsa,
-	.process_rsa		= gnutls_process_rsa,
-	.process_ec		= gnutls_process_ec,
-	.process_item_free	= gnutls_process_item_free,
+	.jwk_implemented	= 1,
+	.process_eddsa		= openssl_process_eddsa,
+	.process_rsa		= openssl_process_rsa,
+	.process_ec		= openssl_process_ec,
+	.process_item_free	= openssl_process_item_free,
 };

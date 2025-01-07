@@ -84,18 +84,6 @@ static jwt_test_op_t jwt_test_ops[] = {
 	ck_assert_str_eq(ops, jwt_test_ops[_i].name);		\
 })
 
-#define SET_OPS_JWK() ({					\
-	int r = jwt_set_crypto_ops_t(jwt_test_ops[_i].type);	\
-	ck_assert_int_eq(r, 0);					\
-	if (!jwt_crypto_ops_supports_jwk()) {			\
-		errno = 0;					\
-		jwk_set_t *jwks = jwks_create(NULL);		\
-		ck_assert_ptr_nonnull(jwks);			\
-		ck_assert(!jwks_error(jwks));			\
-		return;						\
-	}							\
-})
-
 __attribute__((unused)) static jwk_set_t *g_jwk_set;
 __attribute__((unused)) static const jwk_item_t *g_item;
 

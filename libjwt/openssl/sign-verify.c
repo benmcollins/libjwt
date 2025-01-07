@@ -34,6 +34,9 @@ static int openssl_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 	void *key;
 	size_t key_len;
 
+	if (!ops_compat(jwt->jw_key, JWT_CRYPTO_OPS_OPENSSL))
+		return EINVAL;
+
 	key = jwt->jw_key->oct.key;
 	key_len = jwt->jw_key->oct.len;
 
@@ -183,7 +186,6 @@ static int jwt_ec_d2i(jwt_t *jwt, char **out, unsigned int *len,
 static int openssl_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 				const char *str, unsigned int str_len)
 {
-	jwk_openssl_ctx_t *jwk_ctx = NULL;
 	EVP_MD_CTX *mdctx = NULL;
 	EVP_PKEY_CTX *pkey_ctx = NULL;
 	BIO *bufkey = NULL;
@@ -197,8 +199,7 @@ static int openssl_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 	if (!ops_compat(jwt->jw_key, JWT_CRYPTO_OPS_OPENSSL))
 		return EINVAL;
 
-	jwk_ctx = jwt->jw_key->provider_data;
-	pkey = jwk_ctx->pkey;
+	pkey = jwt->jw_key->provider_data;
 
 	switch (jwt->alg) {
 	/* RSA */
@@ -309,8 +310,6 @@ jwt_sign_sha_pem_done:
 		jwt_freemem(sig);
 
 	BIO_free(bufkey);
-	if (jwk_ctx == NULL)
-		EVP_PKEY_free(pkey);
 	EVP_MD_CTX_destroy(mdctx);
 
 	return ret;
@@ -321,7 +320,6 @@ jwt_sign_sha_pem_done:
 static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 				  unsigned int head_len, const char *sig_b64)
 {
-	jwk_openssl_ctx_t *jwk_ctx = NULL;
 	unsigned char *sig = NULL;
 	EVP_MD_CTX *mdctx = NULL;
 	EVP_PKEY_CTX *pkey_ctx = NULL;
@@ -337,8 +335,7 @@ static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 
 	if (!ops_compat(jwt->jw_key, JWT_CRYPTO_OPS_OPENSSL))
 		return EINVAL;
-	jwk_ctx = jwt->jw_key->provider_data;
-	pkey = jwk_ctx->pkey;
+	pkey = jwt->jw_key->provider_data;
 
 	switch (jwt->alg) {
 	/* RSA */
@@ -465,8 +462,6 @@ static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 
 jwt_verify_sha_pem_done:
 	BIO_free(bufkey);
-	if (jwk_ctx == NULL)
-		EVP_PKEY_free(pkey);
 	EVP_MD_CTX_destroy(mdctx);
 	jwt_freemem(sig);
 	ECDSA_SIG_free(ec_sig);

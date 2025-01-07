@@ -46,14 +46,14 @@ if (WITH_GNUTLS)
 	if (NOT GNUTLS_AUTO)
 		set(GNUTLS_REQUIRED REQUIRED)
 	endif()
-	# pkg_check_modules(GNUTLS gnutls>=3.6.0 IMPORTED_TARGET
-	#		  ${GNUTLS_REQUIRED})
+	pkg_check_modules(GNUTLS gnutls>=3.6.0 IMPORTED_TARGET
+			  ${GNUTLS_REQUIRED})
 endif()
 
 if (WITH_OPENSSL)
-	if (NOT OPENSSL_AUTO)
+	#if (NOT OPENSSL_AUTO)
 		set(OPENSSL_REQUIRED REQUIRED)
-	endif()
+	#endif()
 	pkg_check_modules(OPENSSL openssl>=1.1.0 IMPORTED_TARGET
 			  ${OPENSSL_REQUIRED})
 endif()

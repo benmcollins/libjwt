@@ -15,7 +15,7 @@ START_TEST(test_jwks_ec_pub_missing)
 	const jwk_item_t *item;
 	const char exp[] = "Missing or invalid type for one of crv, x, or y for pub key";
 
-	SET_OPS_JWK();
+	SET_OPS();
 
 	jwk_set = jwks_create(json);
 
@@ -39,7 +39,7 @@ START_TEST(test_jwks_ec_pub_bad_type)
 	const jwk_item_t *item;
 	const char exp[] = "Missing or invalid type for one of crv, x, or y for pub key";
 
-	SET_OPS_JWK();
+	SET_OPS();
 
 	jwk_set = jwks_create(json);
 
@@ -63,7 +63,7 @@ START_TEST(test_jwks_ec_pub_bad64)
 	const jwk_item_t *item;
 	const char exp[] = "Error generating pub key from components";
 
-	SET_OPS_JWK();
+	SET_OPS();
 
 	jwk_set = jwks_create(json);
 
@@ -87,7 +87,7 @@ START_TEST(test_jwks_ec_pub_bad_points)
 	const jwk_item_t *item;
 	const char exp[] = "Error generating pub key from components";
 
-	SET_OPS_JWK();
+	SET_OPS();
 
 	jwk_set = jwks_create(json);
 

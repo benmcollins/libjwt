@@ -15,7 +15,7 @@ START_TEST(test_jwks_rsa_pub_missing)
 	const jwk_item_t *item;
 	const char exp[] = "Missing required RSA component: n or e";
 
-	SET_OPS_JWK();
+	SET_OPS();
 
 	jwk_set = jwks_create(json);
 
@@ -39,7 +39,7 @@ START_TEST(test_jwks_rsa_pub_bad_type)
 	const jwk_item_t *item;
 	const char exp[] = "Error decoding pub components";
 
-	SET_OPS_JWK();
+	SET_OPS();
 
 	jwk_set = jwks_create(json);
 
@@ -63,7 +63,7 @@ START_TEST(test_jwks_rsa_pub_bad64)
 	const jwk_item_t *item;
 	const char exp[] = "Error decoding pub components";
 
-	SET_OPS_JWK();
+	SET_OPS();
 
 	jwk_set = jwks_create(json);
 
@@ -88,7 +88,7 @@ START_TEST(test_jwks_rsa_pub_binary64)
 	jwk_set_t *jwk_set = NULL;
 	const jwk_item_t *item;
 
-	SET_OPS_JWK();
+	SET_OPS();
 
 	jwk_set = jwks_create(json);
 
@@ -112,7 +112,7 @@ START_TEST(test_jwks_rsa_priv_missing)
 	const jwk_item_t *item;
 	const char exp[] = "Some priv key components exist, but some are missing";
 
-	SET_OPS_JWK();
+	SET_OPS();
 
 	jwk_set = jwks_create(json);
 
@@ -139,7 +139,7 @@ START_TEST(test_jwks_rsa_priv_bad64)
 	const jwk_item_t *item;
 	const char exp[] = "Error decoding priv components";
 
-	SET_OPS_JWK();
+	SET_OPS();
 
 	jwk_set = jwks_create(json);
 

@@ -176,7 +176,7 @@ START_TEST(test_jwt_encode_rsa_1024)
 	char *out;
 	int ret = 0;
 
-	SET_OPS_JWK();
+	SET_OPS();
 
 	CREATE_JWT(jwt, "rsa_key_1024.json", JWT_ALG_RS256);
 

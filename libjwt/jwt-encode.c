@@ -105,14 +105,13 @@ char *jwt_dump_grants_str(jwt_t *jwt, int pretty)
 int jwt_dump_fp(jwt_t *jwt, FILE *fp, int pretty)
 {
 	char_auto *out = NULL;
-	int ret = 0;
 
-	ret = jwt_dump(jwt, &out, pretty);
+	errno = jwt_dump(jwt, &out, pretty);
 
-	if (ret == 0)
+	if (errno == 0)
 		fputs(out, fp);
 
-	return ret;
+	return errno;
 }
 
 char *jwt_dump_str(jwt_t *jwt, int pretty)

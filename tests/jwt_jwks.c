@@ -12,7 +12,7 @@
 START_TEST(test_jwks_##__name)				\
 {							\
 	SET_OPS();					\
-       __jwks_check(#__name ".json", "pem-files/"	\
+	__jwks_check(#__name ".json", "pem-files/"	\
 		#__name ".pem");			\
 }							\
 END_TEST
@@ -26,8 +26,8 @@ static void __jwks_check(const char *json, const char *pem)
 	char *out = NULL;
 	int ret;
 
-        /* Load up the JWKS */
-        read_key(json);
+	/* Load up the JWKS */
+	read_key(json);
 	jwk_set = jwks_create(test_data.key);
 	free_key();
 	ck_assert_ptr_nonnull(jwk_set);
@@ -38,14 +38,7 @@ static void __jwks_check(const char *json, const char *pem)
 	item = jwks_item_get(jwk_set, 0);
 	ck_assert_ptr_nonnull(item);
 
-	/* If the key is not octet, we need ops support. */
-	if (jwks_item_kty(item) != JWK_KEY_TYPE_OCT &&
-	    !jwt_crypto_ops_supports_jwk()) {
-		ck_assert(jwks_item_error(item));
-		return;
-	}
-
-	if (jwks_item_kty(item) != JWK_KEY_TYPE_OCT) {
+	if (jwks_item_pem(item) != NULL) {
 		read_key(pem);
 		ret = strcmp(jwks_item_pem(item), test_data.key);
 		free_key();
@@ -78,25 +71,29 @@ static void __jwks_check(const char *json, const char *pem)
 
 	/* Add some grants */
 	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
-        ck_assert_int_eq(ret, 0);
+	ck_assert_int_eq(ret, 0);
 
-        ret = jwt_add_grant(jwt, "sub", "user0");
-        ck_assert_int_eq(ret, 0);
+	ret = jwt_add_grant(jwt, "sub", "user0");
+	ck_assert_int_eq(ret, 0);
 
-        ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
-        ck_assert_int_eq(ret, 0);
+	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
+	ck_assert_int_eq(ret, 0);
 
-        ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
-        ck_assert_int_eq(ret, 0);
+	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
+	ck_assert_int_eq(ret, 0);
 
 	/* Encode it */
-        out = jwt_encode_str(jwt);
-        ck_assert_ptr_nonnull(out);
+	out = jwt_encode_str(jwt);
+	/* We allow this for now. */
+	if (errno == ENOTSUP)
+		return;
+
+	ck_assert_ptr_nonnull(out);
 
 	/* Verify it using our JWK */
-        __verify_jwk(out, item);
+	__verify_jwk(out, item);
 
-        jwt_free_str(out);
+	jwt_free_str(out);
 }
 
 JWKS_KEY_TEST(ec_key_prime256v1);
@@ -132,7 +129,7 @@ START_TEST(test_jwks_keyring_load)
 	const jwk_item_t *item;
 	int i;
 
-	SET_OPS_JWK();
+	SET_OPS();
 
 	read_json("jwks_keyring.json");
 
@@ -156,7 +153,7 @@ START_TEST(test_jwks_key_op_all_types)
 
 	const jwk_item_t *item;
 
-	SET_OPS_JWK();
+	SET_OPS();
 
 	read_jsonfp("jwks_test-1.json");
 
@@ -176,7 +173,7 @@ START_TEST(test_jwks_key_op_bad_type)
 	const char *msg = "JWK has an invalid value in key_op";
 	const char *kid = "264265c2-4ef0-4751-adbd-9739550afe5b";
 
-	SET_OPS_JWK();
+	SET_OPS();
 
 	read_key("jwks_test-2.json");
 

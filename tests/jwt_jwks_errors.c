@@ -14,7 +14,7 @@ START_TEST(test_jwks_bad_json)
 	jwk_set_t *jwk_set = NULL;
 	const char *msg;
 
-	SET_OPS_JWK();
+	SET_OPS();
 
 	jwk_set = jwks_create(json);
 
@@ -37,7 +37,7 @@ START_TEST(test_jwks_unknown_kty)
 	const char exp[] = "Unknown or unsupported kty type";
 	int ret;
 
-	SET_OPS_JWK();
+	SET_OPS();
 
 	jwk_set = jwks_create(json);
 
@@ -63,7 +63,7 @@ START_TEST(test_jwks_missing_kty)
 	const char exp[] = "Invalid JWK: missing kty value";
 	int ret;
 
-	SET_OPS_JWK();
+	SET_OPS();
 
 	jwk_set = jwks_create(json);
 
@@ -86,7 +86,7 @@ START_TEST(test_jwks_empty)
 	jwk_set_t *jwk_set = NULL;
 	const jwk_item_t *item = NULL;
 
-	SET_OPS_JWK();
+	SET_OPS();
 
 	jwk_set = jwks_create(NULL);
 
