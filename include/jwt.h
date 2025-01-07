@@ -971,12 +971,12 @@ jwt_alg_t jwt_str_alg(const char *alg);
  */
 
 /**
- * @defgroup jwks_core_grp JSON Web Keys and Sets Management
+ * @defgroup jwks_core_grp JSON Web Key Management
  *
  * Functions to handle JSON that represents JWK and JWKS for use in validating
  * or signing JWT objects.
  *
- * @note The jwks_create functions conveninience wrappers around the same-named
+ * @note The jwks_create functions are convenience wrappers around the same-named
  *  jwks_load functions. They explicitly create a keyring.
  *
  * @note If you want to create an empty keyring, simply call jwks_create(NULL)
@@ -1163,8 +1163,8 @@ static inline void jwks_freep(jwk_set_t **jwks) {
 /**
  * @defgroup jwks_item_grp JSON Web Key Usage
  *
- * Functions to handle JSON that represents JWK and JWKS for use
- * in validating JWT objects.
+ * Functionality for using a JWK (represented as a jwk_item_t) to sign and
+ * validate JWT objects.
  *
  * @{
  */
