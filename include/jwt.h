@@ -1173,22 +1173,22 @@ static inline void jwks_freep(jwk_set_t **jwks) {
  * @brief Return the index'th jwk_item in the jwk_set
  *
  * Allows you to obtain the raw jwk_item. NOTE, this is not a copy of the item,
- * so any changes to it will be reflected to it in the jwk_set. This also means
- * if the jwk_set is freed, then this data is freed and cannot be used.
+ * which means if the jwk_set is freed, then this data is freed and cannot be
+ * used.
  *
  * @param jwk_set An existing jwk_set_t
  * @param index Index of the jwk_set
  * @return A valid jwk_item_t or NULL if it doesn't exist
  *
- * @remark It's also worth pointing out that the index of a specific jwk_item
- *  in a jwk_set can and will change if items are added or removed from the
- *  jwk_set.
+ * @warning The index of an item in a keyring can change if items are deleted.
+ *  Effort is made to add new JWK to the end of the set, so this should not
+ *  affect the index of previous items.
  */
 JWT_EXPORT
 const jwk_item_t *jwks_item_get(const jwk_set_t *jwk_set, size_t index);
 
 /**
- * @brief Whther this key is private (or public)
+ * @brief Whether this key is private (or public)
  *
  * @param item A JWK Item
  * @return 1 for true, 0 for false
@@ -1209,7 +1209,7 @@ int jwks_item_error(const jwk_item_t *item);
  * @brief Check the error message for a JWK Item
  *
  * @param item A JWK Item
- * @return A string message. Empty string if not error.
+ * @return A string message. Empty string if no error.
  */
 JWT_EXPORT
 const char *jwks_item_error_msg(const jwk_item_t *item);
@@ -1276,7 +1276,7 @@ jwk_key_op_t jwks_item_key_ops(const jwk_item_t *item);
 /**
  * @brief The PEM generated for the JWK
  *
- * THis is an optional field that may or may not be supported depending on
+ * This is an optional field that may or may not be supported depending on
  * which crypto backend is in use. It is provided as a courtesy.
  *
  * @param item A JWK Item
@@ -1289,7 +1289,7 @@ const char *jwks_item_pem(const jwk_item_t *item);
  * @brief The number of bits in this JWK
  *
  * This is relevant to the key type (kty). E.g. an RSA key would have atleast
- * 2048 bits, and EC key would be 256, 384, or 521 bits, etc.
+ * 2048 bits, and an EC key would be 256, 384, or 521 bits, etc.
  *
  * @param item A JWK Item
  * @return The number of bits for the key
@@ -1312,7 +1312,7 @@ int jwks_item_free(jwk_set_t *jwk_set, size_t index);
  * The jwk_set_t becomes an empty set.
  *
  * @param jwk_set A JWKS object
- * @return The numbner of items deleted
+ * @return The number of items deleted
  */
 JWT_EXPORT
 int jwks_item_free_all(jwk_set_t *jwk_set);
