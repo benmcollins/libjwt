@@ -28,7 +28,7 @@ static void __jwks_check(const char *json, const char *pem)
 
         /* Load up the JWKS */
         read_key(json);
-	jwk_set = jwks_create(NULL, test_data.key);
+	jwk_set = jwks_create(test_data.key);
 	free_key();
 	ck_assert_ptr_nonnull(jwk_set);
 

@@ -17,7 +17,7 @@ START_TEST(test_jwks_ec_pub_missing)
 
 	SET_OPS_JWK();
 
-	jwk_set = jwks_create(NULL, json);
+	jwk_set = jwks_create(json);
 
 	ck_assert_ptr_nonnull(jwk_set);
 	ck_assert(!jwks_error(jwk_set));
@@ -41,7 +41,7 @@ START_TEST(test_jwks_ec_pub_bad_type)
 
 	SET_OPS_JWK();
 
-	jwk_set = jwks_create(NULL, json);
+	jwk_set = jwks_create(json);
 
 	ck_assert_ptr_nonnull(jwk_set);
 	ck_assert(!jwks_error(jwk_set));
@@ -65,7 +65,7 @@ START_TEST(test_jwks_ec_pub_bad64)
 
 	SET_OPS_JWK();
 
-	jwk_set = jwks_create(NULL, json);
+	jwk_set = jwks_create(json);
 
 	ck_assert_ptr_nonnull(jwk_set);
 	ck_assert(!jwks_error(jwk_set));
@@ -89,7 +89,7 @@ START_TEST(test_jwks_ec_pub_bad_points)
 
 	SET_OPS_JWK();
 
-	jwk_set = jwks_create(NULL, json);
+	jwk_set = jwks_create(json);
 
 	ck_assert_ptr_nonnull(jwk_set);
 	ck_assert(!jwks_error(jwk_set));

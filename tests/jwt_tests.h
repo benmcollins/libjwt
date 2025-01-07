@@ -89,7 +89,7 @@ static jwt_test_op_t jwt_test_ops[] = {
 	ck_assert_int_eq(r, 0);					\
 	if (!jwt_crypto_ops_supports_jwk()) {			\
 		errno = 0;					\
-		jwk_set_t *jwks = jwks_create(NULL, NULL);	\
+		jwk_set_t *jwks = jwks_create(NULL);		\
 		ck_assert_ptr_nonnull(jwks);			\
 		ck_assert(!jwks_error(jwks));			\
 		return;						\
@@ -116,7 +116,7 @@ static void read_json(const char *key_file)
 	ret = asprintf(&key_path, KEYDIR "/%s", key_file);
 	ck_assert_int_gt(ret, 0);
 
-	g_jwk_set = jwks_create_fromfile(NULL, key_path);
+	g_jwk_set = jwks_create_fromfile(key_path);
 	free(key_path);
 	ck_assert_ptr_nonnull(g_jwk_set);
 	ck_assert(!jwks_error(g_jwk_set));
@@ -139,7 +139,7 @@ static void read_jsonfp(const char *key_file)
 	ck_assert_ptr_nonnull(fp);
 	free(key_path);
 
-	g_jwk_set = jwks_create_fromfp(NULL, fp);
+	g_jwk_set = jwks_create_fromfp(fp);
 	fclose(fp);
 	ck_assert_ptr_nonnull(g_jwk_set);
 	ck_assert(!jwks_error(g_jwk_set));
@@ -186,7 +186,7 @@ static void read_key(const char *key_file)
 	if (strstr(key_file, ".pem") != NULL)
 		return;
 
-	g_jwk_set = jwks_create(NULL, test_data.key);
+	g_jwk_set = jwks_create(test_data.key);
 	ck_assert_ptr_nonnull(g_jwk_set);
 	ck_assert(!jwks_error(g_jwk_set));
 

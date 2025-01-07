@@ -101,7 +101,7 @@ int main(int argc, char **argv)
 	fclose(fp);
 	json_str[len] = '\0';
 
-	jwk_set = jwks_create(NULL, json_str);
+	jwk_set = jwks_create(json_str);
 	free(json_str);
 	if (jwk_set == NULL) {
 		perror("Failed to load JWKS");

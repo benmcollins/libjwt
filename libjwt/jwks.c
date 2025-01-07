@@ -387,8 +387,9 @@ static jwk_set_t *jwks_process(jwk_set_t *jwk_set, json_t *j_all, json_error_t *
 
         return jwk_set;
 }
+
 #define __FLAG_EMPTY	(void *)0xfffff00d
-jwk_set_t *jwks_create_strb(jwk_set_t *jwk_set, const char *jwk_json_str,
+jwk_set_t *jwks_load_strb(jwk_set_t *jwk_set, const char *jwk_json_str,
 			    const size_t len)
 {
 	json_auto_t *j_all = NULL;
@@ -412,7 +413,7 @@ jwk_set_t *jwks_create_strb(jwk_set_t *jwk_set, const char *jwk_json_str,
 	return jwks_process(jwk_set, j_all, &error);
 }
 
-jwk_set_t *jwks_create(jwk_set_t *jwk_set, const char *jwk_json_str)
+jwk_set_t *jwks_load(jwk_set_t *jwk_set, const char *jwk_json_str)
 {
 	const char *real_str = jwk_json_str;
 	size_t len;
@@ -424,10 +425,10 @@ jwk_set_t *jwks_create(jwk_set_t *jwk_set, const char *jwk_json_str)
 		len = strlen(real_str);
 	}
 
-	return jwks_create_strb(jwk_set, real_str, len);
+	return jwks_load_strb(jwk_set, real_str, len);
 }
 
-jwk_set_t *jwks_create_fromfile(jwk_set_t *jwk_set, const char *file_name)
+jwk_set_t *jwks_load_fromfile(jwk_set_t *jwk_set, const char *file_name)
 {
 	json_auto_t *j_all = NULL;
 	json_error_t error;
@@ -446,7 +447,7 @@ jwk_set_t *jwks_create_fromfile(jwk_set_t *jwk_set, const char *file_name)
 	return jwks_process(jwk_set, j_all, &error);
 }
 
-jwk_set_t *jwks_create_fromfp(jwk_set_t *jwk_set, FILE *input)
+jwk_set_t *jwks_load_fromfp(jwk_set_t *jwk_set, FILE *input)
 {
 	json_auto_t *j_all = NULL;
 	json_error_t error;

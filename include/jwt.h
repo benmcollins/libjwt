@@ -953,7 +953,7 @@ const char *jwt_alg_str(jwt_alg_t alg);
  *
  * @param alg A valid string for algorithm type (e.g. "RS256").
  * @returns Returns a @ref jwt_alg_t matching the string
- * or @ref JWT_ALG_INVAL if no  matches were found.
+ *  or @ref JWT_ALG_INVAL if no  matches were found.
  *
  * Note, this only works for algorithms that LibJWT supports or knows about.
  */
@@ -975,6 +975,11 @@ jwt_alg_t jwt_str_alg(const char *alg);
  *
  * Functions to handle JSON that represents JWK and JWKS for use
  * in validating JWT objects.
+ *
+ * @note The jwks_create wrapper functions are the same as the jwks_load
+ *  functions, but with an explicit intent to create a new keyring.
+ *
+ * @note If you want to create an empty keyring, simply call jwks_create(NULL)
  *
  * @{
  */
@@ -1004,7 +1009,7 @@ jwt_alg_t jwt_str_alg(const char *alg);
  *   or a jwt_set_t with error set. NULL generally means ENOMEM.
  */
 JWT_EXPORT
-jwk_set_t *jwks_create(jwk_set_t *jwk_set, const char *jwk_json_str);
+jwk_set_t *jwks_load(jwk_set_t *jwk_set, const char *jwk_json_str);
 
 /**
  * @brief Create a new JWKS object from a string of known lenght
@@ -1022,7 +1027,7 @@ jwk_set_t *jwks_create(jwk_set_t *jwk_set, const char *jwk_json_str);
  *   or a jwt_set_t with error set. NULL generally means ENOMEM.
  */
 JWT_EXPORT
-jwk_set_t *jwks_create_strb(jwk_set_t *jwk_set, const char *jwk_json_str,
+jwk_set_t *jwks_load_strb(jwk_set_t *jwk_set, const char *jwk_json_str,
 			    const size_t len);
 
 /**
@@ -1039,7 +1044,7 @@ jwk_set_t *jwks_create_strb(jwk_set_t *jwk_set, const char *jwk_json_str,
  *   or a jwt_set_t with error set. NULL generally means ENOMEM.
  */
 JWT_EXPORT
-jwk_set_t *jwks_create_fromfile(jwk_set_t *jwk_set, const char *file_name);
+jwk_set_t *jwks_load_fromfile(jwk_set_t *jwk_set, const char *file_name);
 
 /**
  * @brief Create a new JWKS object from a FILE pointer
@@ -1057,7 +1062,12 @@ jwk_set_t *jwks_create_fromfile(jwk_set_t *jwk_set, const char *file_name);
  *   or a jwt_set_t with error set. NULL generally means ENOMEM.
  */
 JWT_EXPORT
-jwk_set_t *jwks_create_fromfp(jwk_set_t *jwk_set, FILE *input);
+jwk_set_t *jwks_load_fromfp(jwk_set_t *jwk_set, FILE *input);
+
+#define jwks_create(__str)		jwks_load(NULL, __str)			/**< Create wrapper */
+#define jwks_create_strb(__str, __len)	jwks_load_strb(NULL, __str, __len)	/**< Create wrapper */
+#define jwks_create_fromfile(__file)	jwks_load_fromfile(NULL, __file)	/**< Create wrapper */
+#define jwks_create_fromfp(__fp)	jwks_load_fromfp(NULL, __fp)		/**< Create wrapper */
 
 /**
  * Check if there is an error within the jwk_set
