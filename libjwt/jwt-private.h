@@ -71,6 +71,40 @@ struct jwk_set {
 	char error_msg[256];
 };
 
+/**
+ * This data structure is produced by importing a JWK or JWKS into a
+ * @ref jwk_set_t object. Generally, you would not change any values here
+ * and only use this to probe the internal parser and possibly to
+ * decide whether a key applies to certain jwt_t for verification
+ * or signing.
+ *
+ * If the jwk_item_t.pem field is not NULL, then it contains  a nil terminated
+ * string of the key. The underlying crypto algorith may or may not support
+ * this. It's provided as a convenience.
+ */
+struct jwk_item {
+	char *pem;		/**< If not NULL, contains PEM string of this key	*/
+	jwt_crypto_provider_t provider;	/**< Crypto provider that owns this key		*/
+	union {
+		void *provider_data;	/**< Internal data used by the provider		*/
+		struct {
+			void *key;	/**< Used for HMAC key material			*/
+			size_t len;	/**< Length of HMAC key material		*/
+		} oct;
+	};
+	int is_private_key;	/**< Whether this is a public or private key		*/
+	char curve[256];	/**< Curve name of an ``"EC"`` or ``"OKP"`` key		*/
+	size_t bits;		/**< The number of bits in the key (may be 0)		*/
+	int error;		/**< There was an error parsing this key (unusable)	*/
+	char error_msg[256];	/**< Descriptive message for @ref jwk_item_t.error	*/
+	jwk_key_type_t kty;	/**< @rfc{7517,4.1} The key type of this key		*/
+	jwk_pub_key_use_t use;	/**< @rfc{7517,4.2} How this key can be used		*/
+	jwk_key_op_t key_ops;	/**< @rfc{7517,4.3} Key operations supported		*/
+	jwt_alg_t alg;		/**< @rfc{7517,4.4} JWA Algorithm supported		*/
+	char *kid;		/**< @rfc{7517,4.5} Key ID				*/
+	const char *json;	/**< The entire JSON string for this key		*/
+};
+
 /* Crypto operations */
 struct jwt_crypto_ops {
 	const char *name;

@@ -158,43 +158,12 @@ typedef enum {
 } jwk_key_op_t;
 
 /** @ingroup jwks_core_grp
- * @brief Structural representation of a JWK
+ * @brief Object representation of a JWK
  *
- * This data structure is produced by importing a JWK or JWKS into a
- * @ref jwk_set_t object. Generally, you would not change any values here
- * and only use this to probe the internal parser and possibly to
- * decide whether a key applies to certain jwt_t for verification
- * or signing.
- *
- * @remark If the @ref jwk_item_t.pem field is not NULL, then it contains
- *  a nil terminated string of the key. The underlying crypto algorith may
- *  or may not support this. It's provided as a convenience.
- *
- * @raisewarning Decide if we need to make this an opaque object. Also, about
- *  that JSON...
+ * This object is produced by importing a JWK or JWKS into a  @ref jwk_set_t
+ * object. It is passed functions that either producr or consume JWT.
  */
-typedef struct {
-	char *pem;		/**< If not NULL, contains PEM string of this key	*/
-	jwt_crypto_provider_t provider; /**< Crypto provider that owns this key         */
-	union {
-		void *provider_data;	/**< Internal data used by the provider		*/
-		struct {
-			void *key;	/**< Used for HMAC key material			*/
-			size_t len;	/**< Length of HMAC key material		*/
-		} oct;
-	};
-	int is_private_key;	/**< Whether this is a public or private key            */
-	char curve[256];        /**< Curve name of an ``"EC"`` or ``"OKP"`` key         */
-	size_t bits;            /**< The number of bits in the key (may be 0)           */
-	int error;              /**< There was an error parsing this key (unusable)	*/
-	char error_msg[256];    /**< Descriptive message for @ref jwk_item_t.error      */
-	jwk_key_type_t kty;     /**< @rfc{7517,4.1} The key type of this key            */
-	jwk_pub_key_use_t use;  /**< @rfc{7517,4.2} How this key can be used            */
-	jwk_key_op_t key_ops;   /**< @rfc{7517,4.3} Key operations supported            */
-	jwt_alg_t alg;          /**< @rfc{7517,4.4} JWA Algorithm supported             */
-	char *kid;              /**< @rfc{7517,4.5} Key ID                              */
-	const char *json;       /**< The entire JSON string for this key                */
-} jwk_item_t;
+typedef struct jwk_item jwk_item_t;
 
 /** @ingroup jwt_valid_grp
  * @brief Validation exception types for @ref jwt_t objects
@@ -335,9 +304,9 @@ jwt_t *jwt_dup(jwt_t *jwt);
  * @brief Structure used to manage configuration state
  */
 typedef struct {
-	jwk_item_t *jw_key;	/**< A JWK to use for key	*/
-	jwt_alg_t alg;		/**< For algorithm matching	*/
-	void *ctx;		/**< User controlled context	*/
+	const jwk_item_t *jw_key;	/**< A JWK to use for key	*/
+	jwt_alg_t alg;			/**< For algorithm matching	*/
+	void *ctx;			/**< User controlled context	*/
 } jwt_config_t;
 
 /**
@@ -413,31 +382,6 @@ jwt_t *jwt_create(jwt_config_t *config);
  * @defgroup jwt_verify_grp Token Verification
  *
  * @raisewarning Complete the details of this information
- *
- * Lots of cases to deal with.
- *
- * -# If the caller passes a key/len pair:
- *    - Then config.alg MUST NOT be none, and
- *    - The config.alg MUST match jwt.alg
- * -# If the user passes a jw_key:
- *    - config.alg is not used (jw_key.alg is used if available)
- *    - It's valid for jw_key.alg to be none (missing) (RFC-7517:4.4)
- *    - If jw_key.alg is not none, it MUST match the JWT
- *    - If jw_key.alg is none, then jwt.alg is compared against jwk.kty for
- *      compatibility. e.g:
- *      - jwt.alg RS256, RS384, and RS512 are suitable with jwk.kty RSA
- *      - jwt.alg ES384 is not suitable with jwk.kty OKP
- * -# The user SHOULD NOT pass both types, but we allow it. However,
- *    checks for both keys MUST pass.
- * -# If the user did not pass a key of any kind:
- *    - Then jwt.alg MUST be none, and
- *    - The sig_len MUST be zero
- *    - If the caller wishes to "peek" at a JWA token, (without verifying)
- *      then they MUST use a callback function to inspect it. Information
- *      from the callback can be passed between the cb and original caller
- *      with the @ref jwt_config_t.ctx pointer.
- * -# If jwt.alg is none then sig_len MUST be zero, regardless of (4)
- *
  *
  * @{
  */
@@ -1028,23 +972,31 @@ jwt_alg_t jwt_str_alg(const char *alg);
 
 /**
  * @defgroup jwks_core_grp JSON Web Key and Sets
+ *
  * Functions to handle JSON that represents JWK and JWKS for use
  * in validating JWT objects.
+ *
  * @{
  */
 
 /**
- * @brief Create a new JWKS object from a null terminated string
+ * @brief Create and add to a keyring of JSON Web Keys
  *
- * This function expects a JSON string either as a single object
- * for one JWK or as an array of objects under a key of "keys" (as
- * defined in JWKS specifications).
+ * This function, and the utility versions, allow you to create a keyring
+ * used to verify and/or create JSON Web Tokens. It accepts either single
+ * JWK or a JWKS (JSON Web Token Set).
+ *
+ * If you want to create a new set, then pass NULL as the first argument. If
+ * you want to add to an existing keyring, then pass that as the first
+ * argument.
  *
  * If non-NULL is returned, you should then check to make sure there
  * is no error with jwks_error(). There may be errors on individual
  * JWK items in the set. You can check if there are any with
  * jwks_error_any().
  *
+ * @param jwk_set Either NULL to create a new set, or an existing jwt_set
+ *   to add new keys to it.
  * @param jwk_json_str JSON string representation of a single key
  *   or array of "keys". If NULL is passed, an empty jwk_set_t is
  *   created. Must be null terminated.
@@ -1052,7 +1004,7 @@ jwt_alg_t jwt_str_alg(const char *alg);
  *   or a jwt_set_t with error set. NULL generally means ENOMEM.
  */
 JWT_EXPORT
-jwk_set_t *jwks_create(const char *jwk_json_str);
+jwk_set_t *jwks_create(jwk_set_t *jwk_set, const char *jwk_json_str);
 
 /**
  * @brief Create a new JWKS object from a string of known lenght
@@ -1060,6 +1012,8 @@ jwk_set_t *jwks_create(const char *jwk_json_str);
  * Useful if the string is not null terminated. Otherwise, it works the same
  * as jwks_create().
  *
+ * @param jwk_set Either NULL to create a new set, or an existing jwt_set
+ *   to add new keys to it.
  * @param jwk_json_str JSON string representation of a single key
  *   or array of "keys".
  * @param len The length of jwk_json_str that represents the key(s) being
@@ -1068,7 +1022,8 @@ jwk_set_t *jwks_create(const char *jwk_json_str);
  *   or a jwt_set_t with error set. NULL generally means ENOMEM.
  */
 JWT_EXPORT
-jwk_set_t *jwks_create_strlen(const char *jwk_json_str, const size_t len);
+jwk_set_t *jwks_create_strb(jwk_set_t *jwk_set, const char *jwk_json_str,
+			    const size_t len);
 
 /**
  * @brief Create a new JWKS object from a file
@@ -1076,13 +1031,15 @@ jwk_set_t *jwks_create_strlen(const char *jwk_json_str, const size_t len);
  * The JSON will be read from a file on the system. Must be readable by the
  * running process. The end result of this function is the same as jwks_create.
  *
+ * @param jwk_set Either NULL to create a new set, or an existing jwt_set
+ *   to add new keys to it.
  * @param file_name A file containing a JSON representation of a single key
  *   or array of "keys".
  * @return A valid jwt_set_t on success. On failure, either NULL
  *   or a jwt_set_t with error set. NULL generally means ENOMEM.
  */
 JWT_EXPORT
-jwk_set_t *jwks_create_fromfile(const char *file_name);
+jwk_set_t *jwks_create_fromfile(jwk_set_t *jwk_set, const char *file_name);
 
 /**
  * @brief Create a new JWKS object from a FILE pointer
@@ -1092,23 +1049,15 @@ jwk_set_t *jwks_create_fromfile(const char *file_name);
  * position of the JWK data. This function will read until it reaches EOF or
  * invalid JSON data.
  *
+ * @param jwk_set Either NULL to create a new set, or an existing jwt_set
+ *   to add new keys to it.
  * @param input A FILE pointer where the JSON representation of a single key
  *   or array of "keys" can be fread() from.
  * @return A valid jwt_set_t on success. On failure, either NULL
  *   or a jwt_set_t with error set. NULL generally means ENOMEM.
  */
 JWT_EXPORT
-jwk_set_t *jwks_create_fromfp(FILE *input);
-
-/**
- * Add a jwk_item_t to an existing jwk_set_t
- *
- * @param jwk_set An existing jwk_set_t
- * @param item A JWK item to add to the set
- * @return 0 on success, valid errno otherwise.
- */
-JWT_EXPORT
-int jwks_item_add(jwk_set_t *jwk_set, jwk_item_t *item);
+jwk_set_t *jwks_create_fromfp(jwk_set_t *jwk_set, FILE *input);
 
 /**
  * Check if there is an error within the jwk_set
@@ -1139,31 +1088,11 @@ int jwks_error_any(jwk_set_t *jwk_set);
  * @return NULL on error, valid string otherwise
  */
 JWT_EXPORT
-const char *jwks_error_msg(jwk_set_t *jwk_set);
+const char *jwks_error_msg(const jwk_set_t *jwk_set);
 
 /**
- * Return the index'th jwk_item in the jwk_set
- *
- * Allows you to obtain the raw jwk_item. NOTE, this is not a copy
- * of the item, so any changes to it will be reflected to it in the
- * jwk_set. This also means if the jwk_set is freed, then this data
- * is freed and cannot be used.
- *
- * @param jwk_set An existing jwk_set_t
- * @param index Index of the jwk_set
- * @return 0 if no error exists, 1 if it does exists.
- *
- * @remark It's also worth pointing out that the index of a specific
- *     jwk_item in a jwk_set can and will change if items are added or
- *     removed.
- * from the jwk_set.
- */
-JWT_EXPORT
-jwk_item_t *jwks_item_get(jwk_set_t *jwk_set, size_t index);
-
-/**
- * Free all memory associated with a jwt_set_t, including any
- * jwk_item_t in the set
+ * Free all memory associated with a jwt_set_t, including any jwk_item_t in
+ * the set.
  *
  * @param jwk_set An existing jwk_set_t
  */
@@ -1182,6 +1111,150 @@ static inline void jwks_freep(jwk_set_t **jwks) {
 }
 #define jwk_set_auto_t jwk_set_t __attribute__((cleanup(jwks_freep)))
 #endif
+
+/**
+ * @}
+ * @noop jwks_core_grp
+ */
+
+/**
+ * @defgroup jwks_item_grp JSON Web Key and Sets
+ *
+ * Functions to handle JSON that represents JWK and JWKS for use
+ * in validating JWT objects.
+ *
+ * @{
+ */
+
+/**
+ * @brief Return the index'th jwk_item in the jwk_set
+ *
+ * Allows you to obtain the raw jwk_item. NOTE, this is not a copy
+ * of the item, so any changes to it will be reflected to it in the
+ * jwk_set. This also means if the jwk_set is freed, then this data
+ * is freed and cannot be used.
+ *
+ * @param jwk_set An existing jwk_set_t
+ * @param index Index of the jwk_set
+ * @return 0 if no error exists, 1 if it does exists.
+ *
+ * @remark It's also worth pointing out that the index of a specific
+ *     jwk_item in a jwk_set can and will change if items are added or
+ *     removed.
+ * from the jwk_set.
+ */
+JWT_EXPORT
+const jwk_item_t *jwks_item_get(const jwk_set_t *jwk_set, size_t index);
+
+/**
+ * @brief Whther this key is private (or public)
+ *
+ * @param item A JWK Item
+ * @return 1 for true, 0 for false
+ */
+JWT_EXPORT
+int jwks_item_is_private(const jwk_item_t *item);
+
+/**
+ * @brief Check the error condition for this JWK
+ *
+ * @param item A JWK Item
+ * @return 1 for true, 0 for false
+ */
+JWT_EXPORT
+int jwks_item_error(const jwk_item_t *item);
+
+/**
+ * @brief Check the error message for a JWK Item
+ *
+ * @param item A JWK Item
+ * @return A string message. Empty string if not error.
+ */
+JWT_EXPORT
+const char *jwks_item_error_msg(const jwk_item_t *item);
+
+/**
+ * @brief A curve name, if applicable, for this key
+ *
+ * Mainly applies to EC and OKP (EdDSA) type keys.
+ *
+ * @param item A JWK Item
+ * @return A string of the curve name if one exists. NULL otherwise.
+ */
+JWT_EXPORT
+const char *jwks_item_curve(const jwk_item_t *item);
+
+/**
+ * @brief A kid (Key ID) for this JWK
+ *
+ * @param item A JWK Item
+ * @return A string of the kid if one exists. NULL otherwise.
+ */
+JWT_EXPORT
+const char *jwks_item_kid(const jwk_item_t *item);
+
+/**
+ * @brief The algorithm for this JWK
+ *
+ * It is perfectly valid for this to be JWT_ALG_NONE.
+ *
+ * @param item A JWK Item
+ * @return A jwt_alg_t type of this key
+ */
+JWT_EXPORT
+jwt_alg_t jwks_item_alg(const jwk_item_t *item);
+
+/**
+ * @brief The Key Type of this JWK
+ *
+ * @param item A JWK Item
+ * @return A jwk_key_type_t type for this key
+ */
+JWT_EXPORT
+jwk_key_type_t jwks_item_kty(const jwk_item_t *item);
+
+/**
+ * @brief The ``"use"`` field for this JWK
+ *
+ * @param item A JWK Item
+ * @return A jwk_pub_key_use_t type for this key
+ */
+JWT_EXPORT
+jwk_pub_key_use_t jwks_item_use(const jwk_item_t *item);
+
+/**
+ * @brief The ``"key_ops"`` field for this JWK
+ *
+ * @param item A JWK Item
+ * @return A jwk_key_op_t type for this key which represents all of the
+ *   ``"key_ops"`` supported as a bit field.
+ */
+JWT_EXPORT
+jwk_key_op_t jwks_item_key_ops(const jwk_item_t *item);
+
+/**
+ * @brief The PEM generated for the JWK
+ *
+ * THis is an optional field that may or may not be supported depending on
+ * which crypto backend is in use. It is provided as a courtesy.
+ *
+ * @param item A JWK Item
+ * @return A string of the PEM file for this key or NULL if none exists
+ */
+JWT_EXPORT
+const char *jwks_item_pem(const jwk_item_t *item);
+
+/**
+ * @brief The number of bits in this JWK
+ *
+ * This is relevant to the key type (kty). E.g. an RSA key would have atleast
+ * 2048 bits, and EC key would be 256, 384, or 521 bits, etc.
+ *
+ * @param item A JWK Item
+ * @return The number of bits for the key
+ */
+JWT_EXPORT
+int jwks_item_key_bits(const jwk_item_t *item);
 
 /**
  * Free all memory associated with the nth jwk_item_t in a jwk_set
@@ -1205,7 +1278,7 @@ int jwks_item_free_all(jwk_set_t *jwk_set);
 
 /**
  * @}
- * @noop jwks_core_grp
+ * @noop jwks_item_grp
  */
 
 /** @ingroup jwt_grp

@@ -12,21 +12,21 @@ START_TEST(test_jwks_rsa_pub_missing)
 {
 	const char *json = "{\"kty\":\"RSA\"}";
 	jwk_set_t *jwk_set = NULL;
-	jwk_item_t *item;
+	const jwk_item_t *item;
 	const char exp[] = "Missing required RSA component: n or e";
 
 	SET_OPS_JWK();
 
-	jwk_set = jwks_create(json);
+	jwk_set = jwks_create(NULL, json);
 
 	ck_assert_ptr_nonnull(jwk_set);
 	ck_assert(!jwks_error(jwk_set));
 
 	item = jwks_item_get(jwk_set, 0);
 	ck_assert_ptr_nonnull(item);
-	ck_assert_int_ne(item->error, 0);
+	ck_assert_int_ne(jwks_item_error(item), 0);
 
-	ck_assert_str_eq(exp, item->error_msg);
+	ck_assert_str_eq(exp, jwks_item_error_msg(item));
 
 	jwks_free(jwk_set);
 }
@@ -36,21 +36,21 @@ START_TEST(test_jwks_rsa_pub_bad_type)
 {
 	const char *json = "{\"kty\":\"RSA\",\"n\":\"YmFkdmFsdWUK\",\"e\":1}";
 	jwk_set_t *jwk_set = NULL;
-	jwk_item_t *item;
+	const jwk_item_t *item;
 	const char exp[] = "Error decoding pub components";
 
 	SET_OPS_JWK();
 
-	jwk_set = jwks_create(json);
+	jwk_set = jwks_create(NULL, json);
 
 	ck_assert_ptr_nonnull(jwk_set);
 	ck_assert(!jwks_error(jwk_set));
 
 	item = jwks_item_get(jwk_set, 0);
 	ck_assert_ptr_nonnull(item);
-	ck_assert_int_ne(item->error, 0);
+	ck_assert_int_ne(jwks_item_error(item), 0);
 
-	ck_assert_str_eq(exp, item->error_msg);
+	ck_assert_str_eq(exp, jwks_item_error_msg(item));
 
 	jwks_free(jwk_set);
 }
@@ -60,21 +60,21 @@ START_TEST(test_jwks_rsa_pub_bad64)
 {
 	const char *json = "{\"kty\":\"RSA\",\"n\":\"\",\"e\":\"asaadaaaaaa\"}";
 	jwk_set_t *jwk_set = NULL;
-	jwk_item_t *item;
+	const jwk_item_t *item;
 	const char exp[] = "Error decoding pub components";
 
 	SET_OPS_JWK();
 
-	jwk_set = jwks_create(json);
+	jwk_set = jwks_create(NULL, json);
 
 	ck_assert_ptr_nonnull(jwk_set);
 	ck_assert(!jwks_error(jwk_set));
 
 	item = jwks_item_get(jwk_set, 0);
 	ck_assert_ptr_nonnull(item);
-	ck_assert_int_ne(item->error, 0);
+	ck_assert_int_ne(jwks_item_error(item), 0);
 
-	ck_assert_str_eq(exp, item->error_msg);
+	ck_assert_str_eq(exp, jwks_item_error_msg(item));
 
 	jwks_free(jwk_set);
 }
@@ -86,19 +86,19 @@ START_TEST(test_jwks_rsa_pub_binary64)
 		"\"2fyxRFHaYP2a4pbdTK/s9x4YWV7qAWwJMXMkbRmy51w\","
 		"\"e\":\"2fyxRFHaYP2a4pbdTK/s9x4YWV7qAWwJMXMkbRmy51w\"}";
 	jwk_set_t *jwk_set = NULL;
-	jwk_item_t *item;
+	const jwk_item_t *item;
 
 	SET_OPS_JWK();
 
-	jwk_set = jwks_create(json);
+	jwk_set = jwks_create(NULL, json);
 
 	ck_assert_ptr_nonnull(jwk_set);
 	ck_assert(!jwks_error(jwk_set));
 
 	item = jwks_item_get(jwk_set, 0);
 	ck_assert_ptr_nonnull(item);
-	ck_assert_ptr_nonnull(item->pem);
-	ck_assert_int_eq(item->error, 0);
+	ck_assert_ptr_nonnull(jwks_item_pem(item));
+	ck_assert_int_eq(jwks_item_error(item), 0);
 
 	jwks_free(jwk_set);
 }
@@ -109,21 +109,21 @@ START_TEST(test_jwks_rsa_priv_missing)
 	const char *json = "{\"kty\":\"RSA\",\"n\":\"YmFkdmFsdWUK\","
 		"\"e\":\"YmFkdmFsdWUK\",\"d\":\"YmFkdmFsdWUK\"}";
 	jwk_set_t *jwk_set = NULL;
-	jwk_item_t *item;
+	const jwk_item_t *item;
 	const char exp[] = "Some priv key components exist, but some are missing";
 
 	SET_OPS_JWK();
 
-	jwk_set = jwks_create(json);
+	jwk_set = jwks_create(NULL, json);
 
 	ck_assert_ptr_nonnull(jwk_set);
 	ck_assert(!jwks_error(jwk_set));
 
 	item = jwks_item_get(jwk_set, 0);
 	ck_assert_ptr_nonnull(item);
-	ck_assert_int_ne(item->error, 0);
+	ck_assert_int_ne(jwks_item_error(item), 0);
 
-	ck_assert_str_eq(exp, item->error_msg);
+	ck_assert_str_eq(exp, jwks_item_error_msg(item));
 
 	jwks_free(jwk_set);
 }
@@ -136,21 +136,21 @@ START_TEST(test_jwks_rsa_priv_bad64)
 		"\"2fyxRFHaYP2a4pbdTK/s9x4YWV7qAWwJMXMkbRmy51w\","
 		"\"p\":\"\",\"q\":\"=\",\"dp\":\"\",\"dq\":\"\",\"qi\":\"\"}";
 	jwk_set_t *jwk_set = NULL;
-	jwk_item_t *item;
+	const jwk_item_t *item;
 	const char exp[] = "Error decoding priv components";
 
 	SET_OPS_JWK();
 
-	jwk_set = jwks_create(json);
+	jwk_set = jwks_create(NULL, json);
 
 	ck_assert_ptr_nonnull(jwk_set);
 	ck_assert(!jwks_error(jwk_set));
 
 	item = jwks_item_get(jwk_set, 0);
 	ck_assert_ptr_nonnull(item);
-	ck_assert_int_ne(item->error, 0);
+	ck_assert_int_ne(jwks_item_error(item), 0);
 
-	ck_assert_str_eq(exp, item->error_msg);
+	ck_assert_str_eq(exp, jwks_item_error_msg(item));
 
 	jwks_free(jwk_set);
 }

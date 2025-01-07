@@ -115,7 +115,7 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "priv key loaded %s (%zu)!\n", opt_key_name, key_len);
 
 		/* Setup JWK Set */
-		jwk_set = jwks_create(key);
+		jwk_set = jwks_create(NULL, key);
 		if (jwk_set == NULL || jwks_error(jwk_set)) {
 			fprintf(stderr, "ERR: Could not read JWK: %s\n",
 				jwks_error_msg(jwk_set));

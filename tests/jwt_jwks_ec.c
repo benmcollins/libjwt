@@ -12,21 +12,21 @@ START_TEST(test_jwks_ec_pub_missing)
 {
 	const char *json = "{\"kty\":\"EC\"}";
 	jwk_set_t *jwk_set = NULL;
-	jwk_item_t *item;
+	const jwk_item_t *item;
 	const char exp[] = "Missing or invalid type for one of crv, x, or y for pub key";
 
 	SET_OPS_JWK();
 
-	jwk_set = jwks_create(json);
+	jwk_set = jwks_create(NULL, json);
 
 	ck_assert_ptr_nonnull(jwk_set);
 	ck_assert(!jwks_error(jwk_set));
 
 	item = jwks_item_get(jwk_set, 0);
 	ck_assert_ptr_nonnull(item);
-	ck_assert_int_ne(item->error, 0);
+	ck_assert_int_ne(jwks_item_error(item), 0);
 
-	ck_assert_str_eq(exp, item->error_msg);
+	ck_assert_str_eq(exp, jwks_item_error_msg(item));
 
 	jwks_free(jwk_set);
 }
@@ -36,21 +36,21 @@ START_TEST(test_jwks_ec_pub_bad_type)
 {
 	const char *json = "{\"kty\":\"EC\",\"crv\":\"prime6v1\",\"x\":\"sd+#(@#($(ada\",\"y\":1}";
 	jwk_set_t *jwk_set = NULL;
-	jwk_item_t *item;
+	const jwk_item_t *item;
 	const char exp[] = "Missing or invalid type for one of crv, x, or y for pub key";
 
 	SET_OPS_JWK();
 
-	jwk_set = jwks_create(json);
+	jwk_set = jwks_create(NULL, json);
 
 	ck_assert_ptr_nonnull(jwk_set);
 	ck_assert(!jwks_error(jwk_set));
 
 	item = jwks_item_get(jwk_set, 0);
 	ck_assert_ptr_nonnull(item);
-	ck_assert_int_ne(item->error, 0);
+	ck_assert_int_ne(jwks_item_error(item), 0);
 
-	ck_assert_str_eq(exp, item->error_msg);
+	ck_assert_str_eq(exp, jwks_item_error_msg(item));
 
 	jwks_free(jwk_set);
 }
@@ -60,21 +60,21 @@ START_TEST(test_jwks_ec_pub_bad64)
 {
 	const char *json = "{\"kty\":\"EC\",\"crv\":\"prime6v1\",\"x\":\"\",\"y\":\"asaad\"}";
 	jwk_set_t *jwk_set = NULL;
-	jwk_item_t *item;
+	const jwk_item_t *item;
 	const char exp[] = "Error generating pub key from components";
 
 	SET_OPS_JWK();
 
-	jwk_set = jwks_create(json);
+	jwk_set = jwks_create(NULL, json);
 
 	ck_assert_ptr_nonnull(jwk_set);
 	ck_assert(!jwks_error(jwk_set));
 
 	item = jwks_item_get(jwk_set, 0);
 	ck_assert_ptr_nonnull(item);
-	ck_assert_int_ne(item->error, 0);
+	ck_assert_int_ne(jwks_item_error(item), 0);
 
-	ck_assert_str_eq(exp, item->error_msg);
+	ck_assert_str_eq(exp, jwks_item_error_msg(item));
 
 	jwks_free(jwk_set);
 }
@@ -84,21 +84,21 @@ START_TEST(test_jwks_ec_pub_bad_points)
 {
 	const char *json = "{\"kty\":\"EC\",\"crv\":\"prime256v1\",\"x\":\"YmFkdmFsdWUK\",\"y\":\"YmFkdmFsdWUK\"}";
 	jwk_set_t *jwk_set = NULL;
-	jwk_item_t *item;
+	const jwk_item_t *item;
 	const char exp[] = "Error generating pub key from components";
 
 	SET_OPS_JWK();
 
-	jwk_set = jwks_create(json);
+	jwk_set = jwks_create(NULL, json);
 
 	ck_assert_ptr_nonnull(jwk_set);
 	ck_assert(!jwks_error(jwk_set));
 
 	item = jwks_item_get(jwk_set, 0);
 	ck_assert_ptr_nonnull(item);
-	ck_assert_int_ne(item->error, 0);
+	ck_assert_int_ne(jwks_item_error(item), 0);
 
-	ck_assert_str_eq(exp, item->error_msg);
+	ck_assert_str_eq(exp, jwks_item_error_msg(item));
 
 	jwks_free(jwk_set);
 }

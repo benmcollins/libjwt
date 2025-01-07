@@ -13,23 +13,23 @@
 
 #include <jwt.h>
 
-static void write_key_file(jwk_item_t *item)
+static void write_key_file(const jwk_item_t *item)
 {
 	const char *pre, *name;
-	int priv = item->is_private_key;;
+	int priv = jwks_item_is_private(item);
 	char file_name[BUFSIZ];
 	FILE *fp;
 
-	if (item->error || !item->pem)
+	if (jwks_item_error(item) || jwks_item_pem(item) == NULL)
 		return;
 
-	switch (item->kty) {
+	switch (jwks_item_kty(item)) {
 	case JWK_KEY_TYPE_EC:
 		pre = "ec";
-		name = item->curve;
+		name = jwks_item_curve(item);
 		break;
 	case JWK_KEY_TYPE_RSA:
-		switch (item->alg) {
+		switch (jwks_item_alg(item)) {
 		case JWT_ALG_PS256:
 		case JWT_ALG_PS384:
 		case JWT_ALG_PS512:
@@ -50,12 +50,12 @@ static void write_key_file(jwk_item_t *item)
 		return;
 	}
 
-	if (item->kid == NULL) {
+	if (jwks_item_kid(item) == NULL) {
 		snprintf(file_name, sizeof(file_name), "pems/%s_%s%s.pem",
 			 pre, name, priv ? "" : "_pub");
 	} else {
 		snprintf(file_name, sizeof(file_name), "pems/%s_%s_%s%s.pem",
-			 pre, name, item->kid, priv ? "" : "_pub");
+			 pre, name, jwks_item_kid(item), priv ? "" : "_pub");
 	}
 
 	fp = fopen(file_name, "wx");
@@ -64,14 +64,14 @@ static void write_key_file(jwk_item_t *item)
 		return;
 	}
 
-	fputs(item->pem, fp);
+	fputs(jwks_item_pem(item), fp);
 	fclose(fp);
 }
 
 int main(int argc, char **argv)
 {
 	jwk_set_t *jwk_set = NULL;
-	jwk_item_t *item;
+	const jwk_item_t *item;
 	char *json_str;
 	char *file;
 	FILE *fp;
@@ -101,7 +101,7 @@ int main(int argc, char **argv)
 	fclose(fp);
 	json_str[len] = '\0';
 
-	jwk_set = jwks_create(json_str);
+	jwk_set = jwks_create(NULL, json_str);
 	free(json_str);
 	if (jwk_set == NULL) {
 		perror("Failed to load JWKS");
