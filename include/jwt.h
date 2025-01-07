@@ -973,11 +973,11 @@ jwt_alg_t jwt_str_alg(const char *alg);
 /**
  * @defgroup jwks_core_grp JSON Web Key and Sets
  *
- * Functions to handle JSON that represents JWK and JWKS for use
- * in validating JWT objects.
+ * Functions to handle JSON that represents JWK and JWKS for use in validating
+ * or signing JWT objects.
  *
- * @note The jwks_create wrapper functions are the same as the jwks_load
- *  functions, but with an explicit intent to create a new keyring.
+ * @note The jwks_create functions conveninience wrappers around the same-named
+ *  jwks_load functions. They explicitly create a keyring.
  *
  * @note If you want to create an empty keyring, simply call jwks_create(NULL)
  *
@@ -985,7 +985,7 @@ jwt_alg_t jwt_str_alg(const char *alg);
  */
 
 /**
- * @brief Create and add to a keyring of JSON Web Keys
+ * @brief Create or add to a keyring of JSON Web Keys
  *
  * This function, and the utility versions, allow you to create a keyring
  * used to verify and/or create JSON Web Tokens. It accepts either single
@@ -1015,7 +1015,7 @@ jwk_set_t *jwks_load(jwk_set_t *jwk_set, const char *jwk_json_str);
  * @brief Create a new JWKS object from a string of known lenght
  *
  * Useful if the string is not null terminated. Otherwise, it works the same
- * as jwks_create().
+ * as jwks_load().
  *
  * @param jwk_set Either NULL to create a new set, or an existing jwt_set
  *   to add new keys to it.
@@ -1034,7 +1034,7 @@ jwk_set_t *jwks_load_strb(jwk_set_t *jwk_set, const char *jwk_json_str,
  * @brief Create a new JWKS object from a file
  *
  * The JSON will be read from a file on the system. Must be readable by the
- * running process. The end result of this function is the same as jwks_create.
+ * running process. The end result of this function is the same as jwks_load.
  *
  * @param jwk_set Either NULL to create a new set, or an existing jwt_set
  *   to add new keys to it.
@@ -1050,7 +1050,7 @@ jwk_set_t *jwks_load_fromfile(jwk_set_t *jwk_set, const char *file_name);
  * @brief Create a new JWKS object from a FILE pointer
  *
  * The JSON will be read from a FILE pointer. The end result of this function
- * is the same as jwks_create. The FILE pointer must be set to the starting
+ * is the same as jwks_load. The FILE pointer must be set to the starting
  * position of the JWK data. This function will read until it reaches EOF or
  * invalid JSON data.
  *
@@ -1064,15 +1064,40 @@ jwk_set_t *jwks_load_fromfile(jwk_set_t *jwk_set, const char *file_name);
 JWT_EXPORT
 jwk_set_t *jwks_load_fromfp(jwk_set_t *jwk_set, FILE *input);
 
-#define jwks_create(__str)		jwks_load(NULL, __str)			/**< Create wrapper */
-#define jwks_create_strb(__str, __len)	jwks_load_strb(NULL, __str, __len)	/**< Create wrapper */
-#define jwks_create_fromfile(__file)	jwks_load_fromfile(NULL, __file)	/**< Create wrapper */
-#define jwks_create_fromfp(__fp)	jwks_load_fromfp(NULL, __fp)		/**< Create wrapper */
+/**
+ * @brief Wrapper around jwks_load() that explicitly creates a new keyring
+ */
+JWT_EXPORT
+jwk_set_t *jwks_create(const char *jwk_json_str);
 
 /**
- * Check if there is an error within the jwk_set
+ * @brief Wrapper around jwks_load_strb() that explicitly creates a new keyring
+ */
+JWT_EXPORT
+jwk_set_t *jwks_create_strb(const char *jwk_json_str, const size_t len);
+
+/**
+ * @brief Wrapper around jwks_load_fromfile() that explicitly creates a new
+ *  keyring
+ */
+JWT_EXPORT
+jwk_set_t *jwks_create_fromfile(const char *file_name);
+
+/**
+ * @brief Wrapper around jwks_load_fromfp() that explicitly creates a new
+ *  keyring
+ */
+JWT_EXPORT
+jwk_set_t *jwks_create_fromfp(FILE *input);
+
+/**
+ * @brief Check if there is an error with a jwk_set
  *
- * To get a string describing the error, use jwks_error_str.
+ * An Error in a jwk_set is usually passive and generally means there was an
+ * issue loading the JWK(S) data.
+ *
+ * To get a string describing the error, use jwks_error_msg(). You can clear
+ * the error with jwks_error_clear().
  *
  * @param jwk_set An existing jwk_set_t
  * @return 0 if no error exists, 1 if it does exists.
@@ -1081,7 +1106,7 @@ JWT_EXPORT
 int jwks_error(jwk_set_t *jwk_set);
 
 /**
- * Check if there is an error within the jwk_set and any of
+ * @brief Check if there is an error within the jwk_set and any of
  * the jwk_item_t in the set.
  *
  * @param jwk_set An existing jwk_set_t
@@ -1091,7 +1116,7 @@ JWT_EXPORT
 int jwks_error_any(jwk_set_t *jwk_set);
 
 /**
- * Retrieve an error message from a jwk_set. Note, a zero
+ * @brief Retrieve an error message from a jwk_set. Note, a zero
  * length string is valid if jwos_error() returns non-zero.
  *
  * @param jwk_set An existing jwk_set_t
@@ -1099,6 +1124,14 @@ int jwks_error_any(jwk_set_t *jwk_set);
  */
 JWT_EXPORT
 const char *jwks_error_msg(const jwk_set_t *jwk_set);
+
+/**
+ * @brief Clear an error condition in a jwk_set
+ *
+ * @param jwk_set An existing jwk_set_t
+ */
+JWT_EXPORT
+void jwks_error_clear(jwk_set_t *jwk_set);
 
 /**
  * Free all memory associated with a jwt_set_t, including any jwk_item_t in

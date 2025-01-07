@@ -261,10 +261,13 @@ int jwks_error(jwk_set_t *jwk_set)
 
 const char *jwks_error_msg(const jwk_set_t *jwk_set)
 {
-	if (jwk_set == NULL)
-		return "Unknown error";
-
 	return jwk_set->error_msg;
+}
+
+void jwks_error_clear(jwk_set_t *jwk_set)
+{
+	jwk_set->error = 0;
+	memset(jwk_set->error_msg, 0, sizeof(jwk_set->error_msg));
 }
 
 static int jwks_item_add(jwk_set_t *jwk_set, jwk_item_t *item)
@@ -464,4 +467,24 @@ jwk_set_t *jwks_load_fromfp(jwk_set_t *jwk_set, FILE *input)
 	j_all = json_loadf(input, JSON_DECODE_ANY, &error);
 
 	return jwks_process(jwk_set, j_all, &error);
+}
+
+jwk_set_t *jwks_create(const char *jwk_json_str)
+{
+	return jwks_load(NULL, jwk_json_str);
+}
+
+jwk_set_t *jwks_create_strb(const char *jwk_json_str, const size_t len)
+{
+	return jwks_load_strb(NULL, jwk_json_str, len);
+}
+
+jwk_set_t *jwks_create_fromfile(const char *file_name)
+{
+	return jwks_load_fromfile(NULL, file_name);
+}
+
+jwk_set_t *jwks_create_fromfp(FILE *input)
+{
+	return jwks_load_fromfp(NULL, input);
 }

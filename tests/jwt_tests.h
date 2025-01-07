@@ -109,6 +109,9 @@ static void read_json(const char *key_file)
 	ck_assert_ptr_nonnull(g_jwk_set);
 	ck_assert(!jwks_error(g_jwk_set));
 
+	/* Just to cover the code path */
+	jwks_error_clear(g_jwk_set);
+
 	g_item = jwks_item_get(g_jwk_set, 0);
 	ck_assert_ptr_nonnull(g_item);
 }
