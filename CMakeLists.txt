@@ -97,8 +97,8 @@ if (GNUTLS_FOUND)
 	target_link_libraries(jwt PUBLIC PkgConfig::GNUTLS)
 	target_link_libraries(jwt_static PUBLIC PkgConfig::GNUTLS)
 	list(APPEND JWT_SOURCES
-	     libjwt/gnutls/jwk-parse.c
 	     libjwt/gnutls/sign-verify.c)
+	# libjwt/gnutls/jwk-parse.c
 endif()
 
 if (OPENSSL_FOUND)
