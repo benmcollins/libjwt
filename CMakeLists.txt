@@ -54,7 +54,7 @@ if (WITH_OPENSSL)
 	#if (NOT OPENSSL_AUTO)
 		set(OPENSSL_REQUIRED REQUIRED)
 	#endif()
-	pkg_check_modules(OPENSSL openssl>=1.1.0 IMPORTED_TARGET
+	pkg_check_modules(OPENSSL openssl>=3.0.0 IMPORTED_TARGET
 			  ${OPENSSL_REQUIRED})
 endif()
 

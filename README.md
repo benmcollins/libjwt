@@ -27,18 +27,19 @@ Standard             | RFC        | Description
 - [JANSSON](https://github.com/akheron/jansson) (>= 2.0)
 - CMake (>= 3.7)
 
-### One or more of these
+### Crypto support
 
-- OpenSSL (>= 1.1.0)
+- OpenSSL (>= 3.0.0)
 - GnuTLS (>= 3.6.0)
 
 > [!NOTE]
-> OpenSSL >= 3.0 is required for JWK and JWKS support
+> OpenSSL is required and used for JWK(S) operations. GnuTLS is optional for
+> use in signing and verifying if configured.
 
 ### Optional
 
 - [Check Library](https://github.com/libcheck/check/issues) for unit testing
-- Doxygen
+- Doxygen (>= 1.13.0)
 
 ## :books: Docs and Source
 
