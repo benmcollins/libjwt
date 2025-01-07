@@ -5,6 +5,7 @@
 #include <string.h>
 #include <errno.h>
 #include <time.h>
+#include <unistd.h>
 
 #include "jwt_tests.h"
 
@@ -62,8 +63,23 @@ START_TEST(test_alloc_funcs)
 }
 END_TEST
 
+const char dump_exp[] = "\n\
+{\n\
+    \"alg\": \"none\"\n\
+}\n\
+.\n\
+{\n\
+    \"iat\": 1475980545,\n\
+    \"iss\": \"files.maclara-llc.com\",\n\
+    \"ref\": \"XXXX-YYYY-ZZZZ-AAAA-CCCC\",\n\
+    \"sub\": \"user0\"\n\
+}\n\
+{\"alg\":\"none\"}.{\"iat\":1475980545,\"iss\":\"files.maclara-llc.com\","
+	"\"ref\":\"XXXX-YYYY-ZZZZ-AAAA-CCCC\",\"sub\":\"user0\"}";
+
 START_TEST(test_jwt_dump_fp)
 {
+	char read_back[BUFSIZ];
 	FILE *out;
 	jwt_t *jwt = NULL;
 	int ret = 0;
@@ -85,14 +101,10 @@ START_TEST(test_jwt_dump_fp)
 	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant_int(jwt, "iat", (long)time(NULL));
+	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
 	ck_assert_int_eq(ret, 0);
 
-#ifdef _WIN32
-	out = fopen("nul", "w");
-#else
-	out = fopen("/dev/null", "w");
-#endif
+	out = fopen("dump_fp_out.txt", "w");
 	ck_assert_ptr_ne(out, NULL);
 
 	ret = jwt_dump_fp(jwt, out, 1);
@@ -102,6 +114,16 @@ START_TEST(test_jwt_dump_fp)
 	ck_assert_int_eq(ret, 0);
 
 	fclose(out);
+
+	out = fopen("dump_fp_out.txt", "r");
+        ck_assert_ptr_nonnull(out);
+        ret = fread(read_back, 1, sizeof(read_back), out);
+        ck_assert_int_gt(ret, 0);
+        read_back[ret] = '\0';
+        fclose(out);
+        unlink("dump_fp_out.txt");
+
+	ck_assert_str_eq(dump_exp, read_back);
 
 	jwt_free(jwt);
 }
