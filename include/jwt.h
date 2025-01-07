@@ -971,7 +971,7 @@ jwt_alg_t jwt_str_alg(const char *alg);
  */
 
 /**
- * @defgroup jwks_core_grp JSON Web Key and Sets
+ * @defgroup jwks_core_grp JSON Web Keys and Sets Management
  *
  * Functions to handle JSON that represents JWK and JWKS for use in validating
  * or signing JWT objects.
@@ -1161,7 +1161,7 @@ static inline void jwks_freep(jwk_set_t **jwks) {
  */
 
 /**
- * @defgroup jwks_item_grp JSON Web Key and Sets
+ * @defgroup jwks_item_grp JSON Web Key Usage
  *
  * Functions to handle JSON that represents JWK and JWKS for use
  * in validating JWT objects.
@@ -1172,19 +1172,17 @@ static inline void jwks_freep(jwk_set_t **jwks) {
 /**
  * @brief Return the index'th jwk_item in the jwk_set
  *
- * Allows you to obtain the raw jwk_item. NOTE, this is not a copy
- * of the item, so any changes to it will be reflected to it in the
- * jwk_set. This also means if the jwk_set is freed, then this data
- * is freed and cannot be used.
+ * Allows you to obtain the raw jwk_item. NOTE, this is not a copy of the item,
+ * so any changes to it will be reflected to it in the jwk_set. This also means
+ * if the jwk_set is freed, then this data is freed and cannot be used.
  *
  * @param jwk_set An existing jwk_set_t
  * @param index Index of the jwk_set
- * @return 0 if no error exists, 1 if it does exists.
+ * @return A valid jwk_item_t or NULL if it doesn't exist
  *
- * @remark It's also worth pointing out that the index of a specific
- *     jwk_item in a jwk_set can and will change if items are added or
- *     removed.
- * from the jwk_set.
+ * @remark It's also worth pointing out that the index of a specific jwk_item
+ *  in a jwk_set can and will change if items are added or removed from the
+ *  jwk_set.
  */
 JWT_EXPORT
 const jwk_item_t *jwks_item_get(const jwk_set_t *jwk_set, size_t index);
