@@ -95,7 +95,7 @@ static int gnutls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 	size_t out_size;
 
 	if (jwt->alg == JWT_ALG_ES256K) {
-		jwks_write_error(jwt, "ES256K Not Supported on GnuTLS");
+		jwt_write_error(jwt, "ES256K Not Supported on GnuTLS");
 		return 1;
 	}
 
@@ -301,7 +301,7 @@ static int gnutls_verify_sha_pem(jwt_t *jwt, const char *head,
 	};
 
 	if (jwt->alg == JWT_ALG_ES256K) {
-		jwks_write_error(jwt, "ES256K Not Supported on GnuTLS");
+		jwt_write_error(jwt, "ES256K Not Supported on GnuTLS");
 		return 1;
 	}
 

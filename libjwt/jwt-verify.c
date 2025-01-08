@@ -73,14 +73,14 @@ static int jwt_parse(jwt_t *jwt, const char *token, unsigned int *len)
 	head = jwt_strdup(token);
 
 	if (!head) {
-		jwks_write_error(jwt, "Error allocating memory");
+		jwt_write_error(jwt, "Error allocating memory");
 		return 1;
 	}
 
 	/* Find the components. */
 	for (body = head; body[0] != '.'; body++) {
 		if (body[0] == '\0') {
-			jwks_write_error(jwt,
+			jwt_write_error(jwt,
 				"No dot found looking for end of header");
 			return 1;
 		}
@@ -91,7 +91,7 @@ static int jwt_parse(jwt_t *jwt, const char *token, unsigned int *len)
 
 	for (sig = body; sig[0] != '.'; sig++) {
 		if (sig[0] == '\0') {
-			jwks_write_error(jwt,
+			jwt_write_error(jwt,
 				"No dot found looking for end of body");
 			return 1;
 		}
@@ -102,12 +102,12 @@ static int jwt_parse(jwt_t *jwt, const char *token, unsigned int *len)
 	/* Now that we have everything split up, let's check out the
 	 * header. */
 	if (jwt_parse_head(jwt, head)) {
-		jwks_write_error(jwt, "Error parsing header");
+		jwt_write_error(jwt, "Error parsing header");
 		return 1;
 	}
 
 	if (jwt_parse_body(jwt, body)) {
-		jwks_write_error(jwt, "Error parsing body");
+		jwt_write_error(jwt, "Error parsing body");
 		return 1;
 	}
 
@@ -127,7 +127,7 @@ static int __verify_config_post(jwt_t *jwt, const jwt_config_t *config,
 
 	/* The quick fail. The caller and JWT disagree. */
 	if (config->alg != jwt->alg) {
-		jwks_write_error(jwt, "JWT alg does not match expected value");
+		jwt_write_error(jwt, "JWT alg does not match expected value");
 		return 1;
 	}
 
@@ -136,14 +136,14 @@ static int __verify_config_post(jwt_t *jwt, const jwt_config_t *config,
 
 	/* We require a key and a signature. */
 	if (config->jw_key == NULL || !sig_len) {
-		jwks_write_error(jwt, "JWT does not contain a signature");
+		jwt_write_error(jwt, "JWT does not contain a signature");
 		return 1;
 	}
 
 	/* If the key has an alg, it must match the caller. */
 	if (config->jw_key->alg != JWT_ALG_NONE &&
 	    config->jw_key->alg != config->alg) {
-		jwks_write_error(jwt, "JWT alg does not much the key being used");
+		jwt_write_error(jwt, "JWT alg does not much the key being used");
 		return 1;
 	}
 
@@ -195,7 +195,7 @@ jwt_t *jwt_verify_wcb(const char *token, jwt_config_t *config,
 
 	/* Let the user handle this and update config */
 	if (cb && cb(jwt, config)) {
-		jwks_write_error(jwt, "User callback returned error");
+		jwt_write_error(jwt, "User callback returned error");
 		return jwt;
 	}
 
@@ -224,12 +224,12 @@ jwt_t *jwt_verify_jwks(jwk_set_t *jwk_set, const char *token)
 
 	ret = jwt_parse(jwt, token, &payload_len);
 	if (ret) {
-		jwks_write_error(jwt, "Error parsing token");
+		jwt_write_error(jwt, "Error parsing token");
 		return jwt;
 	}
 
 	if (jwt->alg == JWT_ALG_NONE) {
-		jwks_write_error(jwt, "Token does not have an 'alg' attribute");
+		jwt_write_error(jwt, "Token does not have an 'alg' attribute");
 		return jwt;
 	}
 

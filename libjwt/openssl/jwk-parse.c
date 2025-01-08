@@ -156,7 +156,7 @@ static int pctx_to_pem(EVP_PKEY_CTX *pctx, OSSL_PARAM *params,
 	ret = EVP_PKEY_fromdata(pctx, &pkey, EVP_PKEY_KEYPAIR, params);
 
 	if (ret <= 0 || pkey == NULL) {
-		jwks_write_error(item, "Unable to create PEM from pkey");
+		jwt_write_error(item, "Unable to create PEM from pkey");
 		goto cleanup_pem;
 	}
 
@@ -219,12 +219,12 @@ int openssl_process_eddsa(json_t *jwk, jwk_item_t *item)
 	crv = json_object_get(jwk, "crv");
 
 	if (x == NULL && d == NULL) {
-		jwks_write_error(item,
+		jwt_write_error(item,
 			"Need an 'x' or 'd' component and found neither");
 		goto cleanup_eddsa;
 	}
 	if (crv == NULL || !json_is_string(crv)) {
-		jwks_write_error(item,
+		jwt_write_error(item,
                         "No curve component found for EdDSA key");
 		goto cleanup_eddsa;
 	}
@@ -238,7 +238,7 @@ int openssl_process_eddsa(json_t *jwk, jwk_item_t *item)
 	else if (!jwt_strcmp(crv_str, "Ed448"))
 		pctx = EVP_PKEY_CTX_new_from_name(NULL, "ED448", NULL);
 	else {
-		jwks_write_error(item,
+		jwt_write_error(item,
                         "Unknown curve [%s] (note, curves are case sensitive)",
 			crv_str);
 		goto cleanup_eddsa;
@@ -248,38 +248,38 @@ int openssl_process_eddsa(json_t *jwk, jwk_item_t *item)
 	item->curve[sizeof(item->curve) - 1] = '\0';
 
 	if (pctx == NULL) {
-		jwks_write_error(item, "Error creating pkey context");
+		jwt_write_error(item, "Error creating pkey context");
 		goto cleanup_eddsa;
 	}
 
 	if (EVP_PKEY_fromdata_init(pctx) <= 0) {
-		jwks_write_error(item, "Error starting pkey init from data");
+		jwt_write_error(item, "Error starting pkey init from data");
 		goto cleanup_eddsa;
 	}
 
 	build = OSSL_PARAM_BLD_new();
 	if (build == NULL) {
-		jwks_write_error(item, "Error allocating params build");
+		jwt_write_error(item, "Error allocating params build");
 		goto cleanup_eddsa;
 	}
 
 	if (!priv) {
 		pub_bin = set_one_octet(build, OSSL_PKEY_PARAM_PUB_KEY, x);
 		if (pub_bin == NULL) {
-			jwks_write_error(item, "Error parsing pub key");
+			jwt_write_error(item, "Error parsing pub key");
 			goto cleanup_eddsa;
 		}
 	} else {
 		priv_bin = set_one_octet(build, OSSL_PKEY_PARAM_PRIV_KEY, d);
 		if (priv_bin == NULL) {
-			jwks_write_error(item, "Error parsing private key");
+			jwt_write_error(item, "Error parsing private key");
 			goto cleanup_eddsa;
 		}
 	}
 
 	params = OSSL_PARAM_BLD_to_param(build);
 	if (params == NULL) {
-		jwks_write_error(item, "Error creating build params");
+		jwt_write_error(item, "Error creating build params");
 		goto cleanup_eddsa;
 	}
 
@@ -321,7 +321,7 @@ int openssl_process_rsa(json_t *jwk, jwk_item_t *item)
 	qi = json_object_get(jwk, "qi");
 
 	if (n == NULL || e == NULL) {
-		jwks_write_error(item,
+		jwt_write_error(item,
 			"Missing required RSA component: n or e");
 		goto cleanup_rsa;
 	}
@@ -340,7 +340,7 @@ int openssl_process_rsa(json_t *jwk, jwk_item_t *item)
 	} else if (!d && !p && !q && !dp && !dq && !qi) {
 		priv = 0;
 	} else {
-		jwks_write_error(item,
+		jwt_write_error(item,
 			"Some priv key components exist, but some are missing");
 		goto cleanup_rsa;
 	}
@@ -348,26 +348,26 @@ int openssl_process_rsa(json_t *jwk, jwk_item_t *item)
 	pctx = EVP_PKEY_CTX_new_from_name(NULL, is_rsa_pss ? "RSA-PSS" : "RSA",
 					  NULL);
 	if (pctx == NULL) {
-		jwks_write_error(item, "Error creating pkey context");
+		jwt_write_error(item, "Error creating pkey context");
 		goto cleanup_rsa;
 	}
 
 	if (EVP_PKEY_fromdata_init(pctx) <= 0) {
-		jwks_write_error(item, "Error preparing conrtext for data");
+		jwt_write_error(item, "Error preparing conrtext for data");
 		goto cleanup_rsa;
 	}
 
 	/* Set params */
 	build = OSSL_PARAM_BLD_new();
 	if (build == NULL) {
-		jwks_write_error(item, "Error creating param build");
+		jwt_write_error(item, "Error creating param build");
 		goto cleanup_rsa;
 	}
 
 	bn_n = set_one_bn(build, OSSL_PKEY_PARAM_RSA_N, n);
 	bn_e = set_one_bn(build, OSSL_PKEY_PARAM_RSA_E, e);
 	if (!bn_n || !bn_e) {
-		jwks_write_error(item, "Error decoding pub components");
+		jwt_write_error(item, "Error decoding pub components");
 		goto cleanup_rsa;
 	}
 
@@ -379,14 +379,14 @@ int openssl_process_rsa(json_t *jwk, jwk_item_t *item)
 		bn_dq = set_one_bn(build, OSSL_PKEY_PARAM_RSA_EXPONENT2, dq);
 		bn_qi = set_one_bn(build, OSSL_PKEY_PARAM_RSA_COEFFICIENT1, qi);
 		if (!bn_d || !bn_p || !bn_q || !bn_dp || !bn_dq || !bn_qi) {
-			jwks_write_error(item, "Error decoding priv components");
+			jwt_write_error(item, "Error decoding priv components");
 			goto cleanup_rsa;
 		}
 	}
 
 	params = OSSL_PARAM_BLD_to_param(build);
 	if (params == NULL) {
-		jwks_write_error(item, "Error building params");
+		jwt_write_error(item, "Error building params");
 		goto cleanup_rsa;
 	}
 
@@ -446,7 +446,7 @@ int openssl_process_ec(json_t *jwk, jwk_item_t *item)
 	/* Check the minimal for pub key */
 	if (crv == NULL || x == NULL || y == NULL ||
 	    !json_is_string(crv) || !json_is_string(x) || !json_is_string(y)) {
-		jwks_write_error(item, "Missing or invalid type for one of crv, x, or y for pub key");
+		jwt_write_error(item, "Missing or invalid type for one of crv, x, or y for pub key");
 		goto cleanup_ec;
 	}
 
@@ -460,19 +460,19 @@ int openssl_process_ec(json_t *jwk, jwk_item_t *item)
 
 	pctx = EVP_PKEY_CTX_new_from_name(NULL, "EC", NULL);
 	if (pctx == NULL) {
-		jwks_write_error(item, "Error creating pkey context");
+		jwt_write_error(item, "Error creating pkey context");
 		goto cleanup_ec;
 	}
 
 	if (EVP_PKEY_fromdata_init(pctx) <= 0) {
-		jwks_write_error(item, "Error preparing context for data");
+		jwt_write_error(item, "Error preparing context for data");
 		goto cleanup_ec;
 	}
 
 	/* Set params */
 	build = OSSL_PARAM_BLD_new();
 	if (build == NULL) {
-		jwks_write_error(item, "Error allocating param build");
+		jwt_write_error(item, "Error allocating param build");
 		goto cleanup_ec;
 	}
 
@@ -480,21 +480,21 @@ int openssl_process_ec(json_t *jwk, jwk_item_t *item)
 	set_one_string(build, OSSL_PKEY_PARAM_GROUP_NAME, ossl_crv);
 	pub_key = set_ec_pub_key(build, x, y, ossl_crv);
 	if (pub_key == NULL) {
-		jwks_write_error(item, "Error generating pub key from components");
+		jwt_write_error(item, "Error generating pub key from components");
 		goto cleanup_ec;
 	}
 
 	if (priv) {
 		bn = set_one_bn(build, OSSL_PKEY_PARAM_PRIV_KEY, d);
 		if (bn == NULL) {
-			jwks_write_error(item, "Error parsing component d");
+			jwt_write_error(item, "Error parsing component d");
 			goto cleanup_ec;
 		}
 	}
 
 	params = OSSL_PARAM_BLD_to_param(build);
 	if (params == NULL) {
-		jwks_write_error(item, "Error build params");
+		jwt_write_error(item, "Error build params");
 		goto cleanup_ec;
 	}
 
@@ -532,21 +532,21 @@ static const char not_implemented[] = "OpenSSL Support for JWK requires 3.0 or h
 JWT_NO_EXPORT
 int openssl_process_eddsa(json_t *jwk, jwk_item_t *item)
 {
-	jwks_write_error(item, not_implemented);
+	jwt_write_error(item, not_implemented);
 	return -1;
 }
 
 JWT_NO_EXPORT
 int openssl_process_rsa(json_t *jwk, jwk_item_t *item)
 {
-	jwks_write_error(item, not_implemented);
+	jwt_write_error(item, not_implemented);
 	return -1;
 }
 
 JWT_NO_EXPORT
 int openssl_process_ec(json_t *jwk, jwk_item_t *item)
 {
-	jwks_write_error(item, not_implemented);
+	jwt_write_error(item, not_implemented);
 	return -1;
 }
 

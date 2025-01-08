@@ -305,7 +305,9 @@ START_TEST(test_jwt_encode_too_short)
 
 	encoded = jwt_encode_str(mytoken);
 	ck_assert_ptr_null(encoded);
-	ck_assert_int_eq(errno, EINVAL);
+	ck_assert_int_ne(jwt_error(mytoken), 0);
+	ck_assert_str_eq(jwt_error_msg(mytoken),
+			 "Key too short for HS512: 256 bits");
 }
 END_TEST
 

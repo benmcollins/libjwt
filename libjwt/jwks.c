@@ -76,7 +76,7 @@ static void jwk_process_values(json_t *jwk, jwk_item_t *item)
 			jwk_key_op_t op = jwk_key_op_j(j_op);
 
 			if (op == JWK_KEY_OP_INVALID) {
-				jwks_write_error(item,
+				jwt_write_error(item,
 					"JWK has an invalid value in key_op");
 			} else {
 				item->key_ops |= op;
@@ -94,7 +94,7 @@ static void jwk_process_values(json_t *jwk, jwk_item_t *item)
 			item->kid = jwt_malloc(len + 1);
 			if (item->kid == NULL) {
 				// LCOV_EXCL_START
-				jwks_write_error(item,
+				jwt_write_error(item,
 					"Error allocating memory for kid");
 				// LCOV_EXCL_STOP
 			} else {
@@ -113,19 +113,19 @@ static int process_octet(json_t *jwk, jwk_item_t *item)
 
 	k = json_object_get(jwk, "k");
 	if (k == NULL || !json_is_string(k)) {
-		jwks_write_error(item, "Invalid JWK: missing `k`");
+		jwt_write_error(item, "Invalid JWK: missing `k`");
 		return -1;
 	}
 
 	str_k = json_string_value(k);
 	if (str_k == NULL || !strlen(str_k)) {
-		jwks_write_error(item, "Invalid JWK: invalid `k`");
+		jwt_write_error(item, "Invalid JWK: invalid `k`");
 		return -1;
 	}
 
 	bin_k = jwt_base64uri_decode(str_k, &len_k);
 	if (bin_k == NULL) {
-		jwks_write_error(item, "Invalid JWK: failed to decode `k`");
+		jwt_write_error(item, "Invalid JWK: failed to decode `k`");
 		return -1;
 	}
 
@@ -147,7 +147,7 @@ static jwk_item_t *jwk_process_one(jwk_set_t *jwk_set, json_t *jwk)
 	item = jwt_malloc(sizeof(*item));
 	if (item == NULL) {
 		// LCOV_EXCL_START
-		jwks_write_error(jwk_set,
+		jwt_write_error(jwk_set,
 			"Error allocating memory for jwk_item_t");
 		return NULL;
 		// LCOV_EXCL_STOP
@@ -157,7 +157,7 @@ static jwk_item_t *jwk_process_one(jwk_set_t *jwk_set, json_t *jwk)
 
 	val = json_object_get(jwk, "kty");
 	if (val == NULL || !json_is_string(val)) {
-		jwks_write_error(item, "Invalid JWK: missing kty value");
+		jwt_write_error(item, "Invalid JWK: missing kty value");
 		return item;
 	}
 
@@ -176,7 +176,7 @@ static jwk_item_t *jwk_process_one(jwk_set_t *jwk_set, json_t *jwk)
 		item->kty = JWK_KEY_TYPE_OCT;
 		process_octet(jwk, item);
 	} else {
-		jwks_write_error(item, "Unknown or unsupported kty type '%s'", kty);
+		jwt_write_error(item, "Unknown or unsupported kty type '%s'", kty);
 		return item;
 	}
 
@@ -354,7 +354,7 @@ static jwk_set_t *jwks_process(jwk_set_t *jwk_set, json_t *j_all, json_error_t *
 	size_t i;
 
 	if (j_all == NULL) {
-		jwks_write_error(jwk_set, "%s: %s", error->source, error->text);
+		jwt_write_error(jwk_set, "%s: %s", error->source, error->text);
 		return jwk_set;
 	}
 

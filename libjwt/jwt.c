@@ -175,7 +175,7 @@ jwt_t *jwt_create(jwt_config_t *config)
 			return jwt;
 
 		/* This is an error. */
-		jwks_write_error(jwt, "Config alg must be set to other than "
+		jwt_write_error(jwt, "Config alg must be set to other than "
 				 "none when supplying a key");
 		return jwt;
 	}
@@ -185,7 +185,7 @@ jwt_t *jwt_create(jwt_config_t *config)
 	/* If the key has it set, it must match. */
 	if (config->jw_key->alg != JWT_ALG_NONE &&
 	    config->alg != config->jw_key->alg) {
-		jwks_write_error(jwt, "Config alg does not match key alg");
+		jwt_write_error(jwt, "Config alg does not match key alg");
 		return jwt;
 	}
 
@@ -400,37 +400,46 @@ int jwt_base64uri_encode(char **_dst, const char *plain, int plain_len)
 	return i;
 }
 
-static int __check_hmac(const jwt_t *jwt)
+static int __check_hmac(jwt_t *jwt)
 {
 	int key_bits = jwt->jw_key->bits;
 
-	if (key_bits < 256)
-		return -1;
+	if (key_bits < 256) {
+		jwt_write_error(jwt, "Key too short for HS algs: %d bits",
+				key_bits);
+		return 1;
+	}
 
 	switch (jwt->alg) {
 	case JWT_ALG_HS256:
 		if (key_bits >= 256)
 			return 0;
+		jwt_write_error(jwt, "Key too short for HS256: %d bits",
+				key_bits);
 		break;
 
 	case JWT_ALG_HS384:
 		if (key_bits >= 384)
 			return 0;
+		jwt_write_error(jwt, "Key too short for HS384: %d bits",
+				key_bits);
 		break;
 
 	case JWT_ALG_HS512:
 		if (key_bits >= 512)
 			return 0;
+		jwt_write_error(jwt, "Key too short for HS512: %d bits",
+				key_bits);
 		break;
 
 	default:
-		return -1;
+		return 1;
 	}
 
-	return -1;
+	return 1;
 }
 
-static int __check_key_bits(const jwt_t *jwt)
+static int __check_key_bits(jwt_t *jwt)
 {
 	int key_bits = jwt->jw_key->bits;
 
@@ -448,6 +457,8 @@ static int __check_key_bits(const jwt_t *jwt)
 	case JWT_ALG_PS512:
 		if (key_bits >= 2048)
 			return 0;
+		jwt_write_error(jwt, "Key too short for RSA algs: %d bits",
+				key_bits);
 		break;
 
 	case JWT_ALG_EDDSA:
@@ -455,23 +466,29 @@ static int __check_key_bits(const jwt_t *jwt)
 	case JWT_ALG_ES256:
 		if (key_bits == 256)
 			return 0;
+		jwt_write_error(jwt, "Key needs to be 256 bits. Has %d bits",
+				key_bits);
 		break;
 
 	case JWT_ALG_ES384:
 		if (key_bits == 384)
 			return 0;
+		jwt_write_error(jwt, "Key needs to be 384 bits. Has %d bits",
+				key_bits);
 		break;
 
 	case JWT_ALG_ES512:
 		if (key_bits == 521)
 			return 0;
+		jwt_write_error(jwt, "Key needs to be 521 bits. Has %d bits",
+				key_bits);
 		break;
 
 	default:
-		return -1;
+		return 1;
 	}
 
-	return -1;
+	return 1;
 }
 
 int jwt_sign(jwt_t *jwt, char **out, unsigned int *len, const char *str,
@@ -483,8 +500,13 @@ int jwt_sign(jwt_t *jwt, char **out, unsigned int *len, const char *str,
 	case JWT_ALG_HS384:
 	case JWT_ALG_HS512:
 		if (__check_hmac(jwt))
-			return EINVAL;
-		return jwt_ops->sign_sha_hmac(jwt, out, len, str, str_len);
+			return 1;
+		if (jwt_ops->sign_sha_hmac(jwt, out, len, str, str_len)) {
+			jwt_write_error(jwt, "Token failed verification");
+			return 1;
+		} else {
+			return 0;
+		}
 
 	/* RSA */
 	case JWT_ALG_RS256:
@@ -505,12 +527,18 @@ int jwt_sign(jwt_t *jwt, char **out, unsigned int *len, const char *str,
 	/* EdDSA */
 	case JWT_ALG_EDDSA:
 		if (__check_key_bits(jwt))
-			return EINVAL;
-		return jwt_ops->sign_sha_pem(jwt, out, len, str, str_len);
+			return 1;
+		if (jwt_ops->sign_sha_pem(jwt, out, len, str, str_len)) {
+			jwt_write_error(jwt, "Token failed verification");
+			return 1;
+		} else {
+			return 0;
+		}
 
 	/* You wut, mate? */
 	default:
-		return EINVAL;
+		jwt_write_error(jwt, "Unknown algorigthm");
+		return 1;
 	}
 }
 
@@ -523,7 +551,7 @@ jwt_t *jwt_verify_sig(jwt_t *jwt, const char *head, unsigned int head_len,
 	case JWT_ALG_HS384:
 	case JWT_ALG_HS512:
 		if (jwt_ops->verify_sha_hmac(jwt, head, head_len, sig))
-			jwks_write_error(jwt, "Token failed verification");
+			jwt_write_error(jwt, "Token failed verification");
 		break;
 
 	/* RSA */
@@ -545,12 +573,12 @@ jwt_t *jwt_verify_sig(jwt_t *jwt, const char *head, unsigned int head_len,
 	/* EdDSA */
 	case JWT_ALG_EDDSA:
 		if (jwt_ops->verify_sha_pem(jwt, head, head_len, sig))
-			jwks_write_error(jwt, "Token failed verification");
+			jwt_write_error(jwt, "Token failed verification");
 		break;
 
 	/* You wut, mate? */
 	default:
-		jwks_write_error(jwt, "Unsupported algorithm, could not verify");
+		jwt_write_error(jwt, "Unknown algorigthm");
 	}
 
 	return jwt;
