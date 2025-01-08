@@ -43,8 +43,6 @@ static void *set_ec_pub_key(OSSL_PARAM_BLD *build, json_t *jx, json_t *jy,
 	/* First, base64url decode */
 	str_x = json_string_value(jx);
 	str_y = json_string_value(jy);
-	if (str_x == NULL || str_y == NULL)
-		goto ec_pub_key_cleanup;
 
 	bin_x = jwt_base64uri_decode(str_x, &len_x);
 	bin_y = jwt_base64uri_decode(str_y, &len_y);
@@ -56,7 +54,7 @@ static void *set_ec_pub_key(OSSL_PARAM_BLD *build, json_t *jx, json_t *jy,
 	y = BN_bin2bn(bin_y, len_y, NULL);
 
 	if (x == NULL || y == NULL)
-		goto ec_pub_key_cleanup;
+		goto ec_pub_key_cleanup; // LCOV_EXCL_LINE
 
 	/* Create the EC group and point */
 	nid = OBJ_sn2nid(curve_name);
@@ -66,18 +64,19 @@ static void *set_ec_pub_key(OSSL_PARAM_BLD *build, json_t *jx, json_t *jy,
 
 	point = EC_POINT_new(group);
 	if (point == NULL)
-		goto ec_pub_key_cleanup;
+		goto ec_pub_key_cleanup; // LCOV_EXCL_LINE
 
 	if (!EC_POINT_set_affine_coordinates(group, point, x, y, NULL))
 		goto ec_pub_key_cleanup;
 
-	pub_key_len = EC_POINT_point2buf(group, point, POINT_CONVERSION_UNCOMPRESSED,
+	pub_key_len = EC_POINT_point2buf(group, point,
+					 POINT_CONVERSION_UNCOMPRESSED,
 					 &pub_key, NULL);
 	if (pub_key_len == 0)
-		goto ec_pub_key_cleanup;
+		goto ec_pub_key_cleanup; // LCOV_EXCL_LINE
 
-	OSSL_PARAM_BLD_push_octet_string(build, OSSL_PKEY_PARAM_PUB_KEY, pub_key,
-					 pub_key_len);
+	OSSL_PARAM_BLD_push_octet_string(build, OSSL_PKEY_PARAM_PUB_KEY,
+					 pub_key, pub_key_len);
 
 ec_pub_key_cleanup:
 	EC_POINT_free(point);
@@ -113,7 +112,7 @@ static BIGNUM *set_one_bn(OSSL_PARAM_BLD *build, const char *ossl_name,
 	jwt_freemem(bin);
 
 	if (bn == NULL)
-		return NULL;
+		return NULL; // LCOV_EXCL_LINE
 
 	OSSL_PARAM_BLD_push_BN(build, ossl_name, bn);
 
@@ -156,8 +155,10 @@ static int pctx_to_pem(EVP_PKEY_CTX *pctx, OSSL_PARAM *params,
 	ret = EVP_PKEY_fromdata(pctx, &pkey, EVP_PKEY_KEYPAIR, params);
 
 	if (ret <= 0 || pkey == NULL) {
+		// LCOV_EXCL_START
 		jwt_write_error(item, "Unable to create PEM from pkey");
 		goto cleanup_pem;
+		// LCOV_EXCL_STOP
 	}
 
 	item->provider = JWT_CRYPTO_OPS_OPENSSL;
@@ -171,7 +172,7 @@ static int pctx_to_pem(EVP_PKEY_CTX *pctx, OSSL_PARAM *params,
 
 	bio = BIO_new(BIO_s_mem());
 	if (bio == NULL)
-		goto cleanup_pem;
+		goto cleanup_pem; // LCOV_EXCL_LINE
 
 	if (priv)
 		ret = PEM_write_bio_PrivateKey(bio, pkey, NULL, NULL, 0,
@@ -180,14 +181,16 @@ static int pctx_to_pem(EVP_PKEY_CTX *pctx, OSSL_PARAM *params,
 		ret = PEM_write_bio_PUBKEY(bio, pkey);
 
 	if (!ret) {
+		// LCOV_EXCL_START
 		ret = 0;
 		goto cleanup_pem;
+		// LCOV_EXCL_STOP
 	}
 
 	len = BIO_get_mem_data(bio, &src);
 	dest = OPENSSL_malloc(len + 1);
 	if (dest == NULL)
-		goto cleanup_pem;
+		goto cleanup_pem; // LCOV_EXCL_LINE
 
 	memcpy(dest, src, len);
 	dest[len] = '\0';
@@ -248,39 +251,51 @@ int openssl_process_eddsa(json_t *jwk, jwk_item_t *item)
 	item->curve[sizeof(item->curve) - 1] = '\0';
 
 	if (pctx == NULL) {
+		// LCOV_EXCL_START
 		jwt_write_error(item, "Error creating pkey context");
 		goto cleanup_eddsa;
+		// LCOV_EXCL_STOP
 	}
 
 	if (EVP_PKEY_fromdata_init(pctx) <= 0) {
+		// LCOV_EXCL_START
 		jwt_write_error(item, "Error starting pkey init from data");
 		goto cleanup_eddsa;
+		// LCOV_EXCL_STOP
 	}
 
 	build = OSSL_PARAM_BLD_new();
 	if (build == NULL) {
+		// LCOV_EXCL_START
 		jwt_write_error(item, "Error allocating params build");
 		goto cleanup_eddsa;
+		// LCOV_EXCL_STOP
 	}
 
 	if (!priv) {
 		pub_bin = set_one_octet(build, OSSL_PKEY_PARAM_PUB_KEY, x);
 		if (pub_bin == NULL) {
+			// LCOV_EXCL_START
 			jwt_write_error(item, "Error parsing pub key");
 			goto cleanup_eddsa;
+			// LCOV_EXCL_STOP
 		}
 	} else {
 		priv_bin = set_one_octet(build, OSSL_PKEY_PARAM_PRIV_KEY, d);
 		if (priv_bin == NULL) {
+			// LCOV_EXCL_START
 			jwt_write_error(item, "Error parsing private key");
 			goto cleanup_eddsa;
+			// LCOV_EXCL_STOP
 		}
 	}
 
 	params = OSSL_PARAM_BLD_to_param(build);
 	if (params == NULL) {
+		// LCOV_EXCL_START
 		jwt_write_error(item, "Error creating build params");
 		goto cleanup_eddsa;
+		// LCOV_EXCL_STOP
 	}
 
 	/* Create PEM from params */
@@ -348,20 +363,26 @@ int openssl_process_rsa(json_t *jwk, jwk_item_t *item)
 	pctx = EVP_PKEY_CTX_new_from_name(NULL, is_rsa_pss ? "RSA-PSS" : "RSA",
 					  NULL);
 	if (pctx == NULL) {
+		// LCOV_EXCL_START
 		jwt_write_error(item, "Error creating pkey context");
 		goto cleanup_rsa;
+		// LCOV_EXCL_STOP
 	}
 
 	if (EVP_PKEY_fromdata_init(pctx) <= 0) {
-		jwt_write_error(item, "Error preparing conrtext for data");
+		// LCOV_EXCL_START
+		jwt_write_error(item, "Error preparing context for data");
 		goto cleanup_rsa;
+		// LCOV_EXCL_STOP
 	}
 
 	/* Set params */
 	build = OSSL_PARAM_BLD_new();
 	if (build == NULL) {
+		// LCOV_EXCL_START
 		jwt_write_error(item, "Error creating param build");
 		goto cleanup_rsa;
+		// LCOV_EXCL_STOP
 	}
 
 	bn_n = set_one_bn(build, OSSL_PKEY_PARAM_RSA_N, n);
@@ -386,8 +407,10 @@ int openssl_process_rsa(json_t *jwk, jwk_item_t *item)
 
 	params = OSSL_PARAM_BLD_to_param(build);
 	if (params == NULL) {
+		// LCOV_EXCL_START
 		jwt_write_error(item, "Error building params");
 		goto cleanup_rsa;
+		// LCOV_EXCL_STOP
 	}
 
 	/* Create PEM from params */
@@ -460,20 +483,26 @@ int openssl_process_ec(json_t *jwk, jwk_item_t *item)
 
 	pctx = EVP_PKEY_CTX_new_from_name(NULL, "EC", NULL);
 	if (pctx == NULL) {
+		// LCOV_EXCL_START
 		jwt_write_error(item, "Error creating pkey context");
 		goto cleanup_ec;
+		// LCOV_EXCL_STOP
 	}
 
 	if (EVP_PKEY_fromdata_init(pctx) <= 0) {
+		// LCOV_EXCL_START
 		jwt_write_error(item, "Error preparing context for data");
 		goto cleanup_ec;
+		// LCOV_EXCL_STOP
 	}
 
 	/* Set params */
 	build = OSSL_PARAM_BLD_new();
 	if (build == NULL) {
+		// LCOV_EXCL_START
 		jwt_write_error(item, "Error allocating param build");
 		goto cleanup_ec;
+		// LCOV_EXCL_STOP
 	}
 
 	ossl_crv = ec_crv_to_ossl_name(crv_str);
@@ -487,15 +516,19 @@ int openssl_process_ec(json_t *jwk, jwk_item_t *item)
 	if (priv) {
 		bn = set_one_bn(build, OSSL_PKEY_PARAM_PRIV_KEY, d);
 		if (bn == NULL) {
+			// LCOV_EXCL_START
 			jwt_write_error(item, "Error parsing component d");
 			goto cleanup_ec;
+			// LCOV_EXCL_STOP
 		}
 	}
 
 	params = OSSL_PARAM_BLD_to_param(build);
 	if (params == NULL) {
+		// LCOV_EXCL_START
 		jwt_write_error(item, "Error build params");
 		goto cleanup_ec;
+		// LCOV_EXCL_STOP
 	}
 
 	/* Create PEM from params */

@@ -52,8 +52,13 @@ static void jwk_process_values(json_t *jwk, jwk_item_t *item)
 
 	/* Start with the ALG (4.4). */
 	j_alg = json_object_get(jwk, "alg");
-	if (j_alg && json_is_string(j_alg))
+	if (j_alg) {
+		if (!json_is_string(j_alg)) {
+			 jwt_write_error(item, "Invalid alg type");
+			 return;
+		}
 		item->alg = jwt_str_alg(json_string_value(j_alg));
+	}
 
 	/* Check for use (4.2). */
 	j_use = json_object_get(jwk, "use");
@@ -376,7 +381,7 @@ static jwk_set_t *jwks_process(jwk_set_t *jwk_set, json_t *j_all, json_error_t *
 }
 
 #define __FLAG_EMPTY	(void *)0xfffff00d
-jwk_set_t *jwks_load_strb(jwk_set_t *jwk_set, const char *jwk_json_str,
+jwk_set_t *jwks_load_strn(jwk_set_t *jwk_set, const char *jwk_json_str,
 			    const size_t len)
 {
 	json_auto_t *j_all = NULL;
@@ -412,7 +417,7 @@ jwk_set_t *jwks_load(jwk_set_t *jwk_set, const char *jwk_json_str)
 		len = strlen(real_str);
 	}
 
-	return jwks_load_strb(jwk_set, real_str, len);
+	return jwks_load_strn(jwk_set, real_str, len);
 }
 
 jwk_set_t *jwks_load_fromfile(jwk_set_t *jwk_set, const char *file_name)
@@ -458,9 +463,9 @@ jwk_set_t *jwks_create(const char *jwk_json_str)
 	return jwks_load(NULL, jwk_json_str);
 }
 
-jwk_set_t *jwks_create_strb(const char *jwk_json_str, const size_t len)
+jwk_set_t *jwks_create_strn(const char *jwk_json_str, const size_t len)
 {
-	return jwks_load_strb(NULL, jwk_json_str, len);
+	return jwks_load_strn(NULL, jwk_json_str, len);
 }
 
 jwk_set_t *jwks_create_fromfile(const char *file_name)

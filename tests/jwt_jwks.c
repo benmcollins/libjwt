@@ -93,6 +93,8 @@ static void __jwks_check(const char *json, const char *pem)
 	if (jwt_error(jwt)) {
 		if (!strcmp(jwt_error_msg(jwt), "ES256K Not Supported on GnuTLS"))
 			return;
+		if (!strcmp(jwt_error_msg(jwt), "ED448 is not yet implemented in GnuTLS"))
+			return;
 	}
 
 	ck_assert_int_eq(jwt_error(jwt), 0);
@@ -115,6 +117,8 @@ JWKS_KEY_TEST(ec_key_secp521r1_pub);
 
 JWKS_KEY_TEST(eddsa_key_ed25519);
 JWKS_KEY_TEST(eddsa_key_ed25519_pub);
+JWKS_KEY_TEST(eddsa_key_ed448);
+JWKS_KEY_TEST(eddsa_key_ed448_pub);
 
 JWKS_KEY_TEST(rsa_key_2048);
 JWKS_KEY_TEST(rsa_key_2048_pub);
@@ -149,6 +153,29 @@ START_TEST(test_jwks_keyring_load)
 	ck_assert(jwks_item_free(g_jwk_set, 3));
 
 	free_key();
+}
+END_TEST
+
+START_TEST(test_jwks_keyring_all_bad)
+{
+	const jwk_item_t *item;
+	jwk_set_auto_t *jwk_set;
+	int i;
+
+        SET_OPS();
+
+	jwk_set = jwks_create_fromfile(KEYDIR "/bad_keys.json");
+	ck_assert_ptr_nonnull(jwk_set);
+
+	for (i = 0; (item = jwks_item_get(jwk_set, i)); i++) {
+		if (!jwks_item_error(item)) {
+			fprintf(stderr, "KID: %s\n",
+				jwks_item_kid(item));
+		}
+		ck_assert_int_ne(jwks_item_error(item), 0);
+	}
+
+	ck_assert_int_eq(i, 14);
 }
 END_TEST
 
@@ -227,6 +254,8 @@ static Suite *libjwt_suite(const char *title)
 
 	tcase_add_loop_test(tc_core, test_jwks_eddsa_key_ed25519, 0, i);
 	tcase_add_loop_test(tc_core, test_jwks_eddsa_key_ed25519_pub, 0, i);
+	tcase_add_loop_test(tc_core, test_jwks_eddsa_key_ed448, 0, i);
+	tcase_add_loop_test(tc_core, test_jwks_eddsa_key_ed448_pub, 0, i);
 
 	tcase_add_loop_test(tc_core, test_jwks_rsa_key_2048, 0, i);
 	tcase_add_loop_test(tc_core, test_jwks_rsa_key_2048_pub, 0, i);
@@ -246,6 +275,7 @@ static Suite *libjwt_suite(const char *title)
 
 	/* Load a whole keyring of all of the above. */
 	tcase_add_loop_test(tc_core, test_jwks_keyring_load, 0, i);
+	tcase_add_loop_test(tc_core, test_jwks_keyring_all_bad, 0, i);
 
 	/* Some coverage attempts. */
 	tcase_add_loop_test(tc_core, test_jwks_key_op_all_types, 0, i);

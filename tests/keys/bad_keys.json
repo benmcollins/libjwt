@@ -1,0 +1,134 @@
+{
+  "keys": [
+    {
+      "kid": "Missing k",
+      "kty": "oct",
+      "alg": "HS256"
+    },
+    {
+      "kid": "Empty k",
+      "kty": "oct",
+      "alg": "HS256",
+      "k": ""
+    },
+    {
+      "kod": "Wrong type for k",
+      "kty": "oct",
+      "alg": "HS256",
+      "k": 1
+    },
+    {
+      "kid": "Wrong type in key_ops",
+      "use": "sig",
+      "key_ops": [
+        "verify", 1
+      ],
+      "kty": "EC",
+      "alg": "ES256",
+      "crv": "P-256",
+      "x": "Y--DdSpCZ5oF3j__h-SdNJIwvB5aI4AXzpRErGUjWrM",
+      "y": "_bSTCXlDeU-pZZbOKDUVLAN===spSIeuKZfTM8rtXFG_RU"
+    },
+    {
+      "kid": "Invalid curve name",
+      "use": "sig",
+      "key_ops": [
+        "verify"
+      ],
+      "kty": "EC",
+      "alg": "ES256",
+      "crv": "BAD CURVE",
+      "x": "Y--DdSpCZ5oF3j__h-SdNJIwvB5aI4AXzpRErGUjWrM",
+      "y": "_bSTCXlDeU-pZZbOKDUVLAN===spSIeuKZfTM8rtXFG_RU"
+    },
+    {
+      "kid": "Invalid ALG",
+      "use": "sig",
+      "key_ops": [
+        "verify"
+      ],
+      "kty": "EC",
+      "alg": "ES256-ASAD",
+      "crv": "P-256",
+      "x": "Y--DdSpCZ5oF3j__h-SdNJIwvB5aI4AXzpRErGUjWrM",
+      "y": "_bSTCXlDeU-pZZbOKDUVLAN===spSIeuKZfTM8rtXFG_RU"
+    },
+    {
+      "kid": "Invalid kty",
+      "kty": "octSSS",
+      "alg": "HS256",
+      "k": "0gmNspkRljssLSrldySnYUS-zhtCo5sqeqo_yl7n2XA"
+    },
+    {
+      "kid": "Invalid type for kty",
+      "kty": true,
+      "alg": "HS256",
+      "k": "0gmNspkRljssLSrldySnYUS-zhtCo5sqeqo_yl7n2XA"
+    },
+    {
+      "kid": "Invalid type for alg",
+      "kty": "oct",
+      "alg": 8384,
+      "k": "0gmNspkRljssLSrldySnYUS-zhtCo5sqeqo_yl7n2XA"
+    },
+    {
+      "kid": "Mismatched x and y components",
+      "use": "sig",
+      "key_ops": [
+        "verify"
+      ],
+      "kty": "EC",
+      "alg": "ES256",
+      "crv": "P-256",
+      "x": "Y--DdSpCZ5oF3j__h-SdNJIwvB5aI4AXzpRErGUjWrM",
+      "y": "795Zo2s891l9E7Jb57g9CEvRVGk_LJ7Hy0ixzGcV8UE"
+    },
+    {
+      "kid": "EC key missing component",
+      "use": "sig",
+      "key_ops": [
+        "verify"
+      ],
+      "kty": "EC",
+      "alg": "ES256",
+      "crv": "P-256",
+      "x": "Y--DdSpCZ5oF3j__h-SdNJIwvB5aI4AXzpRErGUjWrM"
+    },
+    {
+      "kid": "Missing both components",
+      "use": "sig",
+      "key_ops": [
+        "verify",
+        "sign"
+      ],
+      "kty": "OKP",
+      "crv": "Ed25519",
+      "alg": "EdDSA"
+    },
+    {
+      "kid": "EdDSA bad curve name",
+      "use": "sig",
+      "key_ops": [
+        "verify",
+        "sign"
+      ],
+      "kty": "OKP",
+      "crv": "Ed25519-BAD",
+      "alg": "EdDSA",
+      "x": "HUj-14kN6N4i5qNVkfEhwKiCf-tSrvRHstQdtV8a5QM",
+      "d": "XY5oUZqGWVZhX7J09hG-rRnAKXiw1g_aBh-Bc52KZ_Y"
+    },
+    {
+      "kid": "EdDSA missing curve",
+      "use": "sig",
+      "key_ops": [
+        "verify",
+        "sign"
+      ],
+      "kty": "OKP",
+      "alg": "EdDSA",
+      "x": "HUj-14kN6N4i5qNVkfEhwKiCf-tSrvRHstQdtV8a5QM",
+      "d": "XY5oUZqGWVZhX7J09hG-rRnAKXiw1g_aBh-Bc52KZ_Y"
+    }
+  ]
+}

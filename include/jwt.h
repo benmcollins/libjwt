@@ -934,7 +934,7 @@ jwk_set_t *jwks_load(jwk_set_t *jwk_set, const char *jwk_json_str);
  *   or a jwt_set_t with error set. NULL generally means ENOMEM.
  */
 JWT_EXPORT
-jwk_set_t *jwks_load_strb(jwk_set_t *jwk_set, const char *jwk_json_str,
+jwk_set_t *jwks_load_strn(jwk_set_t *jwk_set, const char *jwk_json_str,
 			    const size_t len);
 
 /**
@@ -978,10 +978,10 @@ JWT_EXPORT
 jwk_set_t *jwks_create(const char *jwk_json_str);
 
 /**
- * @brief Wrapper around jwks_load_strb() that explicitly creates a new keyring
+ * @brief Wrapper around jwks_load_strn() that explicitly creates a new keyring
  */
 JWT_EXPORT
-jwk_set_t *jwks_create_strb(const char *jwk_json_str, const size_t len);
+jwk_set_t *jwks_create_strn(const char *jwk_json_str, const size_t len);
 
 /**
  * @brief Wrapper around jwks_load_fromfile() that explicitly creates a new

@@ -1,4 +1,5 @@
 /* Copyright (C) 2017 Nicolas Mora <mail@babelouest.org>
+   Copyright (C) 2024-2025 maClara, LLC <info@maclara-llc.com>
    This file is part of the JWT C Library
 
    SPDX-License-Identifier:  MPL-2.0
@@ -31,7 +32,7 @@ static int gnutls_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 	size_t key_len;
 
 	if (!ops_compat(jwt->jw_key, JWT_CRYPTO_OPS_OPENSSL))
-		return 1;
+		return 1; // LCOV_EXCL_LINE
 
 	key = jwt->jw_key->oct.key;
 	key_len = jwt->jw_key->oct.len;
@@ -47,7 +48,7 @@ static int gnutls_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 		alg = GNUTLS_DIG_SHA512;
 		break;
 	default:
-		return 1;
+		return 1; // LCOV_EXCL_LINE
 	}
 
 	*len = gnutls_hmac_get_len(alg);
@@ -56,9 +57,11 @@ static int gnutls_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 		return 1;
 
 	if (gnutls_hmac_fast(alg, key, key_len, str, str_len, *out)) {
+		// LCOV_EXCL_START
 		jwt_freemem(*out);
 		*out = NULL;
 		return 1;
+		// LCOV_EXCL_STOP
 	}
 
 	return 0;
@@ -72,11 +75,11 @@ static int gnutls_verify_sha_hmac(jwt_t *jwt, const char *head,
 	int ret;
 
 	if (gnutls_sign_sha_hmac(jwt, &sig_check, &len, head, head_len))
-		return 1;
+		return 1; // LCOV_EXCL_LINE
 
 	ret = jwt_base64uri_encode(&buf, sig_check, len);
 	if (ret <= 0 || buf == NULL)
-		return -ret;
+		return 1; // LCOV_EXCL_LINE
 
 	ret = jwt_strcmp(sig, buf);
 
@@ -100,9 +103,8 @@ static int gnutls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 	}
 
 	if (jwt->jw_key->pem == NULL)
-		return 1;
+		return 1; // LCOV_EXCL_LINE
 
-	gnutls_x509_privkey_t key;
 	gnutls_privkey_t privkey;
 	gnutls_datum_t key_dat = {
 		(unsigned char *)jwt->jw_key->pem,
@@ -115,6 +117,25 @@ static int gnutls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 	gnutls_datum_t sig_dat, r, s;
 	int ret = 0, pk_alg;
 	int alg, adj;
+
+	if (gnutls_privkey_init(&privkey)) {
+		// LCOV_EXCL_START
+		jwt_write_error(jwt, "Error initializing privkey");
+		ret = 1;
+		goto sign_clean_key;
+		// LCOV_EXCL_STOP
+	}
+
+	/* Try loading as a private key, and extracting the pubkey */
+	if (gnutls_privkey_import_x509_raw(privkey, &key_dat,
+					   GNUTLS_X509_FMT_PEM,
+					   NULL, 0)) {
+		// LCOV_EXCL_START
+		jwt_write_error(jwt, "Error importing privkey");
+		ret = 1;
+		goto sign_clean_privkey;
+		// LCOV_EXCL_STOP
+	}
 
 	/* Initialize for checking later. */
 	*out = NULL;
@@ -165,34 +186,31 @@ static int gnutls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 
 	/* EdDSA */
 	case JWT_ALG_EDDSA:
-		alg = GNUTLS_DIG_SHA512;
-		pk_alg = GNUTLS_PK_EDDSA_ED25519;
+		pk_alg = gnutls_privkey_get_pk_algorithm(privkey, NULL);
+		if (pk_alg == GNUTLS_PK_EDDSA_ED25519)
+			alg = GNUTLS_DIG_SHA512;
+		else if (pk_alg == GNUTLS_PK_EDDSA_ED448) {
+			/* Not implemented in GnuTLS yet, will fail XXX */
+			jwt_write_error(jwt,
+				"ED448 is not yet implemented in GnuTLS");
+			alg = GNUTLS_DIG_SHAKE_256;
+		} else {
+			jwt_write_error(jwt, "Unknown EdDSA key type");
+			ret = 1;
+			goto sign_clean_privkey;
+		}
 		break;
 
 	default:
-		return 1;
-	}
-
-	/* Initialize signature process data */
-	if (gnutls_x509_privkey_init(&key))
-		return 1;
-
-	if (gnutls_x509_privkey_import(key, &key_dat, GNUTLS_X509_FMT_PEM)) {
-		ret = 1;
-		goto sign_clean_key;
-	}
-
-	if (gnutls_privkey_init(&privkey)) {
-		ret = 1;
-		goto sign_clean_key;
-	}
-
-	if (gnutls_privkey_import_x509(privkey, key, 0)) {
+		// LCOV_EXCL_START
+		jwt_write_error(jwt, "Unknown alg during signing");
 		ret = 1;
 		goto sign_clean_privkey;
+		// LCOV_EXCL_STOP
 	}
 
 	if (pk_alg != gnutls_privkey_get_pk_algorithm(privkey, NULL)) {
+		jwt_write_error(jwt, "Alg mismatch with key during signing");
 		ret = 1;
 		goto sign_clean_privkey;
 	}
@@ -203,8 +221,10 @@ static int gnutls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 
 	/* Sign data */
 	if (gnutls_privkey_sign_data(privkey, alg, 0, &body_dat, &sig_dat)) {
+		// LCOV_EXCL_START
 		ret = 1;
 		goto sign_clean_privkey;
+		// LCOV_EXCL_STOP
 	}
 
 	if (pk_alg == GNUTLS_PK_EC) {
@@ -236,8 +256,10 @@ static int gnutls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 
 		*out = jwt_malloc(out_size);
 		if (*out == NULL) {
+			// LCOV_EXCL_START
 			ret = 1;
 			goto sign_clean_privkey;
+			// LCOV_EXCL_STOP
 		}
 		memset(*out, 0, out_size);
 
@@ -253,8 +275,10 @@ static int gnutls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		/* All others that aren't EC */
 		*out = jwt_malloc(sig_dat.size);
 		if (*out == NULL) {
+			// LCOV_EXCL_START
 			ret = 1;
 			goto sign_clean_privkey;
+			// LCOV_EXCL_STOP
 		}
 
 		/* Copy signature to out */
@@ -269,11 +293,11 @@ sign_clean_privkey:
 	gnutls_privkey_deinit(privkey);
 
 sign_clean_key:
-	gnutls_x509_privkey_deinit(key);
-
 	if (ret && *out) {
+		// LCOV_EXCL_START
 		jwt_freemem(*out);
 		*out = NULL;
+		// LCOV_EXCL_STOP
 	}
 
 	return ret;
@@ -301,8 +325,10 @@ static int gnutls_verify_sha_pem(jwt_t *jwt, const char *head,
 	};
 
 	if (jwt->alg == JWT_ALG_ES256K) {
+		// LCOV_EXCL_START
 		jwt_write_error(jwt, "ES256K Not Supported on GnuTLS");
 		return 1;
+		// LCOV_EXCL_STOP
 	}
 
 	switch (jwt->alg) {
@@ -346,7 +372,7 @@ static int gnutls_verify_sha_pem(jwt_t *jwt, const char *head,
 		break;
 
 	default:
-		return 1;
+		return 1; // LCOV_EXCL_LINE
 	}
 
 	sig = (unsigned char *)jwt_base64uri_decode(sig_b64, &sig_len);
@@ -355,33 +381,44 @@ static int gnutls_verify_sha_pem(jwt_t *jwt, const char *head,
 		return 1;
 
 	if (gnutls_pubkey_init(&pubkey)) {
+		// LCOV_EXCL_START
 		ret = 1;
 		goto verify_clean_sig;
+		// LCOV_EXCL_STOP
 	}
 
-	if ((ret = gnutls_pubkey_import(pubkey, &cert_dat, GNUTLS_X509_FMT_PEM))) {
+	ret = gnutls_pubkey_import(pubkey, &cert_dat, GNUTLS_X509_FMT_PEM);
+	if (ret) {
 		gnutls_privkey_t privkey;
 
 		/* Try loading as a private key, and extracting the pubkey. This is pefectly
 		 * legit. A JWK can have a private key with key_ops of SIGN and VERIFY. */
 		if (gnutls_privkey_init(&privkey)) {
+			// LCOV_EXCL_START
 			ret = 1;
 			goto verify_clean_pubkey;
+			// LCOV_EXCL_STOP
 		}
 
 		/* Try loading as a private key, and extracting the pubkey */
-		if (gnutls_privkey_import_x509_raw(privkey, &cert_dat, GNUTLS_X509_FMT_PEM, NULL, 0)) {
+		if (gnutls_privkey_import_x509_raw(privkey, &cert_dat,
+						   GNUTLS_X509_FMT_PEM,
+						   NULL, 0)) {
+			// LCOV_EXCL_START
 			ret = 1;
 			gnutls_privkey_deinit(privkey);
 			goto verify_clean_pubkey;
+			// LCOV_EXCL_STOP
 		}
 
 		ret = gnutls_pubkey_import_privkey(pubkey, privkey, 0, 0);
 		gnutls_privkey_deinit(privkey);
 
 		if (ret) {
+			// LCOV_EXCL_START
 			ret = 1;
 			goto verify_clean_pubkey;
+			// LCOV_EXCL_STOP
 		}
 	}
 
@@ -409,13 +446,15 @@ static int gnutls_verify_sha_pem(jwt_t *jwt, const char *head,
 			s.size = 66;
 			s.data = sig + 66;
 		} else {
+			// LCOV_EXCL_START
 			ret = 1;
 			goto verify_clean_pubkey;
+			// LCOV_EXCL_STOP
 		}
 
 		if (gnutls_encode_rs_value(&sig_dat, &r, &s) ||
 		    gnutls_pubkey_verify_data2(pubkey, alg, 0, &data, &sig_dat))
-			ret = 1;
+			ret = 1; // LCOV_EXCL_LINE
 
 		if (sig_dat.data != NULL)
 			gnutls_free(sig_dat.data);

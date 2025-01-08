@@ -177,7 +177,7 @@ static void read_key(const char *key_file)
 	if (strstr(key_file, ".pem") != NULL)
 		return;
 
-	g_jwk_set = jwks_create(test_data.key);
+	g_jwk_set = jwks_create_strn(test_data.key, test_data.key_len);
 	ck_assert_ptr_nonnull(g_jwk_set);
 	ck_assert(!jwks_error(g_jwk_set));
 

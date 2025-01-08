@@ -404,23 +404,23 @@ static int __check_key_bits(jwt_t *jwt)
 	case JWT_ALG_EDDSA:
 	case JWT_ALG_ES256K:
 	case JWT_ALG_ES256:
-		if (key_bits == 256)
+		if (key_bits == 256 || key_bits == 456)
 			return 0;
-		jwt_write_error(jwt, "Key needs to be 256 bits. Has %d bits",
+		jwt_write_error(jwt, "Key needs to be 256 or 456 bits: %d bits",
 				key_bits);
 		break;
 
 	case JWT_ALG_ES384:
 		if (key_bits == 384)
 			return 0;
-		jwt_write_error(jwt, "Key needs to be 384 bits. Has %d bits",
+		jwt_write_error(jwt, "Key needs to be 384 bits: %d bits",
 				key_bits);
 		break;
 
 	case JWT_ALG_ES512:
 		if (key_bits == 521)
 			return 0;
-		jwt_write_error(jwt, "Key needs to be 521 bits. Has %d bits",
+		jwt_write_error(jwt, "Key needs to be 521 bits: %d bits",
 				key_bits);
 		break;
 

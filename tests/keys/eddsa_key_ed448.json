@@ -1,0 +1,14 @@
+{
+  "keys": [
+    {
+      "key_ops": [
+        "sign"
+      ],
+      "kid": "9f3c8176-d381-4dc5-a868-8b07d70c0124",
+      "kty": "OKP",
+      "crv": "Ed448",
+      "alg": "EdDSA",
+      "d": "nsYcSyibFeqtBBmVUh3S_xGTNQJr0IGwVmU6gTd8Xn-gtb-PxxzPhJnUXZ_UdkPRsz2SY0d8On-t"
+    }
+  ]
+}

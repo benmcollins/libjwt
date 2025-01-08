@@ -34,7 +34,7 @@ static int openssl_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 	size_t key_len;
 
 	if (!ops_compat(jwt->jw_key, JWT_CRYPTO_OPS_OPENSSL))
-		return 1;
+		return 1; // LCOV_EXCL_LINE
 
 	key = jwt->jw_key->oct.key;
 	key_len = jwt->jw_key->oct.len;
@@ -53,7 +53,7 @@ static int openssl_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 		alg = EVP_sha512();
 		break;
 	default:
-		return 1;
+		return 1; // LCOV_EXCL_LINE
 	}
 
 	*out = jwt_malloc(EVP_MAX_MD_SIZE);
@@ -62,9 +62,11 @@ static int openssl_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 
 	if (HMAC(alg, key, key_len, (const unsigned char *)str, str_len,
 		 (unsigned char *)*out, len) == NULL) {
+		// LCOV_EXCL_START
 		jwt_freemem(*out);
 		*out = NULL;
 		return 1;
+		// LCOV_EXCL_STOP
 	}
 
 	return 0;
@@ -80,12 +82,14 @@ static int openssl_verify_sha_hmac(jwt_t *jwt, const char *head,
 
 	ret = openssl_sign_sha_hmac(jwt, &res, &res_len, head, head_len);
 	if (ret)
-		return ret;
+		return ret; // LCOV_EXCL_LINE
 
 	ret = jwt_base64uri_encode(&buf, (char *)res, res_len);
 	if (ret <= 0) {
+		// LCOV_EXCL_START
 		jwt_freemem(res);
 		return -ret;
+		// LCOV_EXCL_STOP
 	}
 
 	ret = jwt_strcmp(buf, sig) ? 1 : 0;
@@ -122,7 +126,7 @@ static int __degree_and_check(EVP_PKEY *pkey, jwt_t *jwt)
 		break;
 
 	default:
-		return 0;
+		return 0; // LCOV_EXCL_LINE
 	}
 
 	return bits;
@@ -153,8 +157,10 @@ static int jwt_ec_d2i(jwt_t *jwt, char **out, unsigned int *len,
 	s_len = BN_num_bytes(ec_sig_s);
 	bn_len = (degree + 7) / 8;
 	if ((r_len > bn_len) || (s_len > bn_len)) {
+		// LCOV_EXCL_START
 		ECDSA_SIG_free(ec_sig);
 		return 1;
+		// LCOV_EXCL_STOP
 	}
 
 	buf_len = 2 * bn_len;
@@ -196,7 +202,7 @@ static int openssl_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 	size_t slen;
 
 	if (!ops_compat(jwt->jw_key, JWT_CRYPTO_OPS_OPENSSL))
-		return 1;
+		return 1; // LCOV_EXCL_LINE
 
 	pkey = jwt->jw_key->provider_data;
 
@@ -246,20 +252,20 @@ static int openssl_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 
 	/* EdDSA */
 	case JWT_ALG_EDDSA:
-		alg = NULL;
-		if (EVP_PKEY_id(pkey) == EVP_PKEY_ED25519 ||
-		    EVP_PKEY_id(pkey) == EVP_PKEY_ED448)
-			type = EVP_PKEY_id(pkey);
-		else
+		/* Technically this is sha512 for ED25519 and
+		 * shake256 for ED448 */
+		alg = EVP_md_null();
+		type = EVP_PKEY_id(pkey);
+		if (type != EVP_PKEY_ED25519 && type != EVP_PKEY_ED448)
 			type = -1;
 		break;
 
 	default:
-		return 1;
+		return 1; // LCOV_EXCL_LINE
 	}
 
 	if (type != EVP_PKEY_id(pkey))
-		SIGN_ERROR();
+		SIGN_ERROR(); // LCOV_EXCL_LINE
 
 	mdctx = EVP_MD_CTX_create();
 	if (mdctx == NULL)
@@ -267,19 +273,22 @@ static int openssl_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 
 	/* Initialize the DigestSign operation using alg */
 	if (EVP_DigestSignInit(mdctx, &pkey_ctx, alg, NULL, pkey) != 1)
-		SIGN_ERROR();
+		SIGN_ERROR(); // LCOV_EXCL_LINE
 
 	/* Required for RSA-PSS */
 	if (type == EVP_PKEY_RSA_PSS) {
-		if (EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, RSA_PKCS1_PSS_PADDING) < 0)
-			SIGN_ERROR();
-		if (EVP_PKEY_CTX_set_rsa_pss_saltlen(pkey_ctx, RSA_PSS_SALTLEN_DIGEST) < 0)
-			SIGN_ERROR();
+		if (EVP_PKEY_CTX_set_rsa_padding(pkey_ctx,
+						 RSA_PKCS1_PSS_PADDING) < 0)
+			SIGN_ERROR(); // LCOV_EXCL_LINE
+		if (EVP_PKEY_CTX_set_rsa_pss_saltlen(pkey_ctx,
+						     RSA_PSS_SALTLEN_DIGEST) < 0)
+			SIGN_ERROR(); // LCOV_EXCL_LINE
 	}
 
 	/* Get the size of sig first */
-	if (EVP_DigestSign(mdctx, NULL, &slen, (const unsigned char *)str, str_len) != 1)
-		SIGN_ERROR();
+	if (EVP_DigestSign(mdctx, NULL, &slen, (const unsigned char *)str,
+			   str_len) != 1)
+		SIGN_ERROR(); // LCOV_EXCL_LINE
 
 	/* Allocate memory for signature based on returned size */
 	sig = jwt_malloc(slen);
@@ -287,8 +296,9 @@ static int openssl_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		SIGN_ERROR(); // LCOV_EXCL_LINE
 
 	/* Actual signing */
-	if (EVP_DigestSign(mdctx, sig, &slen, (const unsigned char *)str, str_len) != 1)
-		SIGN_ERROR();
+	if (EVP_DigestSign(mdctx, sig, &slen, (const unsigned char *)str,
+			   str_len) != 1)
+		SIGN_ERROR() // LCOV_EXCL_LINE;
 
 	if (type == EVP_PKEY_EC) {
 		/* For EC we need to convert to a raw format of R/S. */
@@ -306,7 +316,7 @@ static int openssl_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 
 jwt_sign_sha_pem_done:
 	if (ret)
-		jwt_freemem(sig);
+		jwt_freemem(sig); // LCOV_EXCL_LINE
 
 	BIO_free(bufkey);
 	EVP_MD_CTX_destroy(mdctx);
@@ -333,7 +343,7 @@ static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 	int slen;
 
 	if (!ops_compat(jwt->jw_key, JWT_CRYPTO_OPS_OPENSSL))
-		return 1;
+		return 1; // LCOV_EXCL_LINE
 	pkey = jwt->jw_key->provider_data;
 
 	switch (jwt->alg) {
@@ -391,7 +401,7 @@ static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 		break;
 
 	default:
-		return 1;
+		return 1; // LCOV_EXCL_LINE
 	}
 
 	sig = jwt_base64uri_decode(sig_b64, &slen);
@@ -417,12 +427,12 @@ static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 
 		bn_len = (degree + 7) / 8;
 		if ((bn_len * 2) != slen)
-			VERIFY_ERROR();
+			VERIFY_ERROR(); // LCOV_EXCL_LINE
 
 		ec_sig_r = BN_bin2bn(sig, bn_len, NULL);
 		ec_sig_s = BN_bin2bn(sig + bn_len, bn_len, NULL);
 		if (ec_sig_r  == NULL || ec_sig_s == NULL)
-			VERIFY_ERROR();
+			VERIFY_ERROR(); // LCOV_EXCL_LINE
 
 		ECDSA_SIG_set0(ec_sig, ec_sig_r, ec_sig_s);
 
@@ -437,7 +447,7 @@ static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 		slen = i2d_ECDSA_SIG(ec_sig, &p);
 
 		if (slen == 0)
-			VERIFY_ERROR();
+			VERIFY_ERROR(); // LCOV_EXCL_LINE
 	}
 
 	mdctx = EVP_MD_CTX_create();
@@ -446,17 +456,20 @@ static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 
 	/* Initialize the DigestVerify operation using alg */
 	if (EVP_DigestVerifyInit(mdctx, &pkey_ctx, alg, NULL, pkey) != 1)
-		VERIFY_ERROR();
+		VERIFY_ERROR(); // LCOV_EXCL_LINE
 
 	if (type == EVP_PKEY_RSA_PSS) {
-		if (EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, RSA_PKCS1_PSS_PADDING) < 0)
-			VERIFY_ERROR();
-		if (EVP_PKEY_CTX_set_rsa_pss_saltlen(pkey_ctx, RSA_PSS_SALTLEN_DIGEST) < 0)
-			VERIFY_ERROR();
+		if (EVP_PKEY_CTX_set_rsa_padding(pkey_ctx,
+						 RSA_PKCS1_PSS_PADDING) < 0)
+			VERIFY_ERROR(); // LCOV_EXCL_LINE
+		if (EVP_PKEY_CTX_set_rsa_pss_saltlen(pkey_ctx,
+						     RSA_PSS_SALTLEN_DIGEST) < 0)
+			VERIFY_ERROR(); // LCOV_EXCL_LINE
 	}
 
 	/* One-shot update and verify */
-	if (EVP_DigestVerify(mdctx, sig, slen, (const unsigned char *)head, head_len) != 1)
+	if (EVP_DigestVerify(mdctx, sig, slen, (const unsigned char *)head,
+			     head_len) != 1)
 		VERIFY_ERROR();
 
 jwt_verify_sha_pem_done:
