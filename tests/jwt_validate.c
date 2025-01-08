@@ -16,12 +16,23 @@ static const time_t expires = TS_CONST + 600L;
 
 static void __setup_jwt()
 {
+	jwt_value_t jval;
+
 	EMPTY_JWT(jwt);
-	jwt_add_grant(jwt, "iss", "test");
-	jwt_add_grant(jwt, "sub", "user0");
-	jwt_add_grants_json(jwt, "{\"aud\": [\"svc1\",\"svc2\"]}");
-	jwt_add_grant_int(jwt, "iat", iat);
-	jwt_add_grant_bool(jwt, "admin", 1);
+	jwt_set_ADD_STR(&jval, "iss", "test");
+	jwt_grant_add(jwt, &jval);
+
+	jwt_set_ADD_STR(&jval, "sub", "user0");
+	jwt_grant_add(jwt, &jval);
+
+	jwt_set_ADD_JSON(&jval, NULL, "{\"aud\": [\"svc1\",\"svc2\"]}");
+        jwt_grant_add(jwt, &jval);
+
+	jwt_set_ADD_INT(&jval, "iat", iat);
+	jwt_grant_add(jwt, &jval);
+
+	jwt_set_ADD_BOOL(&jval, "admin", 1);
+	jwt_grant_add(jwt, &jval);
 }
 
 static void __teardown_jwt()
@@ -38,7 +49,7 @@ static void __teardown_jwt()
 	ck_assert_int_eq(__e, __r);			\
 	__s = jwt_exception_str(__r);			\
 	ck_assert_str_eq(__str, __s);			\
-	jwt_free_str(__s);				\
+	free(__s);				\
 } while(0);
 
 START_TEST(test_jwt_validate_errno)
@@ -62,7 +73,7 @@ START_TEST(test_jwt_validate_errno)
 	ck_assert_int_eq(ret, JWT_VALIDATION_ERROR);
 	exc = jwt_exception_str(ret);
 	ck_assert_str_eq(exc, "general failures");
-	jwt_free_str(exc);
+	free(exc);
 
 
 	/* Validate fails with NULL jwt_valid */
@@ -360,10 +371,12 @@ START_TEST(test_jwt_valid_not_before)
 {
 	jwt_valid_t *jwt_valid = NULL;
 	unsigned int ret = 0;
+	jwt_value_t jval;
 
 	SET_OPS();
 
-	jwt_add_grant_int(jwt, "nbf", not_before);
+	jwt_set_ADD_INT(&jval, "nbf", not_before);
+	jwt_grant_add(jwt, &jval);
 
 	ret = jwt_valid_new(&jwt_valid, JWT_ALG_NONE);
 	ck_assert_int_eq(ret, 0);
@@ -415,10 +428,12 @@ START_TEST(test_jwt_valid_not_before_leeway)
 {
 	jwt_valid_t *jwt_valid = NULL;
 	unsigned int ret = 0;
+	jwt_value_t jval;
 
 	SET_OPS();
 
-	jwt_add_grant_int(jwt, "nbf", not_before);
+	jwt_set_ADD_INT(&jval, "nbf", not_before);
+	jwt_grant_add(jwt, &jval);
 
 	ret = jwt_valid_new(&jwt_valid, JWT_ALG_NONE);
 	ck_assert_int_eq(ret, 0);
@@ -448,10 +463,12 @@ START_TEST(test_jwt_valid_expires)
 {
 	jwt_valid_t *jwt_valid = NULL;
 	unsigned int ret = 0;
+	jwt_value_t jval;
 
 	SET_OPS();
 
-	jwt_add_grant_int(jwt, "exp", expires);
+	jwt_set_ADD_INT(&jval, "exp", expires);
+	jwt_grant_add(jwt, &jval);
 
 	ret = jwt_valid_new(&jwt_valid, JWT_ALG_NONE);
 	ck_assert_int_eq(ret, 0);
@@ -503,10 +520,12 @@ START_TEST(test_jwt_valid_expires_leeway)
 {
 	jwt_valid_t *jwt_valid = NULL;
 	unsigned int ret = 0;
+	jwt_value_t jval;
 
 	SET_OPS();
 
-	jwt_add_grant_int(jwt, "exp", expires);
+	jwt_set_ADD_INT(&jval, "exp", expires);
+	jwt_grant_add(jwt, &jval);
 
 	ret = jwt_valid_new(&jwt_valid, JWT_ALG_NONE);
 	ck_assert_int_eq(ret, 0);
@@ -578,13 +597,13 @@ START_TEST(test_jwt_valid_headers)
 	__VAL_EQ(jwt_valid, JWT_VALIDATION_SUCCESS, "success");
 
 	/* JWT is valid when checking hdr and aud matches */
-        jwt_set_ADD_JSON(&jval, "{\"aud\": [\"svc1\",\"svc2\"]}");
+        jwt_set_ADD_JSON(&jval, NULL, "{\"aud\": [\"svc1\",\"svc2\"]}");
         jwt_header_add(jwt, &jval);
 	__VAL_EQ(jwt_valid, JWT_VALIDATION_SUCCESS, "success");
 
 	/* JWT is invalid when checking hdr and aud does not match */
 	jwt_header_del(jwt, "aud");
-	jwt_set_ADD_JSON(&jval, "{\"aud\": [\"svc1\",\"svc2\",\"svc3\"]}");
+	jwt_set_ADD_JSON(&jval, NULL, "{\"aud\": [\"svc1\",\"svc2\",\"svc3\"]}");
 	jwt_header_add(jwt, &jval);
 	__VAL_EQ(jwt_valid, JWT_VALIDATION_AUD_MISMATCH, "audience mismatch");
 
@@ -628,13 +647,13 @@ START_TEST(test_jwt_valid_grants_json)
 	ck_assert_ptr_nonnull(json_val);
 	ck_assert_str_eq(json_val, "[\"foo\",\"bar\"]");
 
-	jwt_free_str(json_val);
+	free(json_val);
 
 	json_val = jwt_valid_get_grants_json(jwt_valid, NULL);
 	ck_assert_ptr_nonnull(json_val);
 	ck_assert_str_eq(json_val, json);
 
-	jwt_free_str(json_val);
+	free(json_val);
 
 	jwt_valid_free(jwt_valid);
 }

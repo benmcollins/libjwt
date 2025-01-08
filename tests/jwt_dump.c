@@ -79,6 +79,7 @@ const char dump_exp[] = "\n\
 
 START_TEST(test_jwt_dump_fp)
 {
+	jwt_value_t jval;
 	char read_back[BUFSIZ];
 	FILE *out;
 	jwt_t *jwt = NULL;
@@ -92,16 +93,20 @@ START_TEST(test_jwt_dump_fp)
 	jwt = jwt_create(NULL);
 	ck_assert_ptr_nonnull(jwt);
 
-	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
+	jwt_set_ADD_STR(&jval, "iss", "files.maclara-llc.com");
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant(jwt, "sub", "user0");
+	jwt_set_ADD_STR(&jval, "sub", "user0");
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
+	jwt_set_ADD_STR(&jval, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
+	jwt_set_ADD_INT(&jval, "iat", TS_CONST);
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
 	out = fopen("dump_fp_out.txt", "w");
@@ -144,22 +149,26 @@ START_TEST(test_jwt_dump_str)
 	jwt = jwt_create(NULL);
 	ck_assert_ptr_nonnull(jwt);
 
-	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
+	jwt_set_ADD_STR(&jval, "iss", "files.maclara-llc.com");
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant(jwt, "sub", "user0");
+	jwt_set_ADD_STR(&jval, "sub", "user0");
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
+	jwt_set_ADD_STR(&jval, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant_int(jwt, "iat", (long)time(NULL));
+	jwt_set_ADD_INT(&jval, "iat", (long)time(NULL));
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
 	/* Test 'typ' header: should not be present, cause 'alg' is JWT_ALG_NONE. */
 	jwt_set_GET_STR(&jval, "typ");
 	ret = jwt_header_get(jwt, &jval);
-	ck_assert_int_eq(ret, 1);
+	ck_assert_int_eq(ret, JWT_VALUE_ERR_NOEXIST);
 	ck_assert_ptr_null(jval.str_val);
 
 	out = jwt_dump_str(jwt, 1);
@@ -168,10 +177,10 @@ START_TEST(test_jwt_dump_str)
 	/* Test 'typ' header: should not be present, cause 'alg' is JWT_ALG_NONE. */
 	jwt_set_GET_STR(&jval, "typ");
 	ret = jwt_header_get(jwt, &jval);
-	ck_assert_int_eq(ret, 1);
+	ck_assert_int_eq(ret, JWT_VALUE_ERR_NOEXIST);
 	ck_assert_ptr_null(jval.str_val);
 
-	jwt_free_str(out);
+	free(out);
 
 	out = jwt_dump_str(jwt, 0);
 	ck_assert_ptr_nonnull(out);
@@ -179,10 +188,10 @@ START_TEST(test_jwt_dump_str)
 	/* Test 'typ' header: should not be present, cause 'alg' is JWT_ALG_NONE. */
 	jwt_set_GET_STR(&jval, "typ");
 	ret = jwt_header_get(jwt, &jval);
-	ck_assert_int_ne(ret, 0);
+	ck_assert_int_eq(ret, JWT_VALUE_ERR_NOEXIST);
 	ck_assert_ptr_null(jval.str_val);
 
-	jwt_free_str(out);
+	free(out);
 
 	jwt_free(jwt);
 }
@@ -201,6 +210,7 @@ END_TEST
 
 START_TEST(test_jwt_dump_grants_str)
 {
+	jwt_value_t jval;
 	jwt_t *jwt = NULL;
 	int ret = 0;
 	char *out;
@@ -215,16 +225,20 @@ START_TEST(test_jwt_dump_grants_str)
 	jwt = jwt_create(NULL);
 	ck_assert_ptr_nonnull(jwt);
 
-	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
+	jwt_set_ADD_STR(&jval, "iss", "files.maclara-llc.com");
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant(jwt, "sub", "user0");
+	jwt_set_ADD_STR(&jval, "sub", "user0");
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
+	jwt_set_ADD_STR(&jval, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant_int(jwt, "iat", timestamp);
+	jwt_set_ADD_INT(&jval, "iat", timestamp);
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
 	out = jwt_dump_grants_str(jwt, 1);
@@ -238,7 +252,7 @@ START_TEST(test_jwt_dump_grants_str)
 			"sub", "user0");
 	ck_assert_str_eq(out, buf);
 
-	jwt_free_str(out);
+	free(out);
 
 	out = jwt_dump_grants_str(jwt, 0);
 	ck_assert_ptr_nonnull(out);
@@ -251,7 +265,7 @@ START_TEST(test_jwt_dump_grants_str)
 			"sub", "user0");
 	ck_assert_str_eq(out, buf);
 
-	jwt_free_str(out);
+	free(out);
 
 	jwt_free(jwt);
 }
@@ -271,16 +285,20 @@ START_TEST(test_jwt_dump_str_alg_default_typ_header)
 
 	CREATE_JWT(jwt, "oct_key_256.json", JWT_ALG_HS256);
 
-	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
+	jwt_set_ADD_STR(&jval, "iss", "files.maclara-llc.com");
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant(jwt, "sub", "user0");
+	jwt_set_ADD_STR(&jval, "sub", "user0");
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
+	jwt_set_ADD_STR(&jval, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant_int(jwt, "iat", (long)time(NULL));
+	jwt_set_ADD_INT(&jval, "iat", (long)time(NULL));
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
 	/*
@@ -307,7 +325,7 @@ START_TEST(test_jwt_dump_str_alg_default_typ_header)
 	ck_assert_ptr_nonnull(jval.str_val);
 	ck_assert_str_eq(jval.str_val, "JWT");
 
-	jwt_free_str(out);
+	free(out);
 
 	out = jwt_dump_str(jwt, 0);
 	ck_assert_ptr_nonnull(out);
@@ -323,7 +341,7 @@ START_TEST(test_jwt_dump_str_alg_default_typ_header)
 	ck_assert_ptr_nonnull(jval.str_val);
 	ck_assert_str_eq(jval.str_val, "JWT");
 
-	jwt_free_str(out);
+	free(out);
 }
 END_TEST
 
@@ -341,16 +359,20 @@ START_TEST(test_jwt_dump_str_alg_custom_typ_header)
 
 	CREATE_JWT(jwt, "oct_key_256.json", JWT_ALG_HS256);
 
-	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
+	jwt_set_ADD_STR(&jval, "iss", "files.maclara-llc.com");
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant(jwt, "sub", "user0");
+	jwt_set_ADD_STR(&jval, "sub", "user0");
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
+	jwt_set_ADD_STR(&jval, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant_int(jwt, "iat", (long)time(NULL));
+	jwt_set_ADD_INT(&jval, "iat", (long)time(NULL));
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
 	jwt_set_ADD_STR(&jval, "typ", "favourite");
@@ -381,7 +403,7 @@ START_TEST(test_jwt_dump_str_alg_custom_typ_header)
 	ck_assert_ptr_nonnull(jval.str_val);
 	ck_assert_str_eq(jval.str_val, "favourite");
 
-	jwt_free_str(out);
+	free(out);
 
 	out = jwt_dump_str(jwt, 0);
 	ck_assert_ptr_nonnull(out);
@@ -393,7 +415,7 @@ START_TEST(test_jwt_dump_str_alg_custom_typ_header)
 	ck_assert_ptr_nonnull(jval.str_val);
 	ck_assert_str_eq(jval.str_val, "favourite");
 
-	jwt_free_str(out);
+	free(out);
 }
 END_TEST
 

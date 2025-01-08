@@ -23,6 +23,7 @@ static void __jwks_check(const char *json, const char *pem)
 	jwk_set_auto_t *jwk_set = NULL;
 	const jwk_item_t *item = NULL;
 	jwt_auto_t *jwt = NULL;
+	jwt_value_t jval;
 	char *out = NULL;
 	int ret;
 
@@ -70,16 +71,20 @@ static void __jwks_check(const char *json, const char *pem)
 	ck_assert_ptr_nonnull(jwt);
 
 	/* Add some grants */
-	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
+	jwt_set_ADD_STR(&jval, "iss", "files.maclara-llc.com");
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant(jwt, "sub", "user0");
+	jwt_set_ADD_STR(&jval, "sub", "user0");
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
+	jwt_set_ADD_STR(&jval, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
+	jwt_set_ADD_INT(&jval, "iat", TS_CONST);
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
 	/* Encode it */
@@ -96,7 +101,7 @@ static void __jwks_check(const char *json, const char *pem)
 	/* Verify it using our JWK */
 	__verify_jwk(out, item);
 
-	jwt_free_str(out);
+	free(out);
 }
 
 JWKS_KEY_TEST(ec_key_prime256v1);

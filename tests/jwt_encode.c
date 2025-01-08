@@ -14,6 +14,7 @@ START_TEST(test_jwt_encode_fp)
 		"zcyI6ImZpbGVzLm1hY2xhcmEtbGxjLmNvbSIsInJlZiI6IlhYWFgtWVlZW"
 		"S1aWlpaLUFBQUEtQ0NDQyIsInN1YiI6InVzZXIwIn0.";
 	char read_back[BUFSIZ];
+	jwt_value_t jval;
 	FILE *out;
 	jwt_t *jwt = NULL;
 	int ret = 0;
@@ -22,16 +23,20 @@ START_TEST(test_jwt_encode_fp)
 
 	EMPTY_JWT(jwt);
 
-	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
+	jwt_set_ADD_STR(&jval, "iss", "files.maclara-llc.com");
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant(jwt, "sub", "user0");
+	jwt_set_ADD_STR(&jval, "sub", "user0");
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
+	jwt_set_ADD_STR(&jval, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
+	jwt_set_ADD_INT(&jval, "iat", TS_CONST);
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
 	out = fopen("test_outfile.txt", "w");
@@ -60,6 +65,7 @@ START_TEST(test_jwt_encode_str)
 	const char res[] = "eyJhbGciOiJub25lIn0.eyJpYXQiOjE0NzU5ODA1NDUsIml"
 		"zcyI6ImZpbGVzLm1hY2xhcmEtbGxjLmNvbSIsInJlZiI6IlhYWFgtWVlZW"
 		"S1aWlpaLUFBQUEtQ0NDQyIsInN1YiI6InVzZXIwIn0.";
+	jwt_value_t jval;
 	jwt_t *jwt = NULL;
 	int ret = 0;
 	char *out;
@@ -68,16 +74,20 @@ START_TEST(test_jwt_encode_str)
 
 	EMPTY_JWT(jwt);
 
-	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
+	jwt_set_ADD_STR(&jval, "iss", "files.maclara-llc.com");
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant(jwt, "sub", "user0");
+	jwt_set_ADD_STR(&jval, "sub", "user0");
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
+	jwt_set_ADD_STR(&jval, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
+	jwt_set_ADD_INT(&jval, "iat", TS_CONST);
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
 	out = jwt_encode_str(jwt);
@@ -85,7 +95,7 @@ START_TEST(test_jwt_encode_str)
 
 	ck_assert_str_eq(out, res);
 
-	jwt_free_str(out);
+	free(out);
 
 	jwt_free(jwt);
 }
@@ -97,6 +107,7 @@ START_TEST(test_jwt_encode_alg_none)
 		"ubmwiLCJleHAiOjE0Nzc1MTQ4MTIsInN1YiI6IlBsdWdnZXJzIFNvZnR3Y"
 		"XJlIn0.";
 	jwt_t *jwt = NULL;
+	jwt_value_t jval;
 	int ret = 0;
 	char *out;
 
@@ -104,13 +115,16 @@ START_TEST(test_jwt_encode_alg_none)
 
 	EMPTY_JWT(jwt);
 
-	ret = jwt_add_grant(jwt, "aud", "www.pluggers.nl");
+	jwt_set_ADD_STR(&jval, "aud", "www.pluggers.nl");
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant_int(jwt, "exp", 1477514812);
+	jwt_set_ADD_INT(&jval, "exp", 1477514812);
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant(jwt, "sub", "Pluggers Software");
+	jwt_set_ADD_STR(&jval, "sub", "Pluggers Software");
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
 	out = jwt_encode_str(jwt);
@@ -118,7 +132,7 @@ START_TEST(test_jwt_encode_alg_none)
 
 	ck_assert_str_eq(out, res);
 
-	jwt_free_str(out);
+	free(out);
 
 	jwt_free(jwt);
 }
@@ -131,6 +145,7 @@ START_TEST(test_jwt_encode_hs256)
 		"ZiI6IlhYWFgtWVlZWS1aWlpaLUFBQUEtQ0NDQyIsInN1YiI6InVzZXIwIn"
 		"0.JgSDx8Xwc6tjMDglRndhLeAbjPPrTNoK6uc_E_TDu_o";
 	jwt_test_auto_t *jwt = NULL;
+	jwt_value_t jval;
 	int ret = 0;
 	char *out;
 
@@ -138,16 +153,20 @@ START_TEST(test_jwt_encode_hs256)
 
 	CREATE_JWT(jwt, "oct_key_256.json", JWT_ALG_HS256);
 
-	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
+	jwt_set_ADD_STR(&jval, "iss", "files.maclara-llc.com");
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant(jwt, "sub", "user0");
+	jwt_set_ADD_STR(&jval, "sub", "user0");
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
+	jwt_set_ADD_STR(&jval, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
+	jwt_set_ADD_INT(&jval, "iat", TS_CONST);
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
 	out = jwt_encode_str(jwt);
@@ -155,7 +174,7 @@ START_TEST(test_jwt_encode_hs256)
 
 	ck_assert_str_eq(out, res);
 
-	jwt_free_str(out);
+	free(out);
 }
 END_TEST
 
@@ -167,6 +186,7 @@ START_TEST(test_jwt_encode_hs384)
 		"0.sI0hzVmaMsnfKjEGsANdMNPUfe_Pk1JPY_aixKCxVvCy25B0ADUBQdKz"
 		"6VIUPmG_";
 	jwt_test_auto_t *jwt = NULL;
+	jwt_value_t jval;
 	int ret = 0;
 	char *out;
 
@@ -174,16 +194,20 @@ START_TEST(test_jwt_encode_hs384)
 
 	CREATE_JWT(jwt, "oct_key_384.json", JWT_ALG_HS384);
 
-	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
+	jwt_set_ADD_STR(&jval, "iss", "files.maclara-llc.com");
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant(jwt, "sub", "user0");
+	jwt_set_ADD_STR(&jval, "sub", "user0");
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
+	jwt_set_ADD_STR(&jval, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
+	jwt_set_ADD_INT(&jval, "iat", TS_CONST);
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
 	out = jwt_encode_str(jwt);
@@ -191,7 +215,7 @@ START_TEST(test_jwt_encode_hs384)
 
 	ck_assert_str_eq(out, res);
 
-	jwt_free_str(out);
+	free(out);
 }
 END_TEST
 
@@ -203,6 +227,7 @@ START_TEST(test_jwt_encode_hs512)
 		"0.qQ1ghQaPvzIRnzGgUPmvqEk0NlcMYjeZuna8xQLfKtZ52VHCaT-FS8T0"
 		"O2O_O9NQyqnA3sNnDaSsTxq1fEuDLA";
 	jwt_test_auto_t *jwt = NULL;
+	jwt_value_t jval;
 	int ret = 0;
 	char *out;
 
@@ -210,16 +235,20 @@ START_TEST(test_jwt_encode_hs512)
 
 	CREATE_JWT(jwt, "oct_key_512.json", JWT_ALG_HS512);
 
-	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
+	jwt_set_ADD_STR(&jval, "iss", "files.maclara-llc.com");
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant(jwt, "sub", "user0");
+	jwt_set_ADD_STR(&jval, "sub", "user0");
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
+	jwt_set_ADD_STR(&jval, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
+	jwt_set_ADD_INT(&jval, "iat", TS_CONST);
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
 	out = jwt_encode_str(jwt);
@@ -227,7 +256,7 @@ START_TEST(test_jwt_encode_hs512)
 
 	ck_assert_str_eq(out, res);
 
-	jwt_free_str(out);
+	free(out);
 }
 END_TEST
 
@@ -239,6 +268,7 @@ START_TEST(test_jwt_encode_change_alg)
 		"0.qQ1ghQaPvzIRnzGgUPmvqEk0NlcMYjeZuna8xQLfKtZ52VHCaT-FS8T0"
 		"O2O_O9NQyqnA3sNnDaSsTxq1fEuDLA";
 	jwt_test_auto_t *jwt = NULL;
+	jwt_value_t jval;
 	int ret = 0;
 	char *out;
 
@@ -246,16 +276,20 @@ START_TEST(test_jwt_encode_change_alg)
 
 	CREATE_JWT(jwt, "oct_key_512.json", JWT_ALG_HS512);
 
-	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
+	jwt_set_ADD_STR(&jval, "iss", "files.maclara-llc.com");
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant(jwt, "sub", "user0");
+	jwt_set_ADD_STR(&jval, "sub", "user0");
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
+	jwt_set_ADD_STR(&jval, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
+	jwt_set_ADD_INT(&jval, "iat", TS_CONST);
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
 	out = jwt_encode_str(jwt);
@@ -263,7 +297,7 @@ START_TEST(test_jwt_encode_change_alg)
 
 	ck_assert_str_eq(out, res);
 
-	jwt_free_str(out);
+	free(out);
 }
 END_TEST
 
@@ -271,14 +305,18 @@ START_TEST(test_jwt_encode_decode)
 {
 	jwt_test_auto_t *mytoken = NULL;
 	jwt_auto_t *ymtoken = NULL;
+	jwt_value_t jval;
 	char *encoded;
 
 	SET_OPS();
 
 	CREATE_JWT(mytoken, "oct_key_256.json", JWT_ALG_HS256);
-	jwt_add_grant(mytoken, "sub", "user0");
-	jwt_add_grant_int(mytoken, "iat", 1619130517);
-	jwt_add_grant_int(mytoken, "exp", 1619216917);
+	jwt_set_ADD_STR(&jval, "sub", "user0");
+	jwt_grant_add(mytoken, &jval);
+	jwt_set_ADD_INT(&jval, "iat", 1619130517);
+	jwt_grant_add(mytoken, &jval);
+	jwt_set_ADD_INT(&jval, "exp", 1619216917);
+	jwt_grant_add(mytoken, &jval);
 
 	encoded = jwt_encode_str(mytoken);
 
@@ -294,14 +332,18 @@ END_TEST
 START_TEST(test_jwt_encode_too_short)
 {
 	jwt_test_auto_t *mytoken;
+	jwt_value_t jval;
 	char *encoded;
 
 	SET_OPS();
 
 	CREATE_JWT(mytoken, "oct_key_512_bad.json", JWT_ALG_HS512);
-	jwt_add_grant(mytoken, "sub", "user0");
-	jwt_add_grant_int(mytoken, "iat", 1619130517);
-	jwt_add_grant_int(mytoken, "exp", 1619216917);
+	jwt_set_ADD_STR(&jval, "sub", "user0");
+	jwt_grant_add(mytoken, &jval);
+	jwt_set_ADD_INT(&jval, "iat", 1619130517);
+	jwt_grant_add(mytoken, &jval);
+	jwt_set_ADD_INT(&jval, "exp", 1619216917);
+	jwt_grant_add(mytoken, &jval);
 
 	encoded = jwt_encode_str(mytoken);
 	ck_assert_ptr_null(encoded);

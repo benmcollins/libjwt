@@ -32,6 +32,7 @@ END_TEST
 START_TEST(test_jwt_dup)
 {
 	jwt_auto_t *jwt = NULL, *new = NULL;
+	jwt_value_t jval;
 	int ret = 0;
 	const char *val = NULL;
 	time_t now;
@@ -44,23 +45,29 @@ START_TEST(test_jwt_dup)
 
 	EMPTY_JWT(jwt);
 
-	ret = jwt_add_grant(jwt, "iss", "test");
+	jwt_set_ADD_STR(&jval, "iss", "test");
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
 	new = jwt_dup(jwt);
 	ck_assert_ptr_nonnull(new);
 
-	val = jwt_get_grant(new, "iss");
+	jwt_set_GET_STR(&jval, "iss");
+	ret = jwt_grant_get(new, &jval);
+	val = jval.str_val;
 	ck_assert_ptr_nonnull(val);
 	ck_assert_str_eq(val, "test");
 
 	ck_assert_int_eq(jwt_get_alg(new), JWT_ALG_NONE);
 
 	now = time(NULL);
-	ret = jwt_add_grant_int(jwt, "iat", (long)now);
+	jwt_set_ADD_INT(&jval, "iat", (long)now);
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	valint = jwt_get_grant_int(jwt, "iat");
+	jwt_set_GET_INT(&jval, "iat");
+	ret = jwt_grant_get(jwt, &jval);
+	valint = jval.int_val;
 	ck_assert(((long)now) == valint);
 }
 END_TEST
@@ -69,6 +76,7 @@ START_TEST(test_jwt_dup_signed)
 {
 	jwt_test_auto_t *jwt = NULL;
 	jwt_auto_t *new = NULL;
+	jwt_value_t jval;
 	int ret = 0;
 	const char *val = NULL;
 
@@ -76,13 +84,16 @@ START_TEST(test_jwt_dup_signed)
 
 	CREATE_JWT(jwt, "oct_key_256.json", JWT_ALG_HS256);
 
-	ret = jwt_add_grant(jwt, "iss", "test");
+	jwt_set_ADD_STR(&jval, "iss", "test");
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
 	new = jwt_dup(jwt);
 	ck_assert_ptr_nonnull(new);
 
-	val = jwt_get_grant(new, "iss");
+	jwt_set_GET_STR(&jval, "iss");
+	ret = jwt_grant_get(new, &jval);
+	val = jval.str_val;
 	ck_assert_ptr_nonnull(val);
 	ck_assert_str_eq(val, "test");
 

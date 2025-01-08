@@ -511,21 +511,47 @@ jwt_t *jwt_verify_wcb(const char *token, jwt_config_t *config,
  */
 
 /**
- * @defgroup jwt_header_grp Header Hanagement
- * These functions allow you to add, remove and retrieve headers from a JWT
- * object.
+ * @defgroup jwt_head_grant_grp Grants and Headers
+ *
+ * These functions allow you to add, get, and delete items in the headers and
+ * grants of a JWT that is being prepared for encoding.
  * @{
  */
 
+/**
+ * @brief Value types for grants and headers
+ */
 typedef enum {
-	JWT_VALUE_NONE = 0,
-	JWT_VALUE_INT,
-	JWT_VALUE_STR,
-	JWT_VALUE_BOOL,
-	JWT_VALUE_JSON,
-	JWT_VALUE_INVALID,
+	JWT_VALUE_NONE = 0,	/**< No type (do not use this)	*/
+	JWT_VALUE_INT,		/**< Integer			*/
+	JWT_VALUE_STR,		/**< String			*/
+	JWT_VALUE_BOOL,		/**< Boolean			*/
+	JWT_VALUE_JSON,		/**< JSON String		*/
+	JWT_VALUE_INVALID,	/**< Invalid (used internally)	*/
 } jwt_value_type_t;
 
+/**
+ * @brief Error values for header and grant requests
+ */
+typedef enum {
+	JWT_VALUE_ERR_NONE = 0,	/**< No error, success			*/
+	JWT_VALUE_ERR_EXIST,	/**< Item exists (when adding)		*/
+	JWT_VALUE_ERR_NOEXIST,	/**< Item doesn't exist (when getting)	*/
+	JWT_VALUE_ERR_TYPE,	/**< Item is not of the type requested	*/
+	JWT_VALUE_ERR_INVALID,	/**< Invalid request (general error)	*/
+	JWT_VALUE_ERR_NOMEM,	/**< Memory allocation error		*/
+} jwt_value_error_t;
+
+/**
+ * @brief Data type for get and add actions for JWT headers and grants
+ *
+ * This is used for both add and get requests. Specific rules for each type is
+ * described in more detail for the add and get requests.
+ *
+ * @note There are helper macros to simplify settng this structure properly and
+ *  reducing common mistakes. See the jwt_set_{ADD,GET}_{INT,STR,BOOL,JSON}
+ *  definitions.
+ */
 typedef struct {
 	jwt_value_type_t type;
 	char *name;
@@ -536,240 +562,224 @@ typedef struct {
 		char *json_val;
 	};
 	int replace;
+	jwt_value_error_t error;
 } jwt_value_t;
 
+/**
+ * @brief Add a value to the header of a JWT
+ *
+ * When adding a value, you must set the type, name, and the specific val for
+ * the type. If the value already exists, then the function will return
+ * JWT_VALUE_ERR_EXISTS and value.error will be set the same. If value.replace
+ * is non-zero, then the exist value will be overwritten if it exists.
+ *
+ * @remarks When adding a JSON value, you can set value.name = NULL, in which case
+ *  the entire header will be set to the JSON string pointed to by
+ *  value.json_val. If value.replace is not set, only values that do not already
+ *  exist will be added. If replace is set, then existing values will also be
+ *  updated. There is no indication of which values are or aren't updated in
+ *  either case.
+ *
+ * @code
+ *     jwt_value_error_t ret;
+ *     jwt_value_t jval;
+ *
+ *     jwt_set_ADD_STR(&jval, "iss", "foo.example.com");
+ *     ret = jwt_header_add(jwt, &jval);
+ *
+ *     if (ret == JWT_VALUE_ERR_NONE)
+ *         printf("iss: %s\n", jval.str_val);
+ * @endcode
+ *
+ * @param jwt Pointer to a jwt_t token, previously created with jwt_create()
+ * @param value A jwt_value_t structure with relevant actions filled in
+ * @return A jwt_value_error_t value, JWT_VALUE_ERR_NONE being success. The
+ *  value.error field will match this return value.
+ */
+JWT_EXPORT
+jwt_value_error_t jwt_header_add(jwt_t *jwt, jwt_value_t *value);
+
+/**
+ * @brief Get a value from the header of a JWT
+ *
+ * When getting a value, you must set type and name. On a successful return, the
+ * val in value specific to the type will be filled in. Common errors responses
+ * for this function are JWT_VALUE_ERR_NOEXIST when the name does not exist, and
+ * JWT_VALUE_ERR_TYPE, when the named object is not of the type you requested
+ * (e.g. you requested a string, but it's an integer value).
+ *
+ * @remarks When getting a JSON value, you can set value.name = NULL, in which
+ *  case the entire header is returned. Also, the resulting value.json_val
+ *  will be using allocated memory and must be freed by the caller.
+ *
+ * @code
+ *     jwt_value_error_t ret;
+ *     jwt_value_t jval;
+ *
+ *     jwt_set_GET_INT(&jval, "h1");
+ *     ret = jwt_header_get(jwt, &jval);
+ *     if (ret == JWT_VALUE_ERR_NONE)
+ *         printf("h1 = %d\n", jval.int_val);
+ * @endcode
+ *
+ * @param jwt Pointer to a jwt_t token, previously created with jwt_create()
+ * @param value A jwt_value_t structure with relevant actions filled in
+ * @return A jwt_value_error_t value, JWT_VALUE_ERR_NONE being success. The
+ *  value.error field will match this return value.
+ */
+JWT_EXPORT
+jwt_value_error_t jwt_header_get(jwt_t *jwt, jwt_value_t *value);
+
+/**
+ * @brief Delete a value from the header of a JWT
+ *
+ * Deletes the value referenced by value.name from the header. If you set
+ * value.name = NULL, then the entire header will be cleared of all values. This
+ * function will generally return without error.
+ *
+ * @param jwt Pointer to a jwt_t token, previously created with jwt_create()
+ * @param header The name of the header to delete, or NULL to clear the entire
+ *  header
+ * @return A jwt_value_error_t value, JWT_VALUE_ERR_NONE being success. The
+ *  value.error field will match this return value.
+ */
+JWT_EXPORT
+jwt_value_error_t jwt_header_del(jwt_t *jwt, const char *header);
+
+/**
+ * @brief Add a value to the grants of a JWT
+ *
+ * See jwt_header_add() for detailed description.
+ *
+ * @param jwt Pointer to a jwt_t token, previously created with jwt_create()
+ * @param value A jwt_value_t structure with relevant actions filled in
+ * @return A jwt_value_error_t value, JWT_VALUE_ERR_NONE being success. The
+ *  value.error field will match this return value.
+ */
+JWT_EXPORT
+jwt_value_error_t jwt_grant_add(jwt_t *jwt, jwt_value_t *value);
+
+/**
+ * @brief Get a value from the grants of a JWT
+ *
+ * See jwt_header_get() for detailed description.
+ *
+ * @param jwt Pointer to a jwt_t token, previously created with jwt_create()
+ * @param value A jwt_value_t structure with relevant actions filled in
+ * @return A jwt_value_error_t value, JWT_VALUE_ERR_NONE being success. The
+ *  value.error field will match this return value.
+ */
+JWT_EXPORT
+jwt_value_error_t jwt_grant_get(jwt_t *jwt, jwt_value_t *value);
+
+/**
+ * @brief Delete a value from the grants of a JWT
+ *
+ * See jwt_grant_get() for detailed description.
+ *
+ * @param jwt Pointer to a jwt_t token, previously created with jwt_create()
+ * @param header The name of the grant to delete, or NULL to clear all grants
+ * @return A jwt_value_error_t value, JWT_VALUE_ERR_NONE being success. The
+ *  value.error field will match this return value.
+ */
+JWT_EXPORT
+jwt_value_error_t jwt_grant_del(jwt_t *jwt, const char *header);
+
+/**
+ * @brief Setup a jwt_value_t to get an integer value
+ *
+ * @param __v Pointer to a jwt_value_t object
+ * @param __n Name of the value
+ * @return No return value
+ */
 #define jwt_set_GET_INT(__v, __n) ({			\
 	(__v)->type=JWT_VALUE_INT;(__v)->replace=0;	\
-	(__v)->name=(__n); (__v)->int_val=0; })
+	(__v)->name=(__n);(__v)->int_val=0;(__v)->error=0;})
 
+/**
+ * @brief Setup a jwt_value_t to get a string value
+ *
+ * @param __v Pointer to a jwt_value_t object
+ * @param __n Name of the value
+ * @return No return value
+ */
 #define jwt_set_GET_STR(__v, __n) ({			\
 	(__v)->type=JWT_VALUE_STR;(__v)->replace=0;	\
-	(__v)->name=(__n); (__v)->str_val=NULL; })
+	(__v)->name=(__n);(__v)->str_val=NULL;(__v)->error=0;})
 
+/**
+ * @brief Setup a jwt_value_t to get a boolean value
+ *
+ * @param __v Pointer to a jwt_value_t object
+ * @param __n Name of the value
+ * @return No return value
+ */
 #define jwt_set_GET_BOOL(__v, __n) ({			\
 	(__v)->type=JWT_VALUE_BOOL;(__v)->replace=0;	\
-	(__v)->name=(__n); (__v)->bool_val=0; })
+	(__v)->name=(__n);(__v)->bool_val=0;(__v)->error=0;})
 
+/**
+ * @brief Setup a jwt_value_t to get an JSON string
+ *
+ * @param __v Pointer to a jwt_value_t object
+ * @param __n Name of the value
+ * @return No return value
+ */
 #define jwt_set_GET_JSON(__v, __n) ({			\
 	(__v)->type=JWT_VALUE_JSON;(__v)->replace=0;	\
-	(__v)->name=(__n); (__v)->json_val=NULL; })
+	(__v)->name=(__n);(__v)->json_val=NULL;(__v)->error=0;})
 
+/**
+ * @brief Setup a jwt_value_t to add an integer value
+ *
+ * @param __v Pointer to a jwt_value_t object
+ * @param __n Name of the value
+ * @param __x Value to add
+ * @return No return value
+ */
 #define jwt_set_ADD_INT(__v, __n, __x) ({		\
 	(__v)->type=JWT_VALUE_INT;(__v)->replace=0;	\
-	(__v)->name=(__n); (__v)->int_val=(__x); })
+	(__v)->name=(__n);(__v)->int_val=(__x);(__v)->error=0;})
 
+/**
+ * @brief Setup a jwt_value_t to add a string value
+ *
+ * @param __v Pointer to a jwt_value_t object
+ * @param __n Name of the value
+ * @param __x Value to add
+ * @return No return value
+ */
 #define jwt_set_ADD_STR(__v, __n, __x) ({		\
 	(__v)->type=JWT_VALUE_STR;(__v)->replace=0;	\
-	(__v)->name=(__n); (__v)->str_val=(__x); })
+	(__v)->name=(__n);(__v)->str_val=(__x);(__v)->error=0;})
 
+/**
+ * @brief Setup a jwt_value_t to add a boolean value
+ *
+ * @param __v Pointer to a jwt_value_t object
+ * @param __n Name of the value
+ * @param __x Value to add
+ * @return No return value
+ */
 #define jwt_set_ADD_BOOL(__v, __n, __x) ({		\
 	(__v)->type=JWT_VALUE_BOOL;(__v)->replace=0;	\
-	(__v)->name=(__n); (__v)->bool_val=(__x); })
+	(__v)->name=(__n);(__v)->bool_val=(__x);(__v)->error=0;})
 
-#define jwt_set_ADD_JSON(__v, __x) ({			\
+/**
+ * @brief Setup a jwt_value_t to add a JSON string
+ *
+ * @param __v Pointer to a jwt_value_t object
+ * @param __n Name of the value
+ * @param __x Value to add
+ * @return No return value
+ */
+#define jwt_set_ADD_JSON(__v, __n, __x) ({		\
 	(__v)->type=JWT_VALUE_JSON;(__v)->replace=0;	\
-	(__v)->name=NULL; (__v)->json_val=(__x); })
-
-/**
- * @brief Delete a header from a JWT object.
- *
- * Deletes the named header from this object. It is not an error if there
- * is no header matching the passed name. If header is NULL, then all headers
- * are deleted from this JWT.
- *
- * @param jwt Pointer to a JWT object.
- * @param header String containing the name of the header to delete. If this
- *    is NULL, then all headers are deleted.
- * @return Returns 0 on success, valid errno otherwise.
- */
-JWT_EXPORT
-int jwt_header_del(jwt_t *jwt, const char *header);
-
-JWT_EXPORT
-int jwt_header_add(jwt_t *jwt, jwt_value_t *value);
-
-JWT_EXPORT
-int jwt_header_get(jwt_t *jwt, jwt_value_t *value);
+	(__v)->name=(__n);(__v)->json_val=(__x);(__v)->error=0;})
 
 /**
  * @}
- * @noop jwt_header_grp
- */
-
-/**
- * @defgroup jwt_grant_grp Grant Management
- * These functions allow you to add, remove and retrieve grants from a JWT
- * object.
- * @{
- */
-
-/**
- * Return the value of a string grant.
- *
- * Returns the string value for a grant (e.g. "iss"). If it does not exist,
- * NULL will be returned.
- *
- * @param jwt Pointer to a JWT object.
- * @param grant String containing the name of the grant to return a value
- *     for.
- * @return Returns a string for the value, or NULL when not found.
- *
- * @remark This will only return grants with JSON string values. Use
- *   jwt_get_grants_json() to get the JSON representation of more complex
- *   values (e.g. arrays) or use jwt_get_grant_int() to get simple integer
- *   values.
- */
-JWT_EXPORT
-const char *jwt_get_grant(const jwt_t *jwt, const char *grant);
-
-/**
- * Return the value of an integer grant.
- *
- * Returns the int value for a grant (e.g. "exp"). If it does not exist,
- * 0 will be returned.
- *
- * @param jwt Pointer to a JWT object.
- * @param grant String containing the name of the grant to return a value
- *     for.
- * @return Returns an int for the value. Sets errno to ENOENT when not
- * found.
- *
- * @remark This will only return grants with JSON integer values. Use
- *   jwt_get_grants_json() to get the JSON representation of more complex
- *   values (e.g. arrays) or use jwt_get_grant() to get string values.
- */
-JWT_EXPORT
-long jwt_get_grant_int(const jwt_t *jwt, const char *grant);
-
-/**
- * Return the value of an boolean grant.
- *
- * Returns the int value for a grant (e.g. "exp"). If it does not exist,
- * 0 will be returned.
- *
- * @param jwt Pointer to a JWT object.
- * @param grant String containing the name of the grant to return a value
- *     for.
- * @return Returns a boolean for the value. Sets errno to ENOENT when not
- * found.
- *
- * @remark This will only return grants with JSON boolean values. Use
- *   jwt_get_grants_json() to get the JSON representation of more complex
- *   values (e.g. arrays) or use jwt_get_grant() to get string values.
- */
-JWT_EXPORT
-int jwt_get_grant_bool(const jwt_t *jwt, const char *grant);
-
-/**
- * Return the value of a grant as JSON encoded object string.
- *
- * Returns the JSON encoded string value for a grant (e.g. "iss"). If it
- * does not exist, NULL will be returned.
- *
- * @param jwt Pointer to a JWT object.
- * @param grant String containing the name of the grant to return a value
- *     for. If this is NULL, all grants will be returned as a JSON encoded
- *     hash.
- * @return Returns a string for the value, or NULL when not found. The
- *     returned string must be freed by the caller.
- */
-JWT_EXPORT
-char *jwt_get_grants_json(const jwt_t *jwt, const char *grant);
-
-/**
- * Add a new string grant to this JWT object.
- *
- * Creates a new grant for this object. The string for grant and val
- * are copied internally, so do not require that the pointer or string
- * remain valid for the lifetime of this object. It is an error if you
- * try to add a grant that already exists.
- *
- * @param jwt Pointer to a JWT object.
- * @param grant String containing the name of the grant to add.
- * @param val String containing the value to be saved for grant. Can be
- *     an empty string, but cannot be NULL.
- * @return Returns 0 on success, valid errno otherwise.
- *
- * @remark This only allows for string based grants. If you wish to add
- *   integer grants, then use jwt_add_grant_int(). If you wish to add more
- *   complex grants (e.g. an array), then use jwt_add_grants_json().
- */
-JWT_EXPORT
-int jwt_add_grant(jwt_t *jwt, const char *grant, const char *val);
-
-/**
- * Add a new integer grant to this JWT object.
- *
- * Creates a new grant for this object. The string for grant
- * is copied internally, so do not require that the pointer or string
- * remain valid for the lifetime of this object. It is an error if you
- * try to add a grant that already exists.
- *
- * @param jwt Pointer to a JWT object.
- * @param grant String containing the name of the grant to add.
- * @param val int containing the value to be saved for grant.
- * @return Returns 0 on success, valid errno otherwise.
- *
- * @remark This only allows for integer based grants. If you wish to add
- *   string grants, then use jwt_add_grant(). If you wish to add more
- *   complex grants (e.g. an array), then use jwt_add_grants_json().
- */
-JWT_EXPORT
-int jwt_add_grant_int(jwt_t *jwt, const char *grant, long val);
-
-/**
- * Add a new boolean grant to this JWT object.
- *
- * Creates a new grant for this object. The string for grant
- * is copied internally, so do not require that the pointer or string
- * remain valid for the lifetime of this object. It is an error if you
- * try to add a grant that already exists.
- *
- * @param jwt Pointer to a JWT object.
- * @param grant String containing the name of the grant to add.
- * @param val boolean containing the value to be saved for grant.
- * @return Returns 0 on success, valid errno otherwise.
- *
- * @remark This only allows for boolean based grants. If you wish to add
- *   string grants, then use jwt_add_grant(). If you wish to add more
- *   complex grants (e.g. an array), then use jwt_add_grants_json().
- */
-JWT_EXPORT
-int jwt_add_grant_bool(jwt_t *jwt, const char *grant, int val);
-
-/**
- * Add grants from a JSON encoded object string.
- *
- * Loads a grant from an existing JSON encoded object string. Overwrites
- * existing grant. If grant is NULL, then the JSON encoded string is
- * assumed to be a JSON hash of all grants being added and will be merged
- * into the grant listing.
- *
- * @param jwt Pointer to a JWT object.
- * @param json String containing a JSON encoded object of grants.
- * @return Returns 0 on success, valid errno otherwise.
- */
-JWT_EXPORT
-int jwt_add_grants_json(jwt_t *jwt, const char *json);
-
-/**
- * Delete a grant from this JWT object.
- *
- * Deletes the named grant from this object. It is not an error if there
- * is no grant matching the passed name. If grant is NULL, then all grants
- * are deleted from this JWT.
- *
- * @param jwt Pointer to a JWT object.
- * @param grant String containing the name of the grant to delete. If this
- *    is NULL, then all grants are deleted.
- * @return Returns 0 on success, valid errno otherwise.
- */
-JWT_EXPORT
-int jwt_del_grants(jwt_t *jwt, const char *grant);
-
-/**
- * @}
- * @noop jwt_grant_grp
+ * @noop jwt_head_grant_grp
  */
 
 /**
@@ -853,8 +863,7 @@ int jwt_encode_fp(jwt_t *jwt, FILE *fp);
  * Fully encode a JWT object and return as a string.
  *
  * Similar to jwt_encode_fp() except that a string is returned. The string
- * must be freed by the caller. If you changed the allocation method using
- * jwt_set_alloc, then you must use jwt_free_str() to free the memory.
+ * must be freed by the caller.
  *
  * @param jwt Pointer to a JWT object.
  * @return A null terminated string on success, NULL on error with errno
@@ -862,15 +871,6 @@ int jwt_encode_fp(jwt_t *jwt, FILE *fp);
  */
 JWT_EXPORT
 char *jwt_encode_str(jwt_t *jwt);
-
-/**
- * Free a string returned from the library.
- *
- * @param str Pointer to a string previously created with
- *     jwt_encode_str().
- */
-JWT_EXPORT
-void jwt_free_str(char *str);
 
 /**
  * @}
@@ -1583,8 +1583,7 @@ int jwt_valid_set_headers(jwt_valid_t *jwt_valid, int hdr);
 /**
  * Parses exceptions and returns a comma delimited and human-readable string.
  *
- * The returned string must be freed by the caller. If you changed the allocation
- * method using jwt_set_alloc, then you must use jwt_free_str() to free the memory.
+ * The returned string must be freed by the caller.
  *
  * @remark This string is currently en-US ASCII only. Language support will come in the
  * future.

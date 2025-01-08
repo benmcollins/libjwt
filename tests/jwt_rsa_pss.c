@@ -60,21 +60,26 @@ static void __test_rsa_pss_encode(const char *priv_key_file,
 				  const jwt_alg_t alg)
 {
 	jwt_auto_t *jwt = NULL;
+	jwt_value_t jval;
 	int ret;
 	char *out;
 
 	CREATE_JWT(jwt, priv_key_file, alg);
 
-	ret = jwt_add_grant(jwt, "iss", "files.maclara-llc.com");
+	jwt_set_ADD_STR(&jval, "iss", "files.maclara-llc.com");
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant(jwt, "sub", "user0");
+	jwt_set_ADD_STR(&jval, "sub", "user0");
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant(jwt, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
+	jwt_set_ADD_STR(&jval, "ref", "XXXX-YYYY-ZZZZ-AAAA-CCCC");
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant_int(jwt, "iat", TS_CONST);
+	jwt_set_ADD_INT(&jval, "iat", TS_CONST);
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
 	out = jwt_encode_str(jwt);
@@ -84,7 +89,7 @@ static void __test_rsa_pss_encode(const char *priv_key_file,
 
 	__verify_alg_key(pub_key_file, out, alg);
 
-	jwt_free_str(out);
+	free(out);
 }
 
 START_TEST(test_jwt_encode_ps256)

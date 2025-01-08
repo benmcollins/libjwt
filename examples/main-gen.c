@@ -171,7 +171,7 @@ int main(int argc, char *argv[])
 	char *out = jwt_encode_str(jwt);
 	printf("%s\n", out);
 
-	jwt_free_str(out);
+	free(out);
 
 finish:
 	return 0;

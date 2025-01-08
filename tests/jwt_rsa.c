@@ -176,6 +176,7 @@ END_TEST
 START_TEST(test_jwt_encode_rsa_1024)
 {
 	jwt_test_auto_t *jwt = NULL;
+	jwt_value_t jval;
 	char *out;
 	int ret = 0;
 
@@ -183,7 +184,8 @@ START_TEST(test_jwt_encode_rsa_1024)
 
 	CREATE_JWT(jwt, "rsa_key_1024.json", JWT_ALG_RS256);
 
-	ret = jwt_add_grant(jwt, "sub", "user0");
+	jwt_set_ADD_STR(&jval, "sub", "user0");
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
 	/* Should fail from too few bits in key */

@@ -201,9 +201,6 @@ int jwt_sign(jwt_t *jwt, char **out, unsigned int *len, const char *str,
 JWT_NO_EXPORT
 int __append_str(char **buf, const char *str);
 
-JWT_NO_EXPORT
-int jwt_add_header(jwt_t *jwt, const char *header, const char *val);
-
 #define __trace() fprintf(stderr, "%s:%d\n", __func__, __LINE__)
 
 #endif /* JWT_PRIVATE_H */

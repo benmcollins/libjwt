@@ -3,39 +3,44 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 #include <time.h>
 
 #include "jwt_tests.h"
 
-START_TEST(test_jwt_add_grant)
+START_TEST(test_jwt_grant_add)
 {
 	jwt_auto_t *jwt = NULL;
+	jwt_value_t jval;
 	int ret = 0;
 
 	SET_OPS();
 
 	EMPTY_JWT(jwt);
 
-	ret = jwt_add_grant(jwt, "iss", "test");
+	jwt_set_ADD_STR(&jval, "iss", "test");
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
 	/* No duplicates */
-	ret = jwt_add_grant(jwt, "iss", "other");
-	ck_assert_int_eq(ret, EEXIST);
+	jwt_set_ADD_STR(&jval, "iss", "other");
+	ret = jwt_grant_add(jwt, &jval);
+	ck_assert_int_eq(ret, JWT_VALUE_ERR_EXIST);
 
 	/* No duplicates for int */
-	ret = jwt_add_grant_int(jwt, "iat", (long)time(NULL));
+	jwt_set_ADD_INT(&jval, "iat", (long)time(NULL));
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant_int(jwt, "iat", (long)time(NULL));
-	ck_assert_int_eq(ret, EEXIST);
+	jwt_set_ADD_INT(&jval, "iat", (long)time(NULL));
+	ret = jwt_grant_add(jwt, &jval);
+	ck_assert_int_eq(ret, JWT_VALUE_ERR_EXIST);
 }
 END_TEST
 
-START_TEST(test_jwt_get_grant)
+START_TEST(test_jwt_grant_get)
 {
 	jwt_auto_t *jwt = NULL;
+	jwt_value_t jval;
 	const char *val;
 	const char testval[] = "testing";
 	int ret = 0;
@@ -44,39 +49,47 @@ START_TEST(test_jwt_get_grant)
 
 	EMPTY_JWT(jwt);
 
-	ret = jwt_add_grant(jwt, "iss", testval);
+	jwt_set_ADD_STR(&jval, "iss", testval);
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	val = jwt_get_grant(jwt, "iss");
+	jwt_set_GET_STR(&jval, "iss");
+	ret = jwt_grant_get(jwt, &jval);
+	val = jval.str_val;
 	ck_assert_ptr_nonnull(val);
 	ck_assert_str_eq(val, testval);
 }
 END_TEST
 
-START_TEST(test_jwt_add_grant_int)
+START_TEST(test_jwt_grant_add_int)
 {
 	jwt_auto_t *jwt = NULL;
-	long val;
+	jwt_value_t jval;
 	int ret = 0;
 
 	SET_OPS();
 
 	EMPTY_JWT(jwt);
 
-	ret = jwt_add_grant_int(jwt, "int", 1);
+	jwt_set_ADD_INT(&jval, "int", 1);
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	val = jwt_get_grant_int(jwt, "int");
-	ck_assert(val);
+	jwt_set_GET_INT(&jval, "int");
+	ret = jwt_grant_get(jwt, &jval);
+	ck_assert_int_eq(ret, 0);
+	ck_assert_int_eq(jval.int_val, 1);
 
-	val = jwt_get_grant_int(jwt, "not found");
-	ck_assert_int_eq(errno, ENOENT);
+	jwt_set_GET_INT(&jval, "not found");
+	ret = jwt_grant_get(jwt, &jval);
+	ck_assert_int_eq(ret, JWT_VALUE_ERR_NOEXIST);
 }
 END_TEST
 
-START_TEST(test_jwt_add_grant_bool)
+START_TEST(test_jwt_grant_add_bool)
 {
 	jwt_auto_t *jwt = NULL;
+	jwt_value_t jval;
 	int val;
 	int ret = 0;
 
@@ -84,26 +97,35 @@ START_TEST(test_jwt_add_grant_bool)
 
 	EMPTY_JWT(jwt);
 
-	ret = jwt_add_grant_bool(jwt, "admin", 1);
+	jwt_set_ADD_BOOL(&jval, "admin", 1);
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	val = jwt_get_grant_bool(jwt, "admin");
+	jwt_set_GET_BOOL(&jval, "admin");
+	ret = jwt_grant_get(jwt, &jval);
+	val = jval.bool_val;
 	ck_assert(val);
 
-	ret = jwt_add_grant_bool(jwt, "test", 0);
+	jwt_set_ADD_BOOL(&jval, "test", 0);
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	val = jwt_get_grant_bool(jwt, "test");
+	jwt_set_GET_BOOL(&jval, "test");
+	ret = jwt_grant_get(jwt, &jval);
+	val = jval.bool_val;
 	ck_assert(!val);
 
-	val = jwt_get_grant_bool(jwt, "not found");
-	ck_assert_int_eq(errno, ENOENT);
+	jwt_set_GET_BOOL(&jval, "not found");
+	ret = jwt_grant_get(jwt, &jval);
+	val = jval.bool_val;
+	ck_assert_int_eq(ret, JWT_VALUE_ERR_NOEXIST);
 }
 END_TEST
 
-START_TEST(test_jwt_del_grants)
+START_TEST(test_jwt_grant_del)
 {
 	jwt_auto_t *jwt = NULL;
+	jwt_value_t jval;
 	const char *val;
 	const char testval[] = "testing";
 	int ret = 0;
@@ -112,27 +134,33 @@ START_TEST(test_jwt_del_grants)
 
 	EMPTY_JWT(jwt);
 
-	ret = jwt_add_grant(jwt, "iss", testval);
+	jwt_set_ADD_STR(&jval, "iss", testval);
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_grant(jwt, "other", testval);
+	jwt_set_ADD_STR(&jval, "other", testval);
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_del_grants(jwt, "iss");
+	ret = jwt_grant_del(jwt, "iss");
 	ck_assert_int_eq(ret, 0);
 
-	val = jwt_get_grant(jwt, "iss");
+	jwt_set_GET_STR(&jval, "iss");
+	ret = jwt_grant_get(jwt, &jval);
+	val = jval.str_val;
 	ck_assert_ptr_null(val);
 
 	/* Delete non existent. */
-	ret = jwt_del_grants(jwt, "iss");
+	ret = jwt_grant_del(jwt, "iss");
 	ck_assert_int_eq(ret, 0);
 
 	/* Delete all grants. */
-	ret = jwt_del_grants(jwt, NULL);
+	ret = jwt_grant_del(jwt, NULL);
 	ck_assert_int_eq(ret, 0);
 
-	val = jwt_get_grant(jwt, "other");
+	jwt_set_GET_STR(&jval, "other");
+	ret = jwt_grant_get(jwt, &jval);
+	val = jval.str_val;
 	ck_assert_ptr_null(val);
 }
 END_TEST
@@ -140,6 +168,7 @@ END_TEST
 START_TEST(test_jwt_grant_invalid)
 {
 	jwt_auto_t *jwt = NULL;
+	jwt_value_t jval;
 	const char *val;
 	long valint = 0;
 	int valbool = 0;
@@ -149,63 +178,77 @@ START_TEST(test_jwt_grant_invalid)
 
 	EMPTY_JWT(jwt);
 
-	ret = jwt_add_grant(jwt, "iss", NULL);
-	ck_assert_int_eq(ret, EINVAL);
+	jwt_set_ADD_STR(&jval, "iss", NULL);
+	ret = jwt_grant_add(jwt, &jval);
+	ck_assert_int_eq(ret, JWT_VALUE_ERR_INVALID);
 
-	ret = jwt_add_grant_int(jwt, "", (long)time(NULL));
-	ck_assert_int_eq(ret, EINVAL);
+	jwt_set_ADD_INT(&jval, "", (long)time(NULL));
+	ret = jwt_grant_add(jwt, &jval);
+	ck_assert_int_eq(ret, JWT_VALUE_ERR_INVALID);
 
-	val = jwt_get_grant(jwt, NULL);
-	ck_assert_int_eq(errno, EINVAL);
+	jwt_set_GET_STR(&jval, NULL);
+	ret = jwt_grant_get(jwt, &jval);
+	val = jval.str_val;
+	ck_assert_int_eq(ret, JWT_VALUE_ERR_INVALID);
 	ck_assert_ptr_null(val);
 
-	valint = jwt_get_grant_int(jwt, NULL);
-	ck_assert_int_eq(errno, EINVAL);
+	jwt_set_GET_INT(&jval, NULL);
+	ret = jwt_grant_get(jwt, &jval);
+	valint = jval.int_val;
+	ck_assert_int_eq(ret, JWT_VALUE_ERR_INVALID);
 	ck_assert(valint == 0);
 
-	valbool = jwt_get_grant_bool(jwt, NULL);
-	ck_assert_int_eq(errno, EINVAL);
+	jwt_set_GET_BOOL(&jval, NULL);
+	ret = jwt_grant_get(jwt, &jval);
+	valbool = jval.bool_val;
+	ck_assert_int_eq(ret, JWT_VALUE_ERR_INVALID);
 	ck_assert(valbool == 0);
 }
 END_TEST
 
 START_TEST(test_jwt_grants_json)
 {
-	const char *json = "{\"id\":\"FVvGYTr3FhiURCFebsBOpBqTbzHdX/DvImiA2yheXr8=\","
+	char *json = "{\"id\":\"FVvGYTr3FhiURCFebsBOpBqTbzHdX/DvImiA2yheXr8=\","
 		"\"iss\":\"localhost\",\"other\":[\"foo\",\"bar\"],"
 		"\"ref\":\"385d6518-fb73-45fc-b649-0527d8576130\","
 		"\"scopes\":\"storage\",\"sub\":\"user0\"}";
 	jwt_auto_t *jwt = NULL;
+	jwt_value_t jval;
 	const char *val;
-	char *json_val;
 	int ret = 0;
 
 	SET_OPS();
 
 	EMPTY_JWT(jwt);
 
-	ret = jwt_add_grants_json(jwt, json);
+	jwt_set_ADD_JSON(&jval, NULL, json);
+	ret = jwt_grant_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	val = jwt_get_grant(jwt, "ref");
+	jwt_set_GET_STR(&jval, "ref");
+	ret = jwt_grant_get(jwt, &jval);
+	val = jval.str_val;
 	ck_assert_ptr_nonnull(val);
 	ck_assert_str_eq(val, "385d6518-fb73-45fc-b649-0527d8576130");
 
-	json_val = jwt_get_grants_json(NULL, "other");
-	ck_assert_ptr_null(json_val);
-	ck_assert_int_eq(errno, EINVAL);
+	jwt_set_GET_JSON(&jval, "other");
+	ret = jwt_grant_get(NULL, &jval);
+	ck_assert_ptr_null(jval.json_val);
+	ck_assert_int_eq(ret, JWT_VALUE_ERR_INVALID);
 
-	json_val = jwt_get_grants_json(jwt, "other");
-	ck_assert_ptr_nonnull(json_val);
-	ck_assert_str_eq(json_val, "[\"foo\",\"bar\"]");
+	jwt_set_GET_JSON(&jval, "other");
+	ret = jwt_grant_get(jwt, &jval);
+	ck_assert_int_eq(ret, 0);
+	ck_assert_ptr_nonnull(jval.json_val);
+	ck_assert_str_eq(jval.json_val, "[\"foo\",\"bar\"]");
 
-	jwt_free_str(json_val);
+	free(jval.json_val);
 
-	json_val = jwt_get_grants_json(jwt, NULL);
-	ck_assert_ptr_nonnull(json_val);
-	ck_assert_str_eq(json_val, json);
+	jwt_set_GET_JSON(&jval, "other");
+	ret = jwt_grant_get(jwt, NULL);
+	ck_assert_int_eq(ret, JWT_VALUE_ERR_INVALID);
 
-	jwt_free_str(json_val);
+	free(jval.json_val);
 }
 END_TEST
 
@@ -219,11 +262,11 @@ static Suite *libjwt_suite(const char *title)
 
 	tc_core = tcase_create("jwt_grant");
 
-	tcase_add_loop_test(tc_core, test_jwt_add_grant, 0, i);
-	tcase_add_loop_test(tc_core, test_jwt_add_grant_int, 0, i);
-	tcase_add_loop_test(tc_core, test_jwt_add_grant_bool, 0, i);
-	tcase_add_loop_test(tc_core, test_jwt_get_grant, 0, i);
-	tcase_add_loop_test(tc_core, test_jwt_del_grants, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_grant_add, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_grant_add_int, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_grant_add_bool, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_grant_get, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_grant_del, 0, i);
 	tcase_add_loop_test(tc_core, test_jwt_grant_invalid, 0, i);
 	tcase_add_loop_test(tc_core, test_jwt_grants_json, 0, i);
 

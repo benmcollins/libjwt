@@ -81,7 +81,7 @@ START_TEST(test_jwt_header_add_int)
 
 	jwt_set_GET_STR(&jval, "not found");
 	ret = jwt_header_get(jwt, &jval);
-	ck_assert_int_eq(ret, 1);
+	ck_assert_int_eq(ret, JWT_VALUE_ERR_NOEXIST);
 }
 END_TEST
 
@@ -115,7 +115,7 @@ START_TEST(test_jwt_header_add_bool)
 
 	jwt_set_GET_BOOL(&jval, "not found");
 	ret = jwt_header_get(jwt, &jval);
-	ck_assert_int_eq(ret, 1);
+	ck_assert_int_eq(ret, JWT_VALUE_ERR_NOEXIST);
 }
 END_TEST
 
@@ -143,7 +143,7 @@ START_TEST(test_jwt_header_del)
 
 	jwt_set_GET_STR(&jval, "iss");
 	ret = jwt_header_get(jwt, &jval);
-	ck_assert_int_eq(ret, 1);
+	ck_assert_int_eq(ret, JWT_VALUE_ERR_NOEXIST);
 	ck_assert_ptr_null(jval.str_val);
 
 	/* Delete non existent. */
@@ -181,16 +181,16 @@ START_TEST(test_jwt_header_invalid)
 
 	jwt_set_GET_STR(&jval, NULL);
         ret = jwt_header_get(jwt, &jval);
-        ck_assert_int_eq(ret, 1);
+        ck_assert_int_eq(ret, JWT_VALUE_ERR_INVALID);
 	ck_assert_ptr_null(jval.str_val);
 
 	jwt_set_GET_INT(&jval, NULL);
 	ret = jwt_header_get(jwt, &jval);
-	ck_assert_int_eq(ret, 1);
+	ck_assert_int_eq(ret, JWT_VALUE_ERR_INVALID);
 
 	jwt_set_GET_BOOL(&jval, NULL);
 	ret = jwt_header_get(jwt, &jval);
-	ck_assert_int_eq(ret, 1);
+	ck_assert_int_eq(ret, JWT_VALUE_ERR_INVALID);
 }
 END_TEST
 
@@ -208,7 +208,7 @@ START_TEST(test_jwt_headers_json)
 
 	EMPTY_JWT(jwt);
 
-	jwt_set_ADD_JSON(&jval, json);
+	jwt_set_ADD_JSON(&jval, NULL, json);
 	ret = jwt_header_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
@@ -220,7 +220,7 @@ START_TEST(test_jwt_headers_json)
 
 	jwt_set_GET_STR(&jval, "other");
         ret = jwt_header_get(NULL, &jval);
-        ck_assert_int_eq(ret, 1);
+        ck_assert_int_eq(ret, JWT_VALUE_ERR_INVALID);
 
 	jwt_set_GET_JSON(&jval, "other");
 	ret = jwt_header_get(jwt, &jval);
@@ -228,7 +228,7 @@ START_TEST(test_jwt_headers_json)
 	ck_assert_ptr_nonnull(jval.json_val);
 	ck_assert_str_eq(jval.json_val, "[\"foo\",\"bar\"]");
 
-	jwt_free_str(jval.json_val);
+	free(jval.json_val);
 
 	jwt_set_GET_JSON(&jval, NULL);
 	ret = jwt_header_get(jwt, &jval);
@@ -236,7 +236,7 @@ START_TEST(test_jwt_headers_json)
 	ck_assert_ptr_nonnull(jval.json_val);
 	ck_assert_str_eq(jval.json_val, json);
 
-	jwt_free_str(jval.json_val);
+	free(jval.json_val);
 }
 END_TEST
 
