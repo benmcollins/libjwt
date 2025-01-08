@@ -85,9 +85,12 @@ static void __jwks_check(const char *json, const char *pem)
 	/* Encode it */
 	out = jwt_encode_str(jwt);
 	/* We allow this for now. */
-	if (errno == ENOTSUP)
-		return;
+	if (jwt_error(jwt)) {
+		if (!strcmp(jwt_error_msg(jwt), "ES256K Not Supported on GnuTLS"))
+			return;
+	}
 
+	ck_assert_int_eq(jwt_error(jwt), 0);
 	ck_assert_ptr_nonnull(out);
 
 	/* Verify it using our JWK */

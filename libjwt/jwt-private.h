@@ -32,11 +32,13 @@ JWT_NO_EXPORT
 extern struct jwt_crypto_ops *jwt_ops;
 
 /* This can be used for jwk_set_t and jwk_item_t */
-#define jwks_write_error(__obj, __fmt, __args...)		\
-({								\
-	snprintf(__obj->error_msg, sizeof(__obj->error_msg),	\
-		 __fmt, ##__args);				\
-	__obj->error = 1;					\
+#define jwks_write_error(__obj, __fmt, __args...)	\
+({							\
+	if (!strlen(__obj->error_msg))			\
+		snprintf(__obj->error_msg,		\
+			 sizeof(__obj->error_msg),	\
+		 __fmt, ##__args);			\
+	__obj->error = 1;				\
 })
 
 struct jwt {

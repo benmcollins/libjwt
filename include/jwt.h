@@ -298,11 +298,13 @@ static inline void jwt_freep(jwt_t **jwt) {
  * Duplicate an existing JWT object.
  *
  * Copies all grants and algorithm specific bits to a new JWT object. This
- * includes the JWK that is associated with it, if it exists. However, the JWT
- * is only copied by reference, and is not, itself, duplicated.
+ * includes the jw_key that is associated with it, if it exists. However, the
+ * key is only copied by reference, and is not, itself, duplicated.
+ *
+ * @note If the jwt_t has an error, that error state will also be copied.
  *
  * @param jwt Pointer to a JWT object.
- * @return A new object on success, NULL on error with errno set appropriately.
+ * @return A new object on success, NULL on error
  */
 JWT_EXPORT
 jwt_t *jwt_dup(jwt_t *jwt);
@@ -1792,7 +1794,7 @@ jwt_crypto_provider_t jwt_get_crypto_ops_t(void);
  * of LibJWT. Most times, this is either "openssl" or "gnutls".
  *
  * @param opname the name of the crypto operation to set
- * @return 0 on success, valid errno otherwise.
+ * @return 0 on success, 1 for error
  */
 JWT_EXPORT
 int jwt_set_crypto_ops(const char *opname);
@@ -1803,7 +1805,7 @@ int jwt_set_crypto_ops(const char *opname);
  * The same as jwt_set_crypto_ops(), but uses the type as opname
  *
  * @param opname A valid jwt_crypto_provider_t type
- * @return 0 on success, valid errno otherwise.
+ * @return 0 on success, 1 for error
  */
 JWT_EXPORT
 int jwt_set_crypto_ops_t(jwt_crypto_provider_t opname);

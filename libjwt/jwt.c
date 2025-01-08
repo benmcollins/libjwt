@@ -222,37 +222,27 @@ jwt_t *jwt_dup(jwt_t *jwt)
 {
 	jwt_t *new = NULL;
 
-	if (!jwt) {
-		errno = EINVAL;
-		goto dup_fail;
-	}
-
-	errno = 0;
+	if (jwt == NULL)
+		return NULL;
 
 	new = jwt_malloc(sizeof(*new));
-	if (!new) {
-		// LCOV_EXCL_START
-		errno = ENOMEM;
+	if (!new)
 		return NULL;
-		// LCOV_EXCL_STOP
-	}
 
 	memset(new, 0, sizeof(jwt_t));
 
 	new->jw_key = jwt->jw_key;
 	new->alg = jwt->alg;
+	new->error = jwt->error;
+	strcpy(new->error_msg, jwt->error_msg);
 
 	new->grants = json_deep_copy(jwt->grants);
-	if (!new->grants)
-		errno = ENOMEM; // LCOV_EXCL_LINE
-
 	new->headers = json_deep_copy(jwt->headers);
-	if (!new->headers)
-		errno = ENOMEM; // LCOV_EXCL_LINE
-
-dup_fail:
-	if (errno)
+	if (!new->headers || !new->grants) {
+		json_decref(new->headers);
+		json_decref(new->grants);
 		jwt_freep(&new);
+	}
 
 	return new;
 }

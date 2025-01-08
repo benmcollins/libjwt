@@ -8,7 +8,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 
 #include <gnutls/gnutls.h>
 #include <gnutls/crypto.h>
@@ -32,7 +31,7 @@ static int gnutls_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 	size_t key_len;
 
 	if (!ops_compat(jwt->jw_key, JWT_CRYPTO_OPS_OPENSSL))
-		return EINVAL;
+		return 1;
 
 	key = jwt->jw_key->oct.key;
 	key_len = jwt->jw_key->oct.len;
@@ -48,18 +47,18 @@ static int gnutls_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 		alg = GNUTLS_DIG_SHA512;
 		break;
 	default:
-		return EINVAL;
+		return 1;
 	}
 
 	*len = gnutls_hmac_get_len(alg);
 	*out = jwt_malloc(*len);
 	if (*out == NULL)
-		return ENOMEM;
+		return 1;
 
 	if (gnutls_hmac_fast(alg, key, key_len, str, str_len, *out)) {
 		jwt_freemem(*out);
 		*out = NULL;
-		return EINVAL;
+		return 1;
 	}
 
 	return 0;
@@ -73,13 +72,13 @@ static int gnutls_verify_sha_hmac(jwt_t *jwt, const char *head,
 	int ret;
 
 	if (gnutls_sign_sha_hmac(jwt, &sig_check, &len, head, head_len))
-		return EINVAL;
+		return 1;
 
 	ret = jwt_base64uri_encode(&buf, sig_check, len);
 	if (ret <= 0 || buf == NULL)
 		return -ret;
 
-	ret = jwt_strcmp(sig, buf) ? EINVAL : 0;
+	ret = jwt_strcmp(sig, buf);
 
 	jwt_freemem(buf);
 	jwt_freemem(sig_check);
@@ -95,11 +94,13 @@ static int gnutls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		s_out_padding = 0;
 	size_t out_size;
 
-	if (jwt->alg == JWT_ALG_ES256K)
-		return ENOTSUP;
+	if (jwt->alg == JWT_ALG_ES256K) {
+		jwks_write_error(jwt, "ES256K Not Supported on GnuTLS");
+		return 1;
+	}
 
 	if (jwt->jw_key->pem == NULL)
-		return EINVAL;
+		return 1;
 
 	gnutls_x509_privkey_t key;
 	gnutls_privkey_t privkey;
@@ -169,30 +170,30 @@ static int gnutls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		break;
 
 	default:
-		return EINVAL;
+		return 1;
 	}
 
 	/* Initialize signature process data */
 	if (gnutls_x509_privkey_init(&key))
-		return ENOMEM;
+		return 1;
 
 	if (gnutls_x509_privkey_import(key, &key_dat, GNUTLS_X509_FMT_PEM)) {
-		ret = EINVAL;
+		ret = 1;
 		goto sign_clean_key;
 	}
 
 	if (gnutls_privkey_init(&privkey)) {
-		ret = ENOMEM;
+		ret = 1;
 		goto sign_clean_key;
 	}
 
 	if (gnutls_privkey_import_x509(privkey, key, 0)) {
-		ret = EINVAL;
+		ret = 1;
 		goto sign_clean_privkey;
 	}
 
 	if (pk_alg != gnutls_privkey_get_pk_algorithm(privkey, NULL)) {
-		ret = EINVAL;
+		ret = 1;
 		goto sign_clean_privkey;
 	}
 
@@ -202,14 +203,14 @@ static int gnutls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 
 	/* Sign data */
 	if (gnutls_privkey_sign_data(privkey, alg, 0, &body_dat, &sig_dat)) {
-		ret = EINVAL;
+		ret = 1;
 		goto sign_clean_privkey;
 	}
 
 	if (pk_alg == GNUTLS_PK_EC) {
 		/* Start EC handling. */
 		if ((ret = gnutls_decode_rs_value(&sig_dat, &r, &s))) {
-			ret = EINVAL;
+			ret = 1;
 			goto sign_clean_privkey;
 		}
 
@@ -235,7 +236,7 @@ static int gnutls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 
 		*out = jwt_malloc(out_size);
 		if (*out == NULL) {
-			ret = ENOMEM;
+			ret = 1;
 			goto sign_clean_privkey;
 		}
 		memset(*out, 0, out_size);
@@ -252,7 +253,7 @@ static int gnutls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		/* All others that aren't EC */
 		*out = jwt_malloc(sig_dat.size);
 		if (*out == NULL) {
-			ret = ENOMEM;
+			ret = 1;
 			goto sign_clean_privkey;
 		}
 
@@ -292,15 +293,17 @@ static int gnutls_verify_sha_pem(jwt_t *jwt, const char *head,
 	unsigned char *sig = NULL;
 
 	if (jwt->jw_key->pem == NULL)
-		return EINVAL;
+		return 1;
 
 	gnutls_datum_t cert_dat = {
 		(unsigned char *)jwt->jw_key->pem,
 		strlen(jwt->jw_key->pem)
 	};
 
-	if (jwt->alg == JWT_ALG_ES256K)
-		return ENOTSUP;
+	if (jwt->alg == JWT_ALG_ES256K) {
+		jwks_write_error(jwt, "ES256K Not Supported on GnuTLS");
+		return 1;
+	}
 
 	switch (jwt->alg) {
 	/* RSA */
@@ -343,16 +346,16 @@ static int gnutls_verify_sha_pem(jwt_t *jwt, const char *head,
 		break;
 
 	default:
-		return EINVAL;
+		return 1;
 	}
 
 	sig = (unsigned char *)jwt_base64uri_decode(sig_b64, &sig_len);
 
 	if (sig == NULL)
-		return EINVAL;
+		return 1;
 
 	if (gnutls_pubkey_init(&pubkey)) {
-		ret = EINVAL;
+		ret = 1;
 		goto verify_clean_sig;
 	}
 
@@ -362,13 +365,13 @@ static int gnutls_verify_sha_pem(jwt_t *jwt, const char *head,
 		/* Try loading as a private key, and extracting the pubkey. This is pefectly
 		 * legit. A JWK can have a private key with key_ops of SIGN and VERIFY. */
 		if (gnutls_privkey_init(&privkey)) {
-			ret = ENOMEM;
+			ret = 1;
 			goto verify_clean_pubkey;
 		}
 
 		/* Try loading as a private key, and extracting the pubkey */
 		if (gnutls_privkey_import_x509_raw(privkey, &cert_dat, GNUTLS_X509_FMT_PEM, NULL, 0)) {
-			ret = EINVAL;
+			ret = 1;
 			gnutls_privkey_deinit(privkey);
 			goto verify_clean_pubkey;
 		}
@@ -377,7 +380,7 @@ static int gnutls_verify_sha_pem(jwt_t *jwt, const char *head,
 		gnutls_privkey_deinit(privkey);
 
 		if (ret) {
-			ret = EINVAL;
+			ret = 1;
 			goto verify_clean_pubkey;
 		}
 	}
@@ -406,13 +409,13 @@ static int gnutls_verify_sha_pem(jwt_t *jwt, const char *head,
 			s.size = 66;
 			s.data = sig + 66;
 		} else {
-			ret = EINVAL;
+			ret = 1;
 			goto verify_clean_pubkey;
 		}
 
 		if (gnutls_encode_rs_value(&sig_dat, &r, &s) ||
 		    gnutls_pubkey_verify_data2(pubkey, alg, 0, &data, &sig_dat))
-			ret = EINVAL;
+			ret = 1;
 
 		if (sig_dat.data != NULL)
 			gnutls_free(sig_dat.data);
@@ -425,7 +428,7 @@ static int gnutls_verify_sha_pem(jwt_t *jwt, const char *head,
 		sig_dat.data = sig;
 
 		if (gnutls_pubkey_verify_data2(pubkey, alg, 0, &data, &sig_dat))
-			ret = EINVAL;
+			ret = 1;
 	}
 
 verify_clean_pubkey:
