@@ -39,7 +39,10 @@ START_TEST(test_jwt_encode_eddsa_with_rsa)
 	config.alg = JWT_ALG_EDDSA;
 	config.jw_key = g_item;
 	jwt = jwt_create(&config);
-	ck_assert_ptr_null(jwt);
+	ck_assert_int_ne(jwt_error(jwt), 0);
+	ck_assert_ptr_nonnull(jwt);
+	ck_assert_str_eq(jwt_error_msg(jwt),
+			 "Config alg does not match key alg");
 }
 END_TEST
 

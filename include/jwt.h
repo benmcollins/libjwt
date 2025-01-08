@@ -391,14 +391,37 @@ typedef int (*jwt_callback_t)(const jwt_t *, jwt_config_t *);
 /**
  * @defgroup jwt_create_grp Creation
  *
- * @raisewarning Complete overview of JWT create group
+ * Creating a JWT token involves several steps. First is creating the jwt_t
+ * object. Next would be adding grants relevant to the usage and scope of this
+ * token, and finally encoding (signing and generating).
  * @{
  */
 
 /**
  * @brief Initial function to create a new JWT
  *
- * @raisewarning Complete documentation of jwt_create
+ * Create a new jwt_t object in preperation for encoding a new token. The
+ * config passed should contain an alg and a key that will be used to sign the
+ * token once done. If config.jw_key has an alg other than none, it must match
+ * config.alg.
+ *
+ * The resulting jwt_t object would then be used to add grants and other
+ * relevant information before finally passing it to one of the jwt_encode
+ * functions.
+ *
+ * This function rarely returns NULL. Usually only when memory cannot be
+ * allocated for the new jwt_t object. Callers are required to check for errors
+ * with jwt_error() after calling this function.
+ *
+ * If you want to create an insecure key (not suggested), either pass NULL as
+ * the config, or pass a config with just alg set as JWT_ALG_NONE, and jw_key
+ * set as NULL.
+ *
+ * @warning Creating insecure tokens is not very useful and strongly
+ * discouraged.
+ *
+ * @param config A jwt_config_t with settings for creating the token
+ * @return A new jwt_t object, or NULL of there was an error allocating it
  */
 JWT_EXPORT
 jwt_t *jwt_create(jwt_config_t *config);

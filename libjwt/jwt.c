@@ -160,33 +160,39 @@ jwt_t *jwt_new(void)
 
 jwt_t *jwt_create(jwt_config_t *config)
 {
-	jwt_t *new = NULL;
+	jwt_t *jwt = jwt_new();
 
-	/* Just an insecure JWT */
+	if (jwt == NULL)
+		return NULL;
+
+	/* An insecure JWT */
 	if (config == NULL)
-		return jwt_new();
+		return jwt;
+
+	if (config->alg == JWT_ALG_NONE) {
+		/* Also insecure */
+		if (config->jw_key == NULL)
+			return jwt;
+
+		/* This is an error. */
+		jwks_write_error(jwt, "Config alg must be set to other than "
+				 "none when supplying a key");
+		return jwt;
+	}
 
 	/* At this point, we expect a key. */
-	if (config->jw_key == NULL)
-		return NULL;
-
-	/* We also expect the caller to know what they want. */
-	if (config->alg <= JWT_ALG_NONE || config->alg >= JWT_ALG_INVAL)
-		return NULL;
 
 	/* If the key has it set, it must match. */
 	if (config->jw_key->alg != JWT_ALG_NONE &&
-	    config->alg != config->jw_key->alg)
-		return NULL;
-
-	new = jwt_new();
-
-	if (new) {
-		new->jw_key = config->jw_key;
-		new->alg = config->alg;
+	    config->alg != config->jw_key->alg) {
+		jwks_write_error(jwt, "Config alg does not match key alg");
+		return jwt;
 	}
 
-	return new;
+	jwt->jw_key = config->jw_key;
+	jwt->alg = config->alg;
+
+	return jwt;
 }
 
 jwt_alg_t jwt_get_alg(const jwt_t *jwt)
