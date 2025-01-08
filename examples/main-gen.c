@@ -53,6 +53,7 @@ int main(int argc, char *argv[])
 	jwt_auto_t *jwt = NULL;
 	jwk_set_auto_t *jwk_set = NULL;
 	jwk_item_t *item = NULL;
+	jwt_value_t jval;
 	struct kv {
 		char *key;
 		char *val;
@@ -164,7 +165,17 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	jwt_dump_fp(jwt, stderr, 1);
+	jwt_set_GET_JSON(&jval, NULL);
+	if (jwt_header_get(jwt, &jval) == JWT_VALUE_ERR_NONE) {
+		fprintf(stderr, "HEADER: %s\n", jval.json_val);
+		free(jval.json_val);
+	}
+
+	jwt_set_GET_JSON(&jval, NULL);
+	if (jwt_grant_get(jwt, &jval) == JWT_VALUE_ERR_NONE) {
+		fprintf(stderr, "GRANTS: %s\n", jval.json_val);
+		free(jval.json_val);
+	}
 
 	fprintf(stderr, "jwt algo %s!\n", jwt_alg_str(opt_alg));
 

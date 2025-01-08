@@ -76,57 +76,6 @@ static int jwt_write_body(jwt_t *jwt, char **buf, int pretty)
 	return write_js(jwt->grants, buf, pretty);
 }
 
-static int jwt_dump(jwt_t *jwt, char **buf, int pretty)
-{
-	int ret;
-
-	ret = jwt_write_head(jwt, buf, pretty);
-
-	if (ret == 0)
-		ret = __append_str(buf, ".");
-
-	if (ret == 0)
-		ret = jwt_write_body(jwt, buf, pretty);
-
-	return ret;
-}
-
-char *jwt_dump_grants_str(jwt_t *jwt, int pretty)
-{
-	char *out = NULL;
-
-	errno = jwt_write_body(jwt, &out, pretty);
-
-	if (errno)
-		jwt_freemem(out);
-
-	return out;
-}
-
-int jwt_dump_fp(jwt_t *jwt, FILE *fp, int pretty)
-{
-	char_auto *out = NULL;
-
-	errno = jwt_dump(jwt, &out, pretty);
-
-	if (errno == 0)
-		fputs(out, fp);
-
-	return errno;
-}
-
-char *jwt_dump_str(jwt_t *jwt, int pretty)
-{
-	char *out = NULL;
-
-	errno = jwt_dump(jwt, &out, pretty);
-
-	if (errno)
-		jwt_freemem(out);
-
-	return out;
-}
-
 static int jwt_encode(jwt_t *jwt, char **out)
 {
 	char_auto *head = NULL, *body = NULL, *sig = NULL;

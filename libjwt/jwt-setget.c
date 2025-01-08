@@ -76,6 +76,12 @@ static jwt_value_error_t jwt_get_json(const jwt_t *jwt, json_t *which,
 				      jwt_value_t *jval)
 {
 	json_t *json_val = NULL;
+	size_t flags = JSON_SORT_KEYS | JSON_ENCODE_ANY;
+
+	if (jval->pretty)
+		flags |= JSON_INDENT(4);
+	else
+		flags |= JSON_COMPACT;
 
 	if (jval->name && strlen(jval->name))
 		json_val = json_object_get(which, jval->name);
@@ -85,8 +91,7 @@ static jwt_value_error_t jwt_get_json(const jwt_t *jwt, json_t *which,
 	if (json_val == NULL)
 		return jval->error = JWT_VALUE_ERR_NOEXIST;
 
-	jval->json_val = json_dumps(json_val, JSON_SORT_KEYS |
-				    JSON_COMPACT | JSON_ENCODE_ANY);
+	jval->json_val = json_dumps(json_val, flags);
 	if (jval->json_val == NULL)
 		jval->error = JWT_VALUE_ERR_NOMEM;
 

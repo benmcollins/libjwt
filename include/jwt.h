@@ -522,12 +522,12 @@ jwt_t *jwt_verify_wcb(const char *token, jwt_config_t *config,
  * @brief Value types for grants and headers
  */
 typedef enum {
-	JWT_VALUE_NONE = 0,	/**< No type (do not use this)	*/
-	JWT_VALUE_INT,		/**< Integer			*/
-	JWT_VALUE_STR,		/**< String			*/
-	JWT_VALUE_BOOL,		/**< Boolean			*/
-	JWT_VALUE_JSON,		/**< JSON String		*/
-	JWT_VALUE_INVALID,	/**< Invalid (used internally)	*/
+	JWT_VALUE_NONE = 0,	/**< No type (do not use this)		*/
+	JWT_VALUE_INT,		/**< Integer				*/
+	JWT_VALUE_STR,		/**< String				*/
+	JWT_VALUE_BOOL,		/**< Boolean				*/
+	JWT_VALUE_JSON,		/**< JSON String (object format ``{}``)	*/
+	JWT_VALUE_INVALID,	/**< Invalid (used internally)		*/
 } jwt_value_type_t;
 
 /**
@@ -562,6 +562,7 @@ typedef struct {
 		char *json_val;
 	};
 	int replace;
+	int pretty;
 	jwt_value_error_t error;
 } jwt_value_t;
 
@@ -571,7 +572,7 @@ typedef struct {
  * When adding a value, you must set the type, name, and the specific val for
  * the type. If the value already exists, then the function will return
  * JWT_VALUE_ERR_EXISTS and value.error will be set the same. If value.replace
- * is non-zero, then the exist value will be overwritten if it exists.
+ * is non-zero, then any existing value will be overwritten.
  *
  * @remarks When adding a JSON value, you can set value.name = NULL, in which case
  *  the entire header will be set to the JSON string pointed to by
@@ -579,6 +580,9 @@ typedef struct {
  *  exist will be added. If replace is set, then existing values will also be
  *  updated. There is no indication of which values are or aren't updated in
  *  either case.
+ *
+ * @note The replace flag must be set after calling jwt_set_ADD_*() macro, as
+ *  the macros will reset it back to 0.
  *
  * @code
  *     jwt_value_error_t ret;
@@ -588,7 +592,7 @@ typedef struct {
  *     ret = jwt_header_add(jwt, &jval);
  *
  *     if (ret == JWT_VALUE_ERR_NONE)
- *         printf("iss: %s\n", jval.str_val);
+ *         printf("iss updated to: %s\n", jval.str_val);
  * @endcode
  *
  * @param jwt Pointer to a jwt_t token, previously created with jwt_create()
@@ -603,14 +607,18 @@ jwt_value_error_t jwt_header_add(jwt_t *jwt, jwt_value_t *value);
  * @brief Get a value from the header of a JWT
  *
  * When getting a value, you must set type and name. On a successful return, the
- * val in value specific to the type will be filled in. Common errors responses
- * for this function are JWT_VALUE_ERR_NOEXIST when the name does not exist, and
+ * the value specific to the type will be filled in. Common error responses for
+ * this function are JWT_VALUE_ERR_NOEXIST when the name does not exist, and
  * JWT_VALUE_ERR_TYPE, when the named object is not of the type you requested
  * (e.g. you requested a string, but it's an integer value).
  *
  * @remarks When getting a JSON value, you can set value.name = NULL, in which
  *  case the entire header is returned. Also, the resulting value.json_val
  *  will be using allocated memory and must be freed by the caller.
+ *
+ * @note Normally JSON is retrieved in compact form. If you set
+ *  jwt_value_t.pretty, then you will get a tabbed format suitable for human
+ *  viewing. This must be set after calling jwt_set_GET_JSON().
  *
  * @code
  *     jwt_value_error_t ret;
@@ -633,15 +641,14 @@ jwt_value_error_t jwt_header_get(jwt_t *jwt, jwt_value_t *value);
 /**
  * @brief Delete a value from the header of a JWT
  *
- * Deletes the value referenced by value.name from the header. If you set
- * value.name = NULL, then the entire header will be cleared of all values. This
+ * Deletes the value referenced by ``header`` from the header. If you pass NULL
+ * as the header, then the entire header will be cleared of all values. This
  * function will generally return without error.
  *
  * @param jwt Pointer to a jwt_t token, previously created with jwt_create()
  * @param header The name of the header to delete, or NULL to clear the entire
  *  header
- * @return A jwt_value_error_t value, JWT_VALUE_ERR_NONE being success. The
- *  value.error field will match this return value.
+ * @return A jwt_value_error_t value, JWT_VALUE_ERR_NONE being success.
  */
 JWT_EXPORT
 jwt_value_error_t jwt_header_del(jwt_t *jwt, const char *header);
@@ -679,8 +686,7 @@ jwt_value_error_t jwt_grant_get(jwt_t *jwt, jwt_value_t *value);
  *
  * @param jwt Pointer to a jwt_t token, previously created with jwt_create()
  * @param header The name of the grant to delete, or NULL to clear all grants
- * @return A jwt_value_error_t value, JWT_VALUE_ERR_NONE being success. The
- *  value.error field will match this return value.
+ * @return A jwt_value_error_t value, JWT_VALUE_ERR_NONE being success.
  */
 JWT_EXPORT
 jwt_value_error_t jwt_grant_del(jwt_t *jwt, const char *header);
@@ -692,8 +698,8 @@ jwt_value_error_t jwt_grant_del(jwt_t *jwt, const char *header);
  * @param __n Name of the value
  * @return No return value
  */
-#define jwt_set_GET_INT(__v, __n) ({			\
-	(__v)->type=JWT_VALUE_INT;(__v)->replace=0;	\
+#define jwt_set_GET_INT(__v, __n) ({	\
+	(__v)->type=JWT_VALUE_INT;	\
 	(__v)->name=(__n);(__v)->int_val=0;(__v)->error=0;})
 
 /**
@@ -703,8 +709,8 @@ jwt_value_error_t jwt_grant_del(jwt_t *jwt, const char *header);
  * @param __n Name of the value
  * @return No return value
  */
-#define jwt_set_GET_STR(__v, __n) ({			\
-	(__v)->type=JWT_VALUE_STR;(__v)->replace=0;	\
+#define jwt_set_GET_STR(__v, __n) ({	\
+	(__v)->type=JWT_VALUE_STR;	\
 	(__v)->name=(__n);(__v)->str_val=NULL;(__v)->error=0;})
 
 /**
@@ -714,8 +720,8 @@ jwt_value_error_t jwt_grant_del(jwt_t *jwt, const char *header);
  * @param __n Name of the value
  * @return No return value
  */
-#define jwt_set_GET_BOOL(__v, __n) ({			\
-	(__v)->type=JWT_VALUE_BOOL;(__v)->replace=0;	\
+#define jwt_set_GET_BOOL(__v, __n) ({	\
+	(__v)->type=JWT_VALUE_BOOL;	\
 	(__v)->name=(__n);(__v)->bool_val=0;(__v)->error=0;})
 
 /**
@@ -726,7 +732,7 @@ jwt_value_error_t jwt_grant_del(jwt_t *jwt, const char *header);
  * @return No return value
  */
 #define jwt_set_GET_JSON(__v, __n) ({			\
-	(__v)->type=JWT_VALUE_JSON;(__v)->replace=0;	\
+	(__v)->type=JWT_VALUE_JSON;(__v)->pretty=0;	\
 	(__v)->name=(__n);(__v)->json_val=NULL;(__v)->error=0;})
 
 /**
@@ -788,62 +794,6 @@ jwt_value_error_t jwt_grant_del(jwt_t *jwt, const char *header);
  * JWA operation such as sigining or encryption.
  * @{
  */
-
-/**
- * Output plain text representation to a FILE pointer.
- *
- * This function will write a JSON string representation of this JWT object
- * without Base64 encoding. This only writes the header and body, and does
- * not compute the signature or encryption (if such an algorithm were being
- * used).
- *
- * @note This is only useful for debugging and is not intended to be used for
- *  encoding an actual JWT.
- *
- * @param jwt Pointer to a JWT object.
- * @param fp Valid FILE pointer to write data to.
- * @param pretty Enables better visual formatting of output. Generally only
- *     used for debugging.
- * @return Returns 0 on success, valid errno otherwise.
- */
-JWT_EXPORT
-int jwt_dump_fp(jwt_t *jwt, FILE *fp, int pretty);
-
-/**
- * Return plain text representation as a string.
- *
- * Similar to jwt_dump_fp() except that a string is returned. The string
- * must be freed by the caller.
- *
- * @note This is only useful for debugging and is not intended to be used for
- *  encoding an actual JWT.
- *
- * @param jwt Pointer to a JWT object.
- * @param pretty Enables better visual formatting of output. Generally only
- *     used for debugging.
- * @return A nul terminated string on success, NULL on error with errno
- *     set appropriately.
- */
-JWT_EXPORT
-char *jwt_dump_str(jwt_t *jwt, int pretty);
-
-/**
- * Return plain text representation of grants as a string.
- *
- * Similar to jwt_dump_str() except that only a string containing the
- * grants string is returned. The string must be freed by the caller.
- *
- * @note This is only useful for debugging and is not intended to be used for
- *  encoding an actual JWT.
- *
- * @param jwt Pointer to a JWT object.
- * @param pretty Enables better visual formatting of output. Generally only
- *     used for debugging.
- * @return A nul terminated string on success, NULL on error with errno
- *     set appropriately.
- */
-JWT_EXPORT
-char *jwt_dump_grants_str(jwt_t *jwt, int pretty);
 
 /**
  * Fully encode a JWT object and write it to FILE.
