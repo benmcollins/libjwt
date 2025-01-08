@@ -55,7 +55,7 @@ typedef struct jwt_valid jwt_valid_t;
  */
 typedef struct jwk_set jwk_set_t;
 
-/** @ingroup jwt_core_grp
+/** @ingroup jwt_alg_grp
  * @brief JWT algorithm types
  *
  * These are the supported algorithm types for LibJWT.
@@ -208,7 +208,7 @@ typedef void (*jwt_free_t)(void *);
  */
 
 /**
- * @defgroup jwt_core_grp Object Management
+ * @defgroup jwt_core_grp Utility functions
  *
  * Utility functions for JWT objects.
  * @{
@@ -286,8 +286,10 @@ static inline void jwt_freep(jwt_t **jwt) {
  *     myjwt = jwt_create(NULL);
  *
  *     // ...
+ *     if (error_val)
+ *         return -1; // myjwt will be freed here automatically
  *
- *     return; // myjwt will be freed here automatically
+ *     return 0; // myjwt will be freed here automatically
  * }
  * @endcode
  */
@@ -295,7 +297,7 @@ static inline void jwt_freep(jwt_t **jwt) {
 #endif
 
 /**
- * Duplicate an existing JWT object.
+ * @brief Duplicate an existing JWT object.
  *
  * Copies all grants and algorithm specific bits to a new JWT object. This
  * includes the jw_key that is associated with it, if it exists. However, the
@@ -427,6 +429,33 @@ typedef int (*jwt_callback_t)(const jwt_t *, jwt_config_t *);
  */
 JWT_EXPORT
 jwt_t *jwt_create(jwt_config_t *config);
+
+/**
+ * @brief Fully encode a JWT object and return as a string.
+ *
+ * Similar to jwt_encode_fp() except that a string is returned. The string
+ * must be freed by the caller.
+ *
+ * @param jwt Pointer to a JWT object.
+ * @return A null terminated string on success, NULL on error with errno
+ *     set appropriately.
+ */
+JWT_EXPORT
+char *jwt_encode_str(jwt_t *jwt);
+
+/**
+ * @brief Fully encode a JWT object and write it to FILE.
+ *
+ * This will create and write the complete JWT object to FILE. All parts
+ * will be Base64 encoded and signatures or encryption will be applied if
+ * the algorithm specified requires it.
+ *
+ * @param jwt Pointer to a JWT object.
+ * @param fp Valid FILE pointer to write data to.
+ * @return Returns 0 on success, valid errno otherwise.
+ */
+JWT_EXPORT
+int jwt_encode_fp(jwt_t *jwt, FILE *fp);
 
 /**
  * @}
@@ -789,46 +818,7 @@ jwt_value_error_t jwt_grant_del(jwt_t *jwt, const char *header);
  */
 
 /**
- * @defgroup jwt_encode_grp Encoding and Output
- * Functions for encoding a valid JWT optionally (but preferably) using
- * JWA operation such as sigining or encryption.
- * @{
- */
-
-/**
- * Fully encode a JWT object and write it to FILE.
- *
- * This will create and write the complete JWT object to FILE. All parts
- * will be Base64 encoded and signatures or encryption will be applied if
- * the algorithm specified requires it.
- *
- * @param jwt Pointer to a JWT object.
- * @param fp Valid FILE pointer to write data to.
- * @return Returns 0 on success, valid errno otherwise.
- */
-JWT_EXPORT
-int jwt_encode_fp(jwt_t *jwt, FILE *fp);
-
-/**
- * Fully encode a JWT object and return as a string.
- *
- * Similar to jwt_encode_fp() except that a string is returned. The string
- * must be freed by the caller.
- *
- * @param jwt Pointer to a JWT object.
- * @return A null terminated string on success, NULL on error with errno
- *     set appropriately.
- */
-JWT_EXPORT
-char *jwt_encode_str(jwt_t *jwt);
-
-/**
- * @}
- * @noop jwt_encode_grp
- */
-
-/**
- * @defgroup jwt_alg_grp Algorithm Management
+ * @defgroup jwt_alg_grp Algorithms
  * Set and check algorithms and algorithm specific values.
  *
  * When working with functions that require a key, the underlying library
