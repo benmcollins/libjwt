@@ -187,12 +187,12 @@ static jwk_item_t *jwk_process_one(jwk_set_t *jwk_set, json_t *jwk)
 
 const jwk_item_t *jwks_item_get(const jwk_set_t *jwk_set, size_t index)
 {
-	struct jwk_list_item *item = NULL;
+	jwk_item_t *item = NULL;
 	int i = 0;
 
 	list_for_each_entry(item, &jwk_set->head, node) {
 		if (i == index)
-			return item->item;
+			return item;
 		i++;
 	}
 
@@ -272,34 +272,22 @@ void jwks_error_clear(jwk_set_t *jwk_set)
 
 static int jwks_item_add(jwk_set_t *jwk_set, jwk_item_t *item)
 {
-	struct jwk_list_item *new;
-
-	if (item == NULL || jwk_set == NULL)
-		return EINVAL;
-
-	new = jwt_malloc(sizeof(*new));
-	if (new == NULL)
-		return ENOMEM; // LCOV_EXCL_LINE
-
-	new->item = item;
-
-	list_add_tail(&new->node, &jwk_set->head);
+	list_add_tail(&item->node, &jwk_set->head);
 
 	return 0;
 }
 
 int jwks_item_free(jwk_set_t *jwk_set, const size_t index)
 {
-	struct jwk_list_item *list_item = NULL, *todel = NULL;
-	jwk_item_t *item;
+	jwk_item_t *item = NULL, *todel = NULL;
         int i = 0;
 
 	if (jwk_set == NULL)
 		return 0;
 
-	list_for_each_entry(list_item, &jwk_set->head, node) {
+	list_for_each_entry(item, &jwk_set->head, node) {
 		if (i == index) {
-			todel = list_item;
+			todel = item;
 			break;
 		}
 		i++;
@@ -308,20 +296,17 @@ int jwks_item_free(jwk_set_t *jwk_set, const size_t index)
 	if (todel == NULL)
 		return 0;
 
-	item = todel->item;
-
-	if (item->provider == JWT_CRYPTO_OPS_ANY)
-		jwt_freemem(item->oct.key);
+	if (todel->provider == JWT_CRYPTO_OPS_ANY)
+		jwt_freemem(todel->oct.key);
 	else
-		jwt_ops->process_item_free(item);
+		jwt_ops->process_item_free(todel);
 
 	/* A few non-crypto specific things. */
-	jwt_freemem(item->kid);
+	jwt_freemem(todel->kid);
 	list_del(&todel->node);
 
 	/* Free the container and the item itself. */
-	jwt_freemem(list_item);
-	jwt_freemem(item);
+	jwt_freemem(todel);
 
 	return 1;
 }

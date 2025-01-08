@@ -61,14 +61,6 @@ struct jwt_valid {
 	jwt_valid_exception_t status;
 };
 
-/* Yes, this is a bit of overhead, but it keeps me from having to
- * expose list.h in jwt.h.
- * XXX We no longer need to abstract this. */
-typedef struct jwk_list_item {
-	ll_t node;
-	jwk_item_t *item;
-} jwk_list_item_t;
-
 struct jwk_set {
 	ll_t head;
 	int error;
@@ -87,6 +79,7 @@ struct jwk_set {
  * this. It's provided as a convenience.
  */
 struct jwk_item {
+	ll_t node;
 	char *pem;		/**< If not NULL, contains PEM string of this key	*/
 	jwt_crypto_provider_t provider;	/**< Crypto provider that owns this key		*/
 	union {
