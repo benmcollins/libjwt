@@ -146,7 +146,7 @@ int jwt_del_grants(jwt_t *jwt, const char *grant)
 	return 0;
 }
 
-const char *jwt_get_header(const jwt_t *jwt, const char *header)
+static const char *jwt_get_header(const jwt_t *jwt, const char *header)
 {
 	if (!jwt || !header || !strlen(header)) {
 		errno = EINVAL;
@@ -158,7 +158,7 @@ const char *jwt_get_header(const jwt_t *jwt, const char *header)
 	return get_js_string(jwt->headers, header);
 }
 
-long jwt_get_header_int(const jwt_t *jwt, const char *header)
+static long jwt_get_header_int(const jwt_t *jwt, const char *header)
 {
 	if (!jwt || !header || !strlen(header)) {
 		errno = EINVAL;
@@ -170,7 +170,7 @@ long jwt_get_header_int(const jwt_t *jwt, const char *header)
 	return get_js_int(jwt->headers, header);
 }
 
-int jwt_get_header_bool(const jwt_t *jwt, const char *header)
+static int jwt_get_header_bool(const jwt_t *jwt, const char *header)
 {
 	if (!jwt || !header || !strlen(header)) {
 		errno = EINVAL;
@@ -182,7 +182,7 @@ int jwt_get_header_bool(const jwt_t *jwt, const char *header)
 	return get_js_bool(jwt->headers, header);
 }
 
-char *jwt_get_headers_json(const jwt_t *jwt, const char *header)
+static char *jwt_get_headers_json(const jwt_t *jwt, const char *header)
 {
 	json_t *js_val = NULL;
 
@@ -218,7 +218,7 @@ int jwt_add_header(jwt_t *jwt, const char *header, const char *val)
 	return 0;
 }
 
-int jwt_add_header_int(jwt_t *jwt, const char *header, long val)
+static int jwt_add_header_int(jwt_t *jwt, const char *header, long val)
 {
 	if (!jwt || !header || !strlen(header))
 		return EINVAL;
@@ -232,7 +232,7 @@ int jwt_add_header_int(jwt_t *jwt, const char *header, long val)
 	return 0;
 }
 
-int jwt_add_header_bool(jwt_t *jwt, const char *header, int val)
+static int jwt_add_header_bool(jwt_t *jwt, const char *header, int val)
 {
 	if (!jwt || !header || !strlen(header))
 		return EINVAL;
@@ -246,7 +246,7 @@ int jwt_add_header_bool(jwt_t *jwt, const char *header, int val)
 	return 0;
 }
 
-int jwt_add_headers_json(jwt_t *jwt, const char *json)
+static int jwt_add_headers_json(jwt_t *jwt, char *json)
 {
 	json_auto_t *js_val = NULL;
 	int ret = -1;
@@ -262,7 +262,7 @@ int jwt_add_headers_json(jwt_t *jwt, const char *json)
 	return ret ? EINVAL : 0;
 }
 
-int jwt_del_headers(jwt_t *jwt, const char *header)
+int jwt_header_del(jwt_t *jwt, const char *header)
 {
 	if (!jwt)
 		return EINVAL;
@@ -271,6 +271,74 @@ int jwt_del_headers(jwt_t *jwt, const char *header)
 		json_object_clear(jwt->headers);
 	else
 		json_object_del(jwt->headers, header);
+
+	return 0;
+}
+
+int jwt_header_add(jwt_t *jwt, jwt_value_t *value)
+{
+	switch (value->type) {
+	case JWT_VALUE_INT:
+		if (jwt_add_header_int(jwt, value->name, value->int_val))
+			return 1;
+		break;
+
+	case JWT_VALUE_STR:
+		if (jwt_add_header(jwt, value->name, value->str_val))
+			return 1;
+		break;
+
+	case JWT_VALUE_BOOL:
+		if (jwt_add_header_bool(jwt, value->name, value->bool_val))
+			return 1;
+		break;
+
+	case JWT_VALUE_JSON:
+		if (jwt_add_headers_json(jwt, value->json_val))
+			return 1;
+		break;
+
+	default:
+		return 1;
+	}
+
+	return 0;
+}
+
+int jwt_header_get(jwt_t *jwt, jwt_value_t *value)
+{
+	switch (value->type) {
+	case JWT_VALUE_INT:
+		value->int_val = jwt_get_header_int(jwt, value->name);
+		if (errno) {
+			errno = 0;
+			return 1;
+		}
+		break;
+
+	case JWT_VALUE_STR:
+		value->str_val = jwt_get_header(jwt, value->name);
+		if (value->str_val == NULL)
+			return 1;
+		break;
+
+	case JWT_VALUE_BOOL:
+		value->bool_val = jwt_get_header_bool(jwt, value->name);
+		if (errno) {
+			errno = 0;
+			return 1;
+		}
+		break;
+
+	case JWT_VALUE_JSON:
+		value->json_val = jwt_get_headers_json(jwt, value->name);
+		if (value->json_val == NULL)
+			return 1;
+		break;
+
+	default:
+		return 1;
+	}
 
 	return 0;
 }

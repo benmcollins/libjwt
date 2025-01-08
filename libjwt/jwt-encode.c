@@ -61,7 +61,7 @@ static int jwt_write_head(jwt_t *jwt, char **buf, int pretty)
 		}
 	}
 
-	if ((ret = jwt_del_headers(jwt, "alg")))
+	if ((ret = jwt_header_del(jwt, "alg")))
 		return ret;
 
 	if ((ret = jwt_add_header(jwt, "alg", jwt_alg_str(jwt->alg))))

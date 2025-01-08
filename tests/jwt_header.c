@@ -8,8 +8,9 @@
 
 #include "jwt_tests.h"
 
-START_TEST(test_jwt_add_header)
+START_TEST(test_jwt_header_add)
 {
+	jwt_value_t jval;
 	jwt_auto_t *jwt = NULL;
 	int ret = 0;
 
@@ -17,26 +18,29 @@ START_TEST(test_jwt_add_header)
 
 	EMPTY_JWT(jwt);
 
-	ret = jwt_add_header(jwt, "iss", "test");
+	jwt_set_ADD_STR(&jval, "iss", "test");
+	ret = jwt_header_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
 	/* No duplicates */
-	ret = jwt_add_header(jwt, "iss", "other");
-	ck_assert_int_eq(ret, EEXIST);
+	jwt_set_ADD_STR(&jval, "iss", "other");
+	ret = jwt_header_add(jwt, &jval);
+	ck_assert_int_ne(ret, 0);
 
 	/* No duplicates for int */
-	ret = jwt_add_header_int(jwt, "iat", (long)time(NULL));
+	jwt_set_ADD_INT(&jval, "iat", (long)time(NULL));
+	ret = jwt_header_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_header_int(jwt, "iat", (long)time(NULL));
-	ck_assert_int_eq(ret, EEXIST);
+	ret = jwt_header_add(jwt, &jval);
+	ck_assert_int_ne(ret, 0);
 }
 END_TEST
 
-START_TEST(test_jwt_get_header)
+START_TEST(test_jwt_header_get)
 {
+	jwt_value_t jval;
 	jwt_auto_t *jwt = NULL;
-	const char *val;
 	const char testval[] = "testing";
 	int ret = 0;
 
@@ -44,67 +48,81 @@ START_TEST(test_jwt_get_header)
 
 	EMPTY_JWT(jwt);
 
-	ret = jwt_add_header(jwt, "iss", testval);
+	jwt_set_ADD_STR(&jval, "iss", testval);
+	ret = jwt_header_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	val = jwt_get_header(jwt, "iss");
-	ck_assert_ptr_nonnull(val);
-	ck_assert_str_eq(val, testval);
+	jwt_set_GET_STR(&jval, "iss");
+	ret = jwt_header_get(jwt, &jval);
+	ck_assert_int_eq(ret, 0);
+	ck_assert_ptr_nonnull(jval.str_val);
+	ck_assert_str_eq(jval.str_val, testval);
 }
 END_TEST
 
-START_TEST(test_jwt_add_header_int)
+START_TEST(test_jwt_header_add_int)
 {
+	jwt_value_t jval;
 	jwt_auto_t *jwt = NULL;
-	long val;
 	int ret = 0;
 
 	SET_OPS();
 
 	EMPTY_JWT(jwt);
 
-	ret = jwt_add_header_int(jwt, "int", 1);
+	jwt_set_ADD_INT(&jval, "int", 1);
+	ret = jwt_header_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	val = jwt_get_header_int(jwt, "int");
-	ck_assert(val);
+	jwt_set_GET_INT(&jval, "int");
+	ret = jwt_header_get(jwt, &jval);
+	ck_assert_int_eq(ret, 0);
+	ck_assert_int_eq(jval.int_val, 1);
 
-	val = jwt_get_header_int(jwt, "not found");
-	ck_assert_int_eq(errno, ENOENT);
+	jwt_set_GET_STR(&jval, "not found");
+	ret = jwt_header_get(jwt, &jval);
+	ck_assert_int_eq(ret, 1);
 }
 END_TEST
 
-START_TEST(test_jwt_add_header_bool)
+START_TEST(test_jwt_header_add_bool)
 {
+	jwt_value_t jval;
 	jwt_auto_t *jwt = NULL;
-	int val;
 	int ret = 0;
 
 	SET_OPS();
 
 	EMPTY_JWT(jwt);
 
-	ret = jwt_add_header_bool(jwt, "admin", 1);
+	jwt_set_ADD_BOOL(&jval, "admin", 1);
+	ret = jwt_header_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	val = jwt_get_header_bool(jwt, "admin");
-	ck_assert(val);
+	jwt_set_GET_BOOL(&jval, "admin");
+	ret = jwt_header_get(jwt, &jval);
+	ck_assert_int_eq(ret, 0);
+	ck_assert_int_ne(jval.bool_val, 0);
 
-	ret = jwt_add_header_bool(jwt, "test", 0);
+	jwt_set_ADD_BOOL(&jval, "test", 0);
+	ret = jwt_header_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	val = jwt_get_header_bool(jwt, "test");
-	ck_assert(!val);
+	jwt_set_GET_BOOL(&jval, "test");
+	ret = jwt_header_get(jwt, &jval);
+	ck_assert_int_eq(ret, 0);
+	ck_assert_int_eq(jval.bool_val, 0);
 
-	val = jwt_get_header_bool(jwt, "not found");
-	ck_assert_int_eq(errno, ENOENT);
+	jwt_set_GET_BOOL(&jval, "not found");
+	ret = jwt_header_get(jwt, &jval);
+	ck_assert_int_eq(ret, 1);
 }
 END_TEST
 
-START_TEST(test_jwt_del_headers)
+START_TEST(test_jwt_header_del)
 {
+	jwt_value_t jval;
 	jwt_auto_t *jwt = NULL;
-	const char *val;
 	const char testval[] = "testing";
 	int ret = 0;
 
@@ -112,100 +130,113 @@ START_TEST(test_jwt_del_headers)
 
 	EMPTY_JWT(jwt);
 
-	ret = jwt_add_header(jwt, "iss", testval);
+	jwt_set_ADD_STR(&jval, "iss", testval);
+	ret = jwt_header_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_header(jwt, "other", testval);
+	jwt_set_ADD_STR(&jval, "other", testval);
+	ret = jwt_header_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_del_headers(jwt, "iss");
+	ret = jwt_header_del(jwt, "iss");
 	ck_assert_int_eq(ret, 0);
 
-	val = jwt_get_header(jwt, "iss");
-	ck_assert_ptr_null(val);
+	jwt_set_GET_STR(&jval, "iss");
+	ret = jwt_header_get(jwt, &jval);
+	ck_assert_int_eq(ret, 1);
+	ck_assert_ptr_null(jval.str_val);
 
 	/* Delete non existent. */
-	ret = jwt_del_headers(jwt, "iss");
+	ret = jwt_header_del(jwt, "iss");
 	ck_assert_int_eq(ret, 0);
 
 	/* Delete all headers. */
-	ret = jwt_del_headers(jwt, NULL);
+	ret = jwt_header_del(jwt, NULL);
 	ck_assert_int_eq(ret, 0);
 
-	val = jwt_get_header(jwt, "other");
-	ck_assert_ptr_null(val);
+	jwt_set_GET_STR(&jval, "other");
+	ret = jwt_header_get(jwt, &jval);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_ptr_null(jval.str_val);
 }
 END_TEST
 
 START_TEST(test_jwt_header_invalid)
 {
+	jwt_value_t jval;
 	jwt_auto_t *jwt = NULL;
-	const char *val;
-	long valint = 0;
-	int valbool = 0;
 	int ret = 0;
 
 	SET_OPS();
 
 	EMPTY_JWT(jwt);
 
-	ret = jwt_add_header(jwt, "iss", NULL);
-	ck_assert_int_eq(ret, EINVAL);
+	jwt_set_ADD_STR(&jval, "iss", NULL);
+	ret = jwt_header_add(jwt, &jval);
+	ck_assert_int_ne(ret, 0);
 
-	ret = jwt_add_header_int(jwt, "", (long)time(NULL));
-	ck_assert_int_eq(ret, EINVAL);
+	jwt_set_ADD_INT(&jval, "", 0);
+	ret = jwt_header_add(jwt, &jval);
+	ck_assert_int_ne(ret, 0);
 
-	val = jwt_get_header(jwt, NULL);
-	ck_assert_int_eq(errno, EINVAL);
-	ck_assert_ptr_null(val);
+	jwt_set_GET_STR(&jval, NULL);
+        ret = jwt_header_get(jwt, &jval);
+        ck_assert_int_eq(ret, 1);
+	ck_assert_ptr_null(jval.str_val);
 
-	valint = jwt_get_header_int(jwt, NULL);
-	ck_assert_int_eq(errno, EINVAL);
-	ck_assert(valint == 0);
+	jwt_set_GET_INT(&jval, NULL);
+	ret = jwt_header_get(jwt, &jval);
+	ck_assert_int_eq(ret, 1);
 
-	valbool = jwt_get_header_bool(jwt, NULL);
-	ck_assert_int_eq(errno, EINVAL);
-	ck_assert(valbool == 0);
+	jwt_set_GET_BOOL(&jval, NULL);
+	ret = jwt_header_get(jwt, &jval);
+	ck_assert_int_eq(ret, 1);
 }
 END_TEST
 
 START_TEST(test_jwt_headers_json)
 {
-	const char *json = "{\"id\":\"FVvGYTr3FhiURCFebsBOpBqTbzHdX/DvImiA2yheXr8=\","
+	char *json = "{\"id\":\"FVvGYTr3FhiURCFebsBOpBqTbzHdX/DvImiA2yheXr8=\","
 		"\"iss\":\"localhost\",\"other\":[\"foo\",\"bar\"],"
 		"\"ref\":\"385d6518-fb73-45fc-b649-0527d8576130\","
 		"\"scopes\":\"storage\",\"sub\":\"user0\"}";
+	jwt_value_t jval;
 	jwt_auto_t *jwt = NULL;
-	const char *val;
-	char *json_val;
 	int ret = 0;
 
 	SET_OPS();
 
 	EMPTY_JWT(jwt);
 
-	ret = jwt_add_headers_json(jwt, json);
+	jwt_set_ADD_JSON(&jval, json);
+	ret = jwt_header_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	val = jwt_get_header(jwt, "ref");
-	ck_assert_ptr_nonnull(val);
-	ck_assert_str_eq(val, "385d6518-fb73-45fc-b649-0527d8576130");
+	jwt_set_GET_STR(&jval, "ref");
+	ret = jwt_header_get(jwt, &jval);
+	ck_assert_int_eq(ret, 0);
+	ck_assert_ptr_nonnull(jval.str_val);
+	ck_assert_str_eq(jval.str_val, "385d6518-fb73-45fc-b649-0527d8576130");
 
-	json_val = jwt_get_headers_json(NULL, "other");
-	ck_assert_ptr_null(json_val);
-	ck_assert_int_eq(errno, EINVAL);
+	jwt_set_GET_STR(&jval, "other");
+        ret = jwt_header_get(NULL, &jval);
+        ck_assert_int_eq(ret, 1);
 
-	json_val = jwt_get_headers_json(jwt, "other");
-	ck_assert_ptr_nonnull(json_val);
-	ck_assert_str_eq(json_val, "[\"foo\",\"bar\"]");
+	jwt_set_GET_JSON(&jval, "other");
+	ret = jwt_header_get(jwt, &jval);
+	ck_assert_int_eq(ret, 0);
+	ck_assert_ptr_nonnull(jval.json_val);
+	ck_assert_str_eq(jval.json_val, "[\"foo\",\"bar\"]");
 
-	jwt_free_str(json_val);
+	jwt_free_str(jval.json_val);
 
-	json_val = jwt_get_headers_json(jwt, NULL);
-	ck_assert_ptr_nonnull(json_val);
-	ck_assert_str_eq(json_val, json);
+	jwt_set_GET_JSON(&jval, NULL);
+	ret = jwt_header_get(jwt, &jval);
+	ck_assert_int_eq(ret, 0);
+	ck_assert_ptr_nonnull(jval.json_val);
+	ck_assert_str_eq(jval.json_val, json);
 
-	jwt_free_str(json_val);
+	jwt_free_str(jval.json_val);
 }
 END_TEST
 
@@ -219,11 +250,11 @@ static Suite *libjwt_suite(const char *title)
 
 	tc_core = tcase_create("jwt_header");
 
-	tcase_add_loop_test(tc_core, test_jwt_add_header, 0, i);
-	tcase_add_loop_test(tc_core, test_jwt_add_header_int, 0, i);
-	tcase_add_loop_test(tc_core, test_jwt_add_header_bool, 0, i);
-	tcase_add_loop_test(tc_core, test_jwt_get_header, 0, i);
-	tcase_add_loop_test(tc_core, test_jwt_del_headers, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_header_add, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_header_add_int, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_header_add_bool, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_header_get, 0, i);
+	tcase_add_loop_test(tc_core, test_jwt_header_del, 0, i);
 	tcase_add_loop_test(tc_core, test_jwt_header_invalid, 0, i);
 	tcase_add_loop_test(tc_core, test_jwt_headers_json, 0, i);
 

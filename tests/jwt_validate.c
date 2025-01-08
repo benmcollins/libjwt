@@ -534,6 +534,7 @@ END_TEST
 
 START_TEST(test_jwt_valid_headers)
 {
+	jwt_value_t jval;
 	jwt_valid_t *jwt_valid = NULL;
 	unsigned int ret = 0;
 
@@ -547,42 +548,48 @@ START_TEST(test_jwt_valid_headers)
 	ck_assert_int_eq(ret, 0);
 
 	/* JWT is valid when iss in hdr matches iss in body */
-	jwt_add_header(jwt, "iss", "test");
+	jwt_set_ADD_STR(&jval, "iss", "test");
+	jwt_header_add(jwt, &jval);
 	__VAL_EQ(jwt_valid, JWT_VALIDATION_SUCCESS, "success");
 
 	/* JWT is invalid when iss in hdr does not match iss in body */
-	jwt_del_headers(jwt, "iss");
-	jwt_add_header(jwt, "iss", "wrong");
+	jwt_header_del(jwt, "iss");
+	jwt_set_ADD_STR(&jval, "iss", "wrong");
+	jwt_header_add(jwt, &jval);
 	__VAL_EQ(jwt_valid, JWT_VALIDATION_ISS_MISMATCH, "issuer mismatch");
 
 	/* JWT is valid when checking hdr and iss not replicated */
-	jwt_del_headers(jwt, "iss");
+	jwt_header_del(jwt, "iss");
 	__VAL_EQ(jwt_valid, JWT_VALIDATION_SUCCESS, "success");
 
 	/* JWT is valid when iss in hdr matches iss in body */
-	jwt_add_header(jwt, "sub", "user0");
+	jwt_set_ADD_STR(&jval, "sub", "user0");
+	jwt_header_add(jwt, &jval);
 	__VAL_EQ(jwt_valid, JWT_VALIDATION_SUCCESS, "success");
 
 	/* JWT is invalid when iss in hdr does not match iss in body */
-	jwt_del_headers(jwt, "sub");
-	jwt_add_header(jwt, "sub", "wrong");
+	jwt_header_del(jwt, "sub");
+	jwt_set_ADD_STR(&jval, "sub", "wrong");
+	jwt_header_add(jwt, &jval);
 	__VAL_EQ(jwt_valid, JWT_VALIDATION_SUB_MISMATCH, "subject mismatch");
 
 	/* JWT is valid when checking hdr and sub not replicated */
-	jwt_del_headers(jwt, "sub");
+	jwt_header_del(jwt, "sub");
 	__VAL_EQ(jwt_valid, JWT_VALIDATION_SUCCESS, "success");
 
 	/* JWT is valid when checking hdr and aud matches */
-	jwt_add_headers_json(jwt, "{\"aud\": [\"svc1\",\"svc2\"]}");
+        jwt_set_ADD_JSON(&jval, "{\"aud\": [\"svc1\",\"svc2\"]}");
+        jwt_header_add(jwt, &jval);
 	__VAL_EQ(jwt_valid, JWT_VALIDATION_SUCCESS, "success");
 
 	/* JWT is invalid when checking hdr and aud does not match */
-	jwt_del_headers(jwt, "aud");
-	jwt_add_headers_json(jwt, "{\"aud\": [\"svc1\",\"svc2\",\"svc3\"]}");
+	jwt_header_del(jwt, "aud");
+	jwt_set_ADD_JSON(&jval, "{\"aud\": [\"svc1\",\"svc2\",\"svc3\"]}");
+	jwt_header_add(jwt, &jval);
 	__VAL_EQ(jwt_valid, JWT_VALIDATION_AUD_MISMATCH, "audience mismatch");
 
 	/* JWT is invalid when checking hdr and aud does not match */
-	jwt_del_headers(jwt, "aud");
+	jwt_header_del(jwt, "aud");
 	__VAL_EQ(jwt_valid, JWT_VALIDATION_SUCCESS, "success");
 
 	jwt_valid_free(jwt_valid);

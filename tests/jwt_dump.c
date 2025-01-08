@@ -131,10 +131,10 @@ END_TEST
 
 START_TEST(test_jwt_dump_str)
 {
+	jwt_value_t jval;
 	jwt_t *jwt = NULL;
 	int ret = 0;
 	char *out;
-	const char *val = NULL;
 
 	SET_OPS();
 
@@ -157,15 +157,19 @@ START_TEST(test_jwt_dump_str)
 	ck_assert_int_eq(ret, 0);
 
 	/* Test 'typ' header: should not be present, cause 'alg' is JWT_ALG_NONE. */
-	val = jwt_get_header(jwt, "typ");
-	ck_assert_ptr_null(val);
+	jwt_set_GET_STR(&jval, "typ");
+	ret = jwt_header_get(jwt, &jval);
+	ck_assert_int_eq(ret, 1);
+	ck_assert_ptr_null(jval.str_val);
 
 	out = jwt_dump_str(jwt, 1);
 	ck_assert_ptr_nonnull(out);
 
 	/* Test 'typ' header: should not be present, cause 'alg' is JWT_ALG_NONE. */
-	val = jwt_get_header(jwt, "typ");
-	ck_assert_ptr_null(val);
+	jwt_set_GET_STR(&jval, "typ");
+	ret = jwt_header_get(jwt, &jval);
+	ck_assert_int_eq(ret, 1);
+	ck_assert_ptr_null(jval.str_val);
 
 	jwt_free_str(out);
 
@@ -173,8 +177,10 @@ START_TEST(test_jwt_dump_str)
 	ck_assert_ptr_nonnull(out);
 
 	/* Test 'typ' header: should not be present, cause 'alg' is JWT_ALG_NONE. */
-	val = jwt_get_header(jwt, "typ");
-	ck_assert_ptr_null(val);
+	jwt_set_GET_STR(&jval, "typ");
+	ret = jwt_header_get(jwt, &jval);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_ptr_null(jval.str_val);
 
 	jwt_free_str(out);
 
@@ -253,10 +259,10 @@ END_TEST
 
 START_TEST(test_jwt_dump_str_alg_default_typ_header)
 {
+	jwt_value_t jval;
 	jwt_test_auto_t *jwt = NULL;
 	int ret = 0;
 	char *out;
-	const char *val = NULL;
 
 	SET_OPS();
 
@@ -282,8 +288,10 @@ START_TEST(test_jwt_dump_str_alg_default_typ_header)
 	 * not been touched yet by jwt_write_head, this is only called as a
 	 * result of calling jwt_dump* methods.
 	 */
-	val = jwt_get_header(jwt, "typ");
-	ck_assert_ptr_null(val);
+	jwt_set_GET_STR(&jval, "typ");
+	ret = jwt_header_get(jwt, &jval);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_ptr_null(jval.str_val);
 
 	out = jwt_dump_str(jwt, 1);
 	ck_assert_ptr_nonnull(out);
@@ -293,9 +301,11 @@ START_TEST(test_jwt_dump_str_alg_default_typ_header)
 	 * cause 'alg' is set explicitly and jwt's header has been processed
 	 * by jwt_write_head.
 	 */
-	val = jwt_get_header(jwt, "typ");
-	ck_assert_ptr_nonnull(val);
-	ck_assert_str_eq(val, "JWT");
+	jwt_set_GET_STR(&jval, "typ");
+	ret = jwt_header_get(jwt, &jval);
+	ck_assert_int_eq(ret, 0);
+	ck_assert_ptr_nonnull(jval.str_val);
+	ck_assert_str_eq(jval.str_val, "JWT");
 
 	jwt_free_str(out);
 
@@ -307,9 +317,11 @@ START_TEST(test_jwt_dump_str_alg_default_typ_header)
 	 * cause 'alg' is set explicitly and jwt's header has been
 	 * processed by jwt_write_head.
 	 */
-	val = jwt_get_header(jwt, "typ");
-	ck_assert_ptr_nonnull(val);
-	ck_assert_str_eq(val, "JWT");
+	jwt_set_GET_STR(&jval, "typ");
+	ret = jwt_header_get(jwt, &jval);
+	ck_assert_int_eq(ret, 0);
+	ck_assert_ptr_nonnull(jval.str_val);
+	ck_assert_str_eq(jval.str_val, "JWT");
 
 	jwt_free_str(out);
 }
@@ -317,10 +329,10 @@ END_TEST
 
 START_TEST(test_jwt_dump_str_alg_custom_typ_header)
 {
+	jwt_value_t jval;
 	jwt_test_auto_t *jwt = NULL;
 	int ret = 0;
 	char *out;
-	const char *val = NULL;
 
 	SET_OPS();
 
@@ -341,26 +353,33 @@ START_TEST(test_jwt_dump_str_alg_custom_typ_header)
 	ret = jwt_add_grant_int(jwt, "iat", (long)time(NULL));
 	ck_assert_int_eq(ret, 0);
 
-	ret = jwt_add_header(jwt, "typ", "favourite");
+	jwt_set_ADD_STR(&jval, "typ", "favourite");
+	ret = jwt_header_add(jwt, &jval);
 	ck_assert_int_eq(ret, 0);
 
 	/* Test that 'typ' header has been added. */
-	val = jwt_get_header(jwt, "typ");
-	ck_assert_ptr_nonnull(val);
-	ck_assert_str_eq(val, "favourite");
+	jwt_set_GET_STR(&jval, "typ");
+	ret = jwt_header_get(jwt, &jval);
+	ck_assert_int_eq(ret, 0);
+	ck_assert_ptr_nonnull(jval.str_val);
+	ck_assert_str_eq(jval.str_val, "favourite");
 
 	/* Test 'typ' header: should be left untouched. */
-	val = jwt_get_header(jwt, "typ");
-	ck_assert_ptr_nonnull(val);
-	ck_assert_str_eq(val, "favourite");
+	jwt_set_GET_STR(&jval, "typ");
+	ret = jwt_header_get(jwt, &jval);
+	ck_assert_int_eq(ret, 0);
+	ck_assert_ptr_nonnull(jval.str_val);
+	ck_assert_str_eq(jval.str_val, "favourite");
 
 	out = jwt_dump_str(jwt, 1);
 	ck_assert_ptr_nonnull(out);
 
 	/* Test 'typ' header: should be left untouched. */
-	val = jwt_get_header(jwt, "typ");
-	ck_assert_ptr_nonnull(val);
-	ck_assert_str_eq(val, "favourite");
+	jwt_set_GET_STR(&jval, "typ");
+	ret = jwt_header_get(jwt, &jval);
+	ck_assert_int_eq(ret, 0);
+	ck_assert_ptr_nonnull(jval.str_val);
+	ck_assert_str_eq(jval.str_val, "favourite");
 
 	jwt_free_str(out);
 
@@ -368,9 +387,11 @@ START_TEST(test_jwt_dump_str_alg_custom_typ_header)
 	ck_assert_ptr_nonnull(out);
 
 	/* Test 'typ' header: should be left untouched. */
-	val = jwt_get_header(jwt, "typ");
-	ck_assert_ptr_nonnull(val);
-	ck_assert_str_eq(val, "favourite");
+	jwt_set_GET_STR(&jval, "typ");
+	ret = jwt_header_get(jwt, &jval);
+	ck_assert_int_eq(ret, 0);
+	ck_assert_ptr_nonnull(jval.str_val);
+	ck_assert_str_eq(jval.str_val, "favourite");
 
 	jwt_free_str(out);
 }
