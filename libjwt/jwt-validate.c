@@ -14,6 +14,65 @@
 
 #include "jwt-private.h"
 
+static const char *get_js_string(const json_t *js, const char *key)
+{
+	const char *val = NULL;
+	json_t *js_val;
+
+	js_val = json_object_get(js, key);
+	if (js_val) {
+		if (json_is_string(js_val))
+			val = json_string_value(js_val);
+		else
+			errno = EINVAL;
+	} else {
+		errno = ENOENT;
+	}
+
+	return val;
+}
+
+static long get_js_int(const json_t *js, const char *key)
+{
+	long val = -1;
+	json_t *js_val;
+
+	js_val = json_object_get(js, key);
+	if (js_val) {
+		if (json_is_integer(js_val))
+			val = (long)json_integer_value(js_val);
+		else
+			errno = EINVAL;
+	} else {
+		errno = ENOENT;
+	}
+
+	return val;
+}
+
+static int get_js_bool(const json_t *js, const char *key)
+{
+	int val = -1;
+	json_t *js_val;
+
+	js_val = json_object_get(js, key);
+	if (js_val) {
+		switch (json_typeof(js_val)) {
+		case JSON_TRUE:
+			val = 1;
+			break;
+		case JSON_FALSE:
+			val = 0;
+			break;
+		default:
+			errno = EINVAL;
+		}
+	} else {
+		errno = ENOENT;
+	}
+	return val;
+}
+
 int jwt_valid_new(jwt_valid_t **jwt_valid, jwt_alg_t alg)
 {
 	if (!jwt_valid)

@@ -40,27 +40,40 @@ static int jwt_parse_body(jwt_t *jwt, char *body)
 		json_decrefp(&(jwt->grants));
 
 	jwt->grants = jwt_base64uri_decode_to_json(body);
-	if (!jwt->grants)
+	if (!jwt->grants) {
+		jwt_write_error(jwt, "Error parsing body");
 		return 1;
+	}
 
 	return 0;
 }
 
 static int jwt_parse_head(jwt_t *jwt, char *head)
 {
-	const char *alg;
+	json_t *jalg;
 
 	if (jwt->headers)
 		json_decrefp(&(jwt->headers));
 
 	jwt->headers = jwt_base64uri_decode_to_json(head);
-	if (!jwt->headers)
+	if (!jwt->headers) {
+		jwt_write_error(jwt, "Error parsing header");
 		return 1;
+	}
 
-	alg = get_js_string(jwt->headers, "alg");
-	jwt->alg = jwt_str_alg(alg);
-	if (jwt->alg >= JWT_ALG_INVAL)
-		return 1;
+	jwt->alg = JWT_ALG_NONE;
+
+	jalg = json_object_get(jwt->headers, "alg");
+	if (jalg && json_is_string(jalg)) {
+		const char *alg = json_string_value(jalg);
+
+		jwt->alg = jwt_str_alg(alg);
+
+		if (jwt->alg >= JWT_ALG_INVAL) {
+			jwt_write_error(jwt, "Invalid ALG: [%s]", alg);
+			return 1;
+		}
+	}
 
 	return 0;
 }
@@ -101,15 +114,11 @@ static int jwt_parse(jwt_t *jwt, const char *token, unsigned int *len)
 
 	/* Now that we have everything split up, let's check out the
 	 * header. */
-	if (jwt_parse_head(jwt, head)) {
-		jwt_write_error(jwt, "Error parsing header");
+	if (jwt_parse_head(jwt, head))
 		return 1;
-	}
 
-	if (jwt_parse_body(jwt, body)) {
-		jwt_write_error(jwt, "Error parsing body");
+	if (jwt_parse_body(jwt, body))
 		return 1;
-	}
 
 	*len = sig - head;
 

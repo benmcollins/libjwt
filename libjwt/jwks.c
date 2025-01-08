@@ -8,7 +8,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 
 #include <jwt.h>
 #include "jwt-private.h"

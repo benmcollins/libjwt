@@ -173,14 +173,6 @@ int jwt_base64uri_encode(char **_dst, const char *plain, int plain_len);
 JWT_NO_EXPORT
 void *jwt_base64uri_decode(const char *src, int *ret_len);
 
-/* JSON stuff */
-JWT_NO_EXPORT
-const char *get_js_string(const json_t *js, const char *key);
-JWT_NO_EXPORT
-long get_js_int(const json_t *js, const char *key);
-JWT_NO_EXPORT
-int get_js_bool(const json_t *js, const char *key);
-
 /* A time-safe strcmp function */
 JWT_NO_EXPORT
 int jwt_strcmp(const char *str1, const char *str2);

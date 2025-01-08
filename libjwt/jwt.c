@@ -8,7 +8,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 #include <stdio.h>
 
 #include <jwt.h>
@@ -247,65 +246,6 @@ jwt_t *jwt_dup(jwt_t *jwt)
 	return new;
 }
 
-const char *get_js_string(const json_t *js, const char *key)
-{
-	const char *val = NULL;
-	json_t *js_val;
-
-	js_val = json_object_get(js, key);
-	if (js_val) {
-		if (json_is_string(js_val))
-			val = json_string_value(js_val);
-		else
-			errno = EINVAL;
-	} else {
-		errno = ENOENT;
-	}
-
-	return val;
-}
-
-long get_js_int(const json_t *js, const char *key)
-{
-	long val = -1;
-	json_t *js_val;
-
-	js_val = json_object_get(js, key);
-	if (js_val) {
-		if (json_is_integer(js_val))
-			val = (long)json_integer_value(js_val);
-		else
-			errno = EINVAL;
-	} else {
-		errno = ENOENT;
-	}
-
-	return val;
-}
-
-int get_js_bool(const json_t *js, const char *key)
-{
-	int val = -1;
-	json_t *js_val;
-
-	js_val = json_object_get(js, key);
-	if (js_val) {
-		switch (json_typeof(js_val)) {
-		case JSON_TRUE:
-			val = 1;
-			break;
-		case JSON_FALSE:
-			val = 0;
-			break;
-		default:
-			errno = EINVAL;
-		}
-	} else {
-		errno = ENOENT;
-	}
-	return val;
-}
-
 void *jwt_base64uri_decode(const char *src, int *ret_len)
 {
 	void *buf;
@@ -369,7 +309,7 @@ int jwt_base64uri_encode(char **_dst, const char *plain, int plain_len)
 	len = BASE64_ENCODE_OUT_SIZE(plain_len);
 	dst = jwt_malloc(len + 1);
 	if (dst == NULL)
-		return -ENOMEM; // LCOV_EXCL_LINE
+		return -1; // LCOV_EXCL_LINE
 
 	/* First, a normal base64 encoding */
 	len = base64_encode((const unsigned char *)plain, plain_len, dst);
