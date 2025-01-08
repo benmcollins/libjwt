@@ -870,16 +870,13 @@ int jwt_del_headers(jwt_t *jwt, const char *header);
 /**
  * Output plain text representation to a FILE pointer.
  *
- * This function will write a plain text representation of this JWT object
+ * This function will write a JSON string representation of this JWT object
  * without Base64 encoding. This only writes the header and body, and does
  * not compute the signature or encryption (if such an algorithm were being
  * used).
  *
- * @remark This may change the content of JWT header if algorithm is set
- *   on the JWT object. If algorithm is set (jwt_set_alg was called
- *   on the jwt object) then dumping JWT attempts to append 'typ' header.
- *   If the 'typ' header already exists, then it is left untouched,
- *   otherwise it is added with default value of "JWT".
+ * @note This is only useful for debugging and is not intended to be used for
+ *  encoding an actual JWT.
  *
  * @param jwt Pointer to a JWT object.
  * @param fp Valid FILE pointer to write data to.
@@ -896,11 +893,8 @@ int jwt_dump_fp(jwt_t *jwt, FILE *fp, int pretty);
  * Similar to jwt_dump_fp() except that a string is returned. The string
  * must be freed by the caller.
  *
- * @remark This may change the content of JWT header if algorithm is set
- *   on the JWT object. If algorithm is set (jwt_set_alg was called
- *   on the jwt object) then dumping JWT attempts to append 'typ' header.
- *   If the 'typ' header already exists, then it is left untouched,
- *   otherwise it is added with default value of "JWT".
+ * @note This is only useful for debugging and is not intended to be used for
+ *  encoding an actual JWT.
  *
  * @param jwt Pointer to a JWT object.
  * @param pretty Enables better visual formatting of output. Generally only
@@ -916,6 +910,9 @@ char *jwt_dump_str(jwt_t *jwt, int pretty);
  *
  * Similar to jwt_dump_str() except that only a string containing the
  * grants string is returned. The string must be freed by the caller.
+ *
+ * @note This is only useful for debugging and is not intended to be used for
+ *  encoding an actual JWT.
  *
  * @param jwt Pointer to a JWT object.
  * @param pretty Enables better visual formatting of output. Generally only
@@ -978,23 +975,6 @@ void jwt_free_str(char *str);
  * exists, is scrubbed).
  * @{
  */
-
-/**
- * Set an algorithm for a @ref jwt_t object.
- *
- * Specifies an algorithm for a @ref jwt_t object. If @ref JWT_ALG_NONE is used,
- * then key must be NULL and len must be 0. All other algorithms must have a
- * valid pointer to key data, which may be specific to the algorithm (e.g
- * RS256 expects a PEM formatted RSA key).
- *
- * @param jwt Pointer to a @ref jwt_t object.
- * @param alg A valid @ref jwt_alg_t specifier.
- * @param key The key data to use for the algorithm.
- * @param len The length of the key data.
- * @return Returns 0 on success, valid errno otherwise.
- */
-JWT_EXPORT
-int jwt_set_alg(jwt_t *jwt, jwt_alg_t alg, const unsigned char *key, int len);
 
 /**
  * Get the jwt_alg_t set for this JWT object.
