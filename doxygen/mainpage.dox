@@ -9,12 +9,13 @@
 
 @section standards \emoji :bulb: Supported Standards
 
-Standard             | RFC        | Description
--------------------- | :--------: | --------------------------------------
-``JWT``              | @rfc{7519} | JSON Web Token
-``JWA``              | @rfc{7518} | JSON Web Algorithms
-``JWS`` and ``JWE``  | @rfc{7518} | Specific types of JWT
-``JWK`` and ``JWKS`` | @rfc{7517} | JSON Web Keys and Sets
+Standard | RFC        | Description
+-------- | :--------: | ----------------------
+``JWS``  | @rfc{7515} | JSON Web Signature
+``JWE``  | @rfc{7516} | JSON Web Encryption
+``JWK``  | @rfc{7517} | JSON Web Keys and Sets
+``JWA``  | @rfc{7518} | JSON Web Algorithms
+``JWT``  | @rfc{7519} | JSON Web Token
 
 > [!NOTE]
 > Throughout this documentation you will see links such as the ones
