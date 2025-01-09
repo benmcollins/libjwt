@@ -18,12 +18,12 @@ static jwk_key_op_t jwk_key_op_j(json_t *j_op)
 	const char *op;
 
 	if (!j_op || !json_is_string(j_op))
-		return JWK_KEY_OP_INVALID;
+		return JWK_KEY_OP_NONE;
 
 	op = json_string_value(j_op);
 
 	if (op == NULL)
-		return JWK_KEY_OP_INVALID;
+		return JWK_KEY_OP_NONE;
 
 	if (!jwt_strcmp(op, "sign"))
 		return JWK_KEY_OP_SIGN;

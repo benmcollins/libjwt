@@ -26,6 +26,7 @@ START_TEST(test_jwt_ops)
 
 		type = jwt_get_crypto_ops_t();
 		ck_assert_int_eq(type, op->type);
+		ck_assert_int_ne(jwt_crypto_ops_supports_jwk(), 0);
 	}
 
 	/* Assert that this fails */

@@ -44,6 +44,12 @@ static void __jwks_check(const char *json, const char *pem)
 		ret = strcmp(jwks_item_pem(item), test_data.key);
 		free_key();
 		ck_assert_int_eq(ret, 0);
+
+		if (jwks_item_alg(item) == JWT_ALG_ES256) {
+			ck_assert_str_eq(jwks_item_curve(item), "P-256");
+			ck_assert_int_eq(jwks_item_kty(item), JWK_KEY_TYPE_EC);
+			ck_assert_int_eq(jwks_item_key_bits(item), 256);
+		}
 	}
 
 	/* Should only be one key in the set */
@@ -205,7 +211,6 @@ END_TEST
 START_TEST(test_jwks_key_op_bad_type)
 {
 	const jwk_item_t *item;
-	const char *msg = "JWK has an invalid value in key_op";
 	const char *kid = "264265c2-4ef0-4751-adbd-9739550afe5b";
 
 	SET_OPS();
@@ -215,9 +220,8 @@ START_TEST(test_jwks_key_op_bad_type)
 	item = jwks_item_get(g_jwk_set, 0);
 	ck_assert_ptr_nonnull(item);
 
-	/* One item had a bad type (numeric). */
-	ck_assert(jwks_item_error(item));
-	ck_assert_str_eq(jwks_item_error_msg(item), msg);
+	/* The bad key_op is ignored. */
+	ck_assert(!jwks_item_error(item));
 
 	/* Only these ops set. */
 	ck_assert_int_eq(jwks_item_key_ops(item),
