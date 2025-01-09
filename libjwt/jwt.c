@@ -257,9 +257,29 @@ void *jwt_base64uri_decode(const char *src, int *ret_len)
 
 	/* Decode based on RFC-4648 URI safe encoding. */
 	len = (int)strlen(src);
-	/* When reversing the URI cleanse, we can possibly add up
-	 * to 3 '=' characters to replace the missing padding. */
-	new = jwt_malloc(len + 4);
+
+	/* Validate length */
+	z = (len % 4);
+	switch (z) {
+	case 0:
+		/* No added padding */
+		break;
+
+	case 2:
+		/* 2 added = for padding */
+		break;
+
+	case 3:
+		/* 1 added = for padding */
+		z = 1;
+		break;
+
+	default:
+		/* Something bad */
+		return NULL;
+	}
+
+	new = jwt_malloc(len + z + 1);
 	if (!new)
 		return NULL; // LCOV_EXCL_LINE
 
@@ -275,11 +295,10 @@ void *jwt_base64uri_decode(const char *src, int *ret_len)
 			new[i] = src[i];
 		}
 	}
-	z = 4 - (i % 4);
-	if (z < 4) {
-		while (z--)
-			new[i++] = '=';
-	}
+
+	for (; z > 0; z--)
+		new[i++] = '=';
+
 	new[i] = '\0';
 	len = i;
 
