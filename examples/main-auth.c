@@ -31,9 +31,10 @@ int main(int argc, char *argv[])
 	JWT_CONFIG_DECLARE(config);
 	jwt_auto_t *jwt = NULL;
 	jwk_set_auto_t *jwk_set = NULL;
-	jwk_item_t *item = NULL;
+	const jwk_item_t *item = NULL;
 	FILE *key_fp = NULL;
 	char key_data[BUFSIZ];
+	jwt_value_t jval;
 	int key_len;
 	char oc, ret;
 
@@ -114,20 +115,20 @@ int main(int argc, char *argv[])
 		}
 		/* Get the first key */
 		item = jwks_item_get(jwk_set, 0);
-		if (item->error) {
+		if (jwks_item_error(item)) {
 			fprintf(stderr, "ERR: Could not read JWK: %s\n",
-				item->error_msg);
+				jwks_item_error_msg(item));
 			exit(EXIT_FAILURE);
 		}
 
-		if (item->alg == JWT_ALG_NONE && opt_alg == JWT_ALG_NONE) {
+		if (jwks_item_alg(item) == JWT_ALG_NONE && opt_alg == JWT_ALG_NONE) {
 			fprintf(stderr, "Cannot find a valid algorithm in the "
 				" JWK. You need to set it with --alg\n");
 			exit(EXIT_FAILURE);
 		}
 
-		if (item->alg != JWT_ALG_NONE && opt_alg != JWT_ALG_NONE &&
-		    item->alg != opt_alg) {
+		if (jwks_item_alg(item) != JWT_ALG_NONE && opt_alg != JWT_ALG_NONE &&
+		    jwks_item_alg(item) != opt_alg) {
 			fprintf(stderr, "Key algorithm does not match --alg argument\n");
 			exit(EXIT_FAILURE);
 		}
@@ -146,7 +147,21 @@ int main(int argc, char *argv[])
 	fprintf(stderr, "JWT %s successfully!\n",
 		token ? "verified" : "decoded");
 
-	jwt_dump_fp(jwt, stdout, 1);
+	jwt_set_GET_JSON(&jval, NULL);
+	jval.pretty = 1;
+        ret = jwt_header_get(jwt, &jval);
+	if (!ret) {
+		fprintf(stderr, "HEADER:\n%s\n", jval.json_val);
+		free(jval.json_val);
+	}
+
+	jwt_set_GET_JSON(&jval, NULL);
+        jval.pretty = 1;
+	ret = jwt_grant_get(jwt, &jval);
+	if (!ret) {
+		fprintf(stderr, "PAYLOAD:\n%s\n", jval.json_val);
+		free(jval.json_val);
+	}
 
 	exit(EXIT_SUCCESS);
 }

@@ -52,7 +52,7 @@ int main(int argc, char *argv[])
 	int ret = 0;
 	jwt_auto_t *jwt = NULL;
 	jwk_set_auto_t *jwk_set = NULL;
-	jwk_item_t *item = NULL;
+	const jwk_item_t *item = NULL;
 	jwt_value_t jval;
 	struct kv {
 		char *key;
@@ -124,20 +124,20 @@ int main(int argc, char *argv[])
 		}
 		/* Get the first key */
 		item = jwks_item_get(jwk_set, 0);
-		if (item->error) {
+		if (jwks_item_error(item)) {
 			fprintf(stderr, "ERR: Could not read JWK: %s\n",
-				item->error_msg);
+				jwks_item_error_msg(item));
 			exit(EXIT_FAILURE);
 		}
 
-		if (item->alg == JWT_ALG_NONE && opt_alg == JWT_ALG_NONE) {
+		if (jwks_item_alg(item) == JWT_ALG_NONE && opt_alg == JWT_ALG_NONE) {
 		fprintf(stderr, "Cannot find a valid algorithm in the "
 			" JWK. You need to set it with --alg\n");
 			exit(EXIT_FAILURE);
 		}
 
-		if (item->alg != JWT_ALG_NONE && opt_alg != JWT_ALG_NONE &&
-			item->alg != opt_alg) {
+		if (jwks_item_alg(item) != JWT_ALG_NONE && opt_alg != JWT_ALG_NONE &&
+			jwks_item_alg(item) != opt_alg) {
 			fprintf(stderr, "Key algorithm does not match --alg argument\n");
 			exit(EXIT_FAILURE);
 		}
@@ -151,38 +151,44 @@ int main(int argc, char *argv[])
 		goto finish;
 	}
 
-	ret = jwt_add_grant_int(jwt, "iat", iat);
+	jwt_set_ADD_INT(&jval, "iat", iat);
+	jwt_grant_add(jwt, &jval);
 	for (i = 0; i < claims_count; i++) {
-		fprintf(stderr, "Adding claim %s with value %s\n", opt_claims[i].key, opt_claims[i].val);
-		jwt_add_grant(jwt, opt_claims[i].key, opt_claims[i].val);
+		fprintf(stderr, "Adding claim %s with value %s\n",
+			opt_claims[i].key, opt_claims[i].val);
+
+		jwt_set_ADD_STR(&jval, opt_claims[i].key, opt_claims[i].val);
+		jwt_grant_add(jwt, &jval);
 	}
 
 	if (opt_json != NULL) {
-		ret = jwt_add_grants_json(jwt, opt_json);
+		jwt_set_ADD_JSON(&jval, NULL, opt_json);
+		ret = jwt_grant_add(jwt, &jval);
 		if (ret != 0) {
 			fprintf(stderr, "Input json is invalid\n");
 			goto finish;
 		}
 	}
 
+	char *out = jwt_encode_str(jwt);
+	printf("Token: %s\n", out);
+	free(out);
+
 	jwt_set_GET_JSON(&jval, NULL);
+	jval.pretty = 1;
 	if (jwt_header_get(jwt, &jval) == JWT_VALUE_ERR_NONE) {
 		fprintf(stderr, "HEADER: %s\n", jval.json_val);
 		free(jval.json_val);
 	}
 
 	jwt_set_GET_JSON(&jval, NULL);
+	jval.pretty = 1;
 	if (jwt_grant_get(jwt, &jval) == JWT_VALUE_ERR_NONE) {
-		fprintf(stderr, "GRANTS: %s\n", jval.json_val);
+		fprintf(stderr, "PAYLOAD: %s\n", jval.json_val);
 		free(jval.json_val);
 	}
 
 	fprintf(stderr, "jwt algo %s!\n", jwt_alg_str(opt_alg));
-
-	char *out = jwt_encode_str(jwt);
-	printf("%s\n", out);
-
-	free(out);
 
 finish:
 	return 0;
