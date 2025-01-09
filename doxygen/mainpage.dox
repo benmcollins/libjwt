@@ -1,12 +1,18 @@
 @mainpage Welcome to LibJWT
 
+@warning The current LibJWT code is under heavy reconstruction and is changing
+wildly from the API and ABI of v2 and prior. There's still a lot going on here,
+and there are no guarantees that this new API is set in stone. Users beware. If
+you want to see the older documentation,
+[here's the latest](https://libjwt.io/stable)
+
 @section standards \emoji :bulb: Supported Standards
 
 Standard             | RFC        | Description
 -------------------- | :--------: | --------------------------------------
 ``JWT``              | @rfc{7519} | JSON Web Token
 ``JWA``              | @rfc{7518} | JSON Web Algorithms
-``JWS`` and ``JWE``  | @rfc{7518} | Specific types of JWA
+``JWS`` and ``JWE``  | @rfc{7518} | Specific types of JWT
 ``JWK`` and ``JWKS`` | @rfc{7517} | JSON Web Keys and Sets
 
 @note Throughout this documentation you will see links such as the ones
@@ -18,8 +24,8 @@ Standard             | RFC        | Description
 
 @subsection req Required
 
-- <a href="https://github.com/akheron/jansson">JANSSON</a> (>= 2.0)
-- CMake (>= 3.7)
+- [JANSSON](https://github.com/akheron/jansson">JANSSON) (>= 2.0)
+- [CMake](https://cmake.org) (>= 3.7)
 
 @subsection req_crypto Crypto support
 
@@ -31,22 +37,22 @@ Standard             | RFC        | Description
 
 @subsection optional Optional
 
-- <a href="https://github.com/libcheck/check/issues">Check Library</a> for unit
+- [Check Library](https://github.com/libcheck/check/issues) (>= 0.9.10) for unit
   testing
-- Doxygen (>= 1.13.0)
+- [Doxygen](https://www.doxygen.nl) (>= 1.13.0) for documentation
 
 @section docs \emoji :open_book: Docs and Source
 
-\emoji :link: <a href="https://libjwt.io/">Release</a>
+\emoji :link: [Current codebase](https://libjwt.io)
 
-\emoji :link: <a href="https://libjwt.io/HEAD">Development</a>
+\emoji :link: [Stable](https://libjwt.io/stable)
 
-\emoji :link: <a href="https://github.com/benmcollins/libjwt">GitHub Repo</a>
+\emoji :link: [GitHub Repo](https://github.com/benmcollins/libjwt)
 
 @section prebuilt \emoji :package: Pre-built Packages
 
 LibJWT is available in most Linux distributions as well as through
-<a href="https://formulae.brew.sh/formula/libjwt#default">Homebrew</a>
+[Homebrew](https://formulae.brew.sh/formula/libjwt#default)
 for Linux, macOS, and Windows.
 
 @section instructions \emoji :hammer: Build Instructions
@@ -59,11 +65,3 @@ $ cd build
 $ cmake ..
 $ make
 @endcode
-
-@subsection extra Extra Build Info
-
-If you have *libcheck* installed you can compile the test suite which you can
-run using the ``check`` target.
-
-CMake will auto detect *OpenSSL* and *GnuTLS* and use one or both. There are
-CMake options to force either one on or off.

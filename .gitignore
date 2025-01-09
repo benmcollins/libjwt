@@ -1,3 +1,6 @@
 # Generic ignores for cmake project
-/out/**
 /build/**
+/out/**
+
+# VIM
+*.swp

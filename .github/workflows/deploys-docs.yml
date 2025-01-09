@@ -30,8 +30,7 @@ jobs:
         set -e
         cmake -B build
         make -C build doxygen-doc
-        mkdir -p gh-pages
-        mv build/doxygen-doc/html gh-pages/HEAD
+        mv build/doxygen-doc/html gh-pages
         rm -rf build
 
     - name: Build Latest tag docs
@@ -44,7 +43,7 @@ jobs:
         ../configure
         make doxygen-doc
         cd ..
-        mv build/doxygen-doc/html/* gh-pages/
+        mv build/doxygen-doc/html gh-pages/stable
         rm -rf build
 
     - name: Upload pages

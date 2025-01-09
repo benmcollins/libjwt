@@ -5,10 +5,14 @@
 
 [![maClara](https://img.shields.io/badge/Sponsored%20by-maClara%2C%20LLC-blue?style=plastic&logoColor=blue)](https://maclara-llc.com)
 
+> [!WARNING] The current LibJWT code is under heavy reconstruction and is changing
+> wildly from the API and ABI of v2 and prior. There's still a lot going on here,
+> and there are no guarantees that this new API is set in stone. Users beware.
+
 ## :bulb: Supported Standards
 
-Standard             | RFC        | Description
--------------------- | :--------: | --------------------------------------
+Standard             | RFC                                                                        | Description
+-------------------- | :------------------------------------------------------------------------: | ---------------------
 ``JWT``              | :page_facing_up: [RFC-7519](https://datatracker.ietf.org/doc/html/rfc7519) | JSON Web Token
 ``JWA``              | :page_facing_up: [RFC-7518](https://datatracker.ietf.org/doc/html/rfc7518) | JSON Web Algorithms
 ``JWS`` and ``JWE``  | :page_facing_up: [RFC-7518](https://datatracker.ietf.org/doc/html/rfc7518) | Specific types of JWA
@@ -24,8 +28,8 @@ Standard             | RFC        | Description
 
 ### Required
 
-- [JANSSON](https://github.com/akheron/jansson) (>= 2.0)
-- CMake (>= 3.7)
+- [JANSSON](https://github.com/akheron/jansson">JANSSON) (>= 2.0)
+- [CMake](https://cmake.org) (>= 3.7)
 
 ### Crypto support
 
@@ -38,14 +42,15 @@ Standard             | RFC        | Description
 
 ### Optional
 
-- [Check Library](https://github.com/libcheck/check/issues) for unit testing
-- Doxygen (>= 1.13.0)
+- [Check Library](https://github.com/libcheck/check/issues) (>= 0.9.10) for unit
+  testing
+- [Doxygen](https://www.doxygen.nl) (>= 1.13.0) for documentation
 
 ## :books: Docs and Source
 
-:link: [Release](https://libjwt.io/)
+:link: [Current codebase](https://libjwt.io)
 
-:link: [Development](https://libjwt.io/HEAD/)
+:link: [Stable](https://libjwt.io/stable)
 
 :link: [GitHub Repo](https://github.com/benmcollins/libjwt)
 
@@ -63,10 +68,3 @@ for Linux, macOS, and Windows.
     $ cd build
     $ cmake ..
     $ make
-
-### Extra Build Info
-If you have *libcheck* installed you can compile the test suite which you can
-run using the ``check`` target.
-
-CMake will auto detect *OpenSSL* and *GnuTLS* and use one or both. There are
-CMake options to force either one on or off.
