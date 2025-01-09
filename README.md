@@ -28,7 +28,7 @@ Standard             | RFC                                                      
 
 ### Required
 
-- [JANSSON](https://github.com/akheron/jansson">JANSSON) (>= 2.0)
+- [JANSSON](https://github.com/akheron/jansson) (>= 2.0)
 - [CMake](https://cmake.org) (>= 3.7)
 
 ### Crypto support

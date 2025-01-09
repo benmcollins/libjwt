@@ -16,15 +16,15 @@ Standard             | RFC        | Description
 ``JWK`` and ``JWKS`` | @rfc{7517} | JSON Web Keys and Sets
 
 @note Throughout this documentation you will see links such as the ones
- above to RFC documents. These are relevant to that particular part of the
- library and are helpful to understand some of the specific standards that
- shaped the development of LibJWT.
+above to RFC documents. These are relevant to that particular part of the
+library and are helpful to understand some of the specific standards that
+shaped the development of LibJWT.
 
 @section building \emoji :construction: Build Prerequisites
 
 @subsection req Required
 
-- [JANSSON](https://github.com/akheron/jansson">JANSSON) (>= 2.0)
+- [JANSSON](https://github.com/akheron/jansson) (>= 2.0)
 - [CMake](https://cmake.org) (>= 3.7)
 
 @subsection req_crypto Crypto support

@@ -8,12 +8,14 @@ on:
       - "doxygen/**"
       - ".github/**"
       - "images/**"
+      - ".gitignore"
   pull_request:
     branches: [ "master" ]
     paths-ignore:
       - "doxygen/**"
       - ".github/**"
       - "images/**"
+      - ".gitignore"
 
 jobs:
   build-macos:
