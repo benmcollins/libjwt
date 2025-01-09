@@ -1,10 +1,11 @@
 @mainpage Welcome to LibJWT
 
-@warning The current LibJWT code is under heavy reconstruction and is changing
-wildly from the API and ABI of v2 and prior. There's still a lot going on here,
-and there are no guarantees that this new API is set in stone. Users beware. If
-you want to see the older documentation,
-[here's the latest](https://libjwt.io/stable)
+> [!WARNING]
+> The current LibJWT code is under heavy reconstruction and is changing
+> wildly from the API and ABI of v2 and prior. There's still a lot going on here,
+> and there are no guarantees that this new API is set in stone. Users beware. If
+> you want to see the older documentation,
+> [here's the latest](https://libjwt.io/stable)
 
 @section standards \emoji :bulb: Supported Standards
 
@@ -15,10 +16,11 @@ Standard             | RFC        | Description
 ``JWS`` and ``JWE``  | @rfc{7518} | Specific types of JWT
 ``JWK`` and ``JWKS`` | @rfc{7517} | JSON Web Keys and Sets
 
-@note Throughout this documentation you will see links such as the ones
-above to RFC documents. These are relevant to that particular part of the
-library and are helpful to understand some of the specific standards that
-shaped the development of LibJWT.
+> [!NOTE]
+> Throughout this documentation you will see links such as the ones
+> above to RFC documents. These are relevant to that particular part of the
+> library and are helpful to understand some of the specific standards that
+> shaped the development of LibJWT.
 
 @section building \emoji :construction: Build Prerequisites
 
