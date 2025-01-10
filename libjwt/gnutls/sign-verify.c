@@ -116,7 +116,8 @@ static int gnutls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 	};
 	gnutls_datum_t sig_dat, r, s;
 	int ret = 0, pk_alg;
-	int alg, adj;
+	int alg;
+	unsigned int adj;
 
 	if (gnutls_privkey_init(&privkey)) {
 		// LCOV_EXCL_START

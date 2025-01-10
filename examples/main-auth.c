@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
 	char key_data[BUFSIZ];
 	jwt_value_t jval;
 	int key_len;
-	char oc, ret;
+	int oc, ret;
 
 	char *optstr = "hk:t:a";
 	struct option opttbl[] = {

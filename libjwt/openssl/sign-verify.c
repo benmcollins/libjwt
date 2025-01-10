@@ -100,7 +100,7 @@ static int openssl_verify_sha_hmac(jwt_t *jwt, const char *head,
 	return ret;
 }
 
-static int __degree_and_check(EVP_PKEY *pkey, jwt_t *jwt)
+static int __degree_and_check(jwt_t *jwt)
 {
 	int bits = jwt->jw_key->bits;
 
@@ -133,8 +133,7 @@ static int __degree_and_check(EVP_PKEY *pkey, jwt_t *jwt)
 }
 
 static int jwt_ec_d2i(jwt_t *jwt, char **out, unsigned int *len,
-		      unsigned char *sig, unsigned int slen,
-		      EVP_PKEY *pkey)
+		      unsigned char *sig, unsigned int slen)
 {
 	unsigned int bn_len, r_len, s_len, buf_len;
 	ECDSA_SIG *ec_sig = NULL;
@@ -143,7 +142,7 @@ static int jwt_ec_d2i(jwt_t *jwt, char **out, unsigned int *len,
 	unsigned char *buf;
 	int degree;
 
-	degree = __degree_and_check(pkey, jwt);
+	degree = __degree_and_check(jwt);
 	if (degree <= 0)
 		return 1;
 
@@ -302,7 +301,7 @@ static int openssl_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 
 	if (type == EVP_PKEY_EC) {
 		/* For EC we need to convert to a raw format of R/S. */
-		ret = jwt_ec_d2i(jwt, out, len, sig, slen, pkey);
+		ret = jwt_ec_d2i(jwt, out, len, sig, slen);
 
 		/* jwt_ec_d2i has updated the out and len pointers on
 		 * success. Either way, we're done with this buffer. */
@@ -417,7 +416,7 @@ static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 		int degree;
 		unsigned char *p;
 
-		degree = __degree_and_check(pkey, jwt);
+		degree = __degree_and_check(jwt);
 		if (degree <= 0)
 			VERIFY_ERROR();
 
@@ -426,7 +425,7 @@ static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 			VERIFY_ERROR(); // LCOV_EXCL_LINE
 
 		bn_len = (degree + 7) / 8;
-		if ((bn_len * 2) != slen)
+		if ((bn_len * 2) != (unsigned int)slen)
 			VERIFY_ERROR(); // LCOV_EXCL_LINE
 
 		ec_sig_r = BN_bin2bn(sig, bn_len, NULL);

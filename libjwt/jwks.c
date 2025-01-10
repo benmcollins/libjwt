@@ -74,7 +74,7 @@ static void jwk_process_values(json_t *jwk, jwk_item_t *item)
 	j_ops_a = json_object_get(jwk, "key_ops");
 	if (j_ops_a && json_is_array(j_ops_a)) {
 		json_t *j_op;
-		int i;
+		size_t i;
 
 		json_array_foreach(j_ops_a, i, j_op) {
 			jwk_key_op_t op = jwk_key_op_j(j_op);
@@ -192,7 +192,7 @@ static jwk_item_t *jwk_process_one(jwk_set_t *jwk_set, json_t *jwk)
 const jwk_item_t *jwks_item_get(const jwk_set_t *jwk_set, size_t index)
 {
 	jwk_item_t *item = NULL;
-	int i = 0;
+	size_t i = 0;
 
 	list_for_each_entry(item, &jwk_set->head, node) {
 		if (i == index)
@@ -284,7 +284,7 @@ static int jwks_item_add(jwk_set_t *jwk_set, jwk_item_t *item)
 int jwks_item_free(jwk_set_t *jwk_set, const size_t index)
 {
 	jwk_item_t *item = NULL, *todel = NULL;
-        int i = 0;
+	size_t i = 0;
 
 	if (jwk_set == NULL)
 		return 0;

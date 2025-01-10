@@ -265,7 +265,7 @@ static Suite *libjwt_suite(const char *title)
 	return s;
 }
 
-int main(int argc, char *argv[])
+int main(void)
 {
 	JWT_TEST_MAIN("LibJWT Header");
 }

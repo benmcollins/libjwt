@@ -391,7 +391,8 @@ static jwt_exception_dict_t jwt_exceptions[] = {
 
 char *jwt_exception_str(jwt_valid_exception_t exceptions)
 {
-	int rc, i;
+	size_t i;
+	int rc;
 	char *str = NULL;
 
 	if (exceptions == JWT_VALIDATION_SUCCESS) {
