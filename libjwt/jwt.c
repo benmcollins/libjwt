@@ -461,7 +461,7 @@ int jwt_sign(jwt_t *jwt, char **out, unsigned int *len, const char *str,
 		if (__check_hmac(jwt))
 			return 1;
 		if (jwt_ops->sign_sha_hmac(jwt, out, len, str, str_len)) {
-			jwt_write_error(jwt, "Token failed verification");
+			jwt_write_error(jwt, "Token failed signing");
 			return 1;
 		} else {
 			return 0;
@@ -488,7 +488,7 @@ int jwt_sign(jwt_t *jwt, char **out, unsigned int *len, const char *str,
 		if (__check_key_bits(jwt))
 			return 1;
 		if (jwt_ops->sign_sha_pem(jwt, out, len, str, str_len)) {
-			jwt_write_error(jwt, "Token failed verification");
+			jwt_write_error(jwt, "Token failed signing");
 			return 1;
 		} else {
 			return 0;
