@@ -216,32 +216,3 @@ jwt_t *jwt_verify(const char *token, jwt_config_t *config)
 {
 	return jwt_verify_wcb(token, config, NULL);
 }
-
-#if 0
-jwt_t *jwt_verify_jwks(jwk_set_t *jwk_set, const char *token)
-{
-	JWT_CONFIG_DECLARE(config);
-
-	if (token == NULL || jwk_set == NULL)
-		return NULL;
-
-	*jwt = jwt_new();
-	if (*jwt == NULL)
-		return NULL;
-
-	config.ctx = jwk_set;
-
-	ret = jwt_parse(jwt, token, &payload_len);
-	if (ret) {
-		jwt_write_error(jwt, "Error parsing token");
-		return jwt;
-	}
-
-	if (jwt->alg == JWT_ALG_NONE) {
-		jwt_write_error(jwt, "Token does not have an 'alg' attribute");
-		return jwt;
-	}
-
-	ret = 
-}
-#endif
