@@ -31,11 +31,11 @@ static int gnutls_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 	void *key;
 	size_t key_len;
 
-	if (!ops_compat(jwt->jw_key, JWT_CRYPTO_OPS_OPENSSL))
+	if (!ops_compat(jwt->key, JWT_CRYPTO_OPS_OPENSSL))
 		return 1; // LCOV_EXCL_LINE
 
-	key = jwt->jw_key->oct.key;
-	key_len = jwt->jw_key->oct.len;
+	key = jwt->key->oct.key;
+	key_len = jwt->key->oct.len;
 
 	switch (jwt->alg) {
 	case JWT_ALG_HS256:
@@ -102,13 +102,13 @@ static int gnutls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		return 1;
 	}
 
-	if (jwt->jw_key->pem == NULL)
+	if (jwt->key->pem == NULL)
 		return 1; // LCOV_EXCL_LINE
 
 	gnutls_privkey_t privkey;
 	gnutls_datum_t key_dat = {
-		(unsigned char *)jwt->jw_key->pem,
-		strlen(jwt->jw_key->pem)
+		(unsigned char *)jwt->key->pem,
+		strlen(jwt->key->pem)
 	};
 	gnutls_datum_t body_dat = {
 		(unsigned char *)str,
@@ -191,9 +191,6 @@ static int gnutls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		if (pk_alg == GNUTLS_PK_EDDSA_ED25519)
 			alg = GNUTLS_DIG_SHA512;
 		else if (pk_alg == GNUTLS_PK_EDDSA_ED448) {
-			/* Not implemented in GnuTLS yet, will fail XXX */
-			jwt_write_error(jwt,
-				"ED448 is not yet implemented in GnuTLS");
 			alg = GNUTLS_DIG_SHAKE_256;
 		} else {
 			jwt_write_error(jwt, "Unknown EdDSA key type");
@@ -211,14 +208,11 @@ static int gnutls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 	}
 
 	if (pk_alg != gnutls_privkey_get_pk_algorithm(privkey, NULL)) {
-		jwt_write_error(jwt, "Alg mismatch with key during signing");
+		jwt_write_error(jwt, "Alg mismatch with key during signing: %d",
+				pk_alg);
 		ret = 1;
 		goto sign_clean_privkey;
 	}
-
-	/* XXX Get curve name for ES256K case and make sure it's secp256k1 */
-
-	/* XXX Get EC curve bits and make sure it matches ES* alg type */
 
 	/* Sign data */
 	if (gnutls_privkey_sign_data(privkey, alg, 0, &body_dat, &sig_dat)) {
@@ -317,12 +311,12 @@ static int gnutls_verify_sha_pem(jwt_t *jwt, const char *head,
 	int alg, ret = 0, sig_len;
 	unsigned char *sig = NULL;
 
-	if (jwt->jw_key->pem == NULL)
+	if (jwt->key->pem == NULL)
 		return 1;
 
 	gnutls_datum_t cert_dat = {
-		(unsigned char *)jwt->jw_key->pem,
-		strlen(jwt->jw_key->pem)
+		(unsigned char *)jwt->key->pem,
+		strlen(jwt->key->pem)
 	};
 
 	if (jwt->alg == JWT_ALG_ES256K) {
@@ -331,55 +325,6 @@ static int gnutls_verify_sha_pem(jwt_t *jwt, const char *head,
 		return 1;
 		// LCOV_EXCL_STOP
 	}
-
-	switch (jwt->alg) {
-	/* RSA */
-	case JWT_ALG_RS256:
-		alg = GNUTLS_SIGN_RSA_SHA256;
-		break;
-	case JWT_ALG_RS384:
-		alg = GNUTLS_SIGN_RSA_SHA384;
-		break;
-	case JWT_ALG_RS512:
-		alg = GNUTLS_SIGN_RSA_SHA512;
-		break;
-
-	/* RSA-PSS */
-	case JWT_ALG_PS256:
-		alg = GNUTLS_SIGN_RSA_PSS_SHA256;
-		break;
-	case JWT_ALG_PS384:
-		alg = GNUTLS_SIGN_RSA_PSS_SHA384;
-		break;
-	case JWT_ALG_PS512:
-		alg = GNUTLS_SIGN_RSA_PSS_SHA512;
-		break;
-
-	/* EC */
-	case JWT_ALG_ES256:
-	case JWT_ALG_ES256K:
-		alg = GNUTLS_SIGN_ECDSA_SHA256;
-		break;
-	case JWT_ALG_ES384:
-		alg = GNUTLS_SIGN_ECDSA_SHA384;
-		break;
-	case JWT_ALG_ES512:
-		alg = GNUTLS_SIGN_ECDSA_SHA512;
-		break;
-
-	/* EdDSA */
-	case JWT_ALG_EDDSA:
-		alg = GNUTLS_SIGN_EDDSA_ED25519;
-		break;
-
-	default:
-		return 1; // LCOV_EXCL_LINE
-	}
-
-	sig = (unsigned char *)jwt_base64uri_decode(sig_b64, &sig_len);
-
-	if (sig == NULL)
-		return 1;
 
 	if (gnutls_pubkey_init(&pubkey)) {
 		// LCOV_EXCL_START
@@ -421,6 +366,67 @@ static int gnutls_verify_sha_pem(jwt_t *jwt, const char *head,
 			goto verify_clean_pubkey;
 			// LCOV_EXCL_STOP
 		}
+	}
+
+	switch (jwt->alg) {
+	/* RSA */
+	case JWT_ALG_RS256:
+		alg = GNUTLS_SIGN_RSA_SHA256;
+		break;
+	case JWT_ALG_RS384:
+		alg = GNUTLS_SIGN_RSA_SHA384;
+		break;
+	case JWT_ALG_RS512:
+		alg = GNUTLS_SIGN_RSA_SHA512;
+		break;
+
+	/* RSA-PSS */
+	case JWT_ALG_PS256:
+		alg = GNUTLS_SIGN_RSA_PSS_SHA256;
+		break;
+	case JWT_ALG_PS384:
+		alg = GNUTLS_SIGN_RSA_PSS_SHA384;
+		break;
+	case JWT_ALG_PS512:
+		alg = GNUTLS_SIGN_RSA_PSS_SHA512;
+		break;
+
+	/* EC */
+	case JWT_ALG_ES256:
+	case JWT_ALG_ES256K:
+		alg = GNUTLS_SIGN_ECDSA_SHA256;
+		break;
+	case JWT_ALG_ES384:
+		alg = GNUTLS_SIGN_ECDSA_SHA384;
+		break;
+	case JWT_ALG_ES512:
+		alg = GNUTLS_SIGN_ECDSA_SHA512;
+		break;
+
+	/* EdDSA */
+	case JWT_ALG_EDDSA:
+		alg = gnutls_pubkey_get_pk_algorithm(pubkey, NULL);
+		if (alg == GNUTLS_PK_EDDSA_ED25519)
+			alg = GNUTLS_SIGN_EDDSA_ED25519;
+		else if (alg == GNUTLS_PK_EDDSA_ED448) {
+			alg = GNUTLS_SIGN_EDDSA_ED448;
+		} else {
+			jwt_write_error(jwt, "Unknown EdDSA key type");
+			ret = 1;
+			goto verify_clean_pubkey;
+		}
+		break;
+
+	default:
+		ret = 1;
+		goto verify_clean_pubkey;
+	}
+
+	sig = (unsigned char *)jwt_base64uri_decode(sig_b64, &sig_len);
+
+	if (sig == NULL) {
+		ret = 1;
+		goto verify_clean_pubkey;
 	}
 
 	/* Rebuild signature using r and s extracted from sig when jwt->alg

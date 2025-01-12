@@ -78,7 +78,7 @@ static int jwt_parse_head(jwt_t *jwt, char *head)
 	return 0;
 }
 
-static int jwt_parse(jwt_t *jwt, const char *token, unsigned int *len)
+int jwt_parse(jwt_t *jwt, const char *token, unsigned int *len)
 {
 	char_auto *head = NULL;
 	char *body, *sig;
@@ -129,38 +129,44 @@ static int jwt_parse(jwt_t *jwt, const char *token, unsigned int *len)
 static int __verify_config_post(jwt_t *jwt, const jwt_config_t *config,
 				unsigned int sig_len)
 {
-	/* The easy out; insecure JWT, and the caller expects it. */
-	if (config->alg == JWT_ALG_NONE && config->jw_key == NULL && !sig_len &&
-			jwt->alg == JWT_ALG_NONE)
+	if (!sig_len) {
+		if (config->key || config->alg != JWT_ALG_NONE) {
+			jwt_write_error(jwt,
+				"Expected a signature, but JWT has none");
+			return 1;
+		}
+
 		return 0;
+	}
 
-	/* The quick fail. The caller and JWT disagree. */
-	if (config->alg != jwt->alg) {
-		jwt_write_error(jwt, "JWT alg does not match expected value");
+	/* Signature is known to be present from this point */
+	if (config->key == NULL) {
+		jwt_write_error(jwt,
+			"JWT has signature, but no key was given");
 		return 1;
 	}
 
-	/* At this point, someone is expecting a sig and we also know the
-	 * caller and the JWT token agree on the alg. */
-
-	/* We require a key and a signature. */
-	if (config->jw_key == NULL || !sig_len) {
-		jwt_write_error(jwt, "JWT does not contain a signature");
-		return 1;
-	}
-
-	/* If the key has an alg, it must match the caller. */
-	if (config->jw_key->alg != JWT_ALG_NONE &&
-	    config->jw_key->alg != config->alg) {
-		jwt_write_error(jwt, "JWT alg does not much the key being used");
+	/* Key is known to be given at this point */
+	if (config->alg == JWT_ALG_NONE) {
+		if (config->key->alg != jwt->alg) {
+			jwt_write_error(jwt, "Key alg does not match JWT");
+			return 1;
+		}
+	} else if (config->key->alg == JWT_ALG_NONE) {
+		if (config->alg != jwt->alg) {
+			jwt_write_error(jwt, "Config alg does not match JWT");
+			return 1;
+		}
+	} else if (config->alg != config->key->alg) {
+		jwt_write_error(jwt, "Config and key alg does not match");
 		return 1;
 	}
 
 	return 0;
 }
 
-static jwt_t *jwt_verify_complete(jwt_t *jwt, const jwt_config_t *config,
-				  const char *token, unsigned int payload_len)
+jwt_t *jwt_verify_complete(jwt_t *jwt, const jwt_config_t *config,
+			   const char *token, unsigned int payload_len)
 {
 	const char *sig;
 	unsigned int sig_len;
@@ -177,42 +183,7 @@ static jwt_t *jwt_verify_complete(jwt_t *jwt, const jwt_config_t *config,
 		return jwt;
 
 	/* At this point, config is never NULL */
-	jwt->jw_key = config->jw_key;
+	jwt->key = config->key;
 
 	return jwt_verify_sig(jwt, token, payload_len, sig);
-}
-
-/*
- * If no callback then we act just like jwt_verify().
- */
-jwt_t *jwt_verify_wcb(const char *token, jwt_config_t *config,
-		      jwt_callback_t cb)
-{
-	unsigned int payload_len;
-	jwt_t *jwt = NULL;
-
-	if (config == NULL)
-		return NULL;
-
-	jwt = jwt_new();
-	if (jwt == NULL)
-		return NULL;
-
-	/* First parsing pass, error will be set for us */
-	if (jwt_parse(jwt, token, &payload_len))
-		return jwt;
-
-	/* Let the user handle this and update config */
-	if (cb && cb(jwt, config)) {
-		jwt_write_error(jwt, "User callback returned error");
-		return jwt;
-	}
-
-	/* Finish it up */
-	return jwt_verify_complete(jwt, config, token, payload_len);
-}
-
-jwt_t *jwt_verify(const char *token, jwt_config_t *config)
-{
-	return jwt_verify_wcb(token, config, NULL);
 }

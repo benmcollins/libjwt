@@ -12,40 +12,18 @@
 
 #include <jwt.h>
 
-/* https://github.com/zhicheng/base64 */
 #include "base64.h"
 
 #include "jwt-private.h"
 
-#define APPEND_STR(__buf, __str) do {	\
-	if (__append_str(__buf, __str))	\
-		return 1;		\
-} while (0)
-
-static int write_js(const json_t *js, char **buf, int pretty)
+static int write_js(const json_t *js, char **buf)
 {
-	/* Sort keys for repeatability */
-	size_t flags = JSON_SORT_KEYS;
-	char_auto *serial = NULL;
+	*buf = json_dumps(js, JSON_SORT_KEYS | JSON_COMPACT);
 
-	if (pretty) {
-		APPEND_STR(buf, "\n");
-		flags |= JSON_INDENT(4);
-	} else {
-		flags |= JSON_COMPACT;
-	}
-
-	serial = json_dumps(js, flags);
-
-	APPEND_STR(buf, serial);
-
-	if (pretty)
-		APPEND_STR(buf, "\n");
-
-	return 0;
+	return *buf == NULL ? 1 : 0;
 }
 
-static int jwt_write_head(jwt_t *jwt, char **buf, int pretty)
+static int jwt_write_head(jwt_t *jwt, char **buf)
 {
 	jwt_value_t jval;
 
@@ -72,12 +50,7 @@ static int jwt_write_head(jwt_t *jwt, char **buf, int pretty)
 		return 1;
 	}
 
-	return write_js(jwt->headers, buf, pretty);
-}
-
-static int jwt_write_body(jwt_t *jwt, char **buf, int pretty)
-{
-	return write_js(jwt->grants, buf, pretty);
+	return write_js(jwt->headers, buf);
 }
 
 static int jwt_encode(jwt_t *jwt, char **out)
@@ -94,7 +67,7 @@ static int jwt_encode(jwt_t *jwt, char **out)
 	*out = NULL;
 
 	/* First the header. */
-	ret = jwt_write_head(jwt, &buf, 0);
+	ret = jwt_write_head(jwt, &buf);
 	if (ret)
 		return 1;
 	/* Encode it */
@@ -107,7 +80,7 @@ static int jwt_encode(jwt_t *jwt, char **out)
 	}
 
 	/* Now the body. */
-	ret = jwt_write_body(jwt, &buf, 0);
+	ret = write_js(jwt->grants, &buf);
 	if (ret) {
 		jwt_write_error(jwt, "Error writing body");
 		return 1;
@@ -173,19 +146,6 @@ static int jwt_encode(jwt_t *jwt, char **out)
 	jwt_freemem(buf);
 
 	return ret;
-}
-
-int jwt_encode_fp(jwt_t *jwt, FILE *fp)
-{
-	char_auto *str = NULL;
-
-	if (jwt_encode(jwt, &str))
-		return 1;
-
-	if (fputs(str, fp) == EOF)
-		return 1;
-
-	return 0;
 }
 
 char *jwt_encode_str(jwt_t *jwt)

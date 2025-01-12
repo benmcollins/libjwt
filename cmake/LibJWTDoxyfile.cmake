@@ -50,6 +50,7 @@ set(DOXYGEN_GENERATE_TAGFILE "${DOXYGEN_OUTPUT_DIRECTORY}/LibJWT.tag")
 set(DOXYGEN_DOT_IMAGE_FORMAT "svg")
 set(DOXYGEN_INTERACTIVE_SVG "YES")
 set(DOXYGEN_SEARCHENGINE "NO")
+set(DOXYGEN_LAYOUT_FILE "doxygen/DoxygenLayout.xml")
 
 # List of extra files we need for a nice theme
 set(DOXYGEN_HTML_EXTRA_FILES "doxygen/doxygen-awesome-paragraph-link.js")

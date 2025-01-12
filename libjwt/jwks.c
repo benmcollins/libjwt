@@ -225,7 +225,7 @@ const char *jwks_item_curve(const jwk_item_t *item)
 
 const char *jwks_item_kid(const jwk_item_t *item)
 {
-	return item->kid[0] ? item->kid : NULL;
+	return item->kid;
 }
 
 jwt_alg_t jwks_item_alg(const jwk_item_t *item)

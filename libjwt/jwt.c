@@ -17,33 +17,6 @@
 
 #include "jwt-private.h"
 
-int __append_str(char **buf, const char *str)
-{
-	char *new;
-
-	if (str == NULL || str[0] == '\0')
-		return 0;
-
-	if (*buf == NULL) {
-		new = jwt_malloc(strlen(str) + 1);
-		if (new)
-			new[0] = '\0';
-	} else {
-		new = jwt_realloc(*buf, strlen(*buf) + strlen(str) + 1);
-	}
-
-	if (new == NULL) {
-		jwt_freemem(*buf);
-		return 1;
-	}
-
-	strcat(new, str);
-
-	*buf = new;
-
-	return 0;
-}
-
 const char *jwt_alg_str(jwt_alg_t alg)
 {
 	switch (alg) {
@@ -121,23 +94,6 @@ jwt_alg_t jwt_str_alg(const char *alg)
 	return JWT_ALG_INVAL;
 }
 
-int jwt_error(const jwt_t *jwt)
-{
-	return jwt->error;
-}
-
-const char *jwt_error_msg(const jwt_t *jwt)
-{
-	return jwt->error_msg;
-}
-
-JWT_NO_EXPORT
-void jwt_scrub_key(jwt_t *jwt)
-{
-	jwt->jw_key = NULL;
-	jwt->alg = JWT_ALG_NONE;
-}
-
 JWT_NO_EXPORT
 jwt_t *jwt_new(void)
 {
@@ -157,43 +113,6 @@ jwt_t *jwt_new(void)
 	return jwt;
 }
 
-jwt_t *jwt_create(jwt_config_t *config)
-{
-	jwt_t *jwt = jwt_new();
-
-	if (jwt == NULL)
-		return NULL;
-
-	/* An insecure JWT */
-	if (config == NULL)
-		return jwt;
-
-	if (config->alg == JWT_ALG_NONE) {
-		/* Also insecure */
-		if (config->jw_key == NULL)
-			return jwt;
-
-		/* This is an error. */
-		jwt_write_error(jwt, "Config alg must be set to other than "
-				 "none when supplying a key");
-		return jwt;
-	}
-
-	/* At this point, we expect a key. */
-
-	/* If the key has it set, it must match. */
-	if (config->jw_key->alg != JWT_ALG_NONE &&
-	    config->alg != config->jw_key->alg) {
-		jwt_write_error(jwt, "Config alg does not match key alg");
-		return jwt;
-	}
-
-	jwt->jw_key = config->jw_key;
-	jwt->alg = config->alg;
-
-	return jwt;
-}
-
 jwt_alg_t jwt_get_alg(const jwt_t *jwt)
 {
 	if (jwt == NULL)
@@ -207,43 +126,12 @@ void jwt_free(jwt_t *jwt)
 	if (!jwt)
 		return;
 
-	jwt_scrub_key(jwt);
-
 	json_decref(jwt->grants);
 	json_decref(jwt->headers);
 
 	memset(jwt, 0, sizeof(*jwt));
 
 	jwt_freemem(jwt);
-}
-
-jwt_t *jwt_dup(jwt_t *jwt)
-{
-	jwt_t *new = NULL;
-
-	if (jwt == NULL)
-		return NULL;
-
-	new = jwt_malloc(sizeof(*new));
-	if (!new)
-		return NULL;
-
-	memset(new, 0, sizeof(jwt_t));
-
-	new->jw_key = jwt->jw_key;
-	new->alg = jwt->alg;
-	new->error = jwt->error;
-	strcpy(new->error_msg, jwt->error_msg);
-
-	new->grants = json_deep_copy(jwt->grants);
-	new->headers = json_deep_copy(jwt->headers);
-	if (!new->headers || !new->grants) {
-		json_decref(new->headers);
-		json_decref(new->grants);
-		jwt_freep(&new);
-	}
-
-	return new;
 }
 
 void *jwt_base64uri_decode(const char *src, int *ret_len)
@@ -361,7 +249,7 @@ int jwt_base64uri_encode(char **_dst, const char *plain, int plain_len)
 
 static int __check_hmac(jwt_t *jwt)
 {
-	int key_bits = jwt->jw_key->bits;
+	int key_bits = jwt->key->bits;
 
 	if (key_bits < 256) {
 		jwt_write_error(jwt, "Key too short for HS algs: %d bits",
@@ -400,7 +288,7 @@ static int __check_hmac(jwt_t *jwt)
 
 static int __check_key_bits(jwt_t *jwt)
 {
-	int key_bits = jwt->jw_key->bits;
+	int key_bits = jwt->key->bits;
 
 	/* Ignore if we don't have it */
 	if (key_bits == 0)
@@ -541,9 +429,4 @@ jwt_t *jwt_verify_sig(jwt_t *jwt, const char *head, unsigned int head_len,
 	}
 
 	return jwt;
-}
-
-void jwt_config_init(jwt_config_t *config)
-{
-	memset(config, 0, sizeof(*config));
 }

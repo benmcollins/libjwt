@@ -8,132 +8,99 @@
 
 #include "jwt_tests.h"
 
-/* NOTE: ES signing will generate a different signature every time, so can't
- * be simply string compared for verification like we do with RS. */
-
-static const char jwt_es256[] = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQ"
-	"iOjE0NzU5ODA1NDUsImlzcyI6ImZpbGVzLm1hY2xhcmEtbGxjLmNvbSIsInJlZiI6Ilh"
-	"YWFgtWVlZWS1aWlpaLUFBQUEtQ0NDQyIsInN1YiI6InVzZXIwIn0.IONoUPo6QhHwcx1"
-	"N1TD4DnrjvmB-9lSX6qrn_WPrh3DBum-qKP66MIF9tgymy7hCoU6dvUW8zKK0AyVH3iD"
-	"1uA";
-
-static const char jwt_es384[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzM4NCJ9.eyJpYXQ"
-	"iOjE0NzU5ODA1NDUsImlzcyI6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJYWFhYLVl"
-	"ZWVktWlpaWi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.p6McjolhuIqel0DWaI2OrD"
-	"oRYcxgSMnGFirdKT5jXpe9L801HBkouKBJSae8F7LLFUKiE2VVX_514WzkuExLQs2eB1"
-	"L2Qahid5VFOK3hc7HcBL-rcCXa8d2tf_MudyrM";
-
-static const char jwt_es512[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzUxMiJ9.eyJpYXQ"
-	"iOjE0NzU5ODA1NDUsImlzcyI6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJYWFhYLVl"
-	"ZWVktWlpaWi1BQUFBLUNDQ0MiLCJzdWIiOiJ1c2VyMCJ9.Abs-SriTqd9NAO-bJb-B3U"
-	"zF1W8JmoutfHQpMqJnkPHyasVVuKN-I-6RibSv-qxgTxuzlo0u5dCt4mOw7w8mgEnMAS"
-	"zsjm-NlOPUBjIUD9T592lse9OOF6TjPOQbijqeMc6qFZ8q5YhxvxBXHO6PuImkJpEWj4"
-	"Zda8lNTxqHol7vorg9";
-
-static const char jwt_es_invalid[] = "eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJpYXQ"
-	"iOjE0NzU5ODA1IAmCornholio6ImZpbGVzLmN5cGhyZS5jb20iLCJyZWYiOiJYWFhYLVl"
-	"PN9G9tV75ylfWvcwkF20bQA9m1vDbUIl8PIK8Q";
-
-START_TEST(test_jwt_encode_es256)
+START_TEST(test_jwks_ec_pub_missing)
 {
+	const char *json = "{\"kty\":\"EC\"}";
+	jwk_set_t *jwk_set = NULL;
+	const jwk_item_t *item;
+	const char exp[] = "Missing or invalid type for one of crv, x, or y for pub key";
+
 	SET_OPS();
-	__test_alg_key(JWT_ALG_ES256, "ec_key_prime256v1.json",
-		       "ec_key_prime256v1_pub.json");
+
+	jwk_set = jwks_create(json);
+
+	ck_assert_ptr_nonnull(jwk_set);
+	ck_assert(!jwks_error(jwk_set));
+
+	item = jwks_item_get(jwk_set, 0);
+	ck_assert_ptr_nonnull(item);
+	ck_assert_int_ne(jwks_item_error(item), 0);
+
+	ck_assert_str_eq(exp, jwks_item_error_msg(item));
+
+	jwks_free(jwk_set);
 }
 END_TEST
 
-START_TEST(test_jwt_verify_es256)
+START_TEST(test_jwks_ec_pub_bad_type)
 {
+	const char *json = "{\"kty\":\"EC\",\"crv\":\"prime6v1\",\"x\":\"sd+#(@#($(ada\",\"y\":1}";
+	jwk_set_t *jwk_set = NULL;
+	const jwk_item_t *item;
+	const char exp[] = "Missing or invalid type for one of crv, x, or y for pub key";
+
 	SET_OPS();
-	__verify_jwt(jwt_es256, JWT_ALG_ES256, "ec_key_prime256v1_pub.json");
+
+	jwk_set = jwks_create(json);
+
+	ck_assert_ptr_nonnull(jwk_set);
+	ck_assert(!jwks_error(jwk_set));
+
+	item = jwks_item_get(jwk_set, 0);
+	ck_assert_ptr_nonnull(item);
+	ck_assert_int_ne(jwks_item_error(item), 0);
+
+	ck_assert_str_eq(exp, jwks_item_error_msg(item));
+
+	jwks_free(jwk_set);
 }
 END_TEST
 
-START_TEST(test_jwt_encode_es384)
+START_TEST(test_jwks_ec_pub_bad64)
 {
+	const char *json = "{\"kty\":\"EC\",\"crv\":\"prime6v1\",\"x\":\"\",\"y\":\"asaad\"}";
+	jwk_set_t *jwk_set = NULL;
+	const jwk_item_t *item;
+	const char exp[] = "Error generating pub key from components";
+
 	SET_OPS();
-	__test_alg_key(JWT_ALG_ES384, "ec_key_secp384r1.json", "ec_key_secp384r1_pub.json");
+
+	jwk_set = jwks_create(json);
+
+	ck_assert_ptr_nonnull(jwk_set);
+	ck_assert(!jwks_error(jwk_set));
+
+	item = jwks_item_get(jwk_set, 0);
+	ck_assert_ptr_nonnull(item);
+	ck_assert_int_ne(jwks_item_error(item), 0);
+
+	ck_assert_str_eq(exp, jwks_item_error_msg(item));
+
+	jwks_free(jwk_set);
 }
 END_TEST
 
-START_TEST(test_jwt_verify_es384)
+START_TEST(test_jwks_ec_pub_bad_points)
 {
-	SET_OPS();
-	__verify_jwt(jwt_es384, JWT_ALG_ES384, "ec_key_secp384r1_pub.json");
-}
-END_TEST
-
-START_TEST(test_jwt_encode_es512)
-{
-	SET_OPS();
-	__test_alg_key(JWT_ALG_ES512, "ec_key_secp521r1.json", "ec_key_secp521r1_pub.json");
-}
-END_TEST
-
-START_TEST(test_jwt_verify_es512)
-{
-	SET_OPS();
-	__verify_jwt(jwt_es512, JWT_ALG_ES512, "ec_key_secp521r1_pub.json");
-}
-END_TEST
-
-START_TEST(test_jwt_encode_ec_with_rsa)
-{
-	JWT_CONFIG_DECLARE(config);
-	jwt_test_auto_t *jwt = NULL;
+	const char *json = "{\"kty\":\"EC\",\"crv\":\"prime256v1\",\"x\":\"YmFkdmFsdWUK\",\"y\":\"YmFkdmFsdWUK\"}";
+	jwk_set_t *jwk_set = NULL;
+	const jwk_item_t *item;
+	const char exp[] = "Error generating pub key from components";
 
 	SET_OPS();
 
-	read_key("rsa_key_4096.json");
-	config.alg = JWT_ALG_ES384;
-	config.jw_key = g_item;
-	jwt = jwt_create(&config);
-	ck_assert_int_ne(jwt_error(jwt), 0);
-        ck_assert_ptr_nonnull(jwt);
-	ck_assert_str_eq(jwt_error_msg(jwt),
-			 "Config alg does not match key alg");
-}
-END_TEST
+	jwk_set = jwks_create(json);
 
-START_TEST(test_jwt_verify_invalid_token)
-{
-	jwt_t *jwt = NULL;
+	ck_assert_ptr_nonnull(jwk_set);
+	ck_assert(!jwks_error(jwk_set));
 
-	SET_OPS();
+	item = jwks_item_get(jwk_set, 0);
+	ck_assert_ptr_nonnull(item);
+	ck_assert_int_ne(jwks_item_error(item), 0);
 
-	read_key("ec_key_secp384r1.json");
-	jwt = jwt_verify(jwt_es_invalid, &t_config);
-	free_key();
-	ck_assert_ptr_nonnull(jwt);
-	ck_assert_int_ne(jwt_error(jwt), 0);
-}
-END_TEST
+	ck_assert_str_eq(exp, jwks_item_error_msg(item));
 
-START_TEST(test_jwt_verify_invalid_alg)
-{
-	jwt_t *jwt = NULL;
-
-	SET_OPS();
-
-	read_key("ec_key_secp384r1.json");
-	jwt = jwt_verify(jwt_es256, &t_config);
-	free_key();
-	ck_assert_ptr_nonnull(jwt);
-	ck_assert_int_ne(jwt_error(jwt), 0);
-}
-END_TEST
-
-START_TEST(test_jwt_verify_invalid_cert)
-{
-	jwt_t *jwt = NULL;
-
-	SET_OPS();
-
-	read_key("ec_key_secp521r1_pub.json");
-	jwt = jwt_verify(jwt_es256, &t_config);
-	free_key();
-	ck_assert_ptr_nonnull(jwt);
-	ck_assert_int_ne(jwt_error(jwt), 0);
+	jwks_free(jwk_set);
 }
 END_TEST
 
@@ -145,18 +112,13 @@ static Suite *libjwt_suite(const char *title)
 
 	s = suite_create(title);
 
-	tc_core = tcase_create("jwt_ec");
+	tc_core = tcase_create("jwt_jwks_ec");
 
-	tcase_add_loop_test(tc_core, test_jwt_encode_es256, 0, i);
-	tcase_add_loop_test(tc_core, test_jwt_verify_es256, 0, i);
-	tcase_add_loop_test(tc_core, test_jwt_encode_es384, 0, i);
-	tcase_add_loop_test(tc_core, test_jwt_verify_es384, 0, i);
-	tcase_add_loop_test(tc_core, test_jwt_encode_es512, 0, i);
-	tcase_add_loop_test(tc_core, test_jwt_verify_es512, 0, i);
-	tcase_add_loop_test(tc_core, test_jwt_encode_ec_with_rsa, 0, i);
-	tcase_add_loop_test(tc_core, test_jwt_verify_invalid_token, 0, i);
-	tcase_add_loop_test(tc_core, test_jwt_verify_invalid_alg, 0, i);
-	tcase_add_loop_test(tc_core, test_jwt_verify_invalid_cert, 0, i);
+	/* EC specific error path tests */
+	tcase_add_loop_test(tc_core, test_jwks_ec_pub_missing, 0, i);
+	tcase_add_loop_test(tc_core, test_jwks_ec_pub_bad64, 0, i);
+	tcase_add_loop_test(tc_core, test_jwks_ec_pub_bad_type, 0, i);
+	tcase_add_loop_test(tc_core, test_jwks_ec_pub_bad_points, 0, i);
 
 	tcase_set_timeout(tc_core, 30);
 
@@ -167,5 +129,5 @@ static Suite *libjwt_suite(const char *title)
 
 int main(void)
 {
-	JWT_TEST_MAIN("LibJWT EC Sign/Verify");
+	JWT_TEST_MAIN("LibJWT JWKS Error Path Testing EC");
 }

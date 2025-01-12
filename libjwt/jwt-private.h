@@ -28,45 +28,69 @@
 #  endif
 #endif
 
+#define JWT_CONFIG_DECLARE(__name) \
+	jwt_config_t __name = { NULL, JWT_ALG_NONE, NULL}
+
+#define JWT_ERR_LEN 256
+
 JWT_NO_EXPORT
 extern struct jwt_crypto_ops *jwt_ops;
 
-/* This can be used for jwt_t, jwk_set_t and jwk_item_t */
+/* This can be used on anything with an error and error_msg field */
 #define jwt_write_error(__obj, __fmt, __args...)	\
 ({							\
-	if (!strlen(__obj->error_msg))			\
-		snprintf(__obj->error_msg,		\
-			 sizeof(__obj->error_msg),	\
+	if (!strlen((__obj)->error_msg))		\
+		snprintf((__obj)->error_msg,		\
+			 sizeof((__obj)->error_msg),	\
 		 __fmt, ##__args);			\
-	__obj->error = 1;				\
+	(__obj)->error = 1;				\
 })
 
-struct jwt {
+#define jwt_copy_error(__dst, __src)			\
+({							\
+	strcpy((__dst)->error_msg, (__src)->error_msg);	\
+	(__dst)->error = (__src)->error;		\
+})
+
+/******************************/
+
+struct jwt_common {
 	jwt_alg_t alg;
-
-	json_t *grants;
+	const jwk_item_t *key;
+	json_t *payload;
 	json_t *headers;
-
-	const jwk_item_t *jw_key;
-
-	int error;
-	char error_msg[256];
+	jwt_claims_t claims;
+	jwt_callback_t cb;
+	void *cb_ctx;
 };
 
-struct jwt_valid {
+struct jwt_builder {
+	struct jwt_common c;
+	int error;
+	char error_msg[JWT_ERR_LEN];
+};
+
+struct jwt_checker {
+	struct jwt_common c;
+	int error;
+	char error_msg[JWT_ERR_LEN];
+};
+
+/*****************************/
+
+struct jwt {
+	const jwk_item_t *key;
+	json_t *grants;
+	json_t *headers;
 	jwt_alg_t alg;
-	time_t now;
-	time_t nbf_leeway;
-	time_t exp_leeway;
-	int hdr;
-	json_t *req_grants;
-	jwt_valid_exception_t status;
+	int error;
+	char error_msg[JWT_ERR_LEN];
 };
 
 struct jwk_set {
 	ll_t head;
 	int error;
-	char error_msg[256];
+	char error_msg[JWT_ERR_LEN];
 };
 
 /**
@@ -95,7 +119,7 @@ struct jwk_item {
 	char curve[256];	/**< Curve name of an ``"EC"`` or ``"OKP"`` key		*/
 	size_t bits;		/**< The number of bits in the key (may be 0)		*/
 	int error;		/**< There was an error parsing this key (unusable)	*/
-	char error_msg[256];	/**< Descriptive message for @ref jwk_item_t.error	*/
+	char error_msg[JWT_ERR_LEN];/**< Descriptive message for @ref jwk_item_t.error	*/
 	jwk_key_type_t kty;	/**< @rfc{7517,4.1} The key type of this key		*/
 	jwk_pub_key_use_t use;	/**< @rfc{7517,4.2} How this key can be used		*/
 	jwk_key_op_t key_ops;	/**< @rfc{7517,4.3} Key operations supported		*/
@@ -166,6 +190,16 @@ static inline void jwt_freememp(char **mem) {
 }
 #define char_auto char  __attribute__((cleanup(jwt_freememp)))
 
+JWT_EXPORT
+void jwt_free(jwt_t *jwt);
+static inline void jwt_freep(jwt_t **jwt) {
+	if (jwt) {
+		jwt_free(*jwt);
+		*jwt = NULL;
+	}
+}
+#define jwt_auto_t jwt_t __attribute__((cleanup(jwt_freep)))
+
 /* Helper routines to handle base64url encoding without percent padding
  * as defined in RFC-4648. */
 JWT_NO_EXPORT
@@ -191,7 +225,27 @@ int jwt_sign(jwt_t *jwt, char **out, unsigned int *len, const char *str,
 	     unsigned int str_len);
 
 JWT_NO_EXPORT
-int __append_str(char **buf, const char *str);
+jwt_value_error_t __deleter(json_t *which, const char *field);
+JWT_NO_EXPORT
+jwt_value_error_t __adder(json_t *which, jwt_value_t *value);
+JWT_NO_EXPORT
+jwt_value_error_t __getter(json_t *which, jwt_value_t *value);
+
+JWT_NO_EXPORT
+int jwt_parse(jwt_t *jwt, const char *token, unsigned int *len);
+JWT_NO_EXPORT
+jwt_t *jwt_verify_complete(jwt_t *jwt, const jwt_config_t *config,
+			   const char *token, unsigned int payload_len);
+
+JWT_NO_EXPORT
+int jwt_builder_setkey_check(jwt_builder_t *builder, const jwt_alg_t alg,
+			     const jwk_item_t *key);
+JWT_NO_EXPORT
+int jwt_checker_setkey_check(jwt_checker_t *checker, const jwt_alg_t alg,
+			     const jwk_item_t *key);
+
+JWT_NO_EXPORT
+char *jwt_encode_str(jwt_t *jwt);
 
 #define __trace() fprintf(stderr, "%s:%d\n", __func__, __LINE__)
 

@@ -33,11 +33,11 @@ static int openssl_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 	void *key;
 	size_t key_len;
 
-	if (!ops_compat(jwt->jw_key, JWT_CRYPTO_OPS_OPENSSL))
+	if (!ops_compat(jwt->key, JWT_CRYPTO_OPS_OPENSSL))
 		return 1; // LCOV_EXCL_LINE
 
-	key = jwt->jw_key->oct.key;
-	key_len = jwt->jw_key->oct.len;
+	key = jwt->key->oct.key;
+	key_len = jwt->key->oct.len;
 
 	*out = NULL;
 
@@ -102,26 +102,26 @@ static int openssl_verify_sha_hmac(jwt_t *jwt, const char *head,
 
 static int __degree_and_check(jwt_t *jwt)
 {
-	int bits = jwt->jw_key->bits;
+	int bits = jwt->key->bits;
 
 	switch (jwt->alg) {
 	case JWT_ALG_ES256:
-		if (bits != 256 ||jwt_strcmp(jwt->jw_key->curve, "P-256"))
+		if (bits != 256 ||jwt_strcmp(jwt->key->curve, "P-256"))
 			return 0;
 		break;
 
 	case JWT_ALG_ES384:
-		if (bits != 384 ||jwt_strcmp(jwt->jw_key->curve, "P-384"))
+		if (bits != 384 ||jwt_strcmp(jwt->key->curve, "P-384"))
                         return 0;
 		break;
 
 	case JWT_ALG_ES512:
-		if (bits != 521 ||jwt_strcmp(jwt->jw_key->curve, "P-521"))
+		if (bits != 521 ||jwt_strcmp(jwt->key->curve, "P-521"))
                         return 0;
 		break;
 
 	case JWT_ALG_ES256K:
-		if (bits != 256 ||jwt_strcmp(jwt->jw_key->curve, "secp256k1"))
+		if (bits != 256 ||jwt_strcmp(jwt->key->curve, "secp256k1"))
                         return 0;
 		break;
 
@@ -200,10 +200,10 @@ static int openssl_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 	int ret = 0;
 	size_t slen;
 
-	if (!ops_compat(jwt->jw_key, JWT_CRYPTO_OPS_OPENSSL))
+	if (!ops_compat(jwt->key, JWT_CRYPTO_OPS_OPENSSL))
 		return 1; // LCOV_EXCL_LINE
 
-	pkey = jwt->jw_key->provider_data;
+	pkey = jwt->key->provider_data;
 
 	switch (jwt->alg) {
 	/* RSA */
@@ -263,7 +263,11 @@ static int openssl_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		return 1; // LCOV_EXCL_LINE
 	}
 
-	if (type != EVP_PKEY_id(pkey))
+	if (type == EVP_PKEY_RSA_PSS) {
+		if (EVP_PKEY_id(pkey) != EVP_PKEY_RSA_PSS &&
+		    EVP_PKEY_id(pkey) != EVP_PKEY_RSA)
+			SIGN_ERROR(); // LCOV_EXCL_LINE
+	} else  if (type != EVP_PKEY_id(pkey))
 		SIGN_ERROR(); // LCOV_EXCL_LINE
 
 	mdctx = EVP_MD_CTX_create();
@@ -277,10 +281,10 @@ static int openssl_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 	/* Required for RSA-PSS */
 	if (type == EVP_PKEY_RSA_PSS) {
 		if (EVP_PKEY_CTX_set_rsa_padding(pkey_ctx,
-						 RSA_PKCS1_PSS_PADDING) < 0)
+						RSA_PKCS1_PSS_PADDING) < 0)
 			SIGN_ERROR(); // LCOV_EXCL_LINE
 		if (EVP_PKEY_CTX_set_rsa_pss_saltlen(pkey_ctx,
-						     RSA_PSS_SALTLEN_DIGEST) < 0)
+						RSA_PSS_SALTLEN_DIGEST) < 0)
 			SIGN_ERROR(); // LCOV_EXCL_LINE
 	}
 
@@ -341,9 +345,9 @@ static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 	int ret = 0;
 	int slen;
 
-	if (!ops_compat(jwt->jw_key, JWT_CRYPTO_OPS_OPENSSL))
+	if (!ops_compat(jwt->key, JWT_CRYPTO_OPS_OPENSSL))
 		return 1; // LCOV_EXCL_LINE
-	pkey = jwt->jw_key->provider_data;
+	pkey = jwt->key->provider_data;
 
 	switch (jwt->alg) {
 	/* RSA */
@@ -407,11 +411,15 @@ static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 	if (sig == NULL)
 		VERIFY_ERROR();
 
-	if (type != EVP_PKEY_id(pkey))
+	if (type == EVP_PKEY_RSA_PSS) {
+		if (EVP_PKEY_id(pkey) != EVP_PKEY_RSA_PSS &&
+		    EVP_PKEY_id(pkey) != EVP_PKEY_RSA)
+			VERIFY_ERROR(); // LCOV_EXCL_LINE
+	} else if (type != EVP_PKEY_id(pkey))
 		VERIFY_ERROR();
 
-	/* Convert EC sigs back to ASN1. */
-	if (type == EVP_PKEY_EC) {
+        if (type == EVP_PKEY_EC) {
+		/* Convert EC sigs back to ASN1. */
 		unsigned int bn_len;
 		int degree;
 		unsigned char *p;
@@ -462,7 +470,7 @@ static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 						 RSA_PKCS1_PSS_PADDING) < 0)
 			VERIFY_ERROR(); // LCOV_EXCL_LINE
 		if (EVP_PKEY_CTX_set_rsa_pss_saltlen(pkey_ctx,
-						     RSA_PSS_SALTLEN_DIGEST) < 0)
+						     RSA_PSS_SALTLEN_AUTO) < 0)
 			VERIFY_ERROR(); // LCOV_EXCL_LINE
 	}
 

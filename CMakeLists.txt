@@ -17,7 +17,6 @@ project(${LIBJWT_PROJECT}
 	DESCRIPTION ${LIBJWT_DESCRIPTION}
 	HOMEPAGE_URL ${LIBJWT_HOMEPAGE_URL}
 	LANGUAGES C)
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
 
 # Must be set after the above
 include(GNUInstallDirs)
@@ -27,17 +26,11 @@ find_package(PkgConfig REQUIRED)
 
 pkg_check_modules(JANSSON jansson>=2.0 REQUIRED IMPORTED_TARGET)
 
-if (NOT DEFINED WITH_OPENSSL)
-	set(OPENSSL_AUTO TRUE)
-endif()
 if (NOT DEFINED WITH_GNUTLS)
 	set(GNUTLS_AUTO TRUE)
 endif()
-option(WITH_OPENSSL "Whether to use OpenSSL (default is auto detect)" ON)
+
 option(WITH_GNUTLS "Whether to use GnuTLS (default is auto detect)" ON)
-
-# option(WITH_MBEDTLS "Enable using MBedTLS (default is disabled)" ON)
-
 option(WITH_EXAMPLES "Whether to build the example programs (default is OFF)" OFF)
 option(WITH_TESTS "Whether to build and run the testsuite (default is ON)" ON)
 
@@ -50,13 +43,8 @@ if (WITH_GNUTLS)
 			  ${GNUTLS_REQUIRED})
 endif()
 
-if (WITH_OPENSSL)
-	#if (NOT OPENSSL_AUTO)
-		set(OPENSSL_REQUIRED REQUIRED)
-	#endif()
-	pkg_check_modules(OPENSSL openssl>=3.0.0 IMPORTED_TARGET
-			  ${OPENSSL_REQUIRED})
-endif()
+pkg_check_modules(OPENSSL openssl>=3.0.0 IMPORTED_TARGET
+		  REQUIRED)
 
 add_library(jwt SHARED)
 add_library(jwt_static STATIC)
@@ -65,14 +53,24 @@ set_target_properties(jwt_static PROPERTIES
 	COMPILE_FLAGS -DJWT_STATIC_DEFINE)
 
 set(JWT_SOURCES libjwt/base64.c
-        libjwt/jwt-memory.c
-        libjwt/jwt.c
-        libjwt/jwks.c
-        libjwt/jwt-setget.c
-        libjwt/jwt-crypto-ops.c
-        libjwt/jwt-validate.c
-        libjwt/jwt-encode.c
-        libjwt/jwt-verify.c)
+	libjwt/jwt-memory.c
+	libjwt/jwt.c
+	libjwt/jwks.c
+	libjwt/jwt-setget.c
+	libjwt/jwt-crypto-ops.c
+	libjwt/jwt-encode.c
+	libjwt/jwt-verify.c)
+
+add_library(builder OBJECT)
+target_sources(builder PRIVATE libjwt/jwt-common.c)
+target_compile_definitions(builder PRIVATE JWT_BUILDER)
+
+add_library(checker OBJECT)
+target_sources(checker PRIVATE libjwt/jwt-common.c)
+target_compile_definitions(checker PRIVATE JWT_CHECKER)
+
+target_link_libraries(jwt PRIVATE builder checker)
+target_link_libraries(jwt_static PRIVATE builder checker)
 
 # Allow building without deprecated functions (suggested)
 option(EXCLUDE_DEPRECATED
@@ -88,6 +86,8 @@ include_directories(${CMAKE_SOURCE_DIR}/include ${CMAKE_BINARY_DIR}
 
 target_link_libraries(jwt PUBLIC PkgConfig::JANSSON)
 target_link_libraries(jwt_static PUBLIC PkgConfig::JANSSON)
+target_link_libraries(builder PUBLIC PkgConfig::JANSSON)
+target_link_libraries(checker PUBLIC PkgConfig::JANSSON)
 
 # Process the detected packages
 set(HAVE_CRYPTO FALSE)
@@ -101,15 +101,13 @@ if (GNUTLS_FOUND)
 	# libjwt/gnutls/jwk-parse.c
 endif()
 
-if (OPENSSL_FOUND)
-	set(HAVE_CRYPTO TRUE)
-	add_definitions(-DHAVE_OPENSSL)
-	target_link_libraries(jwt PUBLIC PkgConfig::OPENSSL)
-	target_link_libraries(jwt_static PUBLIC PkgConfig::OPENSSL)
-	list(APPEND JWT_SOURCES
-	     libjwt/openssl/jwk-parse.c
-	     libjwt/openssl/sign-verify.c)
-endif()
+set(HAVE_CRYPTO TRUE)
+add_definitions(-DHAVE_OPENSSL)
+target_link_libraries(jwt PUBLIC PkgConfig::OPENSSL)
+target_link_libraries(jwt_static PUBLIC PkgConfig::OPENSSL)
+list(APPEND JWT_SOURCES
+     libjwt/openssl/jwk-parse.c
+     libjwt/openssl/sign-verify.c)
 
 function(jwt_add_extra)
 	set(oneValueArgs NAME SRC DIR)
@@ -127,7 +125,7 @@ function(jwt_add_tool)
 	cmake_parse_arguments(Tool "" "${oneValueArgs}" "" ${ARGN})
 
 	add_executable(${Tool_NAME} ${Tool_SRC})
-	target_link_libraries(${Tool_NAME}  PRIVATE jwt_static PkgConfig::OPENSSL)
+	target_link_libraries(${Tool_NAME} PRIVATE jwt_static PkgConfig::OPENSSL)
 	# target_link_libraries(${Tool_NAME} PRIVATE jwt)
 	set_target_properties(${Tool_NAME} PROPERTIES
 		RUNTIME_OUTPUT_DIRECTORY
@@ -169,7 +167,7 @@ set_target_properties(jwt PROPERTIES
 	SOVERSION ${LIBJWT_COMPATVERSION}
 )
 
-add_definitions(-D_GNU_SOURCE -O3 -Wall -Werror)
+add_definitions(-D_GNU_SOURCE -O3 -Wall -Werror -Wextra)
 add_definitions(-DKEYDIR=\"${CMAKE_SOURCE_DIR}/tests/keys\")
 
 # Install header
@@ -256,15 +254,14 @@ endfunction()
 if (CHECK_FOUND)
 	include(CTest)
 
-	set (UNIT_TESTS jwt_dump jwt_ec jwt_encode jwt_grant jwt_header
-		jwt_new jwt_rsa jwt_validate jwt_rsa_pss jwt_eddsa
-		jwt_crypto jwt_es256k)
+	set (UNIT_TESTS jwt_crypto)
 
-	if (OPENSSL_FOUND)
-		# For now, only OpenSSL supports JWKS tests
-		list (APPEND UNIT_TESTS jwt_jwks jwt_jwks_errors
-			jwt_jwks_ec jwt_jwks_rsa)
-	endif()
+	# JWKS Tests
+	list (APPEND UNIT_TESTS jwt_jwks jwt_jwks_errors
+		jwt_ec jwt_rsa jwt_hs)
+
+	# Checker and Builder
+	list (APPEND UNIT_TESTS jwt_builder jwt_checker jwt_flipflop)
 
 	foreach (TEST ${UNIT_TESTS})
 		jwt_add_test(NAME ${TEST})

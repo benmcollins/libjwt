@@ -14,7 +14,7 @@
 #include <time.h>
 #include <libgen.h>
 
-void usage(const char *name)
+static void usage(const char *name)
 {
 	printf("%s --key example.json --token eyJhb...\n", name);
 	printf("Options:\n"
@@ -24,19 +24,46 @@ void usage(const char *name)
 	exit(0);
 }
 
+static int __verify_wcb(jwt_t *jwt, jwt_config_t *config)
+{
+	jwt_value_t jval;
+	int ret;
+
+	if (config == NULL)
+		return 1;
+
+	jwt_set_GET_JSON(&jval, NULL);
+	jval.pretty = 1;
+	ret = jwt_header_get(jwt, &jval);
+	if (!ret) {
+		fprintf(stderr, "HEADER:\n%s\n", jval.json_val);
+		free(jval.json_val);
+	}
+
+	jwt_set_GET_JSON(&jval, NULL);
+	jval.pretty = 1;
+	ret = jwt_grant_get(jwt, &jval);
+	if (!ret) {
+		fprintf(stderr, "PAYLOAD:\n%s\n", jval.json_val);
+		free(jval.json_val);
+	}
+	return 0;
+}
+
 int main(int argc, char *argv[])
 {
+	jwt_checker_auto_t *checker = NULL;
 	char *key_file = NULL, *token = NULL;
 	jwt_alg_t opt_alg = JWT_ALG_NONE;
-	JWT_CONFIG_DECLARE(config);
-	jwt_auto_t *jwt = NULL;
 	jwk_set_auto_t *jwk_set = NULL;
 	const jwk_item_t *item = NULL;
-	FILE *key_fp = NULL;
-	char key_data[BUFSIZ];
-	jwt_value_t jval;
-	int key_len;
-	int oc, ret;
+	int oc;
+
+	checker = jwt_checker_new();
+	if (checker == NULL) {
+		fprintf(stderr, "Could not allocate checker context\n");
+		exit(EXIT_FAILURE);
+	}
 
 	char *optstr = "hk:t:a";
 	struct option opttbl[] = {
@@ -97,71 +124,41 @@ int main(int argc, char *argv[])
 
 	/* Load JWK key */
 	if (key_file) {
-		key_fp = fopen(key_file, "r");
-		if (key_fp == NULL) {
-			perror(key_file);
-			exit(EXIT_FAILURE);
-		}
-		key_len = fread(key_data, 1, sizeof(key_data), key_fp);
-		fclose(key_fp);
-		key_data[key_len] = '\0';
+		jwk_set = jwks_create_fromfile(key_file);
+                if (jwk_set == NULL || jwks_error(jwk_set)) {
+                        fprintf(stderr, "ERR: Could not read JWK: %s\n",
+                                jwks_error_msg(jwk_set));
+                        exit(EXIT_FAILURE);
+                }
 
-		/* Setup JWK Set */
-		jwk_set = jwks_create(key_data);
-		if (jwk_set == NULL || jwks_error(jwk_set)) {
-			fprintf(stderr, "ERR: Could not read JWK: %s\n",
-				jwks_error_msg(jwk_set));
-			exit(EXIT_FAILURE);
-		}
-		/* Get the first key */
-		item = jwks_item_get(jwk_set, 0);
-		if (jwks_item_error(item)) {
-			fprintf(stderr, "ERR: Could not read JWK: %s\n",
-				jwks_item_error_msg(item));
-			exit(EXIT_FAILURE);
-		}
+                /* Get the first key */
+                item = jwks_item_get(jwk_set, 0);
+                if (jwks_item_error(item)) {
+                        fprintf(stderr, "ERR: Could not read JWK: %s\n",
+                                jwks_item_error_msg(item));
+                        exit(EXIT_FAILURE);
+                }
 
-		if (jwks_item_alg(item) == JWT_ALG_NONE && opt_alg == JWT_ALG_NONE) {
-			fprintf(stderr, "Cannot find a valid algorithm in the "
-				" JWK. You need to set it with --alg\n");
-			exit(EXIT_FAILURE);
-		}
-
-		if (jwks_item_alg(item) != JWT_ALG_NONE && opt_alg != JWT_ALG_NONE &&
-		    jwks_item_alg(item) != opt_alg) {
-			fprintf(stderr, "Key algorithm does not match --alg argument\n");
-			exit(EXIT_FAILURE);
-		}
+                if (jwt_checker_setkey(checker, opt_alg, item)) {
+                        fprintf(stderr, "ERR Loading key: %s\n",
+                                jwt_checker_error_msg(checker));
+                        exit(EXIT_FAILURE);
+                }
 	}
 
-	/* Decode jwt */
-	config.jw_key = item;
-	config.alg = opt_alg;
-	jwt = jwt_verify(token, &config);
-	if (jwt == NULL || jwt_error(jwt)) {
-		fprintf(stderr, "JWT could not be verified: %s\n",
-			jwt ? jwt_error_msg(jwt) : "Unknown reason");
+	if (jwt_checker_setcb(checker, __verify_wcb, NULL)) {
+		fprintf(stderr, "ERR setting callback: %s\n",
+			jwt_checker_error_msg(checker));
 		exit(EXIT_FAILURE);
 	}
 
-	fprintf(stderr, "JWT %s successfully!\n",
-		token ? "verified" : "decoded");
-
-	jwt_set_GET_JSON(&jval, NULL);
-	jval.pretty = 1;
-        ret = jwt_header_get(jwt, &jval);
-	if (!ret) {
-		fprintf(stderr, "HEADER:\n%s\n", jval.json_val);
-		free(jval.json_val);
+	if (jwt_checker_verify(checker, token)) {
+		fprintf(stderr, "ERR verifyiung token: %s\n",
+			jwt_checker_error_msg(checker));
+		exit(EXIT_FAILURE);
 	}
 
-	jwt_set_GET_JSON(&jval, NULL);
-        jval.pretty = 1;
-	ret = jwt_grant_get(jwt, &jval);
-	if (!ret) {
-		fprintf(stderr, "PAYLOAD:\n%s\n", jval.json_val);
-		free(jval.json_val);
-	}
+	fprintf(stderr, "JWT verfified successfully\n");
 
 	exit(EXIT_SUCCESS);
 }
