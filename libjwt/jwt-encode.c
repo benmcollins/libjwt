@@ -23,7 +23,7 @@ static int write_js(const json_t *js, char **buf)
 	return *buf == NULL ? 1 : 0;
 }
 
-static int jwt_write_head(jwt_t *jwt, char **buf)
+int jwt_head_setup(jwt_t *jwt)
 {
 	jwt_value_t jval;
 
@@ -50,7 +50,7 @@ static int jwt_write_head(jwt_t *jwt, char **buf)
 		return 1;
 	}
 
-	return write_js(jwt->headers, buf);
+	return 0;
 }
 
 static int jwt_encode(jwt_t *jwt, char **out)
@@ -67,7 +67,7 @@ static int jwt_encode(jwt_t *jwt, char **out)
 	*out = NULL;
 
 	/* First the header. */
-	ret = jwt_write_head(jwt, &buf);
+	ret = write_js(jwt->headers, &buf);
 	if (ret)
 		return 1;
 	/* Encode it */

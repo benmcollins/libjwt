@@ -247,6 +247,9 @@ int jwt_checker_setkey_check(jwt_checker_t *checker, const jwt_alg_t alg,
 JWT_NO_EXPORT
 char *jwt_encode_str(jwt_t *jwt);
 
+JWT_NO_EXPORT
+int jwt_head_setup(jwt_t *jwt);
+
 #define __trace() fprintf(stderr, "%s:%d\n", __func__, __LINE__)
 
 #endif /* JWT_PRIVATE_H */

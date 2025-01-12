@@ -27,11 +27,28 @@ void usage(const char *name)
 	exit(0);
 }
 
+static int __gen_wcb(jwt_t *jwt, jwt_config_t *config)
+{
+	jwt_value_t jval;
+	int ret;
+
+	if (config == NULL)
+		return 1;
+
+	jwt_set_GET_JSON(&jval, NULL);
+	jval.pretty = 1;
+	ret = jwt_grant_get(jwt, &jval);
+	if (!ret) {
+		printf("PAYLOAD:\n%s\n", jval.json_val);
+		free(jval.json_val);
+	}
+	return 0;
+}
+
 int main(int argc, char *argv[])
 {
 	char *opt_key_name = NULL;
 	jwt_alg_t opt_alg = JWT_ALG_NONE;
-	time_t iat = time(NULL);
 
 	int oc = 0;
 	char *optstr = "hk:a:c:j:";
@@ -125,8 +142,8 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	fprintf(stderr, "jwtgen: privkey %s algorithm %s\n",
-			opt_key_name, jwt_alg_str(opt_alg));
+	printf("jwtgen: privkey %s algorithm %s\n",
+		opt_key_name, jwt_alg_str(opt_alg));
 
 	if (opt_alg != JWT_ALG_NONE && opt_key_name == NULL)
 		usage(basename(argv[0]));
@@ -154,25 +171,18 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	jwt_set_ADD_INT(&jval, "iat", iat);
-	if (jwt_builder_claim_add(builder, &jval)) {
-		fprintf(stderr, "Error adding iat\n");
-		exit(EXIT_FAILURE);
-	}
-
 	if (opt_json) {
 		jwt_set_ADD_JSON(&jval, NULL, opt_json);
 		if (jwt_builder_claim_add(builder, &jval)) {
-			fprintf(stderr, "Error adding iat\n");
+			fprintf(stderr, "Error adding json\n");
 			exit(EXIT_FAILURE);
 		}
 	}
 
-	jwt_set_GET_JSON(&jval, NULL);
-	jval.pretty = 1;
-	if (jwt_builder_claim_get(builder, &jval) == JWT_VALUE_ERR_NONE) {
-		fprintf(stderr, "PAYLOAD: %s\n", jval.json_val);
-		free(jval.json_val);
+	if (jwt_builder_setcb(builder, __gen_wcb, NULL)) {
+		fprintf(stderr, "ERR setting callback: %s\n",
+			jwt_builder_error_msg(builder));
+		exit(EXIT_FAILURE);
 	}
 
 	out = jwt_builder_generate(builder);
@@ -182,7 +192,7 @@ int main(int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 
-	fprintf(stderr, "jwt algo %s!\n", jwt_alg_str(opt_alg));
+	printf("jwt algo %s!\n", jwt_alg_str(opt_alg));
 
 	printf("%s\n", out);
 
@@ -190,4 +200,3 @@ int main(int argc, char *argv[])
 
 	return 0;
 }
-

@@ -350,9 +350,11 @@ char *FUNC(generate)(jwt_common_t *__cmd)
 	jwt->alg = config.alg;
 	jwt->key = config.key;
 
+	if (jwt_head_setup(jwt))
+		return NULL;
+
 	out = jwt_encode_str(jwt);
-	__cmd->error = jwt->error;
-	strcpy(__cmd->error_msg, jwt->error_msg);
+	jwt_copy_error(__cmd, jwt);
 
 	return out;
 }
