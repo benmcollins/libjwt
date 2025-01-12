@@ -33,7 +33,6 @@ if (NOT DEFINED WITH_GNUTLS)
 endif()
 
 option(WITH_GNUTLS "Whether to use GnuTLS (default is auto detect)" ON)
-option(WITH_EXAMPLES "Whether to build the example programs (default is OFF)" OFF)
 option(WITH_TESTS "Whether to build and run the testsuite (default is ON)" ON)
 
 # Need at least one of these
@@ -111,17 +110,6 @@ list(APPEND JWT_SOURCES
      libjwt/openssl/jwk-parse.c
      libjwt/openssl/sign-verify.c)
 
-function(jwt_add_extra)
-	set(oneValueArgs NAME SRC DIR)
-	cmake_parse_arguments(Extra "" "${oneValueArgs}" "" ${ARGN})
-
-	add_executable(${Extra_NAME} ${Extra_SRC})
-	target_link_libraries(${Extra_NAME} PRIVATE jwt)
-	set_target_properties(${Extra_NAME} PROPERTIES
-		RUNTIME_OUTPUT_DIRECTORY
-		"${CMAKE_BINARY_DIR}/${Extra_DIR}")
-endfunction()
-
 function(jwt_add_tool)
 	set(oneValueArgs NAME SRC DIR)
 	cmake_parse_arguments(Tool "" "${oneValueArgs}" "" ${ARGN})
@@ -136,19 +124,14 @@ function(jwt_add_tool)
 		RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 endfunction()
 
-if (WITH_EXAMPLES)
-	jwt_add_extra(NAME jwtauth
-		      SRC examples/main-auth.c
-		      DIR examples)
-	jwt_add_extra(NAME jwtgen
-                      SRC examples/main-gen.c
-                      DIR examples)
-endif()
-
+jwt_add_tool(NAME jwt-verify
+	     SRC tools/jwt-verify.c)
+jwt_add_tool(NAME jwt-generate
+	     SRC tools/jwt-generate.c)
 jwt_add_tool(NAME jwk2key
-	      SRC tests/keys/jwks/jwk2key.c)
+	     SRC tools/jwk2key.c)
 jwt_add_tool(NAME key2jwk
-              SRC tests/keys/jwks/key2jwk.c)
+	     SRC tools/key2jwk.c)
 
 # We need one of the things above to even work
 if (NOT HAVE_CRYPTO)
@@ -218,8 +201,12 @@ if (DOXYGEN_FOUND)
 
 	install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/doxygen-doc/man/man3/
 		DESTINATION ${CMAKE_INSTALL_MANDIR}/man3
-		FILES_MATCHING PATTERN "man3/J*.3"
+		FILES_MATCHING PATTERN "man3/JW*.3"
 		PATTERN "man3/jw*.3")
+
+	install(DIRECTORY ${CMAKE_SOURCE_DIR}/tools/
+		DESTINATION ${CMAKE_INSTALL_MANDIR}/man1
+		FILES_MATCHING PATTERN "*.1")
 
 	install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/doxygen-doc/html/
 		DESTINATION  ${CMAKE_INSTALL_DOCDIR}/html/)
@@ -243,9 +230,11 @@ function(jwt_add_test)
 	set(oneValueArgs NAME)
 	cmake_parse_arguments(LibTest "" "${oneValueArgs}" "" ${ARGN})
 
-	jwt_add_extra(NAME ${LibTest_NAME}
-                      SRC tests/${LibTest_NAME}.c
-                      DIR tests)
+	add_executable(${LibTest_NAME} tests/${LibTest_NAME}.c)
+	target_link_libraries(${LibTest_NAME} PRIVATE jwt)
+	set_target_properties(${LibTest_NAME} PROPERTIES
+			RUNTIME_OUTPUT_DIRECTORY
+			${CMAKE_BINARY_DIR}/tests)
 
 	target_link_libraries(${LibTest_NAME} PRIVATE PkgConfig::CHECK)
 	add_test(NAME ${LibTest_NAME} COMMAND /bin/bash -c

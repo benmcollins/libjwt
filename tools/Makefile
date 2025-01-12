@@ -1,0 +1,15 @@
+PANDOC ?= pandoc
+
+MANSECTION ?= 1
+
+MANPAGE.md = $(PANDOC) --standalone $(PANDOCFLAGS) --to man
+
+MAN_PAGES = jwt-verify.1
+
+all: $(MAN_PAGES)
+
+%.$(MANSECTION): %.$(MANSECTION).md
+	$(MANPAGE.md) $< -o $@
+
+clean:
+	rm -f $(MAN_PAGES)
