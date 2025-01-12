@@ -28,6 +28,7 @@ static struct jwt_crypto_ops *jwt_ops_available[] = {
 	NULL,
 };
 
+JWT_NO_EXPORT
 #if defined HAVE_OPENSSL
 struct jwt_crypto_ops *jwt_ops = &jwt_openssl_ops;
 #elif defined HAVE_GNUTLS

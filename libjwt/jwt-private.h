@@ -190,8 +190,9 @@ static inline void jwt_freememp(char **mem) {
 }
 #define char_auto char  __attribute__((cleanup(jwt_freememp)))
 
-JWT_EXPORT
+JWT_NO_EXPORT
 void jwt_free(jwt_t *jwt);
+
 static inline void jwt_freep(jwt_t **jwt) {
 	if (jwt) {
 		jwt_free(*jwt);
