@@ -17,8 +17,6 @@
 
 extern const char *__progname;
 
-#define MAX_LINE_LENGTH 1024
-
 _Noreturn static void usage(const char *error, int exit_state)
 {
 	if (error)
@@ -212,8 +210,8 @@ int main(int argc, char *argv[])
 	err = 0;
 
 	if (!strcmp(argv[0], "-")) {
-		char token[MAX_LINE_LENGTH];
-		while (fgets(token, MAX_LINE_LENGTH, stdin) != NULL) {
+		char token[BUFSIZ];
+		while (fgets(token, sizeof(token), stdin) != NULL) {
 			token[strcspn(token, "\n")] = '\0';
 
 			err += process_one(checker, alg, token);
