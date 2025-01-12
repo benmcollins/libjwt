@@ -18,6 +18,8 @@ project(${LIBJWT_PROJECT}
 	HOMEPAGE_URL ${LIBJWT_HOMEPAGE_URL}
 	LANGUAGES C)
 
+add_compile_options(-Wall -Werror -Wextra -Wunused)
+
 # Must be set after the above
 include(GNUInstallDirs)
 
@@ -167,8 +169,7 @@ set_target_properties(jwt PROPERTIES
 	SOVERSION ${LIBJWT_COMPATVERSION}
 )
 
-add_definitions(-D_GNU_SOURCE -O3 -Wall -Werror -Wextra)
-add_definitions(-DKEYDIR=\"${CMAKE_SOURCE_DIR}/tests/keys\")
+add_definitions(-D_GNU_SOURCE -DKEYDIR=\"${CMAKE_SOURCE_DIR}/tests/keys\")
 
 # Install header
 install(FILES include/jwt.h

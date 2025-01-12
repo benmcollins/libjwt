@@ -383,7 +383,6 @@ START_TEST(claim_str_addgetdel)
 {
 	const char exp[] = "{\"iss\":\"disk.swissdisk.com\"}";
 	jwt_checker_auto_t *checker = NULL;
-	char_auto *out = NULL;
 	jwt_value_t jval;
 	int ret;
 
