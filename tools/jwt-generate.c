@@ -1,4 +1,5 @@
 /* Copyright (C) 2019 Jeremy Thien <jeremy.thien@gmail.com>
+   Copyright (C) 2024-2025 maClara, LLC <info@maclara-llc.com>
    This file is part of the JWT C Library
 
    This Source Code Form is subject to the terms of the Mozilla Public
