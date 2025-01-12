@@ -31,8 +31,9 @@ _Noreturn static void usage(const char *error, int exit_state)
 	fprintf(stderr, "  -a, --algorithm=ALG   JWT algorithm to use (e.g. ES256). Only needed if the key\n");
 	fprintf(stderr, "                        provided with -k does not have an \"alg\" attribute\n");
 	fprintf(stderr, "  -k, --key=FILE        Filename containing a JSON Web Key\n");
-	fprintf(stderr, "  -v, --verbose         Show decoded header and payload while verifying\n\n");
-	fprintf(stderr, "This program will decode and validate each token on the command line.\n");
+	fprintf(stderr, "  -q, --quiet           No output. Exit value is numner of errors\n");
+	fprintf(stderr, "  -v, --verbose         Show decoded header and payload while verifying\n");
+	fprintf(stderr, "\nThis program will decode and validate each token on the command line.\n");
 	fprintf(stderr, "If - is given as the only argument to token, then tokens will be read\n");
 	fprintf(stderr, "from stdin, one per line.\n\n");
 	fprintf(stderr, "If you need to convert a key to JWT (e.g. from PEM or DER format) see key2jwk(1).\n");
@@ -68,20 +69,25 @@ static int __verify_wcb(jwt_t *jwt, jwt_config_t *config)
 	return 0;
 }
 
-static int process_one(jwt_checker_t *checker, jwt_alg_t alg, const char *token)
+static int process_one(jwt_checker_t *checker, jwt_alg_t alg, const char *token,
+		       int quiet)
 {
 	int err = 0;
 
-	printf("\n%s %s[TOK]\033[0m %.*s%s\n", alg == JWT_ALG_NONE ?
-		"\xF0\x9F\x94\x93" : "\xF0\x9F\x94\x90",
-		alg == JWT_ALG_NONE ? "\033[0;93m" : "\033[0;92m",
-		60, token, strlen(token) > 60 ? "..." : "");
+	if (!quiet) {
+		printf("\n%s %s[TOK]\033[0m %.*s%s\n", alg == JWT_ALG_NONE ?
+			"\xF0\x9F\x94\x93" : "\xF0\x9F\x94\x90",
+			alg == JWT_ALG_NONE ? "\033[0;93m" : "\033[0;92m",
+			60, token, strlen(token) > 60 ? "..." : "");
+	}
 
 	if (jwt_checker_verify(checker, token)) {
-		printf("\xF0\x9F\x91\x8E \033[0;91m[BAD]\033[0m %s\n",
-			jwt_checker_error_msg(checker));
+		if (!quiet) {
+			printf("\xF0\x9F\x91\x8E \033[0;91m[BAD]\033[0m %s\n",
+				jwt_checker_error_msg(checker));
+		}
 		err = 1;
-	} else {
+	} else if (!quiet) {
 		printf("\xF0\x9F\x91\x8D \033[0;92m[YES]\033[0m Verfified\n");
 	}
 
@@ -96,22 +102,24 @@ int main(int argc, char *argv[])
 	jwk_set_auto_t *jwk_set = NULL;
 	const jwk_item_t *item = NULL;
 	int oc, err, verbose = 0;
+	int quiet = 0;
+
+	char *optstr = "hk:alvq";
+	struct option opttbl[] = {
+		{ "help",	no_argument,		NULL, 'h' },
+		{ "key",	required_argument,	NULL, 'k' },
+		{ "algorithm",	required_argument,	NULL, 'a' },
+		{ "list",	no_argument,		NULL, 'l' },
+		{ "quiet",	no_argument,		NULL, 'q' },
+		{ "verbose",	no_argument,		NULL, 'v' },
+		{ NULL, 0, 0, 0 },
+	};
 
 	checker = jwt_checker_new();
 	if (checker == NULL) {
 		fprintf(stderr, "Could not allocate checker context\n");
 		exit(EXIT_FAILURE);
 	}
-
-	char *optstr = "hk:alv";
-	struct option opttbl[] = {
-		{ "help",	no_argument,		NULL, 'h' },
-		{ "key",	required_argument,	NULL, 'k' },
-		{ "algorithm",	required_argument,	NULL, 'a' },
-		{ "list",	no_argument,		NULL, 'l' },
-		{ "verbose",	no_argument,		NULL, 'v' },
-		{ NULL, 0, 0, 0 },
-	};
 
 	while ((oc = getopt_long(argc, argv, optstr, opttbl, NULL)) != -1) {
 		switch (oc) {
@@ -125,7 +133,17 @@ int main(int argc, char *argv[])
 			exit(EXIT_SUCCESS);
 			break;
 
+		case 'q':
+			if (verbose)
+				usage("Using -q and -v makes no sense",
+				      EXIT_FAILURE);
+			quiet = 1;
+			break;
+
 		case 'v':
+			if (quiet)
+				usage("Using -q and -v makes no sense",
+				      EXIT_FAILURE);
 			verbose = 1;
 			break;
 
@@ -138,7 +156,6 @@ int main(int argc, char *argv[])
 			if (alg >= JWT_ALG_INVAL) {
 				usage("Unknown algorithm (use -l to see a list of "
 				      "supported algorithms)\n", EXIT_FAILURE);
-
 			}
 			break;
 
@@ -194,18 +211,24 @@ int main(int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 
-	if (item)
+	if (item && !quiet) {
 		printf("\xF0\x9F\x94\x91 \033[0;92m[KEY]\033[0m %s\n",
 		       key_file);
-	printf("\xF0\x9F\x93\x83 ");
+	}
+
+	if (!quiet)
+		printf("\xF0\x9F\x93\x83 ");
 	if (item && jwks_item_alg(item) != JWT_ALG_NONE) {
-		printf("\033[0;92m[ALG]\033[0m %s (from key)",
-			jwt_alg_str(jwks_item_alg(item)));
+		if (!quiet) {
+			printf("\033[0;92m[ALG]\033[0m %s (from key)",
+			       jwt_alg_str(jwks_item_alg(item)));
+		}
 		alg = jwks_item_alg(item);
-	} else {
+	} else if (!quiet){
 		printf("\033[0;91m[ALG]\033[0m %s", jwt_alg_str(alg));
 	}
-	printf("\n");
+	if (!quiet)
+		printf("\n");
 
 	err = 0;
 
@@ -214,13 +237,13 @@ int main(int argc, char *argv[])
 		while (fgets(token, sizeof(token), stdin) != NULL) {
 			token[strcspn(token, "\n")] = '\0';
 
-			err += process_one(checker, alg, token);
+			err += process_one(checker, alg, token, quiet);
 		}
 	} else {
 		for (oc = 0; oc < argc; oc++) {
 			const char *token = argv[oc];
 
-			err += process_one(checker, alg, token);
+			err += process_one(checker, alg, token, quiet);
 		}
 	}
 

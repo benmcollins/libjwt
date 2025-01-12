@@ -41,6 +41,10 @@ must pass **-** as the last and only argument after any options.
   ~ Show the contents of the _HEADER_ and _PAYLOAD_ of the JWT in addition
   to verifying the token.
 
+**\-q**, **\-\-quiet**
+  ~ Do not output anything except for hard errors. The exit value will be the
+  number of token validation failures.
+
 **\-a** _ALG_, **\-\-algorithm**=_ALG_
   ~ Specify the algorithm to be used when verifying the signature block of
   any tokens passed to the program. See **-l** for values of _ALG_.

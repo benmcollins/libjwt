@@ -4,7 +4,7 @@ MANSECTION ?= 1
 
 MANPAGE.md = $(PANDOC) --standalone $(PANDOCFLAGS) --to man
 
-MAN_PAGES = jwt-verify.1
+MAN_PAGES = jwt-verify.1 jwt-generate.1
 
 all: $(MAN_PAGES)
 

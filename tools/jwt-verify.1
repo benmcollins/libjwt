@@ -42,6 +42,10 @@ option and quit.
 Show the contents of the \f[I]HEADER\f[R] and \f[I]PAYLOAD\f[R] of the
 JWT in addition to verifying the token.
 .TP
+\f[B]\-q\f[R], \f[B]\-\-quiet\f[R]
+Do not output anything except for hard errors.
+The exit value will be the number of token validation failures.
+.TP
 \f[B]\-a\f[R] \f[I]ALG\f[R], \f[B]\-\-algorithm\f[R]=\f[I]ALG\f[R]
 Specify the algorithm to be used when verifying the signature block of
 any tokens passed to the program.
