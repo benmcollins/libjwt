@@ -446,7 +446,6 @@ START_TEST(claim_int_addgetdel)
 {
 	const char exp[] = "{\"nbf\":1475980545}";
 	jwt_checker_auto_t *checker = NULL;
-	char_auto *out = NULL;
 	jwt_value_t jval;
 	int ret;
 
@@ -509,7 +508,6 @@ START_TEST(claim_bool_addgetdel)
 {
 	const char exp[] = "{\"admin\":true}";
 	jwt_checker_auto_t *checker = NULL;
-	char_auto *out = NULL;
 	jwt_value_t jval;
 	int ret;
 
@@ -572,7 +570,6 @@ START_TEST(claim_json_addgetdel)
 {
 	const char exp[] = "{\"rooms\":[\"office\",\"war-room\"]}";
 	jwt_checker_auto_t *checker = NULL;
-	char_auto *out = NULL;
 	jwt_value_t jval;
 	int ret;
 
@@ -645,7 +642,6 @@ START_TEST(header_str_addgetdel)
 {
 	const char exp[] = "{}";
 	jwt_checker_auto_t *checker = NULL;
-	char_auto *out = NULL;
 	jwt_value_t jval;
 	int ret;
 
