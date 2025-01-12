@@ -73,9 +73,11 @@ static int jwt_parse_head(jwt_t *jwt, char *head)
 			jwt_write_error(jwt, "Invalid ALG: [%s]", alg);
 			return 1;
 		}
+
+		return 0;
 	}
 
-	return 0;
+	return 1;
 }
 
 int jwt_parse(jwt_t *jwt, const char *token, unsigned int *len)
@@ -130,7 +132,8 @@ static int __verify_config_post(jwt_t *jwt, const jwt_config_t *config,
 				unsigned int sig_len)
 {
 	if (!sig_len) {
-		if (config->key || config->alg != JWT_ALG_NONE) {
+		if (config->key || config->alg != JWT_ALG_NONE ||
+		    jwt->alg != JWT_ALG_NONE) {
 			jwt_write_error(jwt,
 				"Expected a signature, but JWT has none");
 			return 1;
@@ -140,6 +143,11 @@ static int __verify_config_post(jwt_t *jwt, const jwt_config_t *config,
 	}
 
 	/* Signature is known to be present from this point */
+	if (jwt->alg == JWT_ALG_NONE) {
+		jwt_write_error(jwt, "JWT has alg, but no signature block");
+		return 1;
+	}
+
 	if (config->key == NULL) {
 		jwt_write_error(jwt,
 			"JWT has signature, but no key was given");

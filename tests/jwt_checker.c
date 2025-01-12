@@ -679,6 +679,37 @@ START_TEST(header_str_addgetdel)
 }
 END_TEST
 
+START_TEST(verify_ps256_nosig)
+{
+	jwt_checker_auto_t *checker = NULL;
+	const char token[] = "eyJhbGciOiJQUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZG1pbiI"
+		"6ZmFsc2UsImlhdCI6MTczNjY5NDU5NCwiaXNzIjoiaHR0cHM6Ly9zd2lzc2Rp"
+		"c2suY29tIiwidXNlciI6ImJlbmNvbGxpbnMifQ.";
+	int ret;
+
+	SET_OPS();
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+	ck_assert_int_eq(jwt_checker_error(checker), 0);
+
+	ret = jwt_checker_setclaims(checker, JWT_CLAIM_NONE);
+	ck_assert_int_eq(ret, 0);
+
+	read_json("rsa_pss_key_2048.json");
+
+	ret = jwt_checker_setkey(NULL, JWT_ALG_PS256, g_item);
+	ck_assert_int_ne(ret, 0);
+
+	ret = jwt_checker_verify(checker, token);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_str_eq(jwt_checker_error_msg(checker),
+			 "Expected a signature, but JWT has none");
+
+	free_key();
+}
+END_TEST
+
 static Suite *libjwt_suite(const char *title)
 {
 	Suite *s;
@@ -721,6 +752,10 @@ static Suite *libjwt_suite(const char *title)
 	/* All of the code paths for str/int/bool/json have been covered. We
 	 * just run this to ensure add/get/del works on headers */
 	tcase_add_loop_test(tc_core, header_str_addgetdel, 0, i);
+	suite_add_tcase(s, tc_core);
+
+	tc_core = tcase_create("Corner cases");
+	tcase_add_loop_test(tc_core, verify_ps256_nosig, 0, i);
 	suite_add_tcase(s, tc_core);
 
 	return s;
