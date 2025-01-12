@@ -24,7 +24,7 @@
 extern "C" {
 #endif
 
-/** @ingroup jwt_grp
+/** @ingroup jwt_object_grp
  * @brief Opaque JWT object
  *
  * Used in callbacks when generating or verifying a JWT
@@ -144,7 +144,7 @@ typedef enum {
 	JWK_KEY_OP_INVALID	= 0xffff,	/**< Invalid key_ops in JWK */
 } jwk_key_op_t;
 
-/** @ingroup jwt_setget_grp
+/** @ingroup jwt_claims_grp
  * @brief Value types for grants and headers
  */
 typedef enum {
@@ -156,7 +156,7 @@ typedef enum {
 	JWT_VALUE_INVALID,	/**< Invalid (used internally)		*/
 } jwt_value_type_t;
 
-/** @ingroup jwt_setget_grp
+/** @ingroup jwt_claims_grp
  * @brief Error values for header and grant requests
  */
 typedef enum {
@@ -168,7 +168,7 @@ typedef enum {
 	JWT_VALUE_ERR_NOMEM,	/**< Memory allocation error		*/
 } jwt_value_error_t;
 
-/** @ingroup jwt_setget_grp
+/** @ingroup jwt_claims_grp
  * @brief Data type for get and add actions for JWT headers and grants
  *
  * This is used for both add and get requests. Specific rules for each type is
@@ -216,12 +216,7 @@ typedef void *(*jwt_realloc_t)(void *, size_t);
  */
 typedef void (*jwt_free_t)(void *);
 
-/**
- * @defgroup jwt_grp JSON Web Token
- * @{
- */
-
-/**
+/** @ingroup jwt_alg_grp
  * Get the jwt_alg_t set for this JWT object.
  *
  * Returns the jwt_alg_t type for this JWT object.
@@ -232,7 +227,7 @@ typedef void (*jwt_free_t)(void *);
 JWT_EXPORT
 jwt_alg_t jwt_get_alg(const jwt_t *jwt);
 
-/**
+/** @ingroup jwt_object_grp
  * @brief Structure used to pass state with a user callback
  */
 typedef struct {
@@ -241,12 +236,12 @@ typedef struct {
 	void *ctx;		/**< User controlled context	*/
 } jwt_config_t;
 
-/**
+/** @ingroup jwt_object_grp
  * @brief General callback for generation and verification of JWT
  */
 typedef int (*jwt_callback_t)(jwt_t *, jwt_config_t *);
 
-/**
+/** @ingroup jwt_claims_grp
  * @brief WFC defined claims
  */
 typedef enum {
@@ -263,7 +258,7 @@ typedef enum {
         JWT_CLAIMS_ALL          = 0x80fe, /**< Mask of all claims           */
 } jwt_claims_t;
 
-/**
+/** @ingroup jwt_claims_grp
  * @brief Default validations
  *
  * Beyond the normal validations (e.g. algorithm, and signature checks) these
@@ -276,7 +271,15 @@ typedef enum {
  */
 #define JWT_CHECKER_CLAIMS (JWT_CLAIM_EXP|JWT_CLAIM_NBF)
 
+/** @ingroup jwt_claims_grp
+ * @brief Default claims for builders
+ */
 #define JWT_BUILDER_CLAIMS (JWT_CLAIM_IAT)
+
+/**
+ * @defgroup jwt_grp JSON Web Token
+ * @{
+ */
 
 /**
  * @defgroup jwt_builder_grp Builder
@@ -288,7 +291,7 @@ typedef enum {
  */
 
 /**
- * @brief Opaque Builder
+ * @brief Opaque Builde Object
  */
 typedef struct jwt_builder jwt_builder_t;
 
@@ -346,6 +349,14 @@ JWT_EXPORT
 const char *jwt_builder_error_msg(const jwt_builder_t *builder);
 
 /**
+ * @brief Clear error state in a builder object
+ *
+ * @param builder Pointer to a builder object
+ */
+JWT_EXPORT
+void jwt_builder_error_clear(jwt_builder_t *builder);
+
+/**
  * @brief Sets a key and algorithm for a builder
  *
  * The values here must make sense. This table shows what will or wont pass as
@@ -374,14 +385,6 @@ const char *jwt_builder_error_msg(const jwt_builder_t *builder);
 JWT_EXPORT
 int jwt_builder_setkey(jwt_builder_t *builder, const jwt_alg_t alg,
 		       const jwk_item_t *key);
-
-/**
- * @brief Clear error state in a builder object
- *
- * @param builder Pointer to a builder object
- */
-JWT_EXPORT
-void jwt_builder_error_clear(jwt_builder_t *builder);
 
 /**
  * @brief Set claims for a builder object
@@ -451,8 +454,29 @@ int jwt_builder_setcb(jwt_builder_t *builder, jwt_callback_t cb, void *ctx);
  * }
  * @endcode
  *
- * The signature block is a cryptographic has. It's length and format is
+ * The signature block is a cryptographic hash. Its length and format is
  * dependent on the algorithm being used.
+ *
+ * A simple usage with no signature or payload would be:
+ *
+ * @code
+ * jwt_builder_t *builder = NULL;
+ *
+ * builder = jwt_builder_new();
+ *
+ * if (builder) {
+ *     char *out = jwt_builder_generate(builder);
+ *
+ *     if (out) {
+ *         printf("%s\n", out);
+ *         free(out);
+ *     }
+ * }
+ *
+ * jwt_builder_free(builder);
+ * @endcode
+ *
+ * @note If you set a callback for this builder, this is when it will be called.
  *
  * @param builder Pointer to a builder object
  * @return A string containing a JWT. Caller is respondible for freeing the
@@ -470,20 +494,54 @@ char *jwt_builder_generate(jwt_builder_t *builder);
 /**
  * @defgroup jwt_checker_grp Checker
  *
- * Creating a JWT token involves several steps. First is creating a
- * jwt_builder_t object, which can be thought of as a JWT factory. Once
- * configured, you can use it to create tokens with pre-defined claims.
+ * Validating a JWT involves decoding the Base64url parts of the JWT then
+ * verifying claims and the signature hash. The checker object allows you to
+ * configure how you want to perform these steps so you can easily process
+ * tokens with one simple call.
  * @{
  */
 
+/**
+ * @brief Opaque Checker object
+ */
 typedef struct jwt_checker jwt_checker_t;
+
+/**
+ * @brief Function to create a new checker instance
+ *
+ * @return Pointer to a checker object on success, NULL on failure
+ */
 JWT_EXPORT
 jwt_checker_t *jwt_checker_new(void);
 
+/**
+ * @brief Frees a previously created checker object
+ *
+ * @param checker Pointer to a checker object
+ */
 JWT_EXPORT
 void jwt_checker_free(jwt_checker_t *checker);
 
 #if defined(__GNUC__) || defined(__clang__)
+/**
+ * @brief Helper function to free a checker and set the pointer to NULL
+ *
+ * This is mainly to use with the jwt checker_auto_t type. Example usage:
+ *
+ * @code
+ * int run_check (const char *token)
+ * {
+ *     jwt_checker_auto_t *checker = NULL; // This is important to set to NULL
+ *
+ *     checker = jwt_checker_new();
+ *     // Do some things
+ *
+ *     return 0; // checker is freed here
+ * }
+ * @endcode
+ *
+ * @param Pointer to a pointer for a jwt checker_t object
+ */
 static inline void jwt_checker_freep(jwt_checker_t **checker) {
         if (checker) {
                 jwt_checker_free(*checker);
@@ -494,20 +552,97 @@ static inline void jwt_checker_freep(jwt_checker_t **checker) {
         __attribute__((cleanup(jwt_checker_freep)))
 #endif
 
+/**
+ * @brief Checks error state of checker object
+ *
+ * @param checker Pointer to a checker object
+ * @return 0 if no errors exist, non-zero otherwise
+ */
 JWT_EXPORT
 int jwt_checker_error(const jwt_checker_t *checker);
+
+/**
+ * @brief Get the error message contained in a checker object
+ *
+ * @param checker Pointer to a checker object
+ * @return Pointer to a string with the error message. Can be an empty string
+ *  if there is no error. Never returns NULL.
+ */
 JWT_EXPORT
 const char *jwt_checker_error_msg(const jwt_checker_t *checker);
+
+/**
+ * @brief Clear error state in a checker object
+ *
+ * @param checker Pointer to a checker object
+ */
 JWT_EXPORT
 void jwt_checker_error_clear(jwt_checker_t *checker);
 
+/**
+ * @brief Sets a key and algorithm for a checker
+ *
+ * See @ref jwt_builder_setkey for detailed information.
+ *
+ * @param checker Pointer to a checker object
+ * @param alg A valid jwt_alg_t type
+ * @param key A JWK key object
+ * @return 0 on success, non-zero otherwise with error set in the checker
+ */
 JWT_EXPORT
 int jwt_checker_setkey(jwt_checker_t *checker, const jwt_alg_t alg, const
 		       jwk_item_t *key);
+
+/**
+ * @brief Set claims for a checker object
+ *
+ * These only apply to the RFC defined claims. By default, a checker will verify
+ * the ``nbf`` and ``exp`` claims, if present. You can enable the checker to
+ * force a failure if these are not present by setting the appropraite flag in
+ * the jwt_claims_t param.
+ *
+ * @note This replaces the current flags completely.
+ *
+ * @param checker Pointer to a checker object
+ * @param grants A bitwise set of values in jwt_claims_t
+ * @return 0 on success, non-zero otherwise with error set in the checker
+ */
 JWT_EXPORT
 int jwt_checker_setclaims(jwt_checker_t *checker, jwt_claims_t grants);
+
+/**
+ * @brief Set a callback for generating tokens
+ *
+ * When verifying a token, this callback will be run after jwt_t has been
+ * parsed, but before the token is verfied (including signature
+ * verification). During this, the callback should only inspect the header or
+ * claims in the JWT. Any attempts to make changes to the jwt_t object will not
+ * change the rest of the process.
+ *
+ * The callback can also set the key and algorithm used to verify the signature.
+ * If the callback returns non-zero, then processing will stop and return an
+ * error.
+ *
+ * The ctx value is also passed to the callback as part of the jwt_value_t
+ * struct.
+ *
+ * @param checker Pointer to a checker object
+ * @param cb Pointer to a callback function
+ * @param ctx Pointer to data to pass to the callback function
+ * @return 0 on success, non-zero otherwise with error set in the checker
+ */
 JWT_EXPORT
 int jwt_checker_setcb(jwt_checker_t *checker, jwt_callback_t cb, void *ctx);
+
+/**
+ * @brief Verify a token
+ *
+ * @note If you set a callback for this checker, this is when it will be called.
+ *
+ * @param checker Pointer to a checker object
+ * @param token A string containing a token to be verified
+ * @return 0 on success, non-zero otherwise with error set in the checker
+ */
 JWT_EXPORT
 int jwt_checker_verify(jwt_checker_t *checker, const char *token);
 
@@ -565,173 +700,7 @@ jwt_value_error_t jwt_checker_claim_del(jwt_checker_t *checker, const char
  */
 
 /**
- * @defgroup jwt_verify_grp Verification
- *
- * LibJWT provides mechanisms to verify a JWT, including the signature block.
- * Many aspects of this verification are defined by the relevant RFCs.
- *
- * A ``token`` is a string that represents an encoded (and usually signed) JWT.
- * It contains 3 parts: ``header``.``payload``.``sig``
- *
- * Each part is Base64url Encoded. An example would be:
- *
- * @code
- * eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3MzY0MzI0MzR9.iDn6N9JsAdUPF11ow0skIfc9eJc2wGRIq30RSRZ8_68
- * @endcode
- *
- * When decoded, the header and payload look like:
- *
- * @code
- * {"alg":"HS256","typ":"JWT"}.{"iat":1736432434}
- * @endcode
- *
- * Or with pretty printing:
- *
- * @code
- * {
- *    "alg": "HS256",
- *    "typ": "JWT"
- * }
- * .
- * {
- *    "iat": 1736432434
- * }
- * @endcode
- *
- * The signature block decodes into binary bytes that represent the
- * cryptographic signature. The length and format depends on the algorithm
- * used. In the above example this is ``HS256``, or HMAC with SHA-256 hashing.
- *
- * In order to verify a token, jwt_config_t.key MUST be supplied, and either
- * jwt_config_t.alg or the alg in jwk_item_t must be set to something other than
- * ``none``. On return from verification, you should inspect the resulting
- * jwt_t for error using jwt_error(). You can retrieve the error message with
- * jwt_error_msg().
- *
- * This table shows what will or wont pass as far as algorithm matching between
- * jwt_config_t, jwt_t, and jwk_item_t, where ``alg-A`` means one specific
- * algorithm (not none) and ``alg-B`` represents another (also not none). The
- * ``none`` is used to represent no algorithm being set, and ``any`` represents
- * any algorithm setting, ``none`` or otherwise. This table assumes that the
- * JWT contains a signature block.
- *
- * jwt_config_t | jwk_item_t | jwt_t     | Result
- * :----------: | :--------: | :-------: | :-----------------------:
- * ``alg-A``    | ``alg-A``  | ``alg-A`` | \emoji :white_check_mark:
- * ``none``     | ``alg-A``  | ``alg-A`` | \emoji :white_check_mark:
- * ``alg-A``    | ``none``   | ``alg-A`` | \emoji :white_check_mark:
- * ``none``     | ``none``   | ``any``   | \emoji :x:
- * ``any``      | ``any``    | ``none``  | \emoji :x:
- * ``alg-A``    | ``alg-A``  | ``alg-B`` | \emoji :x:
- * ``alg-A``    | ``none``   | ``alg-B`` | \emoji :x:
- * ``none``     | ``alg-A``  | ``alg-B`` | \emoji :x:
- * ``alg-A``    | ``alg-B``  | ``any``   | \emoji :x:
- *
- * @note For any JWT containing a signature block, jwt_config_t.key MUST
- * point to a valid jwk_item_t key.
- *
- * For a JWT that does not contain a signature block, it will only pass
- * verification if all of the following are true:
- *
- * jwt_config_t.alg | jwt_config_t.key | jwt_t alg | jwt_t sig | Result
- * :--------    --: | :-----------------: | :-------: | :-------: | :-----------------------:
- * ``none``         | ``NULL``            | ``none``  | ``empty`` | \emoji :white_check_mark:
- *
- * Anything else with an empty ``sig`` block will fail. This is to ensure
- * security. Refer to the following links for security considerations:
- *
- * @rfc{7515,10} @rfc{7516,11} @rfc{7517,9} @rfc{7518,8}
- *
- * @warning Using insecure tokens is not very useful and strongly discouraged.
- *
- * @remark If you want to inspect a signed token, you MUST use jwt_verify_wcb()
- * and supply a callback function.
- * @{
- */
-
-/**
- * @brief Decode and verify a JWT
- *
- * @param token Pointer to a nil terminated JWT string
- * @param config Pointer to a config structure to define how to verify the
- *  token
- * @return Pointer to a jwt_t object or NULL. Generally, a NULL is unlikely. The
- *  object should be checked with jwt_error() to check for errors. The jwt_t
- *  must be freed by the caller with jwt_free().
- */
-JWT_EXPORT
-jwt_t *jwt_verify(const char *token, jwt_config_t *config);
-
-/**
- * @brief Decode and verify a JWT, with user callback
- *
- * This operates the same as jwt_verify(), with the addition of calling a
- * user-defined function between the parsing and verification step. This allows
- * the user to perform some extra verification, and even provide a key after
- * (e.g. to match a ``"kid"``).
- *
- * The callback function is performed after initial parsing of the head and
- * body parts of the token, but before verification. The callback can then
- * inspect portions of the JWT, update the config (e.g. to set an alg or a
- * key). None of the rules in jwt_verify() apply until after this callback
- * function has completed.
- *
- * The callback function can return non-zero to stop processing immediately. If
- * the callback function returns zero, it does not mean that further
- * verification will succeed. All aspects of verification must still be
- * followed.
- *
- * @param token Pointer to a nil terminated JWT string
- * @param config Pointer to a config structure to define how to verify the
- *  token. This can be NULL, in which case the token is simply decoded.
- * @param cb Pointer to a callback
- * @return Pointer to a jwt_t object or NULL. Generally a NULL is unlikely. The
- *  object should be checked with jwt_error() to check for errors.
- */
-JWT_EXPORT
-jwt_t *jwt_verify_wcb(const char *token, jwt_config_t *config,
-		      jwt_callback_t cb);
-
-/**
- * @}
- * @noop jwt_verify_grp
- */
-
-/**
- * @defgroup jwt_setget_grp Headers, Claims and Grants
- *
- * When dealing with JWT there are 3 main topics. Each has specific expectations
- * depending if you are producing or consuming JWT.
- *
- * @par Headers
- * Generally, you do not need to worry about the header of a JWT, except in
- * special (and usually custom) applications. For the most part, you will never
- * access this part of a JWT. Internally, LibJWT is mostly concerned about the
- * ``typ`` attribute being ``JWT`` and the ``alg`` attribute. LibJWT will add
- * both of these when creating a token, and parse both when verifying them.
- *
- * The functionality to get or add header values is mostly for convenience and
- * special applications.
- *
- * @par Claims
- * Claims are contained in the payload of a JWT. These are attributes that the
- * JWT claims to have access to. It could be a hostname, access privileges, or
- * even timestamps that ensure the token hasn't expired.
- *
- * Claims are verified by LibJWT for known types (e.g. ``nbf`` or ``exp``).
- * Other claims can be enforced using the jwt_config_t structure. In this way, a
- * single jwt_config_t can be created to repeat verification of tokens using a
- * set of rules defined once.
- *
- * There is also a function to read the claims from the JWT after parsing. There
- * is no method for modifying claims of a jwt_t.
- *
- * @par Grants
- * Grants are defined as the attributes you give to a JWT you are creating. It
- *
- * Claims are set in the jwt_config_t structure and used to generate tokens. In
- * this way, the jwt_config_t can be reused to create tokens on demand from a
- * known source
+ * @defgroup jwt_object_grp The JWT object
  * @{
  */
 
@@ -954,7 +923,7 @@ jwt_value_error_t jwt_grant_del(jwt_t *jwt, const char *header);
 
 /**
  * @}
- * @noop jwt_setget_grp
+ * @noop jwt_object_grp
  */
 
 /**
