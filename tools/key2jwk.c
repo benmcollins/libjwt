@@ -13,6 +13,7 @@
 #include <string.h>
 #include <time.h>
 #include <getopt.h>
+#include <unistd.h>
 
 #include <openssl/pem.h>
 #include <openssl/evp.h>
