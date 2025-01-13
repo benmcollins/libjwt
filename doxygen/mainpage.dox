@@ -34,9 +34,23 @@ Standard | RFC        | Description
 
 - OpenSSL (>= 3.0.0)
 - GnuTLS (>= 3.6.0)
+- MbedTLS (>= 3.6.0)
 
-@note OpenSSL is required and used for JWK(S) operations. GnuTLS is optional
- for use in signing and verifying if configured.
+@note OpenSSL is required and used for JWK(S) operations.
+
+@subsection crypto_support Algorithm support matrix
+
+JWS Algorithm ``alg``         | OpenSSL                   | GnuTLS                    | MbedTLS
+:---------------------------- | :------------------------ | :------------------------ | :------------------------
+``HS256`` ``HS384`` ``HS512`` | \emoji :white_check_mark: | \emoji :white_check_mark: | \emoji :white_check_mark:
+``ES256`` ``ES384`` ``ES512`` | \emoji :white_check_mark: | \emoji :white_check_mark: | \emoji :white_check_mark:
+``RS256`` ``RS384`` ``RS512`` | \emoji :white_check_mark: | \emoji :white_check_mark: | \emoji :white_check_mark:
+``EdDSA`` using ``ED25519``   | \emoji :white_check_mark: | \emoji :white_check_mark: | \emoji :x:
+``EdDSA`` using ``ED448``     | \emoji :white_check_mark: | \emoji :white_check_mark: ``>= 3.8.8`` | \emoji :x:
+``PS256`` ``PS384`` ``PS512`` | \emoji :white_check_mark: | \emoji :white_check_mark: | \emoji :white_check_mark:*
+``ES256K``                    | \emoji :white_check_mark: | \emoji :x:                | \emoji :white_check_mark:
+
+``*`` RSASSA-PSS support in MbedTLS depends on [TF-PSA-Ctypto#154(https://github.com/Mbed-TLS/TF-PSA-Crypto/pull/154)
 
 @subsection optional Optional
 
