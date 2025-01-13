@@ -65,12 +65,15 @@ START_TEST(test_alloc_funcs)
 }
 END_TEST
 
-static char *__builder(const char *priv, jwt_alg_t alg)
+static char *__builder(const char *cops, const char *priv, jwt_alg_t alg)
 {
 	jwt_builder_auto_t *builder;
 	jwt_alg_t a_check = JWT_ALG_NONE;
 	char *out;
 	int ret;
+
+	ret = jwt_set_crypto_ops(cops);
+	ck_assert_int_eq(ret, 0);
 
 	builder = jwt_builder_new();
 	ck_assert_ptr_nonnull(builder);
@@ -92,10 +95,14 @@ static char *__builder(const char *priv, jwt_alg_t alg)
 	return out;
 }
 
-static void __checker(const char *pub, jwt_alg_t alg, char *token)
+static void __checker(const char *cops, const char *pub, jwt_alg_t alg,
+		      char *token)
 {
 	jwt_checker_auto_t *checker;
 	int ret;
+
+	ret = jwt_set_crypto_ops(cops);
+	ck_assert_int_eq(ret, 0);
 
 	checker = jwt_checker_new();
 	ck_assert_ptr_nonnull(checker);
@@ -108,9 +115,9 @@ static void __checker(const char *pub, jwt_alg_t alg, char *token)
 
 	ret = jwt_checker_verify(checker, token);
 	if (ret)
-		fprintf(stderr, "E: %s\n", jwt_checker_error_msg(checker));
+		fprintf(stderr, "E(%s)[%s]: %s\n", jwt_get_crypto_ops(),
+			jwt_alg_str(alg), jwt_checker_error_msg(checker));
 	ck_assert_int_eq(ret, 0);
-	free(token);
 
 	free_key();
 }
@@ -118,41 +125,25 @@ static void __checker(const char *pub, jwt_alg_t alg, char *token)
 static void __flip_one(const char *priv, const char *pub, jwt_alg_t alg)
 {
 	char *out = NULL;
-	int ret;
+	size_t i;
 
-	/* If this doesn't work, we wont even bother */
-	ret = jwt_set_crypto_ops("gnutls");
-	if (ret)
-		return;
 
-	/* This one is mandated */
-	ret = jwt_set_crypto_ops("openssl");
-	ck_assert_int_eq(ret, 0);
+	for (i = 0; i < ARRAY_SIZE(jwt_test_ops); i++) {
+		size_t c;
 
-	/* Generate on OpenSSL */
-	out = __builder(priv, alg);
+		/* Generate on Here */
+		out = __builder(jwt_test_ops[i].name, priv, alg);
 
-	/* Switch to GnuTLS */
-	ret = jwt_set_crypto_ops("gnutls");
-        ck_assert_int_eq(ret, 0);
+		for (c = 0; c < ARRAY_SIZE(jwt_test_ops); c++) {
+			/* Test everywhere */
 
-	/* Verify the OpenSSL token on GnuTLS */
-	__checker(pub, alg, out);
+			__checker(jwt_test_ops[c].name, pub, alg, out);
+		}
 
-	/* Midway through, we switch memory ops */
-	test_set_alloc();
+		free(out);
 
-	/* Generate on GnuTLS */
-	out = __builder(priv, alg);
-
-	/* Switch back to OpenSSL */
-	ret = jwt_set_crypto_ops("openssl");
-	ck_assert_int_eq(ret, 0);
-
-	/* And verify the GnuTLS token on OpenSSL */
-	__checker(pub, alg, out);
-
-	free_key();
+		test_set_alloc();
+	}
 }
 
 #define FLIPFLOP_KEY(__name, __pub, __alg)	\
