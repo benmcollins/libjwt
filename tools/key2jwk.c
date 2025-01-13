@@ -8,11 +8,11 @@
 
 /* XXX BIG FAT WARNING: There's not much error checking here. */
 
-/* XXX: Also, requires OpenSSL v3. I wont accept patches for lower versions. */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+#include <getopt.h>
 
 #include <openssl/pem.h>
 #include <openssl/evp.h>
@@ -35,6 +35,9 @@ static void print_openssl_errors_and_exit()
 	ERR_print_errors_fp(stderr);
 	exit(EXIT_FAILURE);
 }
+
+static int with_kid = 1;
+static int do_not_assume_hmac = 0;
 
 static const char *uuidv4(void)
 {
@@ -238,7 +241,7 @@ static json_t *parse_one_file(const char *file)
 		/* Check length to see if it can be HMAC */
 		fseek(fp, 0, SEEK_END);
 		len = ftell(fp);
-		if (len != 32 && len != 48 && len != 64) {
+		if (do_not_assume_hmac || len < 32) {
 			fprintf(stderr, "Error parsing key file\n");
 			print_openssl_errors_and_exit();
 		}
@@ -263,7 +266,8 @@ static json_t *parse_one_file(const char *file)
 	}
 
 	/* Use uuidv4 for "kid" */
-	json_object_set_new(jwk, "kid", json_string(uuidv4()));
+	if (with_kid)
+		json_object_set_new(jwk, "kid", json_string(uuidv4()));
 
 	if (len) {
 		process_hmac_key(jwk, file_buf, len);
@@ -318,48 +322,165 @@ static json_t *parse_one_file(const char *file)
 	return jwk;
 }
 
+extern const char *__progname;
+
+_Noreturn static void usage(const char *error, int exit_state)
+{
+	if (error)
+		fprintf(stderr, "ERROR: %s\n\n", error);
+
+	fprintf(stderr, "Usage: %s [OPTIONS] <FILE> [FILE]...\n\n", __progname);
+	fprintf(stderr, "Parse PEM/DER file(s) into JSON Web Key format.\n\n");
+	fprintf(stderr, "  -h, --help            This help information\n");
+	fprintf(stderr, "  -q, --quiet           No output other than JWKS file\n");
+	fprintf(stderr, "  -l, --list            List supported algorithms and exit\n");
+	fprintf(stderr, "  -k, --disable-kid     Disable generating \"kid\" attribute\n");
+	fprintf(stderr, "  -m, --disable-hamc    Disable fallback to HMAC\n");
+	fprintf(stderr, "  -o, --output=FILE     File to write JWKS to\n");
+	fprintf(stderr, "\nThis program will parse PEM/DER key files (public and\n");
+	fprintf(stderr, "private) into JSON Web Keys and output a JWK Set. Note that\n");
+	fprintf(stderr, "HMAC keys are \"guessed\" based on them not being parsed\n");
+	fprintf(stderr, "by OpenSSL. This may cause some issues. You can disable this\n");
+	fprintf(stderr, "with the -m option.\n");
+	fprintf(stderr, "\nYou can use '-' as the argument to the -o option to write to\n");
+	fprintf(stderr, "stdout.\n");
+	fprintf(stderr, "\nRSA keys will not have an algorithm set as they are valid\n");
+	fprintf(stderr, "for RS256, RS384, and RS512. RSA keys must be at least 1024\n");
+	fprintf(stderr, "bits.\n");
+	fprintf(stderr, "\nRSA-PSS keys will be set to PS256, otherwise they will look\n");
+	fprintf(stderr, "no different than an RSA key.\n");
+	fprintf(stderr, "\nAll keys will get a generated randomized uuidv4 \"kid\"\n");
+	fprintf(stderr, "attribute unless you use the -k option..\n");
+
+	exit(exit_state);
+}
+
 int main(int argc, char **argv)
 {
 	json_t *jwk_set, *jwk_array, *jwk;
+	time_t now;
+	char *time_str;
+	char comment[256];
+	jwt_alg_t alg;
+	int quiet = 0;
 	char *jwk_str;
-	int i;
+	FILE *outfp = NULL;
+	FILE *msg = stdout;
+	int i, oc;
 
-	if (argc < 2) {
-		fprintf(stderr, "Usage: %s <PEM file(s)>\n", argv[0]);
-		exit(EXIT_FAILURE);
+	char *optstr = "hlqo:km";
+	struct option opttbl[] = {
+		{ "help",		no_argument,		NULL, 'h' },
+		{ "list",		no_argument,		NULL, 'l' },
+		{ "quiet",		no_argument,		NULL, 'q' },
+		{ "output",		required_argument,	NULL, 'o' },
+		{ "disable-kid",	no_argument,		NULL, 'k' },
+		{ "disable-hmac",	no_argument,		NULL, 'm' },
+		{ NULL, 0, 0, 0 },
+	};
+
+	while ((oc = getopt_long(argc, argv, optstr, opttbl, NULL)) != -1) {
+		switch (oc) {
+		case 'h':
+			usage(NULL, EXIT_SUCCESS);
+
+		case 'l':
+			printf("Algorithms supported:\n");
+			for (alg = JWT_ALG_NONE; alg < JWT_ALG_INVAL; alg++)
+				printf("    %s\n", jwt_alg_str(alg));
+			exit(EXIT_SUCCESS);
+			break;
+
+		case 'q':
+			quiet = 1;
+			break;
+
+		case 'k':
+			with_kid = 0;
+			break;
+
+		case 'm':
+			do_not_assume_hmac = 1;
+			break;
+
+		case 'o':
+			if (optarg[0] == '-') {
+				outfp = stdout;
+				msg = stderr;
+			} else {
+				outfp = fopen(optarg, "wx");
+				if (outfp == NULL) {
+					perror(optarg);
+					usage(NULL, EXIT_FAILURE);
+				}
+			}
+			break;
+		default: /* '?' */
+			usage("Uknown option", EXIT_FAILURE);
+			break;
+		}
 	}
 
-	fprintf(stderr, "Parsing %d files (", argc - 1);
+	argc -= optind;
+	argv += optind;
+
+	if (argc == 0)
+		usage("No key(s) given", EXIT_FAILURE);
+
+	if (outfp == NULL)
+		usage("The --output argument is required", EXIT_FAILURE);
+
+
+	if (!quiet)
+		fprintf(msg, "Parsing %d files (", argc);
 
 	jwk_array = json_array();
 
-	for (i = 1; i < argc; i++) {
+	for (i = 0; i < argc; i++) {
 		jwk = parse_one_file(argv[i]);
 		json_array_append_new(jwk_array, jwk);
-		fprintf(stderr, ".");
+		if (!quiet)
+			fprintf(msg, ".");
 	}
-	fprintf(stderr, ") done\n");
+	if (!quiet) {
+		fprintf(msg, ") done\n");
 
-	fprintf(stderr, "Parse results:\n");
-	if (ec_count)
-		fprintf(stderr, "  EC     : %d\n", ec_count);
-	if (rsa_count)
-		fprintf(stderr, "  RSA    : %d\n", rsa_count);
-	if (rsa_pss_count)
-		fprintf(stderr, "  RSA-PSS: %d\n", rsa_pss_count);
-	if (eddsa_count)
-		fprintf(stderr, "  EdDSA  : %d\n", eddsa_count);
-	if (hmac_count)
-		fprintf(stderr, "  HMAC   : %d\n", hmac_count);
-	fprintf(stderr, "\n");
+		fprintf(msg, "Parse results:\n");
+		if (ec_count)
+			fprintf(msg, "  EC     : %d\n", ec_count);
+		if (rsa_count)
+			fprintf(msg, "  RSA    : %d\n", rsa_count);
+		if (rsa_pss_count)
+			fprintf(msg, "  RSA-PSS: %d\n", rsa_pss_count);
+		if (eddsa_count)
+			fprintf(msg, "  EdDSA  : %d\n", eddsa_count);
+		if (hmac_count)
+			fprintf(msg, "  HMAC   : %d\n", hmac_count);
+		fprintf(msg, "\n");
 
-	fprintf(stderr, "Generating JWKS...\n");
+		fprintf(msg, "Generating JWKS...\n");
+	}
 
 	jwk_set = json_object();
+	snprintf(comment, sizeof(comment), "Generated by LibJWT %s",
+		 JWT_VERSION_STRING);
+	comment[sizeof(comment) - 1] = '\0';
+	json_object_set_new(jwk_set, "libjwt.io:comment", json_string(comment));
+
+	now = time(NULL);
+	time_str = ctime(&now);
+	time_str[strlen(time_str) - 1] = '\0';
+	json_object_set_new(jwk_set, "libjwt.io:date", json_string(time_str));
+
+	gethostname(comment, sizeof(comment));
+	comment[sizeof(comment) - 1] = '\0';
+	json_object_set_new(jwk_set, "libjwt.io:hostname",
+			    json_string(comment));
+
 	json_object_set_new(jwk_set, "keys", jwk_array);
 
 	jwk_str = json_dumps(jwk_set, JSON_INDENT(2));
-	printf("%s\n", jwk_str);
+	fprintf(outfp, "%s\n", jwk_str);
 
 	free(jwk_str);
 

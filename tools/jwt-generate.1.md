@@ -71,4 +71,8 @@ See GitHub Issues: <https://github.com/benmcollins/libjwt/issues>
 # AUTHOR
 
 **jwt-generate** was originally written by Jeremy Thien. Major rewriting and man
-page by Ben Collins.
+page by Ben Collins <bcollins@maclara-llc.com>.
+
+# SEE ALSO
+
+**jwt-verify(1)**, **key2jwk(1)**, **jwk2key(1)**
