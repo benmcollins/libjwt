@@ -89,6 +89,8 @@ static int gnutls_verify_sha_hmac(jwt_t *jwt, const char *head,
 	return ret;
 }
 
+#define SIGN_ERROR(_msg) { jwt_write_error(jwt, "JWT[GnuTLS]: " _msg); goto sign_clean_privkey; }
+
 static int gnutls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 			       const char *str, unsigned int str_len)
 {
@@ -97,13 +99,11 @@ static int gnutls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		s_out_padding = 0;
 	size_t out_size;
 
-	if (jwt->alg == JWT_ALG_ES256K) {
-		jwt_write_error(jwt, "ES256K Not Supported on GnuTLS");
-		return 1;
-	}
+	if (jwt->alg == JWT_ALG_ES256K)
+		SIGN_ERROR("ES256K not supported");
 
 	if (jwt->key->pem == NULL)
-		return 1; // LCOV_EXCL_LINE
+		SIGN_ERROR("No PEM found");
 
 	gnutls_privkey_t privkey;
 	gnutls_datum_t key_dat = {
@@ -115,27 +115,18 @@ static int gnutls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		str_len
 	};
 	gnutls_datum_t sig_dat, r, s;
-	int ret = 0, pk_alg;
-	int alg;
+	gnutls_digest_algorithm_t alg;
+	int pk_alg, flags = 0;
 	unsigned int adj;
 
-	if (gnutls_privkey_init(&privkey)) {
-		// LCOV_EXCL_START
-		jwt_write_error(jwt, "Error initializing privkey");
-		ret = 1;
-		goto sign_clean_key;
-		// LCOV_EXCL_STOP
-	}
+	if (gnutls_privkey_init(&privkey))
+		SIGN_ERROR("Error initializing privkey"); // LCOV_EXCL_LINE
 
 	/* Try loading as a private key, and extracting the pubkey */
 	if (gnutls_privkey_import_x509_raw(privkey, &key_dat,
 					   GNUTLS_X509_FMT_PEM,
 					   NULL, 0)) {
-		// LCOV_EXCL_START
-		jwt_write_error(jwt, "Error importing privkey");
-		ret = 1;
-		goto sign_clean_privkey;
-		// LCOV_EXCL_STOP
+		SIGN_ERROR("Could not import private key"); // LCOV_EXCL_LINE
 	}
 
 	/* Initialize for checking later. */
@@ -193,41 +184,32 @@ static int gnutls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		else if (pk_alg == GNUTLS_PK_EDDSA_ED448) {
 			alg = GNUTLS_DIG_SHAKE_256;
 		} else {
-			jwt_write_error(jwt, "Unknown EdDSA key type");
-			ret = 1;
-			goto sign_clean_privkey;
+			SIGN_ERROR("Unknown EdDSA key"); // LCOV_EXCL_LINE
 		}
 		break;
 
 	default:
-		// LCOV_EXCL_START
-		jwt_write_error(jwt, "Unknown alg during signing");
-		ret = 1;
-		goto sign_clean_privkey;
-		// LCOV_EXCL_STOP
+		SIGN_ERROR("Unknown signing alg"); // LCOV_EXCL_LINE
 	}
 
-	if (pk_alg != gnutls_privkey_get_pk_algorithm(privkey, NULL)) {
-		jwt_write_error(jwt, "Alg mismatch with key during signing: %d",
-				pk_alg);
-		ret = 1;
-		goto sign_clean_privkey;
+	if (pk_alg == GNUTLS_PK_RSA_PSS) {
+		int ck = gnutls_privkey_get_pk_algorithm(privkey, NULL);
+		if (ck != GNUTLS_PK_RSA_PSS && ck != GNUTLS_PK_RSA)
+			SIGN_ERROR("RSASSA-PSS alg mismatch"); // LCOV_EXCL_LINE
+
+		flags |= GNUTLS_PRIVKEY_SIGN_FLAG_RSA_PSS;
+	} else if (pk_alg != gnutls_privkey_get_pk_algorithm(privkey, NULL)) {
+		SIGN_ERROR("Alg mismatch with signing key"); // LCOV_EXCL_LINE
 	}
 
-	/* Sign data */
-	if (gnutls_privkey_sign_data(privkey, alg, 0, &body_dat, &sig_dat)) {
-		// LCOV_EXCL_START
-		ret = 1;
-		goto sign_clean_privkey;
-		// LCOV_EXCL_STOP
-	}
+	if (gnutls_privkey_sign_data(privkey, alg, flags,
+                                &body_dat, &sig_dat))
+		SIGN_ERROR("Failed to sign token"); // LCOV_EXCL_LINE
 
 	if (pk_alg == GNUTLS_PK_EC) {
 		/* Start EC handling. */
-		if ((ret = gnutls_decode_rs_value(&sig_dat, &r, &s))) {
-			ret = 1;
-			goto sign_clean_privkey;
-		}
+		if (gnutls_decode_rs_value(&sig_dat, &r, &s))
+			SIGN_ERROR("Error decoding EC key"); // LCOV_EXCL_LINE
 
 		/* Check r and s size */
 		if (jwt->alg == JWT_ALG_ES256 || jwt->alg == JWT_ALG_ES256K)
@@ -250,12 +232,9 @@ static int gnutls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		out_size = adj << 1;
 
 		*out = jwt_malloc(out_size);
-		if (*out == NULL) {
-			// LCOV_EXCL_START
-			ret = 1;
-			goto sign_clean_privkey;
-			// LCOV_EXCL_STOP
-		}
+		if (*out == NULL)
+			SIGN_ERROR("Out of memory"); // LCOV_EXCL_LINE
+
 		memset(*out, 0, out_size);
 
 		memcpy(*out + r_out_padding, r.data + r_padding, r.size - r_padding);
@@ -269,12 +248,8 @@ static int gnutls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 	} else {
 		/* All others that aren't EC */
 		*out = jwt_malloc(sig_dat.size);
-		if (*out == NULL) {
-			// LCOV_EXCL_START
-			ret = 1;
-			goto sign_clean_privkey;
-			// LCOV_EXCL_STOP
-		}
+		if (*out == NULL)
+			SIGN_ERROR("Out of memory"); // LCOV_EXCL_LINE
 
 		/* Copy signature to out */
 		memcpy(*out, sig_dat.data, sig_dat.size);
@@ -287,16 +262,13 @@ static int gnutls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 sign_clean_privkey:
 	gnutls_privkey_deinit(privkey);
 
-sign_clean_key:
-	if (ret && *out) {
-		// LCOV_EXCL_START
-		jwt_freemem(*out);
-		*out = NULL;
-		// LCOV_EXCL_STOP
-	}
+	if (jwt->error)
+		jwt_freemem(*out); // LCOV_EXCL_LINE
 
-	return ret;
+	return jwt->error;
 }
+
+#define VERIFY_ERROR(_msg) { jwt_write_error(jwt, "JWT[GnuTLS]: " _msg); goto verify_clean_sig; }
 
 static int gnutls_verify_sha_pem(jwt_t *jwt, const char *head,
 				 unsigned int head_len, const char *sig_b64)
@@ -319,19 +291,11 @@ static int gnutls_verify_sha_pem(jwt_t *jwt, const char *head,
 		strlen(jwt->key->pem)
 	};
 
-	if (jwt->alg == JWT_ALG_ES256K) {
-		// LCOV_EXCL_START
-		jwt_write_error(jwt, "ES256K Not Supported on GnuTLS");
-		return 1;
-		// LCOV_EXCL_STOP
-	}
+	if (jwt->alg == JWT_ALG_ES256K)
+		VERIFY_ERROR("ES256K not supported") // LCOV_EXCL_LINE
 
-	if (gnutls_pubkey_init(&pubkey)) {
-		// LCOV_EXCL_START
-		ret = 1;
-		goto verify_clean_sig;
-		// LCOV_EXCL_STOP
-	}
+	if (gnutls_pubkey_init(&pubkey))
+		VERIFY_ERROR("Error initializing pubkey") // LCOV_EXCL_LINE
 
 	ret = gnutls_pubkey_import(pubkey, &cert_dat, GNUTLS_X509_FMT_PEM);
 	if (ret) {
@@ -339,33 +303,21 @@ static int gnutls_verify_sha_pem(jwt_t *jwt, const char *head,
 
 		/* Try loading as a private key, and extracting the pubkey. This is pefectly
 		 * legit. A JWK can have a private key with key_ops of SIGN and VERIFY. */
-		if (gnutls_privkey_init(&privkey)) {
-			// LCOV_EXCL_START
-			ret = 1;
-			goto verify_clean_pubkey;
-			// LCOV_EXCL_STOP
-		}
+		if (gnutls_privkey_init(&privkey))
+			VERIFY_ERROR("Failed loading key") // LCOV_EXCL_LINE
 
 		/* Try loading as a private key, and extracting the pubkey */
 		if (gnutls_privkey_import_x509_raw(privkey, &cert_dat,
 						   GNUTLS_X509_FMT_PEM,
 						   NULL, 0)) {
-			// LCOV_EXCL_START
-			ret = 1;
-			gnutls_privkey_deinit(privkey);
-			goto verify_clean_pubkey;
-			// LCOV_EXCL_STOP
+			VERIFY_ERROR("Failed importing key") // LCOV_EXCL_LINE
 		}
 
 		ret = gnutls_pubkey_import_privkey(pubkey, privkey, 0, 0);
 		gnutls_privkey_deinit(privkey);
 
-		if (ret) {
-			// LCOV_EXCL_START
-			ret = 1;
-			goto verify_clean_pubkey;
-			// LCOV_EXCL_STOP
-		}
+		if (ret)
+			VERIFY_ERROR("Faild to import key") // LCOV_EXCL_LINE
 	}
 
 	switch (jwt->alg) {
@@ -411,23 +363,17 @@ static int gnutls_verify_sha_pem(jwt_t *jwt, const char *head,
 		else if (alg == GNUTLS_PK_EDDSA_ED448) {
 			alg = GNUTLS_SIGN_EDDSA_ED448;
 		} else {
-			jwt_write_error(jwt, "Unknown EdDSA key type");
-			ret = 1;
-			goto verify_clean_pubkey;
+			VERIFY_ERROR("Unknown EdDSA key type") // LCOV_EXCL_LINE
 		}
 		break;
 
 	default:
-		ret = 1;
-		goto verify_clean_pubkey;
+		VERIFY_ERROR("Unknown alg") // LCOV_EXCL_LINE
 	}
 
 	sig = (unsigned char *)jwt_base64uri_decode(sig_b64, &sig_len);
-
-	if (sig == NULL) {
-		ret = 1;
-		goto verify_clean_pubkey;
-	}
+	if (sig == NULL)
+		VERIFY_ERROR("Error decoding signature") // LCOV_EXCL_LINE
 
 	/* Rebuild signature using r and s extracted from sig when jwt->alg
 	 * is ESxxx. */
@@ -453,10 +399,7 @@ static int gnutls_verify_sha_pem(jwt_t *jwt, const char *head,
 			s.size = 66;
 			s.data = sig + 66;
 		} else {
-			// LCOV_EXCL_START
-			ret = 1;
-			goto verify_clean_pubkey;
-			// LCOV_EXCL_STOP
+			VERIFY_ERROR("Irregular sig_len for ECDHA") // LCOV_EXCL_LINE
 		}
 
 		if (gnutls_encode_rs_value(&sig_dat, &r, &s) ||
@@ -466,6 +409,8 @@ static int gnutls_verify_sha_pem(jwt_t *jwt, const char *head,
 		if (sig_dat.data != NULL)
 			gnutls_free(sig_dat.data);
 
+		if (ret)
+			VERIFY_ERROR("Could not encode R/S values for ECDHA") // LCOV_EXCL_LINE
 		break;
 
 	default:
@@ -474,13 +419,11 @@ static int gnutls_verify_sha_pem(jwt_t *jwt, const char *head,
 		sig_dat.data = sig;
 
 		if (gnutls_pubkey_verify_data2(pubkey, alg, 0, &data, &sig_dat))
-			ret = 1;
+			VERIFY_ERROR("Failed to verify signature") // LCOV_EXCL_LINE
 	}
 
-verify_clean_pubkey:
-	gnutls_pubkey_deinit(pubkey);
-
 verify_clean_sig:
+	gnutls_pubkey_deinit(pubkey);
 	jwt_freemem(sig);
 
 	return ret;
