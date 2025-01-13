@@ -28,7 +28,7 @@ static jwt_value_error_t jwt_get_str(json_t *which, jwt_value_t *jval)
 
 	jval->str_val = json_string_value(val);
 	if (jval->str_val == NULL)
-		jval->error = JWT_VALUE_ERR_INVALID;
+		jval->error = JWT_VALUE_ERR_INVALID; // LCOV_EXCL_LINE
 
 	return jval->error;
 }
@@ -115,7 +115,7 @@ static jwt_value_error_t jwt_add_str(json_t *which, jwt_value_t *jval)
 		return jval->error;
 
 	if (json_object_set_new(which, jval->name, json_string(jval->str_val)))
-		jval->error = JWT_VALUE_ERR_INVALID;
+		jval->error = JWT_VALUE_ERR_INVALID; // LCOV_EXCL_LINE
 
 	return jval->error;
 }
@@ -130,7 +130,7 @@ static jwt_value_error_t jwt_add_int(json_t *which, jwt_value_t *jval)
 
 	if (json_object_set_new(which, jval->name,
 				json_integer((json_int_t)jval->int_val)))
-		jval->error = JWT_VALUE_ERR_INVALID;
+		jval->error = JWT_VALUE_ERR_INVALID; // LCOV_EXCL_LINE
 
 	return jval->error;
 }
@@ -144,7 +144,7 @@ static jwt_value_error_t jwt_add_bool(json_t *which, jwt_value_t *jval)
 		return jval->error;
 
 	if (json_object_set_new(which, jval->name, json_boolean(jval->bool_val)))
-		jval->error = JWT_VALUE_ERR_INVALID;
+		jval->error = JWT_VALUE_ERR_INVALID; // LCOV_EXCL_LINE
 
 	return jval->error;
 }
@@ -165,9 +165,9 @@ static jwt_value_error_t jwt_add_json(json_t *which, jwt_value_t *jval)
 	if (jval->name == NULL) {
 		/* Update the whole thing */
 		if (jval->replace)
-			ret = json_object_update(which, json_val);
+			ret = json_object_update(which, json_val); // LCOV_EXCL_LINE
 		else
-			ret = json_object_update_missing(which, json_val);
+			ret = json_object_update_missing(which, json_val); // LCOV_EXCL_LINE
 
 		if (ret)
 			jval->error = JWT_VALUE_ERR_INVALID;

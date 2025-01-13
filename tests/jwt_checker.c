@@ -39,6 +39,46 @@ START_TEST(verify)
 }
 END_TEST
 
+START_TEST(verify_bad_header)
+{
+	const char token[] = "eyJhbGcOiJub25lIn0.eyJpc3MiOiJka"
+	        "XNrLnN3aXNzZGlzay5jb20ifQ.";
+	jwt_checker_auto_t *checker = NULL;
+	int ret;
+
+	SET_OPS();
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+	ck_assert_int_eq(jwt_checker_error(checker), 0);
+
+	ret = jwt_checker_verify(checker, token);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_str_eq(jwt_checker_error_msg(checker),
+			 "Error parsing header");
+}
+END_TEST
+
+START_TEST(verify_bad_payload)
+{
+	const char token[] = "eyJhbGciOiJub25lIn0.eyJpc3MiOiJka"
+	        "XNrLnN3aXNzZGlzay5jb0ifQ.";
+	jwt_checker_auto_t *checker = NULL;
+	int ret;
+
+	SET_OPS();
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+	ck_assert_int_eq(jwt_checker_error(checker), 0);
+
+	ret = jwt_checker_verify(checker, token);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_str_eq(jwt_checker_error_msg(checker),
+			 "Error parsing payload");
+}
+END_TEST
+
 static int __verify_wcb(jwt_t *jwt, jwt_config_t *config)
 {
 	ck_assert_ptr_nonnull(jwt);
@@ -724,6 +764,8 @@ static Suite *libjwt_suite(const char *title)
 
 	tc_core = tcase_create("Verify");
 	tcase_add_loop_test(tc_core, verify, 0, i);
+	tcase_add_loop_test(tc_core, verify_bad_header, 0, i);
+	tcase_add_loop_test(tc_core, verify_bad_payload, 0, i);
 	tcase_add_loop_test(tc_core, verify_rsapss384, 0, i);
 	tcase_add_loop_test(tc_core, verify_wcb, 0, i);
 	tcase_add_loop_test(tc_core, verify_stress, 0, i);

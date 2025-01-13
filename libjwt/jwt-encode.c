@@ -36,9 +36,11 @@ int jwt_head_setup(jwt_t *jwt)
 		jwt_set_ADD_STR(&jval, "typ", "JWT");
 		if (jwt_header_add(jwt, &jval)) {
 			if (jval.error != JWT_VALUE_ERR_EXIST) {
+				// LCOV_EXCL_START
 				jwt_write_error(jwt,
 					"Error setting \"typ\" in header");
 				return 1;
+				// LCOV_EXCL_STOP
 			}
 		}
 	}
@@ -46,8 +48,10 @@ int jwt_head_setup(jwt_t *jwt)
 	jwt_set_ADD_STR(&jval, "alg", jwt_alg_str(jwt->alg));
 	jval.replace = 1;
 	if (jwt_header_add(jwt, &jval)) {
-		jwt_write_error(jwt, "Error setting \"typ\" in header");
+		// LCOV_EXCL_START
+		jwt_write_error(jwt, "Error setting \"alg\" in header");
 		return 1;
+		// LCOV_EXCL_STOP
 	}
 
 	return 0;
@@ -61,15 +65,17 @@ static int jwt_encode(jwt_t *jwt, char **out)
 	unsigned int sig_len;
 
 	if (out == NULL) {
+		// LCOV_EXCL_START
 		jwt_write_error(jwt, "No string passed to write out to");
 		return 1;
+		// LCOV_EXCL_STOP
 	}
 	*out = NULL;
 
 	/* First the header. */
 	ret = write_js(jwt->headers, &buf);
 	if (ret)
-		return 1;
+		return 1; // LCOV_EXCL_LINE
 	/* Encode it */
 	head_len = jwt_base64uri_encode(&head, buf, (int)strlen(buf));
 	jwt_freemem(buf);
@@ -82,8 +88,10 @@ static int jwt_encode(jwt_t *jwt, char **out)
 	/* Now the body. */
 	ret = write_js(jwt->grants, &buf);
 	if (ret) {
+		// LCOV_EXCL_START
 		jwt_write_error(jwt, "Error writing body");
 		return 1;
+		// LCOV_EXCL_STOP
 	}
 
 	body_len = jwt_base64uri_encode(&body, buf, (int)strlen(buf));
@@ -97,8 +105,10 @@ static int jwt_encode(jwt_t *jwt, char **out)
 	/* The part we need to sign, but add space for 2 dots and a nil */
 	buf = jwt_malloc(head_len + body_len + 3);
 	if (buf == NULL) {
+		// LCOV_EXCL_START
 		jwt_write_error(jwt, "Error allocating memory");
 		return 1;
+		// LCOV_EXCL_STOP
 	}
 
 	strcpy(buf, head);
@@ -118,8 +128,10 @@ static int jwt_encode(jwt_t *jwt, char **out)
 	ret = jwt_sign(jwt, &sig, &sig_len, buf, strlen(buf));
 	jwt_freemem(buf);
 	if (ret) {
+		// LCOV_EXCL_START
 		jwt_write_error(jwt, "Error allocating memory");
 		return ret;
+		// LCOV_EXCL_STOP
 	}
 
 	ret = jwt_base64uri_encode(&buf, sig, sig_len);

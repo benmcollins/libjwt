@@ -34,14 +34,14 @@ static json_t *jwt_base64uri_decode_to_json(char *src)
 	return js;
 }
 
-static int jwt_parse_body(jwt_t *jwt, char *body)
+static int jwt_parse_payload(jwt_t *jwt, char *payload)
 {
 	if (jwt->grants)
 		json_decrefp(&(jwt->grants));
 
-	jwt->grants = jwt_base64uri_decode_to_json(body);
+	jwt->grants = jwt_base64uri_decode_to_json(payload);
 	if (!jwt->grants) {
-		jwt_write_error(jwt, "Error parsing body");
+		jwt_write_error(jwt, "Error parsing payload");
 		return 1;
 	}
 
@@ -83,7 +83,7 @@ static int jwt_parse_head(jwt_t *jwt, char *head)
 int jwt_parse(jwt_t *jwt, const char *token, unsigned int *len)
 {
 	char_auto *head = NULL;
-	char *body, *sig;
+	char *payload, *sig;
 
 	head = jwt_strdup(token);
 
@@ -93,21 +93,21 @@ int jwt_parse(jwt_t *jwt, const char *token, unsigned int *len)
 	}
 
 	/* Find the components. */
-	for (body = head; body[0] != '.'; body++) {
-		if (body[0] == '\0') {
+	for (payload = head; payload[0] != '.'; payload++) {
+		if (payload[0] == '\0') {
 			jwt_write_error(jwt,
 				"No dot found looking for end of header");
 			return 1;
 		}
 	}
 
-	body[0] = '\0';
-	body++;
+	payload[0] = '\0';
+	payload++;
 
-	for (sig = body; sig[0] != '.'; sig++) {
+	for (sig = payload; sig[0] != '.'; sig++) {
 		if (sig[0] == '\0') {
 			jwt_write_error(jwt,
-				"No dot found looking for end of body");
+				"No dot found looking for end of payload");
 			return 1;
 		}
 	}
@@ -119,7 +119,7 @@ int jwt_parse(jwt_t *jwt, const char *token, unsigned int *len)
 	if (jwt_parse_head(jwt, head))
 		return 1;
 
-	if (jwt_parse_body(jwt, body))
+	if (jwt_parse_payload(jwt, payload))
 		return 1;
 
 	*len = sig - head;
