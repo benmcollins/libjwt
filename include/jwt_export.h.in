@@ -19,7 +19,6 @@
 #ifdef @STATIC_DEFINE@
 #  define @EXPORT_MACRO_NAME@
 #  define @NO_EXPORT_MACRO_NAME@
-#  define @CONSTRUCTOR_MACRO_NAME@
 #else
 #  ifndef @EXPORT_MACRO_NAME@
 #    ifdef @EXPORT_IMPORT_CONDITION@
