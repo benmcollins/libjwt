@@ -12,6 +12,7 @@ START_TEST(test_jwks_keyring_load)
 {
 	const jwk_item_t *item;
 	int i, ret;
+	int fails = 0;
 
 	SET_OPS();
 
@@ -44,13 +45,15 @@ START_TEST(test_jwks_keyring_load)
 
 		out = jwt_builder_generate(builder);
 		if (out == NULL) {
-			fprintf(stderr, "Gen KID(%d/%d): %s\n", i, alg,
+			fprintf(stderr, "Gen KID(%d/%s): %s\n", i,
+				jwt_alg_str(alg),
 				jwt_builder_error_msg(builder));
+			fails++;
 		}
-		ck_assert_ptr_nonnull(out);
 	}
+	ck_assert_int_eq(fails, 0);
 
-	ck_assert_int_eq(i, 22);
+	ck_assert_int_eq(i, 27);
 
 	ck_assert(jwks_item_free(g_jwk_set, 3));
 

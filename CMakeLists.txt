@@ -33,9 +33,10 @@ if (NOT DEFINED WITH_GNUTLS)
 endif()
 
 option(WITH_GNUTLS "Whether to use GnuTLS (default is auto detect)" ON)
+option(WITH_MBEDTLS "Whether to use mbedTLS (default is OFF)" OFF)
 option(WITH_TESTS "Whether to build and run the testsuite (default is ON)" ON)
 
-# Need at least one of these
+# Optional
 if (WITH_GNUTLS)
 	if (NOT GNUTLS_AUTO)
 		set(GNUTLS_REQUIRED REQUIRED)
@@ -43,7 +44,11 @@ if (WITH_GNUTLS)
 	pkg_check_modules(GNUTLS gnutls>=3.6.0 IMPORTED_TARGET
 			  ${GNUTLS_REQUIRED})
 endif()
+if (WITH_MBEDTLS)
+	pkg_check_modules(MBEDTLS mbedcrypto>=3.6.0 IMPORTED_TARGET)
+endif()
 
+# Required
 pkg_check_modules(OPENSSL openssl>=3.0.0 IMPORTED_TARGET
 		  REQUIRED)
 
@@ -100,6 +105,16 @@ if (GNUTLS_FOUND)
 	list(APPEND JWT_SOURCES
 	     libjwt/gnutls/sign-verify.c)
 	# libjwt/gnutls/jwk-parse.c
+endif()
+
+if (MBEDTLS_FOUND)
+	set(HAVE_CRYPTO TRUE)
+	add_definitions(-DHAVE_MBEDTLS)
+	target_link_libraries(jwt PUBLIC PkgConfig::MBEDTLS)
+	target_link_libraries(jwt_static PUBLIC PkgConfig::MBEDTLS)
+	list(APPEND JWT_SOURCES
+	     libjwt/mbedtls/sign-verify.c)
+        # libjwt/mbedtls/jwk-parse.c
 endif()
 
 set(HAVE_CRYPTO TRUE)
@@ -184,9 +199,11 @@ install(EXPORT ${LIBJWT_PROJECT}Targets
 
 # For pkg-config users
 unset(LIBJWT_LDFLAGS)
-foreach (FLAG ${JANSSON_LDFLAGS} ${OPENSSL_LDFLAGS} ${GNUTLS_LDFLAGS})
+foreach (FLAG ${JANSSON_LDFLAGS} ${OPENSSL_LDFLAGS} ${GNUTLS_LDFLAGS}
+	${MBEDTLS_LDFLAGS})
 	string(APPEND LIBJWT_LDFLAGS " " ${FLAG})
 endforeach()
+
 
 configure_file(libjwt/libjwt.pc.in libjwt.pc @ONLY)
 install(FILES ${CMAKE_BINARY_DIR}/libjwt.pc
