@@ -97,7 +97,15 @@ static int gnutls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 	/* For EC handling. */
 	int r_padding = 0, s_padding = 0, r_out_padding = 0,
 		s_out_padding = 0;
+	gnutls_privkey_t privkey;
 	size_t out_size;
+	gnutls_datum_t sig_dat, r, s;
+	gnutls_digest_algorithm_t alg;
+	int pk_alg, flags = 0;
+	unsigned int adj;
+
+	if (gnutls_privkey_init(&privkey))
+		SIGN_ERROR("Error initializing privkey"); // LCOV_EXCL_LINE
 
 	if (jwt->alg == JWT_ALG_ES256K)
 		SIGN_ERROR("ES256K not supported");
@@ -105,7 +113,6 @@ static int gnutls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 	if (jwt->key->pem == NULL)
 		SIGN_ERROR("No PEM found");
 
-	gnutls_privkey_t privkey;
 	gnutls_datum_t key_dat = {
 		(unsigned char *)jwt->key->pem,
 		strlen(jwt->key->pem)
@@ -114,13 +121,6 @@ static int gnutls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		(unsigned char *)str,
 		str_len
 	};
-	gnutls_datum_t sig_dat, r, s;
-	gnutls_digest_algorithm_t alg;
-	int pk_alg, flags = 0;
-	unsigned int adj;
-
-	if (gnutls_privkey_init(&privkey))
-		SIGN_ERROR("Error initializing privkey"); // LCOV_EXCL_LINE
 
 	/* Try loading as a private key, and extracting the pubkey */
 	if (gnutls_privkey_import_x509_raw(privkey, &key_dat,
@@ -283,6 +283,9 @@ static int gnutls_verify_sha_pem(jwt_t *jwt, const char *head,
 	int alg, ret = 0, sig_len;
 	unsigned char *sig = NULL;
 
+	if (gnutls_pubkey_init(&pubkey))
+		VERIFY_ERROR("Failed initializing pubkey") // LCOV_EXCL_LINE
+
 	if (jwt->key->pem == NULL)
 		return 1;
 
@@ -304,7 +307,7 @@ static int gnutls_verify_sha_pem(jwt_t *jwt, const char *head,
 		/* Try loading as a private key, and extracting the pubkey. This is pefectly
 		 * legit. A JWK can have a private key with key_ops of SIGN and VERIFY. */
 		if (gnutls_privkey_init(&privkey))
-			VERIFY_ERROR("Failed loading key") // LCOV_EXCL_LINE
+			VERIFY_ERROR("Failed initializing privkey") // LCOV_EXCL_LINE
 
 		/* Try loading as a private key, and extracting the pubkey */
 		if (gnutls_privkey_import_x509_raw(privkey, &cert_dat,
