@@ -12,6 +12,8 @@
 #include <mbedtls/pk.h>
 #include <mbedtls/ecdsa.h>
 #include <mbedtls/error.h>
+#include <mbedtls/entropy.h>
+#include <mbedtls/ctr_drbg.h>
 #include <string.h>
 
 #include <jwt.h>
@@ -118,18 +120,28 @@ static int mbedtls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 				const char *str, unsigned int str_len)
 {
 	size_t out_size;
-	mbedtls_pk_type_t type;
 	mbedtls_pk_context pk;
+	const mbedtls_md_info_t *md_info;
 	unsigned char hash[MBEDTLS_MD_MAX_SIZE];
 	unsigned char sig[MBEDTLS_PK_SIGNATURE_MAX_SIZE];
+	mbedtls_entropy_context entropy;
+	mbedtls_ctr_drbg_context ctr_drbg;
 	size_t sig_len = 0;
-	mbedtls_md_type_t md_type;
 	int ret = 1;
-
-	mbedtls_pk_init(&pk);
+	const char *pers = "libjwt_ecdsa_sign";
 
 	if (jwt->key->pem == NULL) {
 		jwt_write_error(jwt, "Not a compatible request for mbedTLS");
+		return 1;
+	}
+
+	mbedtls_pk_init(&pk);
+	mbedtls_entropy_init(&entropy);
+	mbedtls_ctr_drbg_init(&ctr_drbg);
+
+	if (mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func,
+			&entropy, (const unsigned char *)pers, strlen(pers))) {
+		jwt_write_error(jwt, "Failed RNG setup for mbedTLS");
 		goto sign_clean_key;
 	}
 
@@ -143,76 +155,63 @@ static int mbedtls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 
 	/* Determine the hash algorithm */
 	switch (jwt->alg) {
-	/* RSA */
 	case JWT_ALG_RS256:
-		type = MBEDTLS_PK_RSA;
-		md_type = MBEDTLS_MD_SHA256;
-		break;
-	case JWT_ALG_RS384:
-		type = MBEDTLS_PK_RSA;
-		md_type = MBEDTLS_MD_SHA384;
-		break;
-	case JWT_ALG_RS512:
-		type = MBEDTLS_PK_RSA;
-		md_type = MBEDTLS_MD_SHA512;
-		break;
-
-	/* EC */
+	case JWT_ALG_PS256:
 	case JWT_ALG_ES256:
 	case JWT_ALG_ES256K:
-		type = MBEDTLS_PK_ECDSA;
-		md_type = MBEDTLS_MD_SHA256;
+		md_info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
 		break;
-	case JWT_ALG_ES384:
-		type = MBEDTLS_PK_ECDSA;
-		md_type = MBEDTLS_MD_SHA384;
-		break;
-	case JWT_ALG_ES512:
-		type = MBEDTLS_PK_ECDSA;
-		md_type = MBEDTLS_MD_SHA512;
-		break;
-
-	/* RSA-PSS */
-	case JWT_ALG_PS256:
-		type = MBEDTLS_PK_RSASSA_PSS;
-		md_type = MBEDTLS_MD_SHA256;
-		break;
+	case JWT_ALG_RS384:
 	case JWT_ALG_PS384:
-		type = MBEDTLS_PK_RSASSA_PSS;
-		md_type = MBEDTLS_MD_SHA384;
+	case JWT_ALG_ES384:
+		md_info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA384);
 		break;
+	case JWT_ALG_RS512:
 	case JWT_ALG_PS512:
-		type = MBEDTLS_PK_RSASSA_PSS;
-		md_type = MBEDTLS_MD_SHA512;
+	case JWT_ALG_ES512:
+		md_info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA512);
 		break;
-
-	/* EdDSA */
-
 	default:
 		jwt_write_error(jwt, "Unsupported algorithm");
 		goto sign_clean_key;
 	}
 
-	(void)type;
+	if (md_info == NULL) {
+		jwt_write_error(jwt, "Failed to get hash algorithm info");
+		goto sign_clean_key;
+	}
 
-	if (mbedtls_md(mbedtls_md_info_from_type(md_type),
-		       (unsigned char *)str, str_len, hash)) {
+	/* Compute the hash of the input string */
+	if (mbedtls_md(md_info, (unsigned char *)str, str_len, hash)) {
 		jwt_write_error(jwt, "Error initializing md context");
 		goto sign_clean_key;
 	}
 
-	/* Sign and get the output. */
-	if (mbedtls_pk_sign(&pk, md_type, hash, 0, sig, sizeof(sig), &sig_len,
-			    NULL, NULL)) {
-		jwt_write_error(jwt, "Error signing token");
-		goto sign_clean_key;
-	}
-
-
 	/* For EC keys, convert signature to R/S format */
 	if (mbedtls_pk_can_do(&pk, MBEDTLS_PK_ECDSA)) {
-		int r_out_padding = 0, s_out_padding = 0;
-		size_t adj = 0;
+		mbedtls_mpi r, s;
+		mbedtls_ecdsa_context ecdsa;
+		int adj;
+
+		mbedtls_ecdsa_init(&ecdsa);
+		mbedtls_mpi_init(&r);
+		mbedtls_mpi_init(&s);
+
+		/* Extract ECDSA key */
+		ret = mbedtls_ecdsa_from_keypair(&ecdsa, mbedtls_pk_ec(pk));
+		if (ret) {
+			jwt_write_error(jwt,
+				"Failed to extract ECDSA key");
+			goto sign_clean_key;
+		}
+
+		if (mbedtls_ecdsa_sign(&ecdsa.private_grp, &r, &s,
+				       &ecdsa.private_d, hash,
+				       mbedtls_md_get_size(md_info),
+				       mbedtls_ctr_drbg_random, &ctr_drbg)) {
+			jwt_write_error(jwt, "Error signing token");
+			goto sign_clean_key;
+		}
 
 		/* Determine R/S sizes based on algorithm */
 		switch (jwt->alg) {
@@ -241,13 +240,28 @@ static int mbedtls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		}
 		memset(*out, 0, out_size);
 
-		/* Handle R and S padding */
-		memcpy(*out + r_out_padding, sig, adj);
-		memcpy(*out + adj + s_out_padding, sig + adj, adj);
+		mbedtls_mpi_write_binary(&r, (unsigned char *)(*out), adj);
+		mbedtls_mpi_write_binary(&s, (unsigned char *)(*out) + adj, adj);
 
 		*len = out_size;
+
+		mbedtls_mpi_free(&r);
+		mbedtls_mpi_free(&s);
+		mbedtls_ecdsa_free(&ecdsa);
 	} else {
-		/* For non-EC, directly use the signature */
+		/* For RSA, use the sig directly */
+		if (mbedtls_rsa_pkcs1_sign(mbedtls_pk_rsa(pk),
+					   mbedtls_ctr_drbg_random,
+					   &ctr_drbg,
+					   mbedtls_md_get_type(md_info),
+					   mbedtls_md_get_size(md_info),
+					   hash, sig)) {
+			jwt_write_error(jwt, "Error signing token");
+			goto sign_clean_key;
+		}
+
+		sig_len = mbedtls_pk_rsa(pk)->private_len;
+
 		*out = jwt_malloc(sig_len);
 		if (*out == NULL) {
 			jwt_write_error(jwt,
@@ -262,6 +276,8 @@ static int mbedtls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 
 sign_clean_key:
 	mbedtls_pk_free(&pk);
+	mbedtls_ctr_drbg_free(&ctr_drbg);
+	mbedtls_entropy_free(&entropy);
 
 	return ret;
 }
@@ -353,7 +369,6 @@ static int mbedtls_verify_sha_pem(jwt_t *jwt, const char *head,
 			mbedtls_mpi_read_binary(&s, sig + r_size, r_size);
 		} else {
 			jwt_write_error(jwt, "Invalid ECDSA signature size");
-			ret = 1;
 			goto verify_clean_sig;
 		}
 
@@ -399,12 +414,8 @@ static int mbedtls_verify_sha_pem(jwt_t *jwt, const char *head,
 		}
 	} else {
 		jwt_write_error(jwt, "Unsupported key type for verification");
-		ret = 1;
 		goto verify_clean_sig;
 	}
-
-	/* Success */
-	ret = 0;
 
 verify_clean_sig:
 	jwt_freemem(sig);
@@ -412,7 +423,7 @@ verify_clean_sig:
 verify_clean_key:
 	mbedtls_pk_free(&pk);
 
-	return ret;
+	return jwt->error;
 }
 
 /* Export our ops */
