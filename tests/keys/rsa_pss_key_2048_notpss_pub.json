@@ -1,0 +1,15 @@
+{
+  "libjwt.io:comment": "RSA key with no alg for use in RSASSA-PSS",
+  "keys": [
+    {
+      "use": "sig",
+      "key_ops": [
+        "verify"
+      ],
+      "kid": "d5bf8cf1-bc4a-482f-920c-b90b8097f118",
+      "kty": "RSA",
+      "n": "ybi_3guc70NLoGecAdyAo0dJYLRXCYFdx7Iaq20REXb5SsyqSjGV_KEr8sdyFhr_PasKb1XbV7G8_gdtxU-Sl5dGI9h8mymIQ7VzbyEhwQqjzdyCKoz2levKPgjsTDN93IQiNfSOfc4qUux5viWQaPWt3bzpvOZXHcMUbzEz_jahKZPU_hMq_N3DroE6xFYB91fb74qHOC5RGMPjskUYKOjCtj-v-sZqznuckf2x0a2r5X--gsqGZT8dHaX9smyrpBbV9Y_g1VZ-CO8XFdRiHWth98FnlbEeHsrXbho9CE2GEACWvRRApMn1uSpghpENbkefpbYCIN7tq6X4lKvSYQZARiLkD1ELHcmWCX-cpIlfxihrKpVnRR4iLJNl33VtOBIPaMvtifojkLxsi3dtyJkcEFQI_kXbKW8Kdw5Fd-UOcsQf8PKk7k9LgFaH8GZRFhbwT0bLjjy0UIV5NDHcSozydV2uQh-ON6BsygCSvME8V4lu9z74Rq3T7eP25pC-Q0mN-1n7QGQL4zKshkKNh6Rx-QCP0hVGNosL6MoLzseluapTqnHrQEHTbG1Jm-WL_ces3thH7PySyWKJcUQ_iWBD0FFkya0KTvTfWvBg_WPdqBHLIQh6ie_7lOFyE56FbRYuRU0cF8-NykA_6HN247pFtw1PSgQ68Dqtv9bZMFU",
+      "e": "AQAB"
+    }
+  ]
+}

@@ -88,6 +88,9 @@ static char *__builder(const char *cops, const char *priv, jwt_alg_t alg)
 	ck_assert_int_eq(ret, 0);
 
 	out = jwt_builder_generate(builder);
+	if (out == NULL)
+		fprintf(stderr, "BuildErr[%s]: %s\n", jwt_alg_str(alg),
+			jwt_builder_error_msg(builder));
 	ck_assert_ptr_nonnull(out);
 
 	free_key();
@@ -115,8 +118,8 @@ static void __checker(const char *cops, const char *pub, jwt_alg_t alg,
 
 	ret = jwt_checker_verify(checker, token);
 	if (ret)
-		fprintf(stderr, "E(%s)[%s]: %s\n", jwt_get_crypto_ops(),
-			jwt_alg_str(alg), jwt_checker_error_msg(checker));
+		fprintf(stderr, "CheckErr[%s]: %s\n", jwt_alg_str(alg),
+			jwt_checker_error_msg(checker));
 	ck_assert_int_eq(ret, 0);
 
 	free_key();
@@ -133,6 +136,8 @@ static void __flip_one(const char *priv, const char *pub, jwt_alg_t alg)
 
 		/* Generate on Here */
 		out = __builder(jwt_test_ops[i].name, priv, alg);
+		if (out == NULL)
+			continue;
 
 		for (c = 0; c < ARRAY_SIZE(jwt_test_ops); c++) {
 			/* Test everywhere */
@@ -150,6 +155,14 @@ static void __flip_one(const char *priv, const char *pub, jwt_alg_t alg)
 START_TEST(__name)				\
 {						\
         __flip_one(#__name ".json",		\
+		   #__pub ".json", __alg);	\
+}						\
+END_TEST
+
+#define FLIPFLOP_KEY2(__name, __pub, __alg)	\
+START_TEST(rsa_no_alg_ ## __alg)		\
+{						\
+	__flip_one(#__name ".json",		\
 		   #__pub ".json", __alg);	\
 }						\
 END_TEST
@@ -191,6 +204,27 @@ FLIPFLOP_KEY(rsa_pss_key_2048_512,
 	     rsa_pss_key_2048_512_pub,
 	     JWT_ALG_PS512);
 
+/* This key is RSA and does not have an alg set. It can be used for any of the
+ * PS and RS algorithms, so test and make sure that works. */
+FLIPFLOP_KEY2(rsa_pss_key_2048_notpss,
+	      rsa_pss_key_2048_notpss_pub,
+	      JWT_ALG_PS256);
+FLIPFLOP_KEY2(rsa_pss_key_2048_notpss,
+	      rsa_pss_key_2048_notpss_pub,
+	      JWT_ALG_PS384);
+FLIPFLOP_KEY2(rsa_pss_key_2048_notpss,
+	      rsa_pss_key_2048_notpss_pub,
+	      JWT_ALG_PS512);
+FLIPFLOP_KEY2(rsa_pss_key_2048_notpss,
+	      rsa_pss_key_2048_notpss_pub,
+	      JWT_ALG_RS256);
+FLIPFLOP_KEY2(rsa_pss_key_2048_notpss,
+	      rsa_pss_key_2048_notpss_pub,
+	      JWT_ALG_RS384);
+FLIPFLOP_KEY2(rsa_pss_key_2048_notpss,
+	      rsa_pss_key_2048_notpss_pub,
+	      JWT_ALG_RS512);
+
 FLIPFLOP_KEY(oct_key_256,
 	     oct_key_256,
 	     JWT_ALG_HS256);
@@ -225,6 +259,14 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_test(tc_core, rsa_pss_key_2048_384);
 	tcase_add_test(tc_core, rsa_pss_key_2048_512);
 
+	/* A set of checks */
+	tcase_add_test(tc_core, rsa_no_alg_JWT_ALG_PS256);
+	tcase_add_test(tc_core, rsa_no_alg_JWT_ALG_PS384);
+	tcase_add_test(tc_core, rsa_no_alg_JWT_ALG_PS512);
+	tcase_add_test(tc_core, rsa_no_alg_JWT_ALG_RS256);
+	tcase_add_test(tc_core, rsa_no_alg_JWT_ALG_RS384);
+	tcase_add_test(tc_core, rsa_no_alg_JWT_ALG_RS512);
+
 	tcase_add_test(tc_core, oct_key_256);
 	tcase_add_test(tc_core, oct_key_384);
 	tcase_add_test(tc_core, oct_key_512);
@@ -244,5 +286,5 @@ static Suite *libjwt_suite(const char *title)
 
 int main(void)
 {
-	JWT_TEST_MAIN("OpenSSL / GnuTLS Cross Testing");
+	JWT_TEST_MAIN("OpenSSL, GnuTLS, MbedTLS Cross Testing");
 }
