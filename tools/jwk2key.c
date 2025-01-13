@@ -29,6 +29,7 @@ static void write_key_file(const jwk_item_t *item)
 		pre = "oct";
 		sprintf(bits, "%d", jwks_item_key_bits(item));
 		name = bits;
+		break;
 	case JWK_KEY_TYPE_EC:
 		pre = "ec";
 		name = jwks_item_curve(item);
