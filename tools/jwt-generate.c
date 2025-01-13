@@ -261,7 +261,9 @@ int main(int argc, char *argv[])
 			printf("\033[0;92m[ALG]\033[0m %s (from key)",
 			       jwt_alg_str(jwks_item_alg(item)));
 			alg = jwks_item_alg(item);
-		} else {
+		} else if (alg != JWT_ALG_NONE) {
+			printf("\033[0;92m[ALG]\033[0m %s (from options)", jwt_alg_str(alg));
+		} else  {
 			printf("\033[0;91m[ALG]\033[0m %s", jwt_alg_str(alg));
 		}
 		printf("\n");
