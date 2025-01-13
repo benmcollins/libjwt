@@ -18,27 +18,32 @@ static void write_key_file(const jwk_item_t *item)
 	const char *pre, *name;
 	int priv = jwks_item_is_private(item);
 	char file_name[BUFSIZ];
+	char bits[8];
 	FILE *fp;
 
 	if (jwks_item_error(item) || jwks_item_pem(item) == NULL)
 		return;
 
 	switch (jwks_item_kty(item)) {
+	case JWK_KEY_TYPE_OCT:
+		pre = "oct";
+		sprintf(bits, "%d", jwks_item_key_bits(item));
+		name = bits;
 	case JWK_KEY_TYPE_EC:
 		pre = "ec";
 		name = jwks_item_curve(item);
 		break;
 	case JWK_KEY_TYPE_RSA:
+		sprintf(bits, "%d", jwks_item_key_bits(item));
+		name = bits;
 		switch (jwks_item_alg(item)) {
 		case JWT_ALG_PS256:
 		case JWT_ALG_PS384:
 		case JWT_ALG_PS512:
-			pre = "rsa-pss";
-			name = "BITS";
+			pre = "rsa_pss";
 			break;
 		default:
 			pre = "rsa";
-			name = "BITS";
 		}
 		break;
 	case JWK_KEY_TYPE_OKP:
