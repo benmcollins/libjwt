@@ -302,14 +302,12 @@ static int mbedtls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		*len = sig_len;
 	}
 
-	ret = 0; /* Success */
-
 sign_clean_key:
 	mbedtls_pk_free(&pk);
 	mbedtls_ctr_drbg_free(&ctr_drbg);
 	mbedtls_entropy_free(&entropy);
 
-	return ret;
+	return jwt->error;
 }
 
 static int mbedtls_verify_sha_pem(jwt_t *jwt, const char *head,
@@ -432,9 +430,10 @@ static int mbedtls_verify_sha_pem(jwt_t *jwt, const char *head,
 					mbedtls_md_get_size(md_info),
 					hash, sig);
 		} else {
-			ret = mbedtls_pk_verify(&pk,
-					mbedtls_md_get_type(md_info), hash,
-				mbedtls_md_get_size(md_info), sig, sig_len);
+			ret = mbedtls_rsa_pkcs1_verify(mbedtls_pk_rsa(pk),
+					mbedtls_md_get_type(md_info),
+					mbedtls_md_get_size(md_info),
+					hash, sig);
 		}
 
 		if (ret) {
