@@ -116,6 +116,8 @@ static int mbedtls_verify_sha_hmac(jwt_t *jwt, const char *head,
 	return ret;
 }
 
+#define SIGN_ERROR(_msg) { jwt_write_error(jwt, "JWT[MbedTLS]: " _msg); goto sign_clean_key; }
+
 static int mbedtls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 				const char *str, unsigned int str_len)
 {
@@ -127,31 +129,24 @@ static int mbedtls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 	mbedtls_entropy_context entropy;
 	mbedtls_ctr_drbg_context ctr_drbg;
 	size_t sig_len = 0;
-	int ret = 1;
 	const char *pers = "libjwt_ecdsa_sign";
 
-	if (jwt->key->pem == NULL) {
-		jwt_write_error(jwt, "Not a compatible request for mbedTLS");
-		return 1;
-	}
+	if (jwt->key->pem == NULL)
+		SIGN_ERROR("Key is not compatible"); // LCOV_EXCL_LINE
 
 	mbedtls_pk_init(&pk);
 	mbedtls_entropy_init(&entropy);
 	mbedtls_ctr_drbg_init(&ctr_drbg);
 
 	if (mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func,
-			&entropy, (const unsigned char *)pers, strlen(pers))) {
-		jwt_write_error(jwt, "Failed RNG setup for mbedTLS");
-		goto sign_clean_key;
-	}
+			&entropy, (const unsigned char *)pers, strlen(pers)))
+		SIGN_ERROR("Failed RNG setup"); // LCOV_EXCL_LINE
 
 	/* Load the private key */
 	if (mbedtls_pk_parse_key(&pk, (unsigned char *)jwt->key->pem,
 				 strlen(jwt->key->pem) + 1,
-				 NULL, 0, NULL, NULL)) {
-		jwt_write_error(jwt, "Error parsing private key");
-		goto sign_clean_key;
-	}
+				 NULL, 0, NULL, NULL))
+		SIGN_ERROR("Error parsing private key"); // LCOV_EXCL_LINE
 
 	/* Determine the hash algorithm */
 	switch (jwt->alg) {
@@ -172,20 +167,12 @@ static int mbedtls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		md_info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA512);
 		break;
 	default:
-		jwt_write_error(jwt, "Unsupported algorithm");
-		goto sign_clean_key;
-	}
-
-	if (md_info == NULL) {
-		jwt_write_error(jwt, "Failed to get hash algorithm info");
-		goto sign_clean_key;
+		SIGN_ERROR("Unsupported algorithm"); // LCOV_EXCL_LINE
 	}
 
 	/* Compute the hash of the input string */
-	if (mbedtls_md(md_info, (unsigned char *)str, str_len, hash)) {
-		jwt_write_error(jwt, "Error initializing md context");
-		goto sign_clean_key;
-	}
+	if (mbedtls_md(md_info, (unsigned char *)str, str_len, hash))
+		SIGN_ERROR("Error initializaing md context"); // LCOV_EXCL_LINE
 
 	/* For EC keys, convert signature to R/S format */
 	if (mbedtls_pk_can_do(&pk, MBEDTLS_PK_ECDSA)) {
@@ -198,20 +185,14 @@ static int mbedtls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		mbedtls_mpi_init(&s);
 
 		/* Extract ECDSA key */
-		ret = mbedtls_ecdsa_from_keypair(&ecdsa, mbedtls_pk_ec(pk));
-		if (ret) {
-			jwt_write_error(jwt,
-				"Failed to extract ECDSA key");
-			goto sign_clean_key;
-		}
+		if (mbedtls_ecdsa_from_keypair(&ecdsa, mbedtls_pk_ec(pk)))
+			SIGN_ERROR("Error getting ECDSA keypair"); // LCOV_EXCL_LINE
 
 		if (mbedtls_ecdsa_sign(&ecdsa.private_grp, &r, &s,
 				       &ecdsa.private_d, hash,
 				       mbedtls_md_get_size(md_info),
-				       mbedtls_ctr_drbg_random, &ctr_drbg)) {
-			jwt_write_error(jwt, "Error signing token");
-			goto sign_clean_key;
-		}
+				       mbedtls_ctr_drbg_random, &ctr_drbg))
+			SIGN_ERROR("Error signing token"); // LCOV_EXCL_LINE
 
 		/* Determine R/S sizes based on algorithm */
 		switch (jwt->alg) {
@@ -226,18 +207,13 @@ static int mbedtls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 			adj = 66;
 			break;
 		default:
-			jwt_write_error(jwt,
-				"Invalid EC alg");
-			goto sign_clean_key;
+			SIGN_ERROR("Unknown EC alg"); // LCOV_EXCL_LINE
 		}
 
 		out_size = adj * 2;
 		*out = jwt_malloc(out_size);
-		if (*out == NULL) {
-			jwt_write_error(jwt,
-				"Failed to allocate output buffer");
-			goto sign_clean_key;
-		}
+		if (*out == NULL)
+			SIGN_ERROR("Out of memory"); // LCOV_EXCL_LINE
 		memset(*out, 0, out_size);
 
 		mbedtls_mpi_write_binary(&r, (unsigned char *)(*out), adj);
@@ -253,22 +229,16 @@ static int mbedtls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		case JWT_ALG_PS256:
 		case JWT_ALG_PS384:
 		case JWT_ALG_PS512:
-			ret = mbedtls_rsa_set_padding(mbedtls_pk_rsa(pk),
+			if (mbedtls_rsa_set_padding(mbedtls_pk_rsa(pk),
 					MBEDTLS_RSA_PKCS_V21,
-					mbedtls_md_get_type(md_info));
-			if (ret) {
-				jwt_write_error(jwt, "Failed to set RSASSA-PSS padding");
-				goto sign_clean_key;
-			}
+					mbedtls_md_get_type(md_info)))
+				SIGN_ERROR("Failed setting RSASSA-PSS padding"); // LCOV_EXCL_LINE
 
-			ret = mbedtls_rsa_rsassa_pss_sign(mbedtls_pk_rsa(pk),
+			if (mbedtls_rsa_rsassa_pss_sign(mbedtls_pk_rsa(pk),
 					mbedtls_ctr_drbg_random, &ctr_drbg,
 					mbedtls_md_get_type(md_info),
-					mbedtls_md_get_size(md_info), hash, sig);
-			if (ret) {
-				jwt_write_error(jwt, "Failed to sign RSASSA-PSS");
-				goto sign_clean_key;
-			}
+					mbedtls_md_get_size(md_info), hash, sig))
+				SIGN_ERROR("Failed signing RSASSA-PSS"); // LCOV_EXCL_LINE
 			break;
 
 		case JWT_ALG_RS256:
@@ -279,25 +249,19 @@ static int mbedtls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 						   &ctr_drbg,
 						   mbedtls_md_get_type(md_info),
 						   mbedtls_md_get_size(md_info),
-						   hash, sig)) {
-				jwt_write_error(jwt, "Error signing token");
-				goto sign_clean_key;
-			}
+						   hash, sig))
+				SIGN_ERROR("Error signing token"); // LCOV_EXCL_LINE
 			break;
 
 		default:
-			jwt_write_error(jwt, "Unexpected algorithm");
-			goto sign_clean_key;
+			SIGN_ERROR("Unexpected algorithm"); // LCOV_EXCL_LINE
 		}
 
 		sig_len = mbedtls_pk_rsa(pk)->private_len;
 
 		*out = jwt_malloc(sig_len);
-		if (*out == NULL) {
-			jwt_write_error(jwt,
-				"Failed to allocate output buffer");
-			goto sign_clean_key;
-		}
+		if (*out == NULL)
+			SIGN_ERROR("Out of memory"); // LCOV_EXCL_LINE
 		memcpy(*out, sig, sig_len);
 		*len = sig_len;
 	}
@@ -309,6 +273,8 @@ sign_clean_key:
 
 	return jwt->error;
 }
+
+#define VERIFY_ERROR(_msg) { jwt_write_error(jwt, "JWT[MbedTLS]: " _msg); goto verify_clean_key; }
 
 static int mbedtls_verify_sha_pem(jwt_t *jwt, const char *head,
 				  unsigned int head_len, const char *sig_b64)
@@ -330,14 +296,12 @@ static int mbedtls_verify_sha_pem(jwt_t *jwt, const char *head,
 					  jwt->key->pem,
 					  strlen(jwt->key->pem) + 1);
 	if (ret) {
-		ret = mbedtls_pk_parse_key(&pk, (const unsigned char *)
+		/* Try loading as private key... */
+		if (mbedtls_pk_parse_key(&pk, (const unsigned char *)
 					   jwt->key->pem,
 					   strlen(jwt->key->pem) + 1,
-					   NULL, 0, NULL, NULL);
-		if (ret) {
-			jwt_write_error(jwt, "Failed to parse key");
-			goto verify_clean_key;
-		}
+					   NULL, 0, NULL, NULL))
+			VERIFY_ERROR("Failed to parse key"); // LCOV_EXCL_LINE
 	}
 
 	/* Determine the hash algorithm */
@@ -359,28 +323,21 @@ static int mbedtls_verify_sha_pem(jwt_t *jwt, const char *head,
 		md_info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA512);
 		break;
 	default:
-		jwt_write_error(jwt, "Unsupported algorithm");
-		goto verify_clean_key;
+		VERIFY_ERROR("Unsupported algorithm"); // LCOV_EXCL_LINE
 	}
 
-	if (md_info == NULL) {
-		jwt_write_error(jwt, "Failed to get hash algorithm info");
-		goto verify_clean_key;
-	}
+	if (md_info == NULL)
+		VERIFY_ERROR("Failed to get hash alg info"); // LCOV_EXCL_LINE
 
 	/* Compute the hash of the input string */
 	if ((ret = mbedtls_md(md_info, (const unsigned char *)head, head_len,
-			      hash))) {
-		jwt_write_error(jwt, "Failed to compute hash: %d", ret);
-		goto verify_clean_key;
-	}
+			      hash)))
+		VERIFY_ERROR("Failed to computer hash"); // LCOV_EXCL_LINE
 
 	/* Decode the base64url signature */
 	sig = jwt_base64uri_decode(sig_b64, (int *)&sig_len);
-	if (sig == NULL) {
-		jwt_write_error(jwt, "Failed to decode signature");
-		goto verify_clean_key;
-	}
+	if (sig == NULL)
+		VERIFY_ERROR("Failed to decode signature"); // LCOV_EXCL_LINE
 
 	/* Handle ECDSA R/S format conversion */
 	if (mbedtls_pk_can_do(&pk, MBEDTLS_PK_ECDSA)) {
@@ -396,26 +353,17 @@ static int mbedtls_verify_sha_pem(jwt_t *jwt, const char *head,
 			mbedtls_mpi_read_binary(&r, sig, r_size);
 			mbedtls_mpi_read_binary(&s, sig + r_size, r_size);
 		} else {
-			jwt_write_error(jwt, "Invalid ECDSA signature size");
-			goto verify_clean_sig;
+			VERIFY_ERROR("Invalid ECDSA sig size"); // LCOV_EXCL_LINE
 		}
 
 		/* Extract ECDSA public key */
-		ret = mbedtls_ecdsa_from_keypair(&ecdsa, mbedtls_pk_ec(pk));
-		if (ret) {
-			jwt_write_error(jwt,
-				"Failed to extract ECDSA public key");
-			goto verify_clean_sig;
-		}
+		if (mbedtls_ecdsa_from_keypair(&ecdsa, mbedtls_pk_ec(pk)))
+			VERIFY_ERROR("Failed to extract ECDSA public key"); // LCOV_EXCL_LINE
 
 		/* Verify ECDSA signature */
-		ret = mbedtls_ecdsa_verify(&ecdsa.private_grp, hash,
-			mbedtls_md_get_size(md_info), &ecdsa.private_Q, &r, &s);
-		if (ret) {
-			jwt_write_error(jwt,
-				"ECDSA signature verification failed");
-			goto verify_clean_sig;
-		}
+		if (mbedtls_ecdsa_verify(&ecdsa.private_grp, hash,
+			mbedtls_md_get_size(md_info), &ecdsa.private_Q, &r, &s))
+			VERIFY_ERROR("ECDSA signature verification failed"); // LCOV_EXCL_LINE
 
 		/* Free ECDSA resources */
 		mbedtls_mpi_free(&r);
@@ -425,31 +373,24 @@ static int mbedtls_verify_sha_pem(jwt_t *jwt, const char *head,
 		/* Verify RSA or RSA-PSS signature */
 		if (jwt->alg == JWT_ALG_PS256 || jwt->alg == JWT_ALG_PS384 ||
 		    jwt->alg == JWT_ALG_PS512) {
-			ret = mbedtls_rsa_rsassa_pss_verify(mbedtls_pk_rsa(pk),
+			if (mbedtls_rsa_rsassa_pss_verify(mbedtls_pk_rsa(pk),
 					mbedtls_md_get_type(md_info),
 					mbedtls_md_get_size(md_info),
-					hash, sig);
+					hash, sig))
+				VERIFY_ERROR("RSASSA-PSS verify failed"); // LCOV_EXCL_LINE
 		} else {
-			ret = mbedtls_rsa_pkcs1_verify(mbedtls_pk_rsa(pk),
+			if (mbedtls_rsa_pkcs1_verify(mbedtls_pk_rsa(pk),
 					mbedtls_md_get_type(md_info),
 					mbedtls_md_get_size(md_info),
-					hash, sig);
-		}
-
-		if (ret) {
-			jwt_write_error(jwt,
-				"RSA signature verification failed");
-			goto verify_clean_sig;
+					hash, sig))
+				VERIFY_ERROR("RSA verify failed"); // LCOV_EXCL_LINE
 		}
 	} else {
-		jwt_write_error(jwt, "Unsupported key type for verification");
-		goto verify_clean_sig;
+		VERIFY_ERROR("Unexpected key typ"); // LCOV_EXCL_LINE
 	}
 
-verify_clean_sig:
-	jwt_freemem(sig);
-
 verify_clean_key:
+	jwt_freemem(sig);
 	mbedtls_pk_free(&pk);
 
 	return jwt->error;

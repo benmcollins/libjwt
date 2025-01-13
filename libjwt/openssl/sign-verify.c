@@ -17,6 +17,7 @@
 #include <openssl/bn.h>
 #include <openssl/rsa.h>
 #include <openssl/opensslv.h>
+#include <openssl/err.h>
 
 #include <jwt.h>
 
@@ -185,7 +186,7 @@ static int jwt_ec_d2i(jwt_t *jwt, char **out, unsigned int *len,
 	return 0;
 }
 
-#define SIGN_ERROR() { ret = 1; goto jwt_sign_sha_pem_done; }
+#define SIGN_ERROR(_msg) { jwt_write_error(jwt, "JWT[OpenSSL]: " _msg); goto jwt_sign_sha_pem_done; }
 
 static int openssl_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 				const char *str, unsigned int str_len)
@@ -197,11 +198,10 @@ static int openssl_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 	int type;
 	EVP_PKEY *pkey = NULL;
 	unsigned char *sig = NULL;
-	int ret = 0;
 	size_t slen;
 
 	if (!ops_compat(jwt->key, JWT_CRYPTO_OPS_OPENSSL))
-		return 1; // LCOV_EXCL_LINE
+		SIGN_ERROR("Key is not compatible"); // LCOV_EXCL_LINE
 
 	pkey = jwt->key->provider_data;
 
@@ -256,7 +256,7 @@ static int openssl_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		alg = EVP_md_null();
 		type = EVP_PKEY_id(pkey);
 		if (type != EVP_PKEY_ED25519 && type != EVP_PKEY_ED448)
-			type = -1;
+			SIGN_ERROR("Unknown EdDSA curve"); // LCOV_EXCL_LINE
 		break;
 
 	default:
@@ -264,48 +264,51 @@ static int openssl_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 	}
 
 	if (type == EVP_PKEY_RSA_PSS) {
-		if (EVP_PKEY_id(pkey) != EVP_PKEY_RSA_PSS &&
-		    EVP_PKEY_id(pkey) != EVP_PKEY_RSA)
-			SIGN_ERROR(); // LCOV_EXCL_LINE
-	} else  if (type != EVP_PKEY_id(pkey))
-		SIGN_ERROR(); // LCOV_EXCL_LINE
+	       if (EVP_PKEY_id(pkey) != EVP_PKEY_RSA &&
+		   EVP_PKEY_id(pkey) != EVP_PKEY_RSA_PSS) {
+			SIGN_ERROR("Incompatible key for RSASSA-PSS"); // LCOV_EXCL_LINE
+	       }
+	} else if (type != EVP_PKEY_id(pkey)) {
+		SIGN_ERROR("Incompatible key"); // LCOV_EXCL_LINE
+	}
 
 	mdctx = EVP_MD_CTX_create();
 	if (mdctx == NULL)
-		SIGN_ERROR(); // LCOV_EXCL_LINE
+		SIGN_ERROR("Error creating MD context"); // LCOV_EXCL_LINE
 
 	/* Initialize the DigestSign operation using alg */
 	if (EVP_DigestSignInit(mdctx, &pkey_ctx, alg, NULL, pkey) != 1)
-		SIGN_ERROR(); // LCOV_EXCL_LINE
+		SIGN_ERROR("Failued to initialize digest"); // LCOV_EXCL_LINE
 
 	/* Required for RSA-PSS */
 	if (type == EVP_PKEY_RSA_PSS) {
 		if (EVP_PKEY_CTX_set_rsa_padding(pkey_ctx,
 						RSA_PKCS1_PSS_PADDING) < 0)
-			SIGN_ERROR(); // LCOV_EXCL_LINE
+			SIGN_ERROR("Error setting RSASSA-PSS padding"); // LCOV_EXCL_LINE
 		if (EVP_PKEY_CTX_set_rsa_pss_saltlen(pkey_ctx,
 						RSA_PSS_SALTLEN_DIGEST) < 0)
-			SIGN_ERROR(); // LCOV_EXCL_LINE
+			SIGN_ERROR("Error setting RSASSA-PSS salt length"); // LCOV_EXCL_LINE
 	}
 
 	/* Get the size of sig first */
 	if (EVP_DigestSign(mdctx, NULL, &slen, (const unsigned char *)str,
 			   str_len) != 1)
-		SIGN_ERROR(); // LCOV_EXCL_LINE
+		SIGN_ERROR("Error checking sig size"); // LCOV_EXCL_LINE
 
 	/* Allocate memory for signature based on returned size */
 	sig = jwt_malloc(slen);
 	if (sig == NULL)
-		SIGN_ERROR(); // LCOV_EXCL_LINE
+		SIGN_ERROR("Out of memory"); // LCOV_EXCL_LINE
 
 	/* Actual signing */
 	if (EVP_DigestSign(mdctx, sig, &slen, (const unsigned char *)str,
 			   str_len) != 1)
-		SIGN_ERROR() // LCOV_EXCL_LINE;
+		SIGN_ERROR("Error singing token") // LCOV_EXCL_LINE;
 
 	if (type == EVP_PKEY_EC) {
 		/* For EC we need to convert to a raw format of R/S. */
-		ret = jwt_ec_d2i(jwt, out, len, sig, slen);
+		if (jwt_ec_d2i(jwt, out, len, sig, slen))
+			SIGN_ERROR("ECDSA failed d2i"); // LCOV_EXCL_LINE
 
 		/* jwt_ec_d2i has updated the out and len pointers on
 		 * success. Either way, we're done with this buffer. */
@@ -318,16 +321,16 @@ static int openssl_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 	}
 
 jwt_sign_sha_pem_done:
-	if (ret)
+	if (jwt->error)
 		jwt_freemem(sig); // LCOV_EXCL_LINE
 
 	BIO_free(bufkey);
 	EVP_MD_CTX_destroy(mdctx);
 
-	return ret;
+	return jwt->error;
 }
 
-#define VERIFY_ERROR() { ret = 1; goto jwt_verify_sha_pem_done; }
+#define VERIFY_ERROR(_msg) { jwt_write_error(jwt, "JWT[OpenSSL]: " _msg); goto jwt_verify_sha_pem_done; }
 
 static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 				  unsigned int head_len, const char *sig_b64)
@@ -342,11 +345,11 @@ static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 	const EVP_MD *alg;
 	int type;
 	BIO *bufkey = NULL;
-	int ret = 0;
 	int slen;
 
 	if (!ops_compat(jwt->key, JWT_CRYPTO_OPS_OPENSSL))
-		return 1; // LCOV_EXCL_LINE
+		VERIFY_ERROR("Key is not compatible"); // LCOV_EXCL_LINE
+	
 	pkey = jwt->key->provider_data;
 
 	switch (jwt->alg) {
@@ -400,23 +403,23 @@ static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 		    EVP_PKEY_id(pkey) == EVP_PKEY_ED448)
 			type = EVP_PKEY_id(pkey);
 		else
-			type = -1;
+			VERIFY_ERROR("Unknown EdDSA curve"); // LCOV_EXCL_LINE
 		break;
 
 	default:
-		return 1; // LCOV_EXCL_LINE
+		VERIFY_ERROR("Unknown algorithm"); // LCOV_EXCL_LINE
 	}
 
 	sig = jwt_base64uri_decode(sig_b64, &slen);
 	if (sig == NULL)
-		VERIFY_ERROR();
+		VERIFY_ERROR("Error decoding signature");
 
 	if (type == EVP_PKEY_RSA_PSS) {
 		if (EVP_PKEY_id(pkey) != EVP_PKEY_RSA_PSS &&
 		    EVP_PKEY_id(pkey) != EVP_PKEY_RSA)
-			VERIFY_ERROR(); // LCOV_EXCL_LINE
+			VERIFY_ERROR("Incompatible key for RSASSA-PSS"); // LCOV_EXCL_LINE
 	} else if (type != EVP_PKEY_id(pkey))
-		VERIFY_ERROR();
+		VERIFY_ERROR("Incompatible key for algorithm");
 
         if (type == EVP_PKEY_EC) {
 		/* Convert EC sigs back to ASN1. */
@@ -426,20 +429,20 @@ static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 
 		degree = __degree_and_check(jwt);
 		if (degree <= 0)
-			VERIFY_ERROR();
+			VERIFY_ERROR("EC key failed checks"); // LCOV_EXCL_LINE
 
 		ec_sig = ECDSA_SIG_new();
 		if (ec_sig == NULL)
-			VERIFY_ERROR(); // LCOV_EXCL_LINE
+			VERIFY_ERROR("Failed to allocate ECDSA sig"); // LCOV_EXCL_LINE
 
 		bn_len = (degree + 7) / 8;
 		if ((bn_len * 2) != (unsigned int)slen)
-			VERIFY_ERROR(); // LCOV_EXCL_LINE
+			VERIFY_ERROR("ECDSA micmatch with sig len"); // LCOV_EXCL_LINE
 
 		ec_sig_r = BN_bin2bn(sig, bn_len, NULL);
 		ec_sig_s = BN_bin2bn(sig + bn_len, bn_len, NULL);
 		if (ec_sig_r  == NULL || ec_sig_s == NULL)
-			VERIFY_ERROR(); // LCOV_EXCL_LINE
+			VERIFY_ERROR("Error allocating R/S params"); // LCOV_EXCL_LINE
 
 		ECDSA_SIG_set0(ec_sig, ec_sig_r, ec_sig_s);
 
@@ -448,36 +451,36 @@ static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 		/* Reset this with the new information. */
 		sig = jwt_realloc(sig, slen);
 		if (sig == NULL)
-			VERIFY_ERROR(); // LCOV_EXCL_LINE
+			VERIFY_ERROR("Out of memory"); // LCOV_EXCL_LINE
 
 		p = sig;
 		slen = i2d_ECDSA_SIG(ec_sig, &p);
 
 		if (slen == 0)
-			VERIFY_ERROR(); // LCOV_EXCL_LINE
+			VERIFY_ERROR("Error calculating ECDSA sig"); // LCOV_EXCL_LINE
 	}
 
 	mdctx = EVP_MD_CTX_create();
 	if (mdctx == NULL)
-		VERIFY_ERROR(); // LCOV_EXCL_LINE
+		VERIFY_ERROR("Error creatign MD context"); // LCOV_EXCL_LINE
 
 	/* Initialize the DigestVerify operation using alg */
 	if (EVP_DigestVerifyInit(mdctx, &pkey_ctx, alg, NULL, pkey) != 1)
-		VERIFY_ERROR(); // LCOV_EXCL_LINE
+		VERIFY_ERROR("Error initializaing mdctx"); // LCOV_EXCL_LINE
 
 	if (type == EVP_PKEY_RSA_PSS) {
 		if (EVP_PKEY_CTX_set_rsa_padding(pkey_ctx,
 						 RSA_PKCS1_PSS_PADDING) < 0)
-			VERIFY_ERROR(); // LCOV_EXCL_LINE
+			VERIFY_ERROR("Error setting RSASSA-PSS padding"); // LCOV_EXCL_LINE
 		if (EVP_PKEY_CTX_set_rsa_pss_saltlen(pkey_ctx,
 						     RSA_PSS_SALTLEN_AUTO) < 0)
-			VERIFY_ERROR(); // LCOV_EXCL_LINE
+			VERIFY_ERROR("Error setting RSASSA-PSS salt length"); // LCOV_EXCL_LINE
 	}
 
 	/* One-shot update and verify */
 	if (EVP_DigestVerify(mdctx, sig, slen, (const unsigned char *)head,
 			     head_len) != 1)
-		VERIFY_ERROR();
+		VERIFY_ERROR("Signature failed validation");
 
 jwt_verify_sha_pem_done:
 	BIO_free(bufkey);
@@ -485,7 +488,7 @@ jwt_verify_sha_pem_done:
 	jwt_freemem(sig);
 	ECDSA_SIG_free(ec_sig);
 
-	return ret;
+	return jwt->error;
 }
 
 /* Export our ops */
