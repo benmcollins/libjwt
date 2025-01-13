@@ -37,10 +37,24 @@ Standard | RFC                                                                  
 
 - OpenSSL (>= 3.0.0)
 - GnuTLS (>= 3.6.0)
+- MbedTLS (>= 3.6.0)
 
 > [!NOTE]
-> OpenSSL is required and used for JWK(S) operations. GnuTLS is optional for
-> use in signing and verifying if configured.
+> OpenSSL is required and used for JWK(S) operations.
+
+### Algorithm support matrix
+
+JWS Algorithm ``alg``         | OpenSSL            | GnuTLS             | MbedTLS
+:---------------------------- | :----------------- | :----------------- | :----------------------
+``HS256`` ``HS384`` ``HS512`` | :white_check_mark: | :white_check_mark: | :white_check_mark:
+``ES256`` ``ES384`` ``ES512`` | :white_check_mark: | :white_check_mark: | :white_check_mark:
+``RS256`` ``RS384`` ``RS512`` | :white_check_mark: | :white_check_mark: | :white_check_mark:
+``EdDSA`` using ``ED25519``   | :white_check_mark: | :white_check_mark: | :x:
+``EdDSA`` using ``ED448``     | :white_check_mark: | :white_check_mark: ``>= 3.8.8`` | :x:
+``PS256`` ``PS384`` ``PS512`` | :white_check_mark: | :white_check_mark: | :white_check_mark:``*``
+``ES256K``                    | :white_check_mark: | :x:                | :white_check_mark:
+
+``*`` RSASSA-PSS support in MbedTLS depends on Mbed-TLS/TF-PSA-Crypto#154
 
 ### Optional
 
