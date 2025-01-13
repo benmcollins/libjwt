@@ -249,14 +249,44 @@ static int mbedtls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		mbedtls_mpi_free(&s);
 		mbedtls_ecdsa_free(&ecdsa);
 	} else {
-		/* For RSA, use the sig directly */
-		if (mbedtls_rsa_pkcs1_sign(mbedtls_pk_rsa(pk),
-					   mbedtls_ctr_drbg_random,
-					   &ctr_drbg,
-					   mbedtls_md_get_type(md_info),
-					   mbedtls_md_get_size(md_info),
-					   hash, sig)) {
-			jwt_write_error(jwt, "Error signing token");
+		switch (jwt->alg) {
+		case JWT_ALG_PS256:
+		case JWT_ALG_PS384:
+		case JWT_ALG_PS512:
+			ret = mbedtls_rsa_set_padding(mbedtls_pk_rsa(pk),
+					MBEDTLS_RSA_PKCS_V21,
+					mbedtls_md_get_type(md_info));
+			if (ret) {
+				jwt_write_error(jwt, "Failed to set RSASSA-PSS padding");
+				goto sign_clean_key;
+			}
+
+			ret = mbedtls_rsa_rsassa_pss_sign(mbedtls_pk_rsa(pk),
+					mbedtls_ctr_drbg_random, &ctr_drbg,
+					mbedtls_md_get_type(md_info),
+					mbedtls_md_get_size(md_info), hash, sig);
+			if (ret) {
+				jwt_write_error(jwt, "Failed to sign RSASSA-PSS");
+				goto sign_clean_key;
+			}
+			break;
+
+		case JWT_ALG_RS256:
+		case JWT_ALG_RS384:
+		case JWT_ALG_RS512:
+			if (mbedtls_rsa_pkcs1_sign(mbedtls_pk_rsa(pk),
+						   mbedtls_ctr_drbg_random,
+						   &ctr_drbg,
+						   mbedtls_md_get_type(md_info),
+						   mbedtls_md_get_size(md_info),
+						   hash, sig)) {
+				jwt_write_error(jwt, "Error signing token");
+				goto sign_clean_key;
+			}
+			break;
+
+		default:
+			jwt_write_error(jwt, "Unexpected algorithm");
 			goto sign_clean_key;
 		}
 
