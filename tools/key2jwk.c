@@ -27,6 +27,10 @@
 #include <jansson.h>
 
 #include <jwt.h>
+
+/* We make use of some LibJWT internals. Soon, this code will move into LibJWT
+ * so it can be used to important PEM/DER keys into a JWK keyring. Until then,
+ * we hack around it here. */
 #include "jwt-private.h"
 
 static int ec_count, rsa_count, eddsa_count, rsa_pss_count, hmac_count;
@@ -330,28 +334,33 @@ _Noreturn static void usage(const char *error, int exit_state)
 	if (error)
 		fprintf(stderr, "ERROR: %s\n\n", error);
 
-	fprintf(stderr, "Usage: %s [OPTIONS] <FILE> [FILE]...\n\n", __progname);
-	fprintf(stderr, "Parse PEM/DER file(s) into JSON Web Key format.\n\n");
-	fprintf(stderr, "  -h, --help            This help information\n");
-	fprintf(stderr, "  -q, --quiet           No output other than JWKS file\n");
-	fprintf(stderr, "  -l, --list            List supported algorithms and exit\n");
-	fprintf(stderr, "  -k, --disable-kid     Disable generating \"kid\" attribute\n");
-	fprintf(stderr, "  -m, --disable-hamc    Disable fallback to HMAC\n");
-	fprintf(stderr, "  -o, --output=FILE     File to write JWKS to\n");
-	fprintf(stderr, "\nThis program will parse PEM/DER key files (public and\n");
-	fprintf(stderr, "private) into JSON Web Keys and output a JWK Set. Note that\n");
-	fprintf(stderr, "HMAC keys are \"guessed\" based on them not being parsed\n");
-	fprintf(stderr, "by OpenSSL. This may cause some issues. You can disable this\n");
-	fprintf(stderr, "with the -m option.\n");
-	fprintf(stderr, "\nYou can use '-' as the argument to the -o option to write to\n");
-	fprintf(stderr, "stdout.\n");
-	fprintf(stderr, "\nRSA keys will not have an algorithm set as they are valid\n");
-	fprintf(stderr, "for RS256, RS384, and RS512. RSA keys must be at least 1024\n");
-	fprintf(stderr, "bits.\n");
-	fprintf(stderr, "\nRSA-PSS keys will be set to PS256, otherwise they will look\n");
-	fprintf(stderr, "no different than an RSA key.\n");
-	fprintf(stderr, "\nAll keys will get a generated randomized uuidv4 \"kid\"\n");
-	fprintf(stderr, "attribute unless you use the -k option..\n");
+	fprintf(stderr, "\
+Usage: %s [OPTIONS] <FILE> [FILE]...\n\
+\n\
+Parse PEM/DER file(s) into JSON Web Key format.\n\
+\n\
+  -h, --help            This help information\n\
+  -q, --quiet           No output other than JWKS file\n\
+  -l, --list            List supported algorithms and exit\n\
+  -k, --disable-kid     Disable generating \"kid\" attribute\n\
+  -m, --disable-hmac    Disable fallback to HMAC\n\
+  -o, --output=FILE     File to write JWKS to\n\
+\n\
+This program will parse PEM/DER key files (public and private) into JSON Web\n\
+Keys and output a JWK Set. Note that HMAC keys are \"guessed\" based on them\n\
+not being parsed by OpenSSL. This may cause some issues. You can disable\n\
+this with the -m option.\n\
+\n\
+You can use '-' as the argument to the -o option to write to stdout.\n\
+\n\
+RSA keys will not have an algorithm set as they are valid for RS256, RS384,\n\
+and RS512. RSA keys must be at least 1024 bits.\n\
+\n\
+RSA-PSS keys will be set to PS256, otherwise they will look no different\n\
+than an RSA key.\n\
+\n\
+All keys will get a generated randomized uuidv4 \"kid\" attribute unless you\n\
+use the -k option..\n", __progname);
 
 	exit(exit_state);
 }
@@ -410,10 +419,8 @@ int main(int argc, char **argv)
 				msg = stderr;
 			} else {
 				outfp = fopen(optarg, "wx");
-				if (outfp == NULL) {
+				if (outfp == NULL)
 					perror(optarg);
-					usage(NULL, EXIT_FAILURE);
-				}
 			}
 			break;
 		default: /* '?' */

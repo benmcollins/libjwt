@@ -77,7 +77,7 @@ Example output:
 **\-k**, **\-\-disable-kid**
   ~ Disable generating **kid** attribute.
 
-**\-m**, **\-\-disable-hamc**
+**\-m**, **\-\-disable-hmac**
   ~ Disable falling back to HAMC for key files that OpenSSL cannot read.
 
 **\-o** _FILE_, **\-\-json**=_FILE_
