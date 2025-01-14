@@ -29,10 +29,18 @@ which is \f[B]Issued At\f[R] and is the time in seconds since the
 When using the \f[B]\-\-verbose\f[R] option, \f[B]jwt\-generate\f[R]
 will print the JSON \f[I]HEADER\f[R] and \f[I]PAYLOAD\f[R] to
 \f[B]stdout\f[R].
+.PP
 If used in conjuction with \f[B]\-\-print\f[R], the JSON will be piped
 to the command\[cq]s \f[B]stdin\f[R].
-One use for this is to pass it through \f[B]jq \-C\f[R] for indenting
-and colorization.
+It will be called twice: once for \f[I]HEAD\f[R] and once for
+\f[I]PAYLOAD\f[R].
+.PP
+One use is to pass it through \f[B]jq \-C\f[R] for indenting and
+colorization.
+Another would be to use an external program to inspect the
+\f[I]PAYLOAD\f[R] contents.
+A non\-0 exit status from the program will cause generating the token to
+fail.
 .SS Options
 .TP
 \f[B]\-h\f[R], \f[B]\-\-help\f[R]

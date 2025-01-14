@@ -29,9 +29,15 @@ by spaces, or passed via **stdin**, one per line. To use **stdin**, you
 must pass **-** as the last and only argument after any options.
 
 When using the **\-\-verbose** option, **jwt-verify** will print the JSON
-_HEADER_ and _PAYLOAD_ to **stdout**. If used in conjuction with **\-\-print**,
-the JSON will be piped to the command's **stdin**. One use for this is to pass
-it through **jq -C** for indenting and colorization.
+_HEADER_ and _PAYLOAD_ to **stdout**.
+
+If used in conjuction with **\-\-print**, the JSON will be piped to the
+command's **stdin**. It will be called twice: once for _HEAD_ and once for
+_PAYLOAD_.
+
+One use is to pass it through **jq -C** for indenting and colorization. Another
+would be to use an external program to validate the _PAYLOAD_ contents. A non-0
+exit status from the program will cause verification to fail.
 
 ## Options
 

@@ -43,7 +43,10 @@ If - is given as the only argument to token, then tokens will be read\n\
 from stdin, one per line.\n\
 \n\
 For the --print option, output will be piped to the command's stdin. This\n\
-is useful if you wanted to use something like `jq -C`.\n\
+is useful if you wanted to use something like `jq -C` to colorize it or\n\
+another program to validate it. The program will be called twice; once\n\
+for the HEAD, and once for the PAYLOAD. A non-0 exit status will cause\n\
+the verification to fail.\n\
 \n\
 If you need to convert a key to JWK (e.g. from PEM or DER format) see\n\
 key2jwk(1).\n", __progname);
@@ -155,8 +158,10 @@ int main(int argc, char *argv[])
 		case 'a':
 			alg = jwt_str_alg(optarg);
 			if (alg >= JWT_ALG_INVAL) {
-				usage("Unknown algorithm (use -l to see a list of "
-				      "supported algorithms)\n", EXIT_FAILURE);
+				fprintf(stderr, "Unknown algorithm [%s]\nUse "
+					"-l to see a list of supported "
+					"algorithms)\n", optarg);
+				exit(EXIT_FAILURE);
 			}
 			break;
 

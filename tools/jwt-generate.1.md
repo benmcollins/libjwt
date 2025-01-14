@@ -26,9 +26,15 @@ One token will be generated for each call. You can specify claims using the
 is **Issued At** and is the time in seconds since the *Unix Epcoch*.
 
 When using the **\-\-verbose** option, **jwt-generate** will print the JSON
-_HEADER_ and _PAYLOAD_ to **stdout**. If used in conjuction with **\-\-print**,
-the JSON will be piped to the command's **stdin**. One use for this is to pass
-it through **jq -C** for indenting and colorization.
+_HEADER_ and _PAYLOAD_ to **stdout**.
+
+If used in conjuction with **\-\-print**, the JSON will be piped to the
+command's **stdin**. It will be called twice: once for _HEAD_ and once for
+_PAYLOAD_.
+
+One use is to pass it through **jq -C** for indenting and colorization. Another
+would be to use an external program to inspect the _PAYLOAD_ contents. A non-0
+exit status from the program will cause generating the token to fail.
 
 ## Options
 

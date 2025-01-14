@@ -9,7 +9,7 @@ static char *pipe_cmd;
 
 static FILE *json_fp;
 
-static void write_json(const char *title, const char *str)
+static int write_json(const char *title, const char *str)
 {
 	char *argv[4] = { "/bin/sh", "-c", NULL, NULL };
 	int pipe_fd[2];
@@ -53,15 +53,18 @@ static void write_json(const char *title, const char *str)
 	}
 
 	if (myfd) {
-                close(myfd);
-                waitpid(pid, &status, 0);
-        }
+		close(myfd);
+		waitpid(pid, &status, 0);
+		return WEXITSTATUS(status);
+	}
+
+	return 0;
 }
 
 static int __jwt_wcb(jwt_t *jwt, jwt_config_t *config)
 {
 	jwt_value_t jval;
-	int ret;
+	int ret = 0, result = 0;
 
 	if (config == NULL)
 		return 1;
@@ -70,7 +73,7 @@ static int __jwt_wcb(jwt_t *jwt, jwt_config_t *config)
 	jval.pretty = 1;
 	ret = jwt_header_get(jwt, &jval);
 	if (!ret) {
-		write_json("HEADER", jval.json_val);
+		result |= write_json("HEADER", jval.json_val);
 		free(jval.json_val);
 	}
 
@@ -78,9 +81,9 @@ static int __jwt_wcb(jwt_t *jwt, jwt_config_t *config)
 	jval.pretty = 1;
 	ret = jwt_grant_get(jwt, &jval);
 	if (!ret) {
-		write_json("PAYLOAD", jval.json_val);
+		result |= write_json("PAYLOAD", jval.json_val);
 		free(jval.json_val);
 	}
 
-	return 0;
+	return result;
 }

@@ -42,7 +42,7 @@ Generate and (optionally) sign a JSON Web Token\n\
       v                 The value of the claim. For integer, must be parsable\n\
                         by strtol(). For boolean, if the value starts with 'f',\n\
                         'F', or '0' it is taken as false. Anything else is true.\n\
-  -j, --json=STRING     JSON string to be used as the body of the token\n\
+  -j, --json=STRING     JSON string to be used as the body of the token.\n\
   -q, --quiet           No output other than the generated token\n\
   -v, --verbose         Show encoded header and payload while verifying. Note that\n\
                         the header will not who the 'tpy' and 'alg' attributes\n\
@@ -51,7 +51,8 @@ Generate and (optionally) sign a JSON Web Token\n\
 This program will encode and sign a token in JWT format.\n\
 \n\
 For the --print option, output will be piped to the command's stdin. This\n\
-is useful if you wanted to use something like `jq -C`.\n\
+is useful if you wanted to use something like `jq -C` to colorize it. A\n\
+non-0 exit status will stop the token from getting generated.\n\
 \n\
 If you need to convert a key to JWT (e.g. from PEM or DER format) see\n\
 key2jwk(1).\n", __progname);
@@ -135,18 +136,23 @@ int main(int argc, char *argv[])
 
 		case 'c':
 			t = strtok(optarg, ":");
-			if (t == NULL)
-				usage("Invalid --claim format",
-						EXIT_FAILURE);
+			if (t == NULL) {
+				fprintf(stderr, "Invalid claim format [%s]\n",
+					optarg);
+				exit(EXIT_FAILURE);
+			}
 			k = strtok(NULL, "=");
-			if (k == NULL)
-				usage("Invalid --claim format",
-						EXIT_FAILURE);
-
+			if (k == NULL) {
+				fprintf(stderr, "Invalid claim format [%s]\n",
+					optarg);
+				exit(EXIT_FAILURE);
+			}
 			v = strtok(NULL, "=");
-			if (v == NULL)
-				usage("Invalid --claim format",
-						EXIT_FAILURE);
+			if (v == NULL) {
+				fprintf(stderr, "Invalid claim format [%s]\n",
+					optarg);
+				exit(EXIT_FAILURE);
+			}
 
 			switch (t[0]) {
 			case 's':
@@ -230,7 +236,8 @@ int main(int argc, char *argv[])
 	if (json) {
 		jwt_set_ADD_JSON(&jval, NULL, json);
 		if (jwt_builder_claim_add(builder, &jval)) {
-			fprintf(stderr, "Error adding json\n");
+			fprintf(stderr, "Error adding JSON (%d)\n",
+				jval.error);
 			exit(EXIT_FAILURE);
 		}
 	}
