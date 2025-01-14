@@ -15,6 +15,8 @@
 #include <string.h>
 #include <libgen.h>
 
+#include "jwt-util.h"
+
 extern const char *__progname;
 
 _Noreturn static void usage(const char *error, int exit_state)
@@ -32,6 +34,7 @@ Generate and (optionally) sign a JSON Web Token\n\
   -a, --algorithm=ALG   JWT algorithm to use (e.g. ES256). Only needed if the\n\
                         key provided with -k does not have an \"alg\"\n\
 			attribute\n\
+  -p, --print=CMD       When printing JSON, pipe through CMD\n\
   -k, --key=FILE        Filename containing a JSON Web Key\n\
   -c, --claim=t:k=v     Add a claim to the JWT\n\
       t                 One of i, s, or b for integer, string or boolean\n\
@@ -46,38 +49,14 @@ Generate and (optionally) sign a JSON Web Token\n\
                         they are not added until just before signing.\n\
 \n\
 This program will encode and sign a token in JWT format.\n\
+\n\
+For the --print option, output will be piped to the command's stdin. This\n\
+is useful if you wanted to use something like `jq -C`.\n\
+\n\
 If you need to convert a key to JWT (e.g. from PEM or DER format) see\n\
 key2jwk(1).\n", __progname);
 
 	exit(exit_state);
-}
-
-static int __gen_wcb(jwt_t *jwt, jwt_config_t *config)
-{
-	jwt_value_t jval;
-	int ret;
-
-	if (config == NULL)
-		return 1;
-
-	jwt_set_GET_JSON(&jval, NULL);
-	jval.pretty = 1;
-	ret = jwt_header_get(jwt, &jval);
-	if (!ret) {
-		printf("\033[0;95m[HEADER]\033[0m\n\033[0;96m%s\033[0m\n",
-			jval.json_val);
-		free(jval.json_val);
-	}
-
-	jwt_set_GET_JSON(&jval, NULL);
-	jval.pretty = 1;
-	ret = jwt_grant_get(jwt, &jval);
-	if (!ret) {
-		printf("\033[0;95m[PAYLOAD]\033[0m\n\033[0;96m%s\033[0m\n",
-			jval.json_val);
-		free(jval.json_val);
-	}
-	return 0;
 }
 
 int main(int argc, char *argv[])
@@ -95,13 +74,14 @@ int main(int argc, char *argv[])
 	int verbose = 0;
 	int quiet = 0;
 
-	char *optstr = "hk:a:c:j:lvq";
+	char *optstr = "hk:a:c:j:lvqp:";
 	struct option opttbl[] = {
 		{ "help",       no_argument,		NULL, 'h' },
 		{ "key",        required_argument,	NULL, 'k' },
 		{ "algorithm",  required_argument,	NULL, 'a' },
 		{ "claim",      required_argument,	NULL, 'c' },
 		{ "json",       required_argument,	NULL, 'j' },
+		{ "print",	required_argument,	NULL, 'p' },
 		{ "list",       no_argument,		NULL, 'l' },
 		{ "verbose",    no_argument,		NULL, 'v' },
 		{ "quiet",	no_argument,		NULL, 'q' },
@@ -128,6 +108,10 @@ int main(int argc, char *argv[])
 				usage("Using -q and -v makes no sense",
 				      EXIT_FAILURE);
 			verbose = 1;
+			break;
+
+		case 'p':
+			pipe_cmd = optarg;
 			break;
 
 		case 'l':
@@ -232,7 +216,7 @@ int main(int argc, char *argv[])
 
 		if (jwks_item_alg(item) == JWT_ALG_NONE &&
 		    alg == JWT_ALG_NONE) {
-			usage("Key does not contain an \"alg\" attribute and no --alg given",
+			usage("No \"alg\" attribute in key and --alg not given",
 			      EXIT_FAILURE);
 		}
 
@@ -251,28 +235,31 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (verbose && jwt_builder_setcb(builder, __gen_wcb, NULL)) {
+	if (verbose && jwt_builder_setcb(builder, __jwt_wcb, NULL)) {
 		fprintf(stderr, "ERR setting callback: %s\n",
 			jwt_builder_error_msg(builder));
 		exit(EXIT_FAILURE);
 	}
 
+	json_fp = stderr;
+
 	if (item && !quiet)
-		printf("\xF0\x9F\x94\x91 \033[0;92m[KEY]\033[0m %s\n",
-		       key_file);
+		fprintf(stderr, "\xF0\x9F\x94\x91 \033[0;92m[KEY]\033[0m %s\n",
+			key_file);
 
 	if (!quiet) {
-		printf("\xF0\x9F\x93\x83 ");
+		fprintf(stderr, "\xF0\x9F\x93\x83 ");
 		if (item && jwks_item_alg(item) != JWT_ALG_NONE) {
-			printf("\033[0;92m[ALG]\033[0m %s (from key)",
+			fprintf(stderr, "\033[0;92m[ALG]\033[0m %s (from key)",
 			       jwt_alg_str(jwks_item_alg(item)));
 			alg = jwks_item_alg(item);
 		} else if (alg != JWT_ALG_NONE) {
-			printf("\033[0;92m[ALG]\033[0m %s (from options)", jwt_alg_str(alg));
+			fprintf(stderr, "\033[0;92m[ALG]\033[0m %s (from options)",
+				jwt_alg_str(alg));
 		} else  {
-			printf("\033[0;91m[ALG]\033[0m %s", jwt_alg_str(alg));
+			fprintf(stderr, "\033[0;91m[ALG]\033[0m %s", jwt_alg_str(alg));
 		}
-		printf("\n");
+		fprintf(stderr, "\n");
 	}
 
 	token = jwt_builder_generate(builder);
@@ -285,10 +272,10 @@ int main(int argc, char *argv[])
 	if (quiet) {
 		printf("%s\n", token);
 	} else {
-		printf("%s %s[TOK]\033[0m %s\n", alg == JWT_ALG_NONE ?
+		fprintf(stderr, "%s %s[TOK]\033[0m \n", alg == JWT_ALG_NONE ?
 			"\xF0\x9F\x94\x93" : "\xF0\x9F\x94\x90",
-			alg == JWT_ALG_NONE ? "\033[0;93m" : "\033[0;92m",
-			token);
+			alg == JWT_ALG_NONE ? "\033[0;93m" : "\033[0;92m");
+		printf("%s\n", token);
 	}
 
 	free(token);

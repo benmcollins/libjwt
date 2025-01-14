@@ -15,6 +15,8 @@
 #include <time.h>
 #include <libgen.h>
 
+#include "jwt-util.h"
+
 extern const char *__progname;
 
 _Noreturn static void usage(const char *error, int exit_state)
@@ -22,51 +24,45 @@ _Noreturn static void usage(const char *error, int exit_state)
 	if (error)
 		fprintf(stderr, "ERROR: %s\n\n", error);
 
-	fprintf(stderr, "Usage: %s [OPTIONS] <token> [token(s)]\n",
-		__progname);
-	fprintf(stderr, "       %s [OPTIONS] -\n\n", __progname);
-	fprintf(stderr, "Decode and (optionally) verify the signature for a JSON Web Token\n\n");
-	fprintf(stderr, "  -h, --help            This help information\n");
-	fprintf(stderr, "  -l, --list            List supported algorithms and exit\n");
-	fprintf(stderr, "  -a, --algorithm=ALG   JWT algorithm to use (e.g. ES256). Only needed if the key\n");
-	fprintf(stderr, "                        provided with -k does not have an \"alg\" attribute\n");
-	fprintf(stderr, "  -k, --key=FILE        Filename containing a JSON Web Key\n");
-	fprintf(stderr, "  -q, --quiet           No output. Exit value is numner of errors\n");
-	fprintf(stderr, "  -v, --verbose         Show decoded header and payload while verifying\n");
-	fprintf(stderr, "\nThis program will decode and validate each token on the command line.\n");
-	fprintf(stderr, "If - is given as the only argument to token, then tokens will be read\n");
-	fprintf(stderr, "from stdin, one per line.\n\n");
-	fprintf(stderr, "If you need to convert a key to JWT (e.g. from PEM or DER format) see key2jwk(1).\n");
+		fprintf(stderr, "\
+Usage: %1$s [OPTIONS] <token> [token(s)]\n\
+       %1$s [OPTIONS] -\n\
+\n\
+Decode and (optionally) verify the signature for a JSON Web Token\n\
+\n\
+  -h, --help            This help information\n\
+  -l, --list            List supported algorithms and exit\n\
+  -a, --algorithm=ALG   JWT algorithm to use (e.g. ES256). Only needed if the key\n\
+                        provided with -k does not have an \"alg\" attribute\n\
+  -p, --print=CMD       When printing JSON, pipe through CMD\n\
+  -k, --key=FILE        Filename containing a JSON Web Key\n\
+  -q, --quiet           No output. Exit value is numner of errors\n\
+  -v, --verbose         Show decoded header and payload while verifying\n\
+\nThis program will decode and validate each token on the command line.\n\
+If - is given as the only argument to token, then tokens will be read\n\
+from stdin, one per line.\n\
+\n\
+For the --print option, output will be piped to the command's stdin. This\n\
+is useful if you wanted to use something like `jq -C`.\n\
+\n\
+If you need to convert a key to JWK (e.g. from PEM or DER format) see\n\
+key2jwk(1).\n", __progname);
 
 	exit(exit_state);
 }
 
-static int __verify_wcb(jwt_t *jwt, jwt_config_t *config)
+static void print_token_trunc(const char *str, size_t max_len)
 {
-	jwt_value_t jval;
-	int ret;
+	size_t len = strlen(str);
 
-	if (config == NULL)
-		return 1;
+	if (len <= max_len) {
+		printf("%s\n", str);
+	} else {
+		size_t part_len = (max_len - 3) / 2;
 
-	jwt_set_GET_JSON(&jval, NULL);
-	jval.pretty = 1;
-	ret = jwt_header_get(jwt, &jval);
-	if (!ret) {
-		printf("\033[0;95m[HEADER]\033[0m\n\033[0;96m%s\033[0m\n",
-		       jval.json_val);
-		free(jval.json_val);
+		printf("%.*s...%.*s\n", (int)part_len, str,
+		       (int)part_len, str + len - part_len);
 	}
-
-	jwt_set_GET_JSON(&jval, NULL);
-	jval.pretty = 1;
-	ret = jwt_grant_get(jwt, &jval);
-	if (!ret) {
-		printf("\033[0;95m[PAYLOAD]\033[0m\n\033[0;96m%s\033[0m\n",
-		       jval.json_val);
-		free(jval.json_val);
-	}
-	return 0;
 }
 
 static int process_one(jwt_checker_t *checker, jwt_alg_t alg, const char *token,
@@ -75,10 +71,10 @@ static int process_one(jwt_checker_t *checker, jwt_alg_t alg, const char *token,
 	int err = 0;
 
 	if (!quiet) {
-		printf("\n%s %s[TOK]\033[0m %.*s%s\n", alg == JWT_ALG_NONE ?
+		printf("\n%s %s[TOK]\033[0m ", alg == JWT_ALG_NONE ?
 			"\xF0\x9F\x94\x93" : "\xF0\x9F\x94\x90",
-			alg == JWT_ALG_NONE ? "\033[0;93m" : "\033[0;92m",
-			60, token, strlen(token) > 60 ? "..." : "");
+			alg == JWT_ALG_NONE ? "\033[0;93m" : "\033[0;92m");
+		print_token_trunc(token, 60);
 	}
 
 	if (jwt_checker_verify(checker, token)) {
@@ -104,11 +100,12 @@ int main(int argc, char *argv[])
 	int oc, err, verbose = 0;
 	int quiet = 0;
 
-	char *optstr = "hk:alvq";
+	char *optstr = "hk:alvqp:";
 	struct option opttbl[] = {
 		{ "help",	no_argument,		NULL, 'h' },
 		{ "key",	required_argument,	NULL, 'k' },
 		{ "algorithm",	required_argument,	NULL, 'a' },
+		{ "print",	required_argument,	NULL, 'p' },
 		{ "list",	no_argument,		NULL, 'l' },
 		{ "quiet",	no_argument,		NULL, 'q' },
 		{ "verbose",	no_argument,		NULL, 'v' },
@@ -131,6 +128,10 @@ int main(int argc, char *argv[])
 			for (alg = JWT_ALG_NONE; alg < JWT_ALG_INVAL; alg++)
 				printf("    %s\n", jwt_alg_str(alg));
 			exit(EXIT_SUCCESS);
+			break;
+
+		case 'p':
+			pipe_cmd = optarg;
 			break;
 
 		case 'q':
@@ -205,7 +206,7 @@ int main(int argc, char *argv[])
                 }
 	}
 
-	if (verbose && jwt_checker_setcb(checker, __verify_wcb, NULL)) {
+	if (verbose && jwt_checker_setcb(checker, __jwt_wcb, NULL)) {
 		fprintf(stderr, "ERR setting callback: %s\n",
 			jwt_checker_error_msg(checker));
 		exit(EXIT_FAILURE);

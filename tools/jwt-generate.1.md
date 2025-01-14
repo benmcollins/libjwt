@@ -25,6 +25,11 @@ One token will be generated for each call. You can specify claims using the
 **-c** option. By default, **jwt-generate** will add the **iat** claim, which
 is **Issued At** and is the time in seconds since the *Unix Epcoch*.
 
+When using the **\-\-verbose** option, **jwt-generate** will print the JSON
+_HEADER_ and _PAYLOAD_ to **stdout**. If used in conjuction with **\-\-print**,
+the JSON will be piped to the command's **stdin**. One use for this is to pass
+it through **jq -C** for indenting and colorization.
+
 ## Options
 
 **\-h**, **\-\-help**
