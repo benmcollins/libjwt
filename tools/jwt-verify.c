@@ -226,9 +226,11 @@ int main(int argc, char *argv[])
 		alg = jwks_item_alg(item);
 	} else if (!quiet){
 		if (alg == JWT_ALG_NONE)
-			printf("\033[0;91m[ALG]\033[0m %s (from options)", jwt_alg_str(alg));
+			printf("\033[0;91m[ALG]\033[0m %s (from options)",
+			       jwt_alg_str(alg));
 		else
-			printf("\033[0;92m[ALG]\033[0m %s (from options)", jwt_alg_str(alg));
+			printf("\033[0;92m[ALG]\033[0m %s (from options)",
+			       jwt_alg_str(alg));
 	}
 	if (!quiet)
 		printf("\n");
@@ -245,7 +247,6 @@ int main(int argc, char *argv[])
 	} else {
 		for (oc = 0; oc < argc; oc++) {
 			const char *token = argv[oc];
-
 			err += process_one(checker, alg, token, quiet);
 		}
 	}

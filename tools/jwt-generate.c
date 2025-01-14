@@ -22,26 +22,32 @@ _Noreturn static void usage(const char *error, int exit_state)
 	if (error)
 		fprintf(stderr, "ERROR: %s\n\n", error);
 
-	fprintf(stderr, "Usage: %s [OPTIONS]\n\n", __progname);
-	fprintf(stderr, "Generate and (optionally) sign a JSON Web Token\n\n");
-	fprintf(stderr, "  -h, --help            This help information\n");
-	fprintf(stderr, "  -l, --list            List supported algorithms and exit\n");
-        fprintf(stderr, "  -a, --algorithm=ALG   JWT algorithm to use (e.g. ES256). Only needed if the key\n");
-        fprintf(stderr, "                        provided with -k does not have an \"alg\" attribute\n");
-	fprintf(stderr, "  -k, --key=FILE        Filename containing a JSON Web Key\n");
-	fprintf(stderr, "  -c, --claim=t:k=v     Add a claim to the JWT\n");
-	fprintf(stderr, "      t                 One of i, s, or b for integer, string or boolean\n");
-	fprintf(stderr, "      k                 The key for this claim\n");
-	fprintf(stderr, "      v                 The value of the claim. For integer, must be parsable\n");
-	fprintf(stderr, "                        by strtol(). For boolean, if the value starts with 'f',\n");
-	fprintf(stderr, "                        'F', or '0' it is taken as false. Anything else is true.\n");
-	fprintf(stderr, "  -j, --json=STRING     JSON string to be used as the body of the token\n");
-	fprintf(stderr, "  -q, --quiet           No output other than the generated token\n");
-        fprintf(stderr, "  -v, --verbose         Show encoded header and payload while verifying. Note that\n");
-	fprintf(stderr, "                        the header will not who the 'tpy' and 'alg' attributes\n");
-	fprintf(stderr, "                        they are not added until just before signing.\n");
-	fprintf(stderr, "\nThis program will encode and sign a token in JWT format.\n");
-        fprintf(stderr, "If you need to convert a key to JWT (e.g. from PEM or DER format) see key2jwk(1).\n");
+	fprintf(stderr, "\
+Usage: %s [OPTIONS]\n\
+\n\
+Generate and (optionally) sign a JSON Web Token\n\
+\n\
+  -h, --help            This help information\n\
+  -l, --list            List supported algorithms and exit\n\
+  -a, --algorithm=ALG   JWT algorithm to use (e.g. ES256). Only needed if the\n\
+                        key provided with -k does not have an \"alg\"\n\
+			attribute\n\
+  -k, --key=FILE        Filename containing a JSON Web Key\n\
+  -c, --claim=t:k=v     Add a claim to the JWT\n\
+      t                 One of i, s, or b for integer, string or boolean\n\
+      k                 The key for this claim\n\
+      v                 The value of the claim. For integer, must be parsable\n\
+                        by strtol(). For boolean, if the value starts with 'f',\n\
+                        'F', or '0' it is taken as false. Anything else is true.\n\
+  -j, --json=STRING     JSON string to be used as the body of the token\n\
+  -q, --quiet           No output other than the generated token\n\
+  -v, --verbose         Show encoded header and payload while verifying. Note that\n\
+                        the header will not who the 'tpy' and 'alg' attributes\n\
+                        they are not added until just before signing.\n\
+\n\
+This program will encode and sign a token in JWT format.\n\
+If you need to convert a key to JWT (e.g. from PEM or DER format) see\n\
+key2jwk(1).\n", __progname);
 
 	exit(exit_state);
 }
