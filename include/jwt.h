@@ -1296,6 +1296,21 @@ JWT_EXPORT
 const char *jwks_item_pem(const jwk_item_t *item);
 
 /**
+ * @brief Retrieve binary octet data of a key
+ *
+ * Only valid for JWT_KEY_TYPE_OCT.
+ *
+ * @param item A JWK Item
+ * @param buf Pointer to a pointer buffer
+ * @param len Pointer to a length
+ * @return 0 on success. @p buf will point to data of @c len length. Non-zero on
+ *  error.
+ */
+JWT_EXPORT
+int jwks_item_key_oct(const jwk_item_t *item, const unsigned char **buf,
+		      size_t *len);
+
+/**
  * @brief The number of bits in this JWK
  *
  * This is relevant to the key type (kty). E.g. an RSA key would have atleast

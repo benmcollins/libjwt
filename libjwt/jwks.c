@@ -258,6 +258,18 @@ int jwks_item_key_bits(const jwk_item_t *item)
 	return item->bits;
 }
 
+int jwks_item_key_oct(const jwk_item_t *item, const unsigned char **buf,
+		      size_t *len)
+{
+	if (!item->oct.key || !item->oct.len)
+		return 1;
+
+	*buf = item->oct.key;
+	*len = item->oct.len;
+
+	return 0;
+}
+
 int jwks_error(const jwk_set_t *jwk_set)
 {
 	return jwk_set->error ? 1 : 0;
