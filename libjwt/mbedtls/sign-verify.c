@@ -172,7 +172,7 @@ static int mbedtls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 
 	/* Compute the hash of the input string */
 	if (mbedtls_md(md_info, (unsigned char *)str, str_len, hash))
-		SIGN_ERROR("Error initializaing md context"); // LCOV_EXCL_LINE
+		SIGN_ERROR("Error initializing md context"); // LCOV_EXCL_LINE
 
 	/* For EC keys, convert signature to R/S format */
 	if (mbedtls_pk_can_do(&pk, MBEDTLS_PK_ECDSA)) {

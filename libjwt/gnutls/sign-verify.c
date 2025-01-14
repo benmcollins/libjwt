@@ -304,8 +304,9 @@ static int gnutls_verify_sha_pem(jwt_t *jwt, const char *head,
 	if (ret) {
 		gnutls_privkey_t privkey;
 
-		/* Try loading as a private key, and extracting the pubkey. This is pefectly
-		 * legit. A JWK can have a private key with key_ops of SIGN and VERIFY. */
+		/* Try loading as a private key, and extracting the pubkey.
+		 * This is perfectly legit. A JWK can have a private key with
+		 * key_ops of SIGN and VERIFY. */
 		if (gnutls_privkey_init(&privkey))
 			VERIFY_ERROR("Failed initializing privkey") // LCOV_EXCL_LINE
 
@@ -320,7 +321,7 @@ static int gnutls_verify_sha_pem(jwt_t *jwt, const char *head,
 		gnutls_privkey_deinit(privkey);
 
 		if (ret)
-			VERIFY_ERROR("Faild to import key") // LCOV_EXCL_LINE
+			VERIFY_ERROR("Failed to import key") // LCOV_EXCL_LINE
 	}
 
 	switch (jwt->alg) {

@@ -466,7 +466,7 @@ static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 
 	/* Initialize the DigestVerify operation using alg */
 	if (EVP_DigestVerifyInit(mdctx, &pkey_ctx, alg, NULL, pkey) != 1)
-		VERIFY_ERROR("Error initializaing mdctx"); // LCOV_EXCL_LINE
+		VERIFY_ERROR("Error initializing mdctx"); // LCOV_EXCL_LINE
 
 	if (type == EVP_PKEY_RSA_PSS) {
 		if (EVP_PKEY_CTX_set_rsa_padding(pkey_ctx,

@@ -101,7 +101,7 @@ struct jwk_set {
  * or signing.
  *
  * If the jwk_item_t.pem field is not NULL, then it contains  a nil terminated
- * string of the key. The underlying crypto algorith may or may not support
+ * string of the key. The underlying crypto algorithm may or may not support
  * this. It's provided as a convenience.
  */
 struct jwk_item {

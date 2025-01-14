@@ -171,7 +171,7 @@ int FUNC(setcb)(jwt_common_t *__cmd, jwt_callback_t cb, void *ctx)
 		return 1;
 
 	if (cb == NULL && ctx != NULL) {
-		jwt_write_error(__cmd, "Setting ctx without a cb wont work");
+		jwt_write_error(__cmd, "Setting ctx without a cb won't work");
 		return 1;
 	}
 

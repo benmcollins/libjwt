@@ -96,7 +96,7 @@ typedef enum {
  */
 typedef enum {
 	JWK_KEY_TYPE_NONE = 0,		/**< Unused on valid keys */
-	JWK_KEY_TYPE_EC,		/**< Eliptic Curve keys */
+	JWK_KEY_TYPE_EC,		/**< Elliptic Curve keys */
 	JWK_KEY_TYPE_RSA,		/**< RSA keys (RSA and RSA-PSS) */
 	JWK_KEY_TYPE_OKP,		/**< Octet Key Pair (e.g. EdDSA) */
 	JWK_KEY_TYPE_OCT,		/**< Octet sequence (e.g. HS256) */
@@ -121,7 +121,7 @@ typedef enum {
  * Corresponds to the ``"key_ops"`` attribute in a JWK that represents a private
  * key. These can be bitwise compares to the key_ops attribute of a jwk_item_t.
  * These flags are used internally to decide if a JWK can be used
- * for cartain operations.
+ * for certain operations.
  *
  * @code
  * if (jwk_item_t.key_ops & (JWK_KEY_OP_SIGN | JWK_KEY_OP_ENCRYPT)) {
@@ -174,7 +174,7 @@ typedef enum {
  * This is used for both add and get requests. Specific rules for each type is
  * described in more detail for the add and get requests.
  *
- * @note There are helper macros to simplify settng this structure properly and
+ * @note There are helper macros to simplify setting this structure properly and
  *  reducing common mistakes. See the jwt_set_{ADD,GET}_{INT,STR,BOOL,JSON}
  *  definitions.
  */
@@ -359,7 +359,7 @@ void jwt_builder_error_clear(jwt_builder_t *builder);
 /**
  * @brief Sets a key and algorithm for a builder
  *
- * The values here must make sense. This table shows what will or wont pass as
+ * The values here must make sense. This table shows what will or won't pass as
  * far as algorithm matching between the alg param and the alg in jwk_item_t.
  * Where ``alg-A`` means one specific algorithm (not none) and ``alg-B``
  * represents another (also not none). The ``none`` is used to represent no
@@ -434,7 +434,7 @@ int jwt_builder_setcb(jwt_builder_t *builder, jwt_callback_t cb, void *ctx);
  * eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3MzY0MzI0MzR9.iDn6N9JsAdUPF11ow0skIfc9eJc2wGRIq30RSRZ8_68
  * @endcode
  *
- * When decoded, the header and payload woild look like this (excluding the
+ * When decoded, the header and payload would look like this (excluding the
  * signature block)::
  *
  * @code
@@ -598,7 +598,7 @@ int jwt_checker_setkey(jwt_checker_t *checker, const jwt_alg_t alg, const
  *
  * These only apply to the RFC defined claims. By default, a checker will verify
  * the ``nbf`` and ``exp`` claims, if present. You can enable the checker to
- * force a failure if these are not present by setting the appropraite flag in
+ * force a failure if these are not present by setting the appropriate flag in
  * the jwt_claims_t param.
  *
  * @note This replaces the current flags completely.
@@ -614,7 +614,7 @@ int jwt_checker_setclaims(jwt_checker_t *checker, jwt_claims_t grants);
  * @brief Set a callback for generating tokens
  *
  * When verifying a token, this callback will be run after jwt_t has been
- * parsed, but before the token is verfied (including signature
+ * parsed, but before the token is verified (including signature
  * verification). During this, the callback should only inspect the header or
  * claims in the JWT. Any attempts to make changes to the jwt_t object will not
  * change the rest of the process.
@@ -1018,7 +1018,7 @@ JWT_EXPORT
 jwk_set_t *jwks_load(jwk_set_t *jwk_set, const char *jwk_json_str);
 
 /**
- * @brief Create a new JWKS object from a string of known lenght
+ * @brief Create a new JWKS object from a string of known length
  *
  * Useful if the string is not null terminated. Otherwise, it works the same
  * as jwks_load().
@@ -1313,7 +1313,7 @@ int jwks_item_key_oct(const jwk_item_t *item, const unsigned char **buf,
 /**
  * @brief The number of bits in this JWK
  *
- * This is relevant to the key type (kty). E.g. an RSA key would have atleast
+ * This is relevant to the key type (kty). E.g. an RSA key would have at least
  * 2048 bits, and an EC key would be 256, 384, or 521 bits, etc.
  *
  * @param item A JWK Item
