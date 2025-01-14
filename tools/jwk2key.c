@@ -12,6 +12,7 @@
 #include <sys/stat.h>
 #include <getopt.h>
 #include <errno.h>
+#include <unistd.h>
 
 #include <jwt.h>
 
