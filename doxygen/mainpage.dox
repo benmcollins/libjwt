@@ -50,7 +50,7 @@ JWS Algorithm ``alg``         | OpenSSL                   | GnuTLS              
 ``PS256`` ``PS384`` ``PS512`` | \emoji :white_check_mark: | \emoji :white_check_mark: | \emoji :white_check_mark:*
 ``ES256K``                    | \emoji :white_check_mark: | \emoji :x:                | \emoji :white_check_mark:
 
-``*`` RSASSA-PSS support in MbedTLS depends on [TF-PSA-Ctypto#154(https://github.com/Mbed-TLS/TF-PSA-Crypto/pull/154)
+``*`` RSASSA-PSS support in MbedTLS depends on [TF-PSA-Ctypto#154](https://github.com/Mbed-TLS/TF-PSA-Crypto/pull/154)
 
 @subsection optional Optional
 
