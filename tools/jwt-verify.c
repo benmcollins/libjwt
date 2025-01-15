@@ -24,7 +24,7 @@ _Noreturn static void usage(const char *error, int exit_state)
 	if (error)
 		fprintf(stderr, "ERROR: %s\n\n", error);
 
-		fprintf(stderr, "\
+	fprintf(stderr, "\
 Usage: %1$s [OPTIONS] <token> [token(s)]\n\
        %1$s [OPTIONS] -\n\
 \n\

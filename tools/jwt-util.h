@@ -5,6 +5,9 @@
    License, v. 2.0. If a copy of the MPL was not distributed with this
    file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+#include <unistd.h>
+#include <sys/wait.h>
+
 static char *pipe_cmd;
 
 static FILE *json_fp;
@@ -21,7 +24,10 @@ static int write_json(const char *title, const char *str)
 		json_fp = stdout;
 
 	if (pipe_cmd) {
-		pipe(pipe_fd);
+		if (pipe(pipe_fd)) {
+			perror(pipe_cmd);
+			exit(EXIT_FAILURE);
+		}
 
 		argv[2] = pipe_cmd;
 		pid = fork();
@@ -47,7 +53,10 @@ static int write_json(const char *title, const char *str)
 	fprintf(json_fp, "\033[0;95m[%s]\033[0m\n", title);
 
 	if (myfd) {
-		write(myfd, str, strlen(str));
+		if (write(myfd, str, strlen(str)) < 0) {
+			perror(pipe_cmd);
+			exit(EXIT_FAILURE);
+		}
 	} else {
 		fprintf(json_fp, "\033[0;96m%s\033[0m\n", str);
 	}
