@@ -80,7 +80,7 @@ Example output:
 **\-m**, **\-\-disable-hmac**
   ~ Disable falling back to HAMC for key files that OpenSSL cannot read.
 
-**\-o** _FILE_, **\-\-json**=_FILE_
+**\-o** _FILE_, **\-\-output**=_FILE_
   ~ Use _FILE_ to write the JWKS. Use **-** to write to stdout.
 
 # BUGS
