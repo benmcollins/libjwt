@@ -263,7 +263,7 @@ typedef enum {
  *
  * Beyond the normal validations (e.g. algorithm, and signature checks) these
  * are the ones that will be performed if the grants exist in the JWT. If the
- * grants do not exist, they validation will be ignores.
+ * grants do not exist, the validation will be ignores.
  *
  * @note If you do not set any validation flags (JWT_VALIDATION_EMPTY), these
  * will be used. If you do not want them used, them you must set
@@ -653,9 +653,154 @@ int jwt_checker_verify(jwt_checker_t *checker, const char *token);
 
 /**
  * @defgroup jwt_claims_grp Working with Claims
+ *
+ * Claims are information contained in the payload of a JWT. It gives
+ * information to the consumer about what the token presents. This could mean
+ * permissions, roles, groups, etc. When creating a token, claims are assigned
+ * to define the token. When verifying a token, the claims are authenticated as
+ * being the ones that were assigned to the token.
+ *
+ * While there are certain claims that are defined by the RFCs related to JWT,
+ * what they actually control are application defined.
+ *
+ * There are two groups of claims functions. Ones for @ref jwt_builder_grp and
+ * ones for @ref jwt_checker_grp. While they are functionally the same, their
+ * use is very different.
  * @{
  */
 
+/**
+ * @defgroup jwt_claims_helpers_grp Claims Helpers
+ *
+ * These apply to all claims usage.
+ * @{
+ */
+
+/**
+ * @brief Setup a jwt_value_t to get an integer value
+ *
+ * @param __v Pointer to a jwt_value_t object
+ * @param __n Name of the value
+ * @return No return value
+ */
+#define jwt_set_GET_INT(__v, __n) ({	\
+	(__v)->type=JWT_VALUE_INT;	\
+	(__v)->name=(__n);(__v)->int_val=0;(__v)->error=0;})
+
+/**
+ * @brief Setup a jwt_value_t to get a string value
+ *
+ * @param __v Pointer to a jwt_value_t object
+ * @param __n Name of the value
+ * @return No return value
+ */
+#define jwt_set_GET_STR(__v, __n) ({	\
+	(__v)->type=JWT_VALUE_STR;	\
+	(__v)->name=(__n);(__v)->str_val=NULL;(__v)->error=0;})
+
+/**
+ * @brief Setup a jwt_value_t to get a boolean value
+ *
+ * @param __v Pointer to a jwt_value_t object
+ * @param __n Name of the value
+ * @return No return value
+ */
+#define jwt_set_GET_BOOL(__v, __n) ({	\
+	(__v)->type=JWT_VALUE_BOOL;	\
+	(__v)->name=(__n);(__v)->bool_val=0;(__v)->error=0;})
+
+/**
+ * @brief Setup a jwt_value_t to get an JSON string
+ *
+ * @param __v Pointer to a jwt_value_t object
+ * @param __n Name of the value
+ * @return No return value
+ */
+#define jwt_set_GET_JSON(__v, __n) ({			\
+	(__v)->type=JWT_VALUE_JSON;(__v)->pretty=0;	\
+	(__v)->name=(__n);(__v)->json_val=NULL;(__v)->error=0;})
+
+/**
+ * @brief Setup a jwt_value_t to add an integer value
+ *
+ * @param __v Pointer to a jwt_value_t object
+ * @param __n Name of the value
+ * @param __x Value to add
+ * @return No return value
+ */
+#define jwt_set_ADD_INT(__v, __n, __x) ({		\
+	(__v)->type=JWT_VALUE_INT;(__v)->replace=0;	\
+	(__v)->name=(__n);(__v)->int_val=(__x);(__v)->error=0;})
+
+/**
+ * @brief Setup a jwt_value_t to add a string value
+ *
+ * @param __v Pointer to a jwt_value_t object
+ * @param __n Name of the value
+ * @param __x Value to add
+ * @return No return value
+ */
+#define jwt_set_ADD_STR(__v, __n, __x) ({		\
+	(__v)->type=JWT_VALUE_STR;(__v)->replace=0;	\
+	(__v)->name=(__n);(__v)->str_val=(__x);(__v)->error=0;})
+
+/**
+ * @brief Setup a jwt_value_t to add a boolean value
+ *
+ * @param __v Pointer to a jwt_value_t object
+ * @param __n Name of the value
+ * @param __x Value to add
+ * @return No return value
+ */
+#define jwt_set_ADD_BOOL(__v, __n, __x) ({		\
+	(__v)->type=JWT_VALUE_BOOL;(__v)->replace=0;	\
+	(__v)->name=(__n);(__v)->bool_val=(__x);(__v)->error=0;})
+
+/**
+ * @brief Setup a jwt_value_t to add a JSON string
+ *
+ * @param __v Pointer to a jwt_value_t object
+ * @param __n Name of the value
+ * @param __x Value to add
+ * @return No return value
+ */
+#define jwt_set_ADD_JSON(__v, __n, __x) ({		\
+	(__v)->type=JWT_VALUE_JSON;(__v)->replace=0;	\
+	(__v)->name=(__n);(__v)->json_val=(__x);(__v)->error=0;})
+
+/**
+ * @brief Setup a jwt_value_t to add a boolean value
+ *
+ * @param __v Pointer to a jwt_value_t object
+ * @param __n Name of the value
+ * @param __x Value to add
+ * @return No return value
+ */
+#define jwt_set_ADD_BOOL(__v, __n, __x) ({		\
+	(__v)->type=JWT_VALUE_BOOL;(__v)->replace=0;	\
+	(__v)->name=(__n);(__v)->bool_val=(__x);(__v)->error=0;})
+
+/**
+ * @brief Setup a jwt_value_t to add a JSON string
+ *
+ * @param __v Pointer to a jwt_value_t object
+ * @param __n Name of the value
+ * @param __x Value to add
+ * @return No return value
+ */
+#define jwt_set_ADD_JSON(__v, __n, __x) ({		\
+	(__v)->type=JWT_VALUE_JSON;(__v)->replace=0;	\
+	(__v)->name=(__n);(__v)->json_val=(__x);(__v)->error=0;})
+
+/**
+ * @}
+ * @noop jwt_claims_helpers_grp
+ */
+
+/**
+ * @defgroup jwt_claims_builder_grp Builder Claims
+ * @{
+ */
 JWT_EXPORT
 jwt_value_error_t jwt_builder_header_add(jwt_builder_t *builder, jwt_value_t
 					 *value);
@@ -674,7 +819,15 @@ jwt_value_error_t jwt_builder_claim_get(jwt_builder_t *builder, jwt_value_t
 JWT_EXPORT
 jwt_value_error_t jwt_builder_claim_del(jwt_builder_t *builder, const char
 					*header);
+/**
+ * @}
+ * @noop jwt_claims_builder_grp
+ */
 
+/**
+ * @defgroup jwt_claims_checker_grp Checker Claims
+ * @{
+ */
 JWT_EXPORT
 jwt_value_error_t jwt_checker_header_add(jwt_checker_t *checker, jwt_value_t
 					 *value);
@@ -693,14 +846,13 @@ jwt_value_error_t jwt_checker_claim_get(jwt_checker_t *checker, jwt_value_t
 JWT_EXPORT
 jwt_value_error_t jwt_checker_claim_del(jwt_checker_t *checker, const char
 					*header);
-
 /**
  * @}
- * @noop jwt_claims_grp
+ * @noop jwt_claims_checker_grp
  */
 
 /**
- * @defgroup jwt_object_grp The JWT object
+ * @defgroup jwt_object_grp JWT Claims
  * @{
  */
 
@@ -830,100 +982,13 @@ JWT_EXPORT
 jwt_value_error_t jwt_grant_del(jwt_t *jwt, const char *header);
 
 /**
- * @brief Setup a jwt_value_t to get an integer value
- *
- * @param __v Pointer to a jwt_value_t object
- * @param __n Name of the value
- * @return No return value
+ * @}
+ * @noop jwt_object_grp
  */
-#define jwt_set_GET_INT(__v, __n) ({	\
-	(__v)->type=JWT_VALUE_INT;	\
-	(__v)->name=(__n);(__v)->int_val=0;(__v)->error=0;})
-
-/**
- * @brief Setup a jwt_value_t to get a string value
- *
- * @param __v Pointer to a jwt_value_t object
- * @param __n Name of the value
- * @return No return value
- */
-#define jwt_set_GET_STR(__v, __n) ({	\
-	(__v)->type=JWT_VALUE_STR;	\
-	(__v)->name=(__n);(__v)->str_val=NULL;(__v)->error=0;})
-
-/**
- * @brief Setup a jwt_value_t to get a boolean value
- *
- * @param __v Pointer to a jwt_value_t object
- * @param __n Name of the value
- * @return No return value
- */
-#define jwt_set_GET_BOOL(__v, __n) ({	\
-	(__v)->type=JWT_VALUE_BOOL;	\
-	(__v)->name=(__n);(__v)->bool_val=0;(__v)->error=0;})
-
-/**
- * @brief Setup a jwt_value_t to get an JSON string
- *
- * @param __v Pointer to a jwt_value_t object
- * @param __n Name of the value
- * @return No return value
- */
-#define jwt_set_GET_JSON(__v, __n) ({			\
-	(__v)->type=JWT_VALUE_JSON;(__v)->pretty=0;	\
-	(__v)->name=(__n);(__v)->json_val=NULL;(__v)->error=0;})
-
-/**
- * @brief Setup a jwt_value_t to add an integer value
- *
- * @param __v Pointer to a jwt_value_t object
- * @param __n Name of the value
- * @param __x Value to add
- * @return No return value
- */
-#define jwt_set_ADD_INT(__v, __n, __x) ({		\
-	(__v)->type=JWT_VALUE_INT;(__v)->replace=0;	\
-	(__v)->name=(__n);(__v)->int_val=(__x);(__v)->error=0;})
-
-/**
- * @brief Setup a jwt_value_t to add a string value
- *
- * @param __v Pointer to a jwt_value_t object
- * @param __n Name of the value
- * @param __x Value to add
- * @return No return value
- */
-#define jwt_set_ADD_STR(__v, __n, __x) ({		\
-	(__v)->type=JWT_VALUE_STR;(__v)->replace=0;	\
-	(__v)->name=(__n);(__v)->str_val=(__x);(__v)->error=0;})
-
-/**
- * @brief Setup a jwt_value_t to add a boolean value
- *
- * @param __v Pointer to a jwt_value_t object
- * @param __n Name of the value
- * @param __x Value to add
- * @return No return value
- */
-#define jwt_set_ADD_BOOL(__v, __n, __x) ({		\
-	(__v)->type=JWT_VALUE_BOOL;(__v)->replace=0;	\
-	(__v)->name=(__n);(__v)->bool_val=(__x);(__v)->error=0;})
-
-/**
- * @brief Setup a jwt_value_t to add a JSON string
- *
- * @param __v Pointer to a jwt_value_t object
- * @param __n Name of the value
- * @param __x Value to add
- * @return No return value
- */
-#define jwt_set_ADD_JSON(__v, __n, __x) ({		\
-	(__v)->type=JWT_VALUE_JSON;(__v)->replace=0;	\
-	(__v)->name=(__n);(__v)->json_val=(__x);(__v)->error=0;})
 
 /**
  * @}
- * @noop jwt_object_grp
+ * @noop jwt_claims_grp
  */
 
 /**
