@@ -36,7 +36,7 @@ Decode and (optionally) verify the signature for a JSON Web Token\n\
                         provided with -k does not have an \"alg\" attribute\n\
   -p, --print=CMD       When printing JSON, pipe through CMD\n\
   -k, --key=FILE        Filename containing a JSON Web Key\n\
-  -q, --quiet           No output. Exit value is numner of errors\n\
+  -q, --quiet           No output. Exit value is number of errors\n\
   -v, --verbose         Show decoded header and payload while verifying\n\
 \nThis program will decode and validate each token on the command line.\n\
 If - is given as the only argument to token, then tokens will be read\n\
@@ -87,7 +87,7 @@ static int process_one(jwt_checker_t *checker, jwt_alg_t alg, const char *token,
 		}
 		err = 1;
 	} else if (!quiet) {
-		printf("\xF0\x9F\x91\x8D \033[0;92m[YES]\033[0m Verfified\n");
+		printf("\xF0\x9F\x91\x8D \033[0;92m[YES]\033[0m Verified\n");
 	}
 
 	return err;
@@ -166,7 +166,7 @@ int main(int argc, char *argv[])
 			break;
 
 		default: /* '?' */
-			usage("Uknown option", EXIT_FAILURE);
+			usage("Unknown option", EXIT_FAILURE);
 			break;
 		}
 	}

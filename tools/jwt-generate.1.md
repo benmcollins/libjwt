@@ -28,7 +28,7 @@ is **Issued At** and is the time in seconds since the *Unix Epcoch*.
 When using the **\-\-verbose** option, **jwt-generate** will print the JSON
 _HEADER_ and _PAYLOAD_ to **stdout**.
 
-If used in conjuction with **\-\-print**, the JSON will be piped to the
+If used in conjunction with **\-\-print**, the JSON will be piped to the
 command's **stdin**. It will be called twice: once for _HEAD_ and once for
 _PAYLOAD_.
 

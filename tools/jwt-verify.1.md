@@ -20,7 +20,7 @@ signature block on the JWT, then you must give a JWK key with the
 so it must either be in the key file (as the **alg** attribute), or
 passed on the command line with the **-a** argument.
 
-**jwt-verify** will not assume the alogirthm from the JWT itself (for
+**jwt-verify** will not assume the algorithm from the JWT itself (for
 security reasons), however, the algorithm in the JWT must match what
 you provide to **jwt-verify**.
 
@@ -31,7 +31,7 @@ must pass **-** as the last and only argument after any options.
 When using the **\-\-verbose** option, **jwt-verify** will print the JSON
 _HEADER_ and _PAYLOAD_ to **stdout**.
 
-If used in conjuction with **\-\-print**, the JSON will be piped to the
+If used in conjunction with **\-\-print**, the JSON will be piped to the
 command's **stdin**. It will be called twice: once for _HEAD_ and once for
 _PAYLOAD_.
 

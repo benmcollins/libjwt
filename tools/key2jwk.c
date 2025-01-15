@@ -424,7 +424,7 @@ int main(int argc, char **argv)
 			}
 			break;
 		default: /* '?' */
-			usage("Uknown option", EXIT_FAILURE);
+			usage("Unknown option", EXIT_FAILURE);
 			break;
 		}
 	}
