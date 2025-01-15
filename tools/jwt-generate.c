@@ -234,8 +234,8 @@ int main(int argc, char *argv[])
 	}
 
 	if (json) {
-		jwt_set_ADD_JSON(&jval, NULL, json);
-		if (jwt_builder_claim_add(builder, &jval)) {
+		if (jwt_builder_claim_add(builder,
+				jwt_set_ADD_JSON(&jval, NULL, json))) {
 			fprintf(stderr, "Error adding JSON (%d)\n",
 				jval.error);
 			exit(EXIT_FAILURE);

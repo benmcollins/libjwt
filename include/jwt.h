@@ -663,9 +663,9 @@ int jwt_checker_verify(jwt_checker_t *checker, const char *token);
  * While there are certain claims that are defined by the RFCs related to JWT,
  * what they actually control are application defined.
  *
- * There are two groups of claims functions. Ones for @ref jwt_builder_grp and
- * ones for @ref jwt_checker_grp. While they are functionally the same, their
- * use is very different.
+ * There are three groups of claims functions. Ones for @ref jwt_builder_grp,
+ * for @ref jwt_checker_grp, and finally, @ref jwt_object_grp. While they are
+ * functionally the same, their use is very different.
  * @{
  */
 
@@ -685,7 +685,8 @@ int jwt_checker_verify(jwt_checker_t *checker, const char *token);
  */
 #define jwt_set_GET_INT(__v, __n) ({	\
 	(__v)->type=JWT_VALUE_INT;	\
-	(__v)->name=(__n);(__v)->int_val=0;(__v)->error=0;})
+	(__v)->name=(__n);(__v)->int_val=0;(__v)->error=0;\
+	(__v);})
 
 /**
  * @brief Setup a jwt_value_t to get a string value
@@ -696,7 +697,8 @@ int jwt_checker_verify(jwt_checker_t *checker, const char *token);
  */
 #define jwt_set_GET_STR(__v, __n) ({	\
 	(__v)->type=JWT_VALUE_STR;	\
-	(__v)->name=(__n);(__v)->str_val=NULL;(__v)->error=0;})
+	(__v)->name=(__n);(__v)->str_val=NULL;(__v)->error=0;\
+	(__v);})
 
 /**
  * @brief Setup a jwt_value_t to get a boolean value
@@ -707,7 +709,8 @@ int jwt_checker_verify(jwt_checker_t *checker, const char *token);
  */
 #define jwt_set_GET_BOOL(__v, __n) ({	\
 	(__v)->type=JWT_VALUE_BOOL;	\
-	(__v)->name=(__n);(__v)->bool_val=0;(__v)->error=0;})
+	(__v)->name=(__n);(__v)->bool_val=0;(__v)->error=0;\
+	(__v);})
 
 /**
  * @brief Setup a jwt_value_t to get an JSON string
@@ -718,7 +721,8 @@ int jwt_checker_verify(jwt_checker_t *checker, const char *token);
  */
 #define jwt_set_GET_JSON(__v, __n) ({			\
 	(__v)->type=JWT_VALUE_JSON;(__v)->pretty=0;	\
-	(__v)->name=(__n);(__v)->json_val=NULL;(__v)->error=0;})
+	(__v)->name=(__n);(__v)->json_val=NULL;(__v)->error=0;\
+	(__v);})
 
 /**
  * @brief Setup a jwt_value_t to add an integer value
@@ -730,7 +734,8 @@ int jwt_checker_verify(jwt_checker_t *checker, const char *token);
  */
 #define jwt_set_ADD_INT(__v, __n, __x) ({		\
 	(__v)->type=JWT_VALUE_INT;(__v)->replace=0;	\
-	(__v)->name=(__n);(__v)->int_val=(__x);(__v)->error=0;})
+	(__v)->name=(__n);(__v)->int_val=(__x);(__v)->error=0;\
+	(__v);})
 
 /**
  * @brief Setup a jwt_value_t to add a string value
@@ -742,7 +747,8 @@ int jwt_checker_verify(jwt_checker_t *checker, const char *token);
  */
 #define jwt_set_ADD_STR(__v, __n, __x) ({		\
 	(__v)->type=JWT_VALUE_STR;(__v)->replace=0;	\
-	(__v)->name=(__n);(__v)->str_val=(__x);(__v)->error=0;})
+	(__v)->name=(__n);(__v)->str_val=(__x);(__v)->error=0;\
+	(__v);})
 
 /**
  * @brief Setup a jwt_value_t to add a boolean value
@@ -754,7 +760,8 @@ int jwt_checker_verify(jwt_checker_t *checker, const char *token);
  */
 #define jwt_set_ADD_BOOL(__v, __n, __x) ({		\
 	(__v)->type=JWT_VALUE_BOOL;(__v)->replace=0;	\
-	(__v)->name=(__n);(__v)->bool_val=(__x);(__v)->error=0;})
+	(__v)->name=(__n);(__v)->bool_val=(__x);(__v)->error=0;\
+	(__v);})
 
 /**
  * @brief Setup a jwt_value_t to add a JSON string
@@ -764,33 +771,10 @@ int jwt_checker_verify(jwt_checker_t *checker, const char *token);
  * @param __x Value to add
  * @return No return value
  */
-#define jwt_set_ADD_JSON(__v, __n, __x) ({		\
-	(__v)->type=JWT_VALUE_JSON;(__v)->replace=0;	\
-	(__v)->name=(__n);(__v)->json_val=(__x);(__v)->error=0;})
-
-/**
- * @brief Setup a jwt_value_t to add a boolean value
- *
- * @param __v Pointer to a jwt_value_t object
- * @param __n Name of the value
- * @param __x Value to add
- * @return No return value
- */
-#define jwt_set_ADD_BOOL(__v, __n, __x) ({		\
-	(__v)->type=JWT_VALUE_BOOL;(__v)->replace=0;	\
-	(__v)->name=(__n);(__v)->bool_val=(__x);(__v)->error=0;})
-
-/**
- * @brief Setup a jwt_value_t to add a JSON string
- *
- * @param __v Pointer to a jwt_value_t object
- * @param __n Name of the value
- * @param __x Value to add
- * @return No return value
- */
-#define jwt_set_ADD_JSON(__v, __n, __x) ({		\
-	(__v)->type=JWT_VALUE_JSON;(__v)->replace=0;	\
-	(__v)->name=(__n);(__v)->json_val=(__x);(__v)->error=0;})
+#define jwt_set_ADD_JSON(__v, __n, __x) ({			\
+	(__v)->type=JWT_VALUE_JSON;(__v)->replace=0;		\
+	(__v)->name=(__n);(__v)->json_val=(__x);(__v)->error=0;	\
+	(__v);})
 
 /**
  * @}
