@@ -13,8 +13,6 @@
 #include <jwt.h>
 #include "jwt-private.h"
 
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
-
 #include <openssl/pem.h>
 #include <openssl/evp.h>
 #include <openssl/bio.h>
@@ -557,36 +555,3 @@ void openssl_process_item_free(jwk_item_t *item)
 	item->provider_data = NULL;
 	item->provider = JWT_CRYPTO_OPS_NONE;
 }
-
-#else /* OpenSSL 3 */
-
-static const char not_implemented[] = "OpenSSL Support for JWK requires 3.0 or higher";
-
-JWT_NO_EXPORT
-int openssl_process_eddsa(json_t *jwk, jwk_item_t *item)
-{
-	jwt_write_error(item, not_implemented);
-	return -1;
-}
-
-JWT_NO_EXPORT
-int openssl_process_rsa(json_t *jwk, jwk_item_t *item)
-{
-	jwt_write_error(item, not_implemented);
-	return -1;
-}
-
-JWT_NO_EXPORT
-int openssl_process_ec(json_t *jwk, jwk_item_t *item)
-{
-	jwt_write_error(item, not_implemented);
-	return -1;
-}
-
-JWT_NO_EXPORT
-void openssl_process_item_free(jwk_item_t *item)
-{
-	return;
-}
-
-#endif /* OpenSSL 3 */

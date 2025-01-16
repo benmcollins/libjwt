@@ -501,11 +501,7 @@ struct jwt_crypto_ops jwt_openssl_ops = {
 	.sign_sha_pem		= openssl_sign_sha_pem,
 	.verify_sha_pem		= openssl_verify_sha_pem,
 
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
 	.jwk_implemented	= 1,
-#else
-	.jwk_implemented	= 0,
-#endif
 	.process_eddsa		= openssl_process_eddsa,
 	.process_rsa		= openssl_process_rsa,
 	.process_ec		= openssl_process_ec,
