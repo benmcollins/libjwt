@@ -82,7 +82,7 @@ See GitHub Issues: <https://github.com/benmcollins/libjwt/issues>
 # AUTHOR
 
 **jwt-generate** was originally written by Jeremy Thien. Major rewriting and man
-page by Ben Collins <bcollins@maclara-llc.com>.
+page by Ben Collins <bcollins@libjwt.io>.
 
 # SEE ALSO
 

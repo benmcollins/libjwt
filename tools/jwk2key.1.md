@@ -55,7 +55,7 @@ See GitHub Issues: <https://github.com/benmcollins/libjwt/issues>
 
 # AUTHOR
 
-**jwk2key** written by Ben Collins <bcollins@maclara-llc.com>.
+**jwk2key** written by Ben Collins <bcollins@libjwt.io>.
 
 # SEE ALSO
 

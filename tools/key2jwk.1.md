@@ -89,7 +89,7 @@ See GitHub Issues: <https://github.com/benmcollins/libjwt/issues>
 
 # AUTHOR
 
-**key2jwk** written by Ben Collins <bcollins@maclara-llc.com>.
+**key2jwk** written by Ben Collins <bcollins@libjwt.io>.
 
 # SEE ALSO
 
