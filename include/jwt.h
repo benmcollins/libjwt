@@ -144,7 +144,7 @@ typedef enum {
 	JWK_KEY_OP_INVALID	= 0xffff,	/**< Invalid key_ops in JWK */
 } jwk_key_op_t;
 
-/** @ingroup jwt_claims_grp
+/** @ingroup jwt_claims_helpers_grp
  * @brief Value types for grants and headers
  */
 typedef enum {
@@ -156,7 +156,7 @@ typedef enum {
 	JWT_VALUE_INVALID,	/**< Invalid (used internally)		*/
 } jwt_value_type_t;
 
-/** @ingroup jwt_claims_grp
+/** @ingroup jwt_claims_helpers_grp
  * @brief Error values for header and grant requests
  */
 typedef enum {
@@ -168,7 +168,7 @@ typedef enum {
 	JWT_VALUE_ERR_NOMEM,	/**< Memory allocation error		*/
 } jwt_value_error_t;
 
-/** @ingroup jwt_claims_grp
+/** @ingroup jwt_claims_helpers_grp
  * @brief Data type for get and add actions for JWT headers and grants
  *
  * This is used for both add and get requests. Specific rules for each type is
@@ -241,7 +241,7 @@ typedef struct {
  */
 typedef int (*jwt_callback_t)(jwt_t *, jwt_config_t *);
 
-/** @ingroup jwt_claims_grp
+/** @ingroup jwt_claims_helpers_grp
  * @brief WFC defined claims
  */
 typedef enum {
@@ -258,7 +258,7 @@ typedef enum {
         JWT_CLAIMS_ALL          = 0x80fe, /**< Mask of all claims           */
 } jwt_claims_t;
 
-/** @ingroup jwt_claims_grp
+/** @ingroup jwt_claims_helpers_grp
  * @brief Default validations
  *
  * Beyond the normal validations (e.g. algorithm, and signature checks) these
@@ -271,7 +271,7 @@ typedef enum {
  */
 #define JWT_CHECKER_CLAIMS (JWT_CLAIM_EXP|JWT_CLAIM_NBF)
 
-/** @ingroup jwt_claims_grp
+/** @ingroup jwt_claims_helpers_grp
  * @brief Default claims for builders
  */
 #define JWT_BUILDER_CLAIMS (JWT_CLAIM_IAT)
@@ -291,7 +291,7 @@ typedef enum {
  */
 
 /**
- * @brief Opaque Builde Object
+ * @brief Opaque Builder Object
  */
 typedef struct jwt_builder jwt_builder_t;
 
@@ -1413,7 +1413,7 @@ int jwks_item_free_all(jwk_set_t *jwk_set);
  */
 
  /**
-  * Set functions to be used for allocating and freeing memory.
+  * @brief Set functions to be used for memory management
   *
   * By default, LibJWT uses malloc, realloc, and free for memory
   * management. This function allows the user of the library to
@@ -1460,8 +1460,8 @@ void jwt_get_alloc(jwt_malloc_t *pmalloc, jwt_realloc_t *prealloc,
  * @defgroup jwt_crypto_grp Cryptographic Ops
  * Functions used to set and get which crypto operations are used
  *
- * LibJWT supports several crypto libraries, mainly "openssl" and "gnutls".
- * By default, if enabled, "openssl" is used.
+ * LibJWT supports several crypto libraries, mainly "openssl", "gnutls",
+ * and "mbedtls". By default, "openssl" is used.
  *
  * @warning Changing the crypto operations is not thread safe. You must
  *   protect changing them with some sort of lock, including locking
