@@ -86,7 +86,7 @@ static int jwt_encode(jwt_t *jwt, char **out)
 	}
 
 	/* Now the body. */
-	ret = write_js(jwt->grants, &buf);
+	ret = write_js(jwt->claims, &buf);
 	if (ret) {
 		// LCOV_EXCL_START
 		jwt_write_error(jwt, "Error writing body");

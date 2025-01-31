@@ -48,7 +48,7 @@ static int __gen_wcb(jwt_t *jwt, jwt_config_t *config)
 
 	ck_assert_str_eq(config->ctx, "testing");
 	jwt_set_ADD_INT(&jval, "exp", TS_CONST + 480);
-	jwt_grant_add(jwt, &jval);
+	jwt_claim_add(jwt, &jval);
 
 	return 0;
 }

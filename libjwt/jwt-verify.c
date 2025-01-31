@@ -36,11 +36,11 @@ static json_t *jwt_base64uri_decode_to_json(char *src)
 
 static int jwt_parse_payload(jwt_t *jwt, char *payload)
 {
-	if (jwt->grants)
-		json_decrefp(&(jwt->grants));
+	if (jwt->claims)
+		json_decrefp(&(jwt->claims));
 
-	jwt->grants = jwt_base64uri_decode_to_json(payload);
-	if (!jwt->grants) {
+	jwt->claims = jwt_base64uri_decode_to_json(payload);
+	if (!jwt->claims) {
 		jwt_write_error(jwt, "Error parsing payload");
 		return 1;
 	}

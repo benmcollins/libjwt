@@ -268,7 +268,7 @@ static jwt_value_error_t __run_it(jwt_t *jwt, _setget_type_t type,
 		which = jwt->headers;
 		break;
 	case __CLAIM:
-		which = jwt->grants;
+		which = jwt->claims;
 		break;
 	default:
 		return value->error = JWT_VALUE_ERR_INVALID;
@@ -295,20 +295,20 @@ jwt_value_error_t jwt_header_del(jwt_t *jwt, const char *header)
 	return __deleter(jwt->headers, header);
 }
 
-/* Grants */
-jwt_value_error_t jwt_grant_get(jwt_t *jwt, jwt_value_t *value)
+/* Claims */
+jwt_value_error_t jwt_claim_get(jwt_t *jwt, jwt_value_t *value)
 {
 	return __run_it(jwt, __CLAIM, value, __getter);
 }
 
-jwt_value_error_t jwt_grant_add(jwt_t *jwt, jwt_value_t *value)
+jwt_value_error_t jwt_claim_add(jwt_t *jwt, jwt_value_t *value)
 {
 	return __run_it(jwt, __CLAIM, value, __adder);
 }
 
-jwt_value_error_t jwt_grant_del(jwt_t *jwt, const char *header)
+jwt_value_error_t jwt_claim_del(jwt_t *jwt, const char *header)
 {
 	if (!jwt)
                 return JWT_VALUE_ERR_INVALID;
-	return __deleter(jwt->grants, header);
+	return __deleter(jwt->claims, header);
 }

@@ -145,7 +145,7 @@ typedef enum {
 } jwk_key_op_t;
 
 /** @ingroup jwt_claims_helpers_grp
- * @brief Value types for grants and headers
+ * @brief Value types for claims and headers
  */
 typedef enum {
 	JWT_VALUE_NONE = 0,	/**< No type (do not use this)		*/
@@ -157,7 +157,7 @@ typedef enum {
 } jwt_value_type_t;
 
 /** @ingroup jwt_claims_helpers_grp
- * @brief Error values for header and grant requests
+ * @brief Error values for header and claim requests
  */
 typedef enum {
 	JWT_VALUE_ERR_NONE = 0,	/**< No error, success			*/
@@ -169,7 +169,7 @@ typedef enum {
 } jwt_value_error_t;
 
 /** @ingroup jwt_claims_helpers_grp
- * @brief Data type for get and add actions for JWT headers and grants
+ * @brief Data type for get and add actions for JWT headers and claims
  *
  * This is used for both add and get requests. Specific rules for each type is
  * described in more detail for the add and get requests.
@@ -262,8 +262,8 @@ typedef enum {
  * @brief Default validations
  *
  * Beyond the normal validations (e.g. algorithm, and signature checks) these
- * are the ones that will be performed if the grants exist in the JWT. If the
- * grants do not exist, the validation will be ignores.
+ * are the ones that will be performed if the claims exist in the JWT. If the
+ * claims do not exist, the validation will be ignores.
  *
  * @note If you do not set any validation flags (JWT_VALIDATION_EMPTY), these
  * will be used. If you do not want them used, them you must set
@@ -398,11 +398,11 @@ int jwt_builder_setkey(jwt_builder_t *builder, const jwt_alg_t alg,
  * in order to be enforced.
  *
  * @param builder Pointer to a builder object
- * @param grants A bitwise set of values in jwt_claims_t
+ * @param claims A bitwise set of values in jwt_claims_t
  * @return 0 on success, non-zero otherwise with error set in the builder
  */
 JWT_EXPORT
-int jwt_builder_setclaims(jwt_builder_t *builder, jwt_claims_t grants);
+int jwt_builder_setclaims(jwt_builder_t *builder, jwt_claims_t claims);
 
 /**
  * @brief Set a callback for generating tokens
@@ -604,11 +604,11 @@ int jwt_checker_setkey(jwt_checker_t *checker, const jwt_alg_t alg, const
  * @note This replaces the current flags completely.
  *
  * @param checker Pointer to a checker object
- * @param grants A bitwise set of values in jwt_claims_t
+ * @param claims A bitwise set of values in jwt_claims_t
  * @return 0 on success, non-zero otherwise with error set in the checker
  */
 JWT_EXPORT
-int jwt_checker_setclaims(jwt_checker_t *checker, jwt_claims_t grants);
+int jwt_checker_setclaims(jwt_checker_t *checker, jwt_claims_t claims);
 
 /**
  * @brief Set a callback for generating tokens
@@ -928,7 +928,7 @@ JWT_EXPORT
 jwt_value_error_t jwt_header_del(jwt_t *jwt, const char *header);
 
 /**
- * @brief Add a value to the grants of a JWT
+ * @brief Add a value to the claims of a JWT
  *
  * See jwt_header_add() for detailed description.
  *
@@ -938,10 +938,10 @@ jwt_value_error_t jwt_header_del(jwt_t *jwt, const char *header);
  *  value.error field will match this return value.
  */
 JWT_EXPORT
-jwt_value_error_t jwt_grant_add(jwt_t *jwt, jwt_value_t *value);
+jwt_value_error_t jwt_claim_add(jwt_t *jwt, jwt_value_t *value);
 
 /**
- * @brief Get a value from the grants of a JWT
+ * @brief Get a value from the claims of a JWT
  *
  * See jwt_header_get() for detailed description.
  *
@@ -951,19 +951,19 @@ jwt_value_error_t jwt_grant_add(jwt_t *jwt, jwt_value_t *value);
  *  value.error field will match this return value.
  */
 JWT_EXPORT
-jwt_value_error_t jwt_grant_get(jwt_t *jwt, jwt_value_t *value);
+jwt_value_error_t jwt_claim_get(jwt_t *jwt, jwt_value_t *value);
 
 /**
- * @brief Delete a value from the grants of a JWT
+ * @brief Delete a value from the claims of a JWT
  *
- * See jwt_grant_get() for detailed description.
+ * See jwt_claim_get() for detailed description.
  *
  * @param jwt Pointer to a jwt_t token, previously created with jwt_create()
- * @param header The name of the grant to delete, or NULL to clear all grants
+ * @param header The name of the claim to delete, or NULL to clear all claims
  * @return A jwt_value_error_t value, JWT_VALUE_ERR_NONE being success.
  */
 JWT_EXPORT
-jwt_value_error_t jwt_grant_del(jwt_t *jwt, const char *header);
+jwt_value_error_t jwt_claim_del(jwt_t *jwt, const char *header);
 
 /**
  * @}

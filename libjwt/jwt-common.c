@@ -320,13 +320,13 @@ char *FUNC(generate)(jwt_common_t *__cmd)
 	memset(jwt, 0, sizeof(*jwt));
 
 	jwt->headers = json_deep_copy(__cmd->c.headers);
-	jwt->grants = json_deep_copy(__cmd->c.payload);
+	jwt->claims = json_deep_copy(__cmd->c.payload);
 
 	/* Our internal work first */
 	if (__cmd->c.claims & JWT_CLAIM_IAT) {
 		jwt_set_ADD_INT(&jval, "iat", (long)time(NULL));
 		jval.replace = 1;
-		jwt_grant_add(jwt, &jval);
+		jwt_claim_add(jwt, &jval);
 	}
 
 	config.alg = __cmd->c.alg;

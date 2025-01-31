@@ -104,10 +104,10 @@ jwt_t *jwt_new(void)
 
 	memset(jwt, 0, sizeof(*jwt));
 
-	jwt->grants = json_object();
+	jwt->claims = json_object();
 	jwt->headers = json_object();
 
-	if (!jwt->grants || !jwt->headers)
+	if (!jwt->claims || !jwt->headers)
 		jwt_freep(&jwt);
 
 	return jwt;
@@ -126,7 +126,7 @@ void jwt_free(jwt_t *jwt)
 	if (!jwt)
 		return;
 
-	json_decref(jwt->grants);
+	json_decref(jwt->claims);
 	json_decref(jwt->headers);
 
 	memset(jwt, 0, sizeof(*jwt));

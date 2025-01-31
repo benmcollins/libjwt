@@ -88,7 +88,7 @@ static int __jwt_wcb(jwt_t *jwt, jwt_config_t *config)
 
 	jwt_set_GET_JSON(&jval, NULL);
 	jval.pretty = 1;
-	ret = jwt_grant_get(jwt, &jval);
+	ret = jwt_claim_get(jwt, &jval);
 	if (!ret) {
 		result |= write_json("PAYLOAD", jval.json_val);
 		free(jval.json_val);

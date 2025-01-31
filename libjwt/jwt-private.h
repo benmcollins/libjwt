@@ -80,7 +80,7 @@ struct jwt_checker {
 
 struct jwt {
 	const jwk_item_t *key;
-	json_t *grants;
+	json_t *claims;
 	json_t *headers;
 	jwt_alg_t alg;
 	int error;
