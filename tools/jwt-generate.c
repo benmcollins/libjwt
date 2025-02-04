@@ -44,8 +44,8 @@ Generate and (optionally) sign a JSON Web Token\n\
                         'F', or '0' it is taken as false. Anything else is true.\n\
   -j, --json=STRING     JSON string to be used as the body of the token.\n\
   -q, --quiet           No output other than the generated token\n\
-  -v, --verbose         Show encoded header and payload while verifying. Note that\n\
-                        the header will not who the 'tpy' and 'alg' attributes\n\
+  -v, --verbose         Show encoded header and payload while generating. Note that\n\
+                        the header will not show the 'typ' and 'alg' attributes as\n\
                         they are not added until just before signing.\n\
 \n\
 This program will encode and sign a token in JWT format.\n\
