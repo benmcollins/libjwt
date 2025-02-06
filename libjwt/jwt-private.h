@@ -85,6 +85,10 @@ struct jwt {
 	jwt_alg_t alg;
 	int error;
 	char error_msg[JWT_ERR_LEN];
+	union {
+		struct jwt_checker *checker;
+		struct jwt_builder *builder;
+	};
 };
 
 struct jwk_set {

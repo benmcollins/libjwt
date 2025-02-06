@@ -291,6 +291,7 @@ int FUNC(verify)(jwt_common_t *__cmd, const char *token)
 		return 1;
 
 	jwt->key = config.key;
+	jwt->checker = __cmd;
 
 	/* Finish it up */
 	jwt = jwt_verify_complete(jwt, &config, token, payload_len);

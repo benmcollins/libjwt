@@ -116,6 +116,7 @@ START_TEST(verify_wcb)
 	const char token[] = "eyJhbGciOiJub25lIn0.eyJpc3MiOiJka"
 		"XNrLnN3aXNzZGlzay5jb20ifQ.";
 	jwt_checker_auto_t *checker = NULL;
+	jwt_value_t jval;
 	int ret;
 
 	SET_OPS();
@@ -124,7 +125,20 @@ START_TEST(verify_wcb)
 	ck_assert_ptr_nonnull(checker);
 	ck_assert_int_eq(jwt_checker_error(checker), 0);
 
-	ret = jwt_checker_setclaims(checker, JWT_CLAIM_NONE);
+	ret = jwt_checker_setclaims(checker, JWT_CLAIM_AUD | JWT_CLAIM_SUB |
+			JWT_CLAIM_ISS | JWT_CLAIM_NBF | JWT_CLAIM_EXP);
+	ck_assert_int_eq(ret, 0);
+
+	jwt_set_ADD_STR(&jval, "sub", "my-friend");
+	ret = jwt_checker_claim_add(checker, &jval);
+        ck_assert_int_eq(ret, 0);
+
+	jwt_set_ADD_STR(&jval, "aud", "public");
+	ret = jwt_checker_claim_add(checker, &jval);
+	ck_assert_int_eq(ret, 0);
+
+	jwt_set_ADD_STR(&jval, "iss", "disk.swissdisk.com");
+	ret = jwt_checker_claim_add(checker, &jval);
 	ck_assert_int_eq(ret, 0);
 
 	ret = jwt_checker_setcb(checker, __verify_wcb, "testing");

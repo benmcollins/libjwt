@@ -127,10 +127,94 @@ int jwt_parse(jwt_t *jwt, const char *token, unsigned int *len)
 	return 0;
 }
 
+static int __check_str_claim(jwt_t *jwt, jwt_claims_t claim, char *claim_str)
+{
+	jwt_checker_t *checker = jwt->checker;
+	jwt_value_t jval;
+	const char *str;
+	jwt_value_error_t err;
+	int enforce = checker->c.claims & JWT_CLAIMS_ENFORCE;
+	int ret = 0;
+
+	if (checker->c.claims & claim) {
+		jwt_set_GET_STR(&jval, claim_str);
+		err = jwt_checker_claim_get(checker, &jval);
+		str = jval.str_val;
+
+		if (err == JWT_VALUE_ERR_NONE) {
+			jwt_set_GET_STR(&jval, claim_str);
+			err = jwt_claim_get(jwt, &jval);
+		}
+
+		if (err == JWT_VALUE_ERR_NONE) {
+			if (strcmp(str, jval.str_val))
+				ret = 1;
+		} else if (enforce)
+			ret = 1;
+	}
+
+	return ret;
+}
+
+static jwt_claims_t __verify_claims(jwt_t *jwt)
+{
+	jwt_checker_t *checker = jwt->checker;
+	jwt_value_t jval;
+	time_t now = time(NULL);
+	jwt_value_error_t err;
+	int enforce = checker->c.claims & JWT_CLAIMS_ENFORCE;
+	jwt_claims_t failed = 0;
+
+	/* expiration in past */
+	if (checker->c.claims & JWT_CLAIM_EXP) {
+		jwt_set_GET_INT(&jval, "exp");
+		err = jwt_claim_get(jwt, &jval);
+
+		if (err == JWT_VALUE_ERR_NONE) {
+			if (jval.int_val < now)
+				failed |= JWT_CLAIM_EXP;
+		} else if (enforce)
+			failed |= JWT_CLAIM_EXP;
+	}
+
+	/* not valid before now */
+	if (checker->c.claims & JWT_CLAIM_NBF) {
+		jwt_set_GET_INT(&jval, "nbf");
+		err = jwt_claim_get(jwt, &jval);
+
+		if (err == JWT_VALUE_ERR_NONE) {
+			if (jval.int_val > now)
+				failed |= JWT_CLAIM_NBF;
+		} else if (enforce)
+			failed |= JWT_CLAIM_NBF;
+	}
+
+	/* issuer doesn't match */
+	if (__check_str_claim(jwt, JWT_CLAIM_ISS, "iss"))
+		failed |= JWT_CLAIM_ISS;
+
+	/* subject doesn't match */
+	if (__check_str_claim(jwt, JWT_CLAIM_SUB, "sub"))
+		failed |= JWT_CLAIM_SUB;
+
+	/* audience doesn't match */
+	if (__check_str_claim(jwt, JWT_CLAIM_AUD, "aud"))
+		failed |= JWT_CLAIM_AUD;
+
+	return failed;
+}
+
 /* This is after parsing and possibly a user callback. */
 static int __verify_config_post(jwt_t *jwt, const jwt_config_t *config,
 				unsigned int sig_len)
 {
+	/* Yes, we do this before checking a signature. */
+	if (__verify_claims(jwt)) {
+		/* TODO Pass back the ORd list of claims failed. */
+		jwt_write_error(jwt, "Failed one or more claims");
+		return 1;
+	}
+
 	if (!sig_len) {
 		if (config->key || config->alg != JWT_ALG_NONE ||
 		    jwt->alg != JWT_ALG_NONE) {

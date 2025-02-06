@@ -397,8 +397,7 @@ END_TEST
 
 START_TEST(claim_str_addgetdel)
 {
-	const char exp[] = "eyJhbGciOiJub25lIn0.eyJpc3MiOiJka"
-		"XNrLnN3aXNzZGlzay5jb20ifQ.";
+	const char exp[] = "eyJhbGciOiJub25lIn0.eyJzdWIiOiJteS1mcmllbmQifQ.";
 	jwt_builder_auto_t *builder = NULL;
 	char_auto *out = NULL;
 	jwt_value_t jval;
@@ -413,7 +412,7 @@ START_TEST(claim_str_addgetdel)
 	ret = jwt_builder_setclaims(builder, JWT_CLAIM_NONE);
 	ck_assert_int_eq(ret, 0);
 
-	jwt_set_ADD_STR(&jval, "iss", "disk.swissdisk.com");
+	jwt_set_ADD_STR(&jval, "sub", "my-friend");
 	ret = jwt_builder_claim_add(builder, &jval);
 	ck_assert_int_eq(ret, 0);
 
