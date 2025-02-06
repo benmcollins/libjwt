@@ -265,9 +265,8 @@ typedef enum {
  * are the ones that will be performed if the claims exist in the JWT. If the
  * claims do not exist, the validation will be ignores.
  *
- * @note If you do not set any validation flags (JWT_VALIDATION_EMPTY), these
- * will be used. If you do not want them used, them you must set
- * JWT_VALIDATION_NONE to override it.
+ * @note If you do not set any validation flags, these will be used. If you
+ * do not want them used, them you must set JWT_CLAIM_NONE to override it.
  */
 #define JWT_CHECKER_CLAIMS (JWT_CLAIM_EXP|JWT_CLAIM_NBF)
 
@@ -713,7 +712,7 @@ int jwt_checker_verify(jwt_checker_t *checker, const char *token);
 	(__v);})
 
 /**
- * @brief Setup a jwt_value_t to get an JSON string
+ * @brief Setup a jwt_value_t to get a JSON string
  *
  * @param __v Pointer to a jwt_value_t object
  * @param __n Name of the value
