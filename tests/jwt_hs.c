@@ -63,6 +63,35 @@ static void __test_alg(const char *key_file, jwt_alg_t alg, const char *expected
 	free_key();
 }
 
+START_TEST(hs_too_small)
+{
+	jwt_builder_auto_t *builder = NULL;
+	int ret;
+	const char *out = NULL;
+
+	builder = jwt_builder_new();
+	ck_assert_ptr_nonnull(builder);
+	ck_assert_int_eq(jwt_builder_error(builder), 0);
+
+	read_json("oct_key_128_too_small.json");
+
+	ret = jwt_builder_setkey(builder, JWT_ALG_HS256, g_item);
+	ck_assert_int_eq(ret, 0);
+	out = jwt_builder_generate(builder);
+	ck_assert_ptr_null(out);
+
+	ret = jwt_builder_setkey(builder, JWT_ALG_HS384, g_item);
+	ck_assert_int_eq(ret, 0);
+	out = jwt_builder_generate(builder);
+	ck_assert_ptr_null(out);
+
+	ret = jwt_builder_setkey(builder, JWT_ALG_HS512, g_item);
+	ck_assert_int_eq(ret, 0);
+	out = jwt_builder_generate(builder);
+	ck_assert_ptr_null(out);
+}
+END_TEST
+
 START_TEST(hs256)
 {
 	const char exp[] = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.CM4dD95Nj"
@@ -109,6 +138,7 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, hs256, 0, i);
 	tcase_add_loop_test(tc_core, hs384, 0, i);
 	tcase_add_loop_test(tc_core, hs512, 0, i);
+	tcase_add_loop_test(tc_core, hs_too_small, 0, i);
 	suite_add_tcase(s, tc_core);
 
 	return s;

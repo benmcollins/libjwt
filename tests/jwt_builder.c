@@ -169,6 +169,16 @@ START_TEST(null_handling)
 
 	ret = jwt_builder_setcb(builder, NULL, "test");
 	ck_assert_int_ne(ret, 0);
+
+	/* Random */
+	ck_assert_int_eq(jwt_str_alg(NULL), JWT_ALG_INVAL);
+
+	out = jwt_alg_str(JWT_ALG_ES256K);
+	ck_assert_str_eq(out, "ES256K");
+
+	ck_assert_ptr_null(jwt_alg_str(JWT_ALG_INVAL));
+
+	ck_assert_int_eq(jwt_get_alg(NULL), JWT_ALG_INVAL);
 }
 END_TEST
 

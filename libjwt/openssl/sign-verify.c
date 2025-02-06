@@ -101,38 +101,6 @@ static int openssl_verify_sha_hmac(jwt_t *jwt, const char *head,
 	return ret;
 }
 
-static int __degree_and_check(jwt_t *jwt)
-{
-	int bits = jwt->key->bits;
-
-	switch (jwt->alg) {
-	case JWT_ALG_ES256:
-		if (bits != 256 ||jwt_strcmp(jwt->key->curve, "P-256"))
-			return 0;
-		break;
-
-	case JWT_ALG_ES384:
-		if (bits != 384 ||jwt_strcmp(jwt->key->curve, "P-384"))
-                        return 0;
-		break;
-
-	case JWT_ALG_ES512:
-		if (bits != 521 ||jwt_strcmp(jwt->key->curve, "P-521"))
-                        return 0;
-		break;
-
-	case JWT_ALG_ES256K:
-		if (bits != 256 ||jwt_strcmp(jwt->key->curve, "secp256k1"))
-                        return 0;
-		break;
-
-	default:
-		return 0; // LCOV_EXCL_LINE
-	}
-
-	return bits;
-}
-
 static int jwt_ec_d2i(jwt_t *jwt, char **out, unsigned int *len,
 		      unsigned char *sig, unsigned int slen)
 {
@@ -141,11 +109,6 @@ static int jwt_ec_d2i(jwt_t *jwt, char **out, unsigned int *len,
 	const BIGNUM *ec_sig_r;
 	const BIGNUM *ec_sig_s;
 	unsigned char *buf;
-	int degree;
-
-	degree = __degree_and_check(jwt);
-	if (degree <= 0)
-		return 1;
 
 	/* Get the sig from the DER encoded version. */
 	ec_sig = d2i_ECDSA_SIG(NULL, (const unsigned char **)&sig, slen);
@@ -155,7 +118,7 @@ static int jwt_ec_d2i(jwt_t *jwt, char **out, unsigned int *len,
 	ECDSA_SIG_get0(ec_sig, &ec_sig_r, &ec_sig_s);
 	r_len = BN_num_bytes(ec_sig_r);
 	s_len = BN_num_bytes(ec_sig_s);
-	bn_len = (degree + 7) / 8;
+	bn_len = (jwt->key->bits + 7) / 8;
 	if ((r_len > bn_len) || (s_len > bn_len)) {
 		// LCOV_EXCL_START
 		ECDSA_SIG_free(ec_sig);
@@ -424,18 +387,13 @@ static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
         if (type == EVP_PKEY_EC) {
 		/* Convert EC sigs back to ASN1. */
 		unsigned int bn_len;
-		int degree;
 		unsigned char *p;
-
-		degree = __degree_and_check(jwt);
-		if (degree <= 0)
-			VERIFY_ERROR("EC key failed checks"); // LCOV_EXCL_LINE
 
 		ec_sig = ECDSA_SIG_new();
 		if (ec_sig == NULL)
 			VERIFY_ERROR("Failed to allocate ECDSA sig"); // LCOV_EXCL_LINE
 
-		bn_len = (degree + 7) / 8;
+		bn_len = (jwt->key->bits + 7) / 8;
 		if ((bn_len * 2) != (unsigned int)slen)
 			VERIFY_ERROR("ECDSA micmatch with sig len"); // LCOV_EXCL_LINE
 

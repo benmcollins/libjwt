@@ -251,12 +251,6 @@ static int __check_hmac(jwt_t *jwt)
 {
 	int key_bits = jwt->key->bits;
 
-	if (key_bits < 256) {
-		jwt_write_error(jwt, "Key too short for HS algs: %d bits",
-				key_bits);
-		return 1;
-	}
-
 	switch (jwt->alg) {
 	case JWT_ALG_HS256:
 		if (key_bits >= 256)
@@ -309,11 +303,17 @@ static int __check_key_bits(jwt_t *jwt)
 		break;
 
 	case JWT_ALG_EDDSA:
-	case JWT_ALG_ES256K:
-	case JWT_ALG_ES256:
 		if (key_bits == 256 || key_bits == 456)
 			return 0;
 		jwt_write_error(jwt, "Key needs to be 256 or 456 bits: %d bits",
+				key_bits);
+		break;
+
+	case JWT_ALG_ES256K:
+	case JWT_ALG_ES256:
+		if (key_bits == 256)
+			return 0;
+		jwt_write_error(jwt, "Key needs to be 256 bits: %d bits",
 				key_bits);
 		break;
 
