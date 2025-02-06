@@ -81,8 +81,30 @@ END_TEST
 
 static int __verify_wcb(jwt_t *jwt, jwt_config_t *config)
 {
+	jwt_value_error_t err;
+	jwt_value_t jval;
+
 	ck_assert_ptr_nonnull(jwt);
 	ck_assert_ptr_nonnull(config);
+
+	jwt_set_GET_STR(&jval, "alg");
+        err = jwt_header_get(jwt, &jval);
+	ck_assert_int_eq(err, JWT_VALUE_ERR_NONE);
+	ck_assert_int_eq(jval.error, JWT_VALUE_ERR_NONE);
+	ck_assert_ptr_nonnull(jval.str_val);
+	ck_assert_str_eq(jval.str_val, "none");
+
+	jwt_set_GET_INT(&jval, "iat");
+	err = jwt_claim_get(jwt, &jval);
+	ck_assert_int_eq(err, JWT_VALUE_ERR_NOEXIST);
+	ck_assert_int_eq(jval.error, JWT_VALUE_ERR_NOEXIST);
+	ck_assert_int_eq(jval.int_val, 0);
+
+	err = jwt_header_del(jwt, "alg");
+	ck_assert_int_eq(err, JWT_VALUE_ERR_NONE);
+
+	err = jwt_claim_del(jwt, "iat");
+	ck_assert_int_eq(err, JWT_VALUE_ERR_NONE);
 
 	ck_assert_str_eq(config->ctx, "testing");
 

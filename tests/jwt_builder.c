@@ -75,6 +75,8 @@ START_TEST(gen_wcb)
 	out = jwt_builder_generate(builder);
 	ck_assert_ptr_nonnull(out);
 	ck_assert_str_eq(out, exp);
+
+
 }
 END_TEST
 
@@ -151,6 +153,22 @@ START_TEST(null_handling)
 
 	out = jwt_builder_generate(NULL);
 	ck_assert_ptr_null(out);
+
+	/* Some alg mismatches */
+	read_json("eddsa_key_ed25519.json");
+        ret = jwt_builder_setkey(builder, JWT_ALG_NONE, g_item);
+        ck_assert_int_ne(ret, 0);
+
+        jwt_builder_error_clear(builder);
+
+	read_json("oct_key_256.json");
+	ret = jwt_builder_setkey(builder, JWT_ALG_ES256, g_item);
+	ck_assert_int_ne(ret, 0);
+
+	jwt_builder_error_clear(builder);
+
+	ret = jwt_builder_setcb(builder, NULL, "test");
+	ck_assert_int_ne(ret, 0);
 }
 END_TEST
 
@@ -183,7 +201,7 @@ START_TEST(gen_hs256)
 }
 END_TEST
 
-START_TEST(gen_es384_pub)
+START_TEST(gen_hs256_bits)
 {
 	jwt_builder_auto_t *builder = NULL;
 	int ret;
@@ -197,8 +215,91 @@ START_TEST(gen_es384_pub)
 	ret = jwt_builder_setclaims(builder, JWT_CLAIM_NONE);
 	ck_assert_int_eq(ret, 0);
 
-	/* Pub key will fail to set */
+	read_json("oct_key_256.json");
+	ret = jwt_builder_setkey(builder, JWT_ALG_HS384, g_item);
+	ck_assert_int_ne(ret, 0);
+
+	free_key();
+}
+END_TEST
+
+START_TEST(claims_set_errors)
+{
+	jwt_builder_auto_t *builder = NULL;
+	char *out = NULL;
+	const char exp[] = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.";
+	int ret;
+
+	SET_OPS();
+
+	builder = jwt_builder_new();
+	ck_assert_ptr_nonnull(builder);
+	ck_assert_int_eq(jwt_builder_error(builder), 0);
+
+	ret = jwt_builder_setclaims(builder, JWT_CLAIM_DEFAULT);
+	ck_assert_int_eq(ret, 0);
+
+	read_json("oct_key_256.json");
+	ret = jwt_builder_setkey(builder, JWT_ALG_HS256, g_item);
+	ck_assert_int_eq(ret, 0);
+
+	out = jwt_builder_generate(builder);
+	ck_assert_ptr_nonnull(out);
+	ck_assert_mem_eq(out, exp, strlen(exp));
+
+	ret = jwt_builder_setclaims(builder, JWT_CLAIM_NONE | JWT_CLAIM_SUB);
+	ck_assert_int_ne(ret, 0);
+
+	ret = jwt_builder_setclaims(builder, ~JWT_CLAIM_NONE);
+	ck_assert_int_ne(ret, 0);
+
+	ret = jwt_builder_setclaims(builder, JWT_CLAIM_AUD);
+	ck_assert_int_eq(ret, 0);
+
+	free_key();
+}
+END_TEST
+
+START_TEST(gen_es384_pub)
+{
+	jwt_builder_auto_t *builder = NULL;
+	const unsigned char *buf = NULL;
+	jwk_key_type_t kty;
+	const char *crv;
+	size_t len = 0;
+	int ret, bits;
+
+	SET_OPS();
+
+	builder = jwt_builder_new();
+	ck_assert_ptr_nonnull(builder);
+	ck_assert_int_eq(jwt_builder_error(builder), 0);
+
+	ret = jwt_builder_setclaims(builder, JWT_CLAIM_NONE);
+	ck_assert_int_eq(ret, 0);
+
+	/* Pub key */
 	read_json("ec_key_secp384r1_pub.json");
+
+	/* Check the curve */
+	crv = jwks_item_curve(g_item);
+	ck_assert_str_eq(crv, "P-384");
+
+	/* Check kty */
+	kty = jwks_item_kty(g_item);
+	ck_assert_int_eq(kty, JWK_KEY_TYPE_EC);
+
+	/* Check bits */
+	bits = jwks_item_key_bits(g_item);
+	ck_assert_int_eq(bits, 384);
+
+	/* Check that these aren't there */
+	ret = jwks_item_key_oct(g_item, &buf, &len);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_ptr_null(buf);
+	ck_assert_int_eq(len, 0);
+
+	/* Pub key will fail to set */
 	ret = jwt_builder_setkey(builder, JWT_ALG_ES384, g_item);
 	ck_assert_int_ne(ret, 0);
 	ck_assert_str_eq(jwt_builder_error_msg(builder),
@@ -612,6 +713,7 @@ static Suite *libjwt_suite(const char *title)
 
 	tc_core = tcase_create("HS256 Key Gen");
 	tcase_add_loop_test(tc_core, gen_hs256, 0, i);
+	tcase_add_loop_test(tc_core, gen_hs256_bits, 0, i);
 	tcase_add_loop_test(tc_core, gen_hs256_wcb, 0, i);
 	tcase_add_loop_test(tc_core, gen_hs256_stress, 0, i);
 	suite_add_tcase(s, tc_core);
@@ -621,6 +723,7 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, claim_int_addgetdel, 0, i);
 	tcase_add_loop_test(tc_core, claim_bool_addgetdel, 0, i);
 	tcase_add_loop_test(tc_core, claim_json_addgetdel, 0, i);
+	tcase_add_loop_test(tc_core, claims_set_errors, 0, i);
 	suite_add_tcase(s, tc_core);
 
 	tc_core = tcase_create("Header AddGetDel");

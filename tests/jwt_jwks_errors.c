@@ -85,6 +85,7 @@ START_TEST(test_jwks_empty)
 {
 	jwk_set_t *jwk_set = NULL;
 	const jwk_item_t *item = NULL;
+	int ret;
 
 	SET_OPS();
 
@@ -95,6 +96,21 @@ START_TEST(test_jwks_empty)
 
 	item = jwks_item_get(jwk_set, 0);
 	ck_assert_ptr_null(item);
+
+	/* Try some null things */
+	ret = jwks_item_free(NULL, 0);
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwks_item_free_all(NULL);
+	ck_assert_int_eq(ret, 0);
+
+	jwks_free(NULL);
+
+	ck_assert_ptr_null(jwks_create_strn(NULL, 0));
+
+	ck_assert_ptr_null(jwks_create_fromfile(NULL));
+
+	ck_assert_ptr_null(jwks_create_fromfp(NULL));
 
 	jwks_free(jwk_set);
 }

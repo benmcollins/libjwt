@@ -30,7 +30,9 @@ static void __verify_token(const char *token, jwt_alg_t alg)
 static void __test_alg(const char *key_file, jwt_alg_t alg, const char *expected)
 {
 	jwt_builder_auto_t *builder = NULL;
+	const unsigned char *buf = NULL;
 	char *out = NULL;
+	size_t len = 0;
 	int ret;
 
 	builder = jwt_builder_new();
@@ -43,6 +45,12 @@ static void __test_alg(const char *key_file, jwt_alg_t alg, const char *expected
 	read_json(key_file);
 	ret = jwt_builder_setkey(builder, alg, g_item);
 	ck_assert_int_eq(ret, 0);
+
+	/* Check the values */
+	ret = jwks_item_key_oct(g_item, &buf, &len);
+	ck_assert_int_eq(ret, 0);
+	ck_assert_ptr_nonnull(buf);
+	ck_assert_int_ge(len, 32);
 
 	out = jwt_builder_generate(builder);
 	ck_assert_ptr_nonnull(out);
