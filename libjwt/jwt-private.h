@@ -62,6 +62,12 @@ struct jwt_common {
 	jwt_claims_t claims;
 	jwt_callback_t cb;
 	void *cb_ctx;
+
+	/* For builder, this is offset into the future.
+	 * For checker, this is the leeway.
+	 * Both are in seconds. */
+	time_t exp;
+	time_t nbf;
 };
 
 struct jwt_builder {
@@ -129,7 +135,7 @@ struct jwk_item {
 	jwk_key_op_t key_ops;	/**< @rfc{7517,4.3} Key operations supported		*/
 	jwt_alg_t alg;		/**< @rfc{7517,4.4} JWA Algorithm supported		*/
 	char *kid;		/**< @rfc{7517,4.5} Key ID				*/
-	const char *json;	/**< The entire JSON string for this key		*/
+	json_t *json;		/**< The json_t for this key				*/
 };
 
 /* Crypto operations */

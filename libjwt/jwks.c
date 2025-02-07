@@ -158,8 +158,17 @@ static jwk_item_t *jwk_process_one(jwk_set_t *jwk_set, json_t *jwk)
 	}
 
 	memset(item, 0, sizeof(*item));
+	item->json = json_deep_copy(jwk);
+	if (item->json == NULL) {
+		// LCOV_EXCL_START
+		jwt_freemem(jwk);
+		jwt_write_error(jwk_set,
+			"Error allocating memory for jwk_item_t");
+		return NULL;
+		// LCOV_EXCL_STOP
+	}
 
-	val = json_object_get(jwk, "kty");
+	val = json_object_get(item->json, "kty");
 	if (val == NULL || !json_is_string(val)) {
 		jwt_write_error(item, "Invalid JWK: missing kty value");
 		return item;
@@ -169,22 +178,22 @@ static jwk_item_t *jwk_process_one(jwk_set_t *jwk_set, json_t *jwk)
 
 	if (!jwt_strcmp(kty, "EC")) {
 		item->kty = JWK_KEY_TYPE_EC;
-		jwt_ops->process_ec(jwk, item);
+		jwt_ops->process_ec(item->json, item);
 	} else if (!jwt_strcmp(kty, "RSA")) {
 		item->kty = JWK_KEY_TYPE_RSA;
-		jwt_ops->process_rsa(jwk, item);
+		jwt_ops->process_rsa(item->json, item);
 	} else if (!jwt_strcmp(kty, "OKP")) {
 		item->kty = JWK_KEY_TYPE_OKP;
-		jwt_ops->process_eddsa(jwk, item);
+		jwt_ops->process_eddsa(item->json, item);
 	} else if (!jwt_strcmp(kty, "oct")) {
 		item->kty = JWK_KEY_TYPE_OCT;
-		process_octet(jwk, item);
+		process_octet(item->json, item);
 	} else {
 		jwt_write_error(item, "Unknown or unsupported kty type '%s'", kty);
 		return item;
 	}
 
-	jwk_process_values(jwk, item);
+	jwk_process_values(item->json, item);
 
 	return item;
 }
@@ -319,6 +328,7 @@ int jwks_item_free(jwk_set_t *jwk_set, const size_t index)
 
 	/* A few non-crypto specific things. */
 	jwt_freemem(todel->kid);
+	json_decrefp(&todel->json);
 	list_del(&todel->node);
 
 	/* Free the container and the item itself. */

@@ -105,6 +105,7 @@ END_TEST
 START_TEST(null_handling)
 {
 	jwt_builder_t *builder = NULL;
+	jwt_value_t jval;
 	const char *out;
 	jwk_item_t *key = NULL;
 	int ret;
@@ -168,6 +169,18 @@ START_TEST(null_handling)
 	jwt_builder_error_clear(builder);
 
 	ret = jwt_builder_setcb(builder, NULL, "test");
+	ck_assert_int_ne(ret, 0);
+
+	ret = jwt_builder_header_del(NULL, NULL);
+	ck_assert_int_ne(ret, 0);
+
+	ret = jwt_checker_claim_del(NULL, NULL);
+	ck_assert_int_ne(ret, 0);
+
+	ret = jwt_checker_claim_add(NULL, &jval);
+	ck_assert_int_ne(ret, 0);
+
+	ret = jwt_checker_claim_get(NULL, NULL);
 	ck_assert_int_ne(ret, 0);
 
 	/* Random */

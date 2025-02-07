@@ -802,6 +802,28 @@ jwt_value_error_t jwt_builder_claim_get(jwt_builder_t *builder, jwt_value_t
 JWT_EXPORT
 jwt_value_error_t jwt_builder_claim_del(jwt_builder_t *builder, const char
 					*header);
+
+/**
+ * @todo Document these
+ */
+JWT_EXPORT
+int jwt_builder_time_offset_set(jwt_builder_t *builder, jwt_claims_t claim,
+				time_t secs);
+
+
+/**
+ * @todo Document these
+ */
+JWT_EXPORT
+time_t jwt_builder_time_offset_get(jwt_builder_t *builder, jwt_claims_t claim);
+
+
+/**
+ * @todo Document these
+ */
+JWT_EXPORT
+int jwt_builder_time_offset_clear(jwt_builder_t *builder, jwt_claims_t claim);
+
 /**
  * @}
  * @noop jwt_claims_builder_grp
@@ -829,6 +851,29 @@ jwt_value_error_t jwt_checker_claim_get(jwt_checker_t *checker, jwt_value_t
 JWT_EXPORT
 jwt_value_error_t jwt_checker_claim_del(jwt_checker_t *checker, const char
 					*header);
+
+
+/**
+ * @todo Document these
+ */
+JWT_EXPORT
+int jwt_checker_leeway_set(jwt_checker_t *checker, jwt_claims_t claim,
+			   time_t secs);
+
+
+/**
+ * @todo Document these
+ */
+JWT_EXPORT
+time_t jwt_checker_leeway_get(jwt_checker_t *checker, jwt_claims_t claim);
+
+
+/**
+ * @todo Document these
+ */
+JWT_EXPORT
+int jwt_checker_leeway_clear(jwt_checker_t *checker, jwt_claims_t claim);
+
 /**
  * @}
  * @noop jwt_claims_checker_grp

@@ -270,6 +270,9 @@ if (CHECK_FOUND)
 	# Checker and Builder
 	list (APPEND UNIT_TESTS jwt_builder jwt_checker jwt_flipflop)
 
+	# Claims
+	list (APPEND UNIT_TESTS jwt_claims)
+
 	foreach (TEST ${UNIT_TESTS})
 		jwt_add_test(NAME ${TEST})
 	endforeach()

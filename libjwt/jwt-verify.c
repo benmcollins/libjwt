@@ -171,7 +171,7 @@ static jwt_claims_t __verify_claims(jwt_t *jwt)
 		err = jwt_claim_get(jwt, &jval);
 
 		if (err == JWT_VALUE_ERR_NONE) {
-			if (jval.int_val < now)
+			if (jval.int_val < (now - checker->c.exp))
 				failed |= JWT_CLAIM_EXP;
 		} else if (enforce)
 			failed |= JWT_CLAIM_EXP;
@@ -183,7 +183,7 @@ static jwt_claims_t __verify_claims(jwt_t *jwt)
 		err = jwt_claim_get(jwt, &jval);
 
 		if (err == JWT_VALUE_ERR_NONE) {
-			if (jval.int_val > now)
+			if (jval.int_val > (now + checker->c.nbf))
 				failed |= JWT_CLAIM_NBF;
 		} else if (enforce)
 			failed |= JWT_CLAIM_NBF;

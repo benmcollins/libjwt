@@ -249,6 +249,82 @@ jwt_value_error_t FUNC(header_del)(jwt_common_t *__cmd, const char *header)
 	return __deleter(__cmd->c.headers, header);
 }
 
+/* Time offsets */
+#ifdef JWT_CHECKER
+int FUNC(leeway_set)(jwt_common_t *__cmd, jwt_claims_t claim, time_t secs)
+#else
+int FUNC(time_offset_set)(jwt_common_t *__cmd, jwt_claims_t claim, time_t secs)
+#endif
+{
+	if (!__cmd)
+		return 1;
+
+#ifdef JWT_CHECKER
+	if (claim & ~(JWT_CLAIM_EXP | JWT_CLAIM_NBF))
+		return 1;
+#else
+	if (claim != JWT_CLAIM_EXP && claim != JWT_CLAIM_NBF)
+		return 1;
+#endif
+
+	if (claim & JWT_CLAIM_EXP) {
+		__cmd->c.claims |= JWT_CLAIM_EXP;
+		__cmd->c.exp = secs;
+	}
+
+	if (claim & JWT_CLAIM_NBF) {
+		__cmd->c.claims |= JWT_CLAIM_NBF;
+		__cmd->c.nbf = secs;
+	}
+
+	return 0;
+}
+
+#ifdef JWT_CHECKER
+time_t FUNC(leeway_get)(jwt_common_t *__cmd, jwt_claims_t claim)
+#else
+time_t FUNC(time_offset_get)(jwt_common_t *__cmd, jwt_claims_t claim)
+#endif
+{
+	time_t ret = -1;
+
+	if (!__cmd)
+		return ret;
+
+	if (claim == JWT_CLAIM_EXP) {
+		ret = __cmd->c.exp;
+	} else if (claim == JWT_CLAIM_NBF) {
+		ret = __cmd->c.nbf;
+	}
+
+	return ret;
+}
+
+#ifdef JWT_CHECKER
+int FUNC(leeway_clear)(jwt_common_t *__cmd, jwt_claims_t claim)
+#else
+int FUNC(time_offset_clear)(jwt_common_t *__cmd, jwt_claims_t claim)
+#endif
+{
+	if (!__cmd)
+                return 1;
+
+	if (claim & ~(JWT_CLAIM_EXP | JWT_CLAIM_NBF))
+		return 1;
+
+	if (claim & JWT_CLAIM_EXP) {
+		__cmd->c.claims &= ~JWT_CLAIM_EXP;
+		__cmd->c.exp = 0;
+	}
+
+	if (claim & JWT_CLAIM_NBF) {
+		__cmd->c.claims &= ~JWT_CLAIM_NBF;
+		__cmd->c.nbf = 0;
+	}
+
+	return 0;
+}
+
 #ifdef JWT_CHECKER
 int FUNC(verify)(jwt_common_t *__cmd, const char *token)
 {
@@ -310,6 +386,7 @@ char *FUNC(generate)(jwt_common_t *__cmd)
 	jwt_auto_t *jwt = NULL;
 	char *out = NULL;
 	jwt_value_t jval;
+	time_t tm = time(NULL);
 
 	if (__cmd == NULL)
 		return NULL;
@@ -325,11 +402,24 @@ char *FUNC(generate)(jwt_common_t *__cmd)
 
 	/* Our internal work first */
 	if (__cmd->c.claims & JWT_CLAIM_IAT) {
-		jwt_set_ADD_INT(&jval, "iat", (long)time(NULL));
+		jwt_set_ADD_INT(&jval, "iat", (long)tm);
 		jval.replace = 1;
 		jwt_claim_add(jwt, &jval);
 	}
 
+	if (__cmd->c.claims & JWT_CLAIM_NBF) {
+		jwt_set_ADD_INT(&jval, "nbf", (long)(tm + __cmd->c.nbf));
+		jval.replace = 1;
+		jwt_claim_add(jwt, &jval);
+	}
+
+	if (__cmd->c.claims & JWT_CLAIM_EXP) {
+		jwt_set_ADD_INT(&jval, "exp", (long)(tm + __cmd->c.exp));
+		jval.replace = 1;
+		jwt_claim_add(jwt, &jval);
+	}
+
+	/* Alg and key checks */
 	config.alg = __cmd->c.alg;
 	if (config.alg == JWT_ALG_NONE && __cmd->c.key)
 		config.alg = __cmd->c.key->alg;

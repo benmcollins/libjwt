@@ -59,9 +59,9 @@ int jwt_head_setup(jwt_t *jwt)
 
 static int jwt_encode(jwt_t *jwt, char **out)
 {
-	char_auto *head = NULL, *body = NULL, *sig = NULL;
+	char_auto *head = NULL, *payload = NULL, *sig = NULL;
 	char *buf = NULL;
-	int ret, head_len, body_len;
+	int ret, head_len, payload_len;
 	unsigned int sig_len;
 
 	if (out == NULL) {
@@ -85,25 +85,25 @@ static int jwt_encode(jwt_t *jwt, char **out)
 		return 1;
 	}
 
-	/* Now the body. */
+	/* Now the payload. */
 	ret = write_js(jwt->claims, &buf);
 	if (ret) {
 		// LCOV_EXCL_START
-		jwt_write_error(jwt, "Error writing body");
+		jwt_write_error(jwt, "Error writing payload");
 		return 1;
 		// LCOV_EXCL_STOP
 	}
 
-	body_len = jwt_base64uri_encode(&body, buf, (int)strlen(buf));
+	payload_len = jwt_base64uri_encode(&payload, buf, (int)strlen(buf));
 	jwt_freemem(buf);
 
-	if (body_len <= 0) {
-		jwt_write_error(jwt, "Error encoding body");
+	if (payload_len <= 0) {
+		jwt_write_error(jwt, "Error encoding payload");
 		return 1;
 	}
 
 	/* The part we need to sign, but add space for 2 dots and a nil */
-	buf = jwt_malloc(head_len + body_len + 3);
+	buf = jwt_malloc(head_len + payload_len + 3);
 	if (buf == NULL) {
 		// LCOV_EXCL_START
 		jwt_write_error(jwt, "Error allocating memory");
@@ -113,7 +113,7 @@ static int jwt_encode(jwt_t *jwt, char **out)
 
 	strcpy(buf, head);
 	strcat(buf, ".");
-	strcat(buf, body);
+	strcat(buf, payload);
 
 	if (jwt->alg == JWT_ALG_NONE) {
 		/* Add the trailing dot, and send it back */
@@ -122,7 +122,7 @@ static int jwt_encode(jwt_t *jwt, char **out)
 		return 0;
 	}
 
-	/* At this point buf has "head.body" */
+	/* At this point buf has "head.payload" */
 
 	/* Now the signature. */
 	ret = jwt_sign(jwt, &sig, &sig_len, buf, strlen(buf));
@@ -143,7 +143,7 @@ static int jwt_encode(jwt_t *jwt, char **out)
 	}
 
 	/* plus 2 dots and a nil */
-	ret = strlen(head) + strlen(body) + strlen(buf) + 3;
+	ret = strlen(head) + strlen(payload) + strlen(buf) + 3;
 
 	/* We're good, so let's get it all together */
 	*out = jwt_malloc(ret);
@@ -151,7 +151,7 @@ static int jwt_encode(jwt_t *jwt, char **out)
 		jwt_write_error(jwt, "Error allocating memory");
 		ret = 1;
 	} else {
-		sprintf(*out, "%s.%s.%s", head, body, buf);
+		sprintf(*out, "%s.%s.%s", head, payload, buf);
 		ret = 0;
 	}
 
