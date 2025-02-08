@@ -22,8 +22,9 @@ static jwk_key_op_t jwk_key_op_j(json_t *j_op)
 
 	op = json_string_value(j_op);
 
+	/* Should not be possible for this to happen. */
 	if (op == NULL)
-		return JWK_KEY_OP_NONE;
+		return JWK_KEY_OP_NONE; // LCOV_EXCL_LINE
 
 	if (!jwt_strcmp(op, "sign"))
 		return JWK_KEY_OP_SIGN;
@@ -76,16 +77,8 @@ static void jwk_process_values(json_t *jwk, jwk_item_t *item)
 		json_t *j_op;
 		size_t i;
 
-		json_array_foreach(j_ops_a, i, j_op) {
-			jwk_key_op_t op = jwk_key_op_j(j_op);
-
-			if (op == JWK_KEY_OP_INVALID) {
-				jwt_write_error(item,
-					"JWK has an invalid value in key_op");
-			} else {
-				item->key_ops |= op;
-			}
-		}
+		json_array_foreach(j_ops_a, i, j_op)
+			item->key_ops |= jwk_key_op_j(j_op);;
 	}
 
 	/* Key ID (4.5). */
@@ -101,7 +94,7 @@ static void jwk_process_values(json_t *jwk, jwk_item_t *item)
 				jwt_write_error(item,
 					"Error allocating memory for kid");
 				// LCOV_EXCL_STOP
-			} else {
+			} else { // LCOV_EXCL_LINE
 				strcpy(item->kid, kid);
 			}
 		}
@@ -129,8 +122,10 @@ static int process_octet(json_t *jwk, jwk_item_t *item)
 
 	bin_k = jwt_base64uri_decode(str_k, &len_k);
 	if (bin_k == NULL) {
+		// LCOV_EXCL_START
 		jwt_write_error(item, "Invalid JWK: failed to decode `k`");
 		return -1;
+		// LCOV_EXCL_STOP
 	}
 
 	item->is_private_key = 1;
@@ -365,7 +360,7 @@ static jwk_set_t *jwks_new(void)
 
 	jwk_set = jwt_malloc(sizeof *jwk_set);
 	if (jwk_set == NULL)
-		return NULL;
+		return NULL; // LCOV_EXCL_LINE
 
 	memset(jwk_set, 0, sizeof(*jwk_set));
 	INIT_LIST_HEAD(&jwk_set->head);
@@ -415,7 +410,7 @@ jwk_set_t *jwks_load_strn(jwk_set_t *jwk_set, const char *jwk_json_str,
 	if (jwk_set == NULL)
 		jwk_set = jwks_new();
 	if (jwk_set == NULL)
-		return NULL;
+		return NULL; // LCOV_EXCL_LINE
 
 	/* Just an empty set. */
 	if (jwk_json_str == __FLAG_EMPTY)
@@ -453,7 +448,7 @@ jwk_set_t *jwks_load_fromfile(jwk_set_t *jwk_set, const char *file_name)
 	if (jwk_set == NULL)
 		jwk_set = jwks_new();
 	if (jwk_set == NULL)
-		return NULL;
+		return NULL; // LCOV_EXCL_LINE
 
 	/* Parse the JSON string. */
 	j_all = json_load_file(file_name, JSON_DECODE_ANY, &error);
@@ -472,7 +467,7 @@ jwk_set_t *jwks_load_fromfp(jwk_set_t *jwk_set, FILE *input)
 	if (jwk_set == NULL)
 		jwk_set = jwks_new();
 	if (jwk_set == NULL)
-		return NULL;
+		return NULL; // LCOV_EXCL_LINE
 
 	/* Parse the JSON string. */
 	j_all = json_loadf(input, JSON_DECODE_ANY, &error);

@@ -89,7 +89,7 @@ static jwt_value_error_t jwt_get_json(json_t *which, jwt_value_t *jval)
 
 	jval->json_val = json_dumps(json_val, flags);
 	if (jval->json_val == NULL)
-		jval->error = JWT_VALUE_ERR_INVALID;
+		jval->error = JWT_VALUE_ERR_INVALID; // LCOV_EXCL_LINE
 
 	return jval->error;
 }
@@ -165,9 +165,9 @@ static jwt_value_error_t jwt_add_json(json_t *which, jwt_value_t *jval)
 	if (jval->name == NULL) {
 		/* Update the whole thing */
 		if (jval->replace)
-			ret = json_object_update(which, json_val); // LCOV_EXCL_LINE
+			ret = json_object_update(which, json_val);
 		else
-			ret = json_object_update_missing(which, json_val); // LCOV_EXCL_LINE
+			ret = json_object_update_missing(which, json_val);
 
 		if (ret)
 			jval->error = JWT_VALUE_ERR_INVALID;
@@ -198,7 +198,7 @@ jwt_value_error_t __deleter(json_t *which, const char *field)
 jwt_value_error_t __adder(json_t *which, jwt_value_t *value)
 {
 	if (!which)
-		return value->error = JWT_VALUE_ERR_INVALID;
+		return value->error = JWT_VALUE_ERR_INVALID; // LCOV_EXCL_LINE
 
 	value->error = JWT_VALUE_ERR_NONE;
 
@@ -216,14 +216,14 @@ jwt_value_error_t __adder(json_t *which, jwt_value_t *value)
 		return jwt_add_json(which, value);
 
 	default:
-		return value->error = JWT_VALUE_ERR_INVALID;
+		return value->error = JWT_VALUE_ERR_INVALID; // LCOV_EXCL_LINE
 	}
 }
 
 jwt_value_error_t __getter(json_t *which, jwt_value_t *value)
 {
 	if (!which)
-		return value->error = JWT_VALUE_ERR_INVALID;
+		return value->error = JWT_VALUE_ERR_INVALID; // LCOV_EXCL_LINE
 
 	value->error = JWT_VALUE_ERR_NONE;
 
@@ -241,7 +241,7 @@ jwt_value_error_t __getter(json_t *which, jwt_value_t *value)
 		return jwt_get_json(which, value);
 
 	default:
-		return value->error = JWT_VALUE_ERR_INVALID;
+		return value->error = JWT_VALUE_ERR_INVALID; // LCOV_EXCL_LINE
 	}
 }
 
@@ -271,7 +271,7 @@ static jwt_value_error_t __run_it(jwt_t *jwt, _setget_type_t type,
 		which = jwt->claims;
 		break;
 	default:
-		return value->error = JWT_VALUE_ERR_INVALID;
+		return value->error = JWT_VALUE_ERR_INVALID; // LCOV_EXCL_LINE
 	}
 
 	return doer(which, value);

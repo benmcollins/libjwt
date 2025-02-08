@@ -88,8 +88,10 @@ int jwt_parse(jwt_t *jwt, const char *token, unsigned int *len)
 	head = jwt_strdup(token);
 
 	if (!head) {
+		// LCOV_EXCL_START
 		jwt_write_error(jwt, "Error allocating memory");
 		return 1;
+		// LCOV_EXCL_STOP
 	}
 
 	/* Find the components. */
@@ -228,7 +230,7 @@ static int __verify_config_post(jwt_t *jwt, const jwt_config_t *config,
 
 	/* Signature is known to be present from this point */
 	if (jwt->alg == JWT_ALG_NONE) {
-		jwt_write_error(jwt, "JWT has alg, but no signature block");
+		jwt_write_error(jwt, "JWT has signature block, but no alg set");
 		return 1;
 	}
 

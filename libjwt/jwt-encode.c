@@ -36,11 +36,9 @@ int jwt_head_setup(jwt_t *jwt)
 		jwt_set_ADD_STR(&jval, "typ", "JWT");
 		if (jwt_header_add(jwt, &jval)) {
 			if (jval.error != JWT_VALUE_ERR_EXIST) {
-				// LCOV_EXCL_START
 				jwt_write_error(jwt,
 					"Error setting \"typ\" in header");
 				return 1;
-				// LCOV_EXCL_STOP
 			}
 		}
 	}
@@ -81,8 +79,10 @@ static int jwt_encode(jwt_t *jwt, char **out)
 	jwt_freemem(buf);
 
 	if (head_len <= 0) {
+		// LCOV_EXCL_START
 		jwt_write_error(jwt, "Error encoding header");
 		return 1;
+		// LCOV_EXCL_STOP
 	}
 
 	/* Now the payload. */
@@ -98,8 +98,10 @@ static int jwt_encode(jwt_t *jwt, char **out)
 	jwt_freemem(buf);
 
 	if (payload_len <= 0) {
+		// LCOV_EXCL_START
 		jwt_write_error(jwt, "Error encoding payload");
 		return 1;
+		// LCOV_EXCL_STOP
 	}
 
 	/* The part we need to sign, but add space for 2 dots and a nil */
@@ -138,8 +140,10 @@ static int jwt_encode(jwt_t *jwt, char **out)
 	/* At this point buf has b64 of sig and ret is size of it */
 
 	if (ret < 0) {
+		// LCOV_EXCL_START
 		jwt_write_error(jwt, "Error allocating memory");
 		return 1;
+		// LCOV_EXCL_STOP
 	}
 
 	/* plus 2 dots and a nil */
@@ -147,6 +151,7 @@ static int jwt_encode(jwt_t *jwt, char **out)
 
 	/* We're good, so let's get it all together */
 	*out = jwt_malloc(ret);
+	// LCOV_EXCL_START
 	if (*out == NULL) {
 		jwt_write_error(jwt, "Error allocating memory");
 		ret = 1;
@@ -154,6 +159,7 @@ static int jwt_encode(jwt_t *jwt, char **out)
 		sprintf(*out, "%s.%s.%s", head, payload, buf);
 		ret = 0;
 	}
+	// LCOV_EXCL_STOP
 
 	jwt_freemem(buf);
 

@@ -54,7 +54,7 @@ static int gnutls_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 	*len = gnutls_hmac_get_len(alg);
 	*out = jwt_malloc(*len);
 	if (*out == NULL)
-		return 1;
+		return 1; // LCOV_EXCL_LINE
 
 	if (gnutls_hmac_fast(alg, key, key_len, str, str_len, *out)) {
 		// LCOV_EXCL_START

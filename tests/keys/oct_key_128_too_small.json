@@ -4,9 +4,6 @@
   "libjwt.io:hostname": "maClara.local",
   "keys": [
     {
-      "key_ops": [
-        "sign"
-      ],
       "kty": "oct",
       "k": "CS6sW6VYNv8wx24ovqmUrQ"
     }

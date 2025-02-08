@@ -192,6 +192,15 @@ START_TEST(null_handling)
 	ck_assert_ptr_null(jwt_alg_str(JWT_ALG_INVAL));
 
 	ck_assert_int_eq(jwt_get_alg(NULL), JWT_ALG_INVAL);
+
+	ret = jwt_builder_setcb(NULL, NULL, NULL);
+	ck_assert_int_ne(ret, 0);
+
+	ck_assert_int_eq(jwt_header_del(NULL, NULL), JWT_VALUE_ERR_INVALID);
+	ck_assert_int_eq(jwt_claim_del(NULL, NULL), JWT_VALUE_ERR_INVALID);
+	ck_assert_int_eq(jwt_header_get(NULL, NULL), JWT_VALUE_ERR_INVALID);
+	ck_assert_int_eq(jwt_header_get(NULL, &jval), JWT_VALUE_ERR_INVALID);
+	ck_assert_int_eq(jval.error, JWT_VALUE_ERR_INVALID);
 }
 END_TEST
 

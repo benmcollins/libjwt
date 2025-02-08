@@ -49,7 +49,7 @@ jwt_common_t *FUNC(new)(void)
 	jwt_common_t *__cmd = jwt_malloc(sizeof(*__cmd));
 
 	if (__cmd == NULL)
-		return NULL;
+		return NULL; // LCOV_EXCL_LINE
 
 	memset(__cmd, 0, sizeof(*__cmd));
 
@@ -58,7 +58,7 @@ jwt_common_t *FUNC(new)(void)
 	__cmd->c.claims = CLAIMS_DEF;
 
 	if (!__cmd->c.payload || !__cmd->c.headers)
-		jwt_freemem(__cmd);
+		jwt_freemem(__cmd); // LCOV_EXCL_LINE
 
 	return __cmd;
 }
@@ -207,7 +207,7 @@ static jwt_value_error_t __run_it(jwt_common_t *__cmd, _setget_type_t type,
 		which = __cmd->c.payload;
 		break;
 	default:
-		return value->error = JWT_VALUE_ERR_INVALID;
+		return value->error = JWT_VALUE_ERR_INVALID; // LCOV_EXCL_LINE
 	}
 
 	return doer(which, value);
@@ -342,8 +342,10 @@ int FUNC(verify)(jwt_common_t *__cmd, const char *token)
 
 	jwt = jwt_new();
 	if (jwt == NULL) {
+		// LCOV_EXCL_START
 		jwt_write_error(__cmd, "Could not allocate JWT object");
 		return 1;
+		// LCOV_EXCL_STOP
 	}
 
 	/* First parsing pass, error will be set for us */
@@ -393,7 +395,7 @@ char *FUNC(generate)(jwt_common_t *__cmd)
 
 	jwt = jwt_malloc(sizeof(*jwt));
 	if (jwt == NULL)
-		return NULL;
+		return NULL; // LCOV_EXCL_LINE
 
 	memset(jwt, 0, sizeof(*jwt));
 

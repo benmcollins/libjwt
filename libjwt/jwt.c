@@ -100,7 +100,7 @@ jwt_t *jwt_new(void)
 	jwt_t *jwt = jwt_malloc(sizeof(*jwt));
 
 	if (!jwt)
-		return NULL;
+		return NULL; // LCOV_EXCL_LINE
 
 	memset(jwt, 0, sizeof(*jwt));
 
@@ -108,7 +108,7 @@ jwt_t *jwt_new(void)
 	jwt->headers = json_object();
 
 	if (!jwt->claims || !jwt->headers)
-		jwt_freep(&jwt);
+		jwt_freep(&jwt); // LCOV_EXCL_LINE
 
 	return jwt;
 }
@@ -141,7 +141,8 @@ void *jwt_base64uri_decode(const char *src, int *ret_len)
 	int len, i, z;
 
 	if (src == NULL || ret_len == NULL)
-		return NULL; // Should really be an abort
+		return NULL; // LCOV_EXCL_LINE
+			     // Should really be an abort
 
 	/* Decode based on RFC-4648 URI safe encoding. */
 	len = (int)strlen(src);
@@ -221,8 +222,10 @@ int jwt_base64uri_encode(char **_dst, const char *plain, int plain_len)
 	/* First, a normal base64 encoding */
 	len = base64_encode((const unsigned char *)plain, plain_len, dst);
 	if (len <= 0) {
+		// LCOV_EXCL_START
 		jwt_freemem(dst);
 		return 0;
+		// LCOV_EXCL_STOP
 	}
 
 	/* Now for the URI encoding */
@@ -274,7 +277,7 @@ static int __check_hmac(jwt_t *jwt)
 		break;
 
 	default:
-		return 1;
+		return 1; // LCOV_EXCL_LINE
 	}
 
 	return 1;
@@ -283,10 +286,6 @@ static int __check_hmac(jwt_t *jwt)
 static int __check_key_bits(jwt_t *jwt)
 {
 	int key_bits = jwt->key->bits;
-
-	/* Ignore if we don't have it */
-	if (key_bits == 0)
-		return 0;
 
 	switch (jwt->alg) {
 	case JWT_ALG_RS256:
@@ -332,7 +331,7 @@ static int __check_key_bits(jwt_t *jwt)
 		break;
 
 	default:
-		return 1;
+		return 1; // LCOV_EXCL_LINE
 	}
 
 	return 1;
@@ -384,8 +383,10 @@ int jwt_sign(jwt_t *jwt, char **out, unsigned int *len, const char *str,
 
 	/* You wut, mate? */
 	default:
+		// LCOV_EXCL_START
 		jwt_write_error(jwt, "Unknown algorigthm");
 		return 1;
+		// LCOV_EXCL_STOP
 	}
 }
 
@@ -425,7 +426,7 @@ jwt_t *jwt_verify_sig(jwt_t *jwt, const char *head, unsigned int head_len,
 
 	/* You wut, mate? */
 	default:
-		jwt_write_error(jwt, "Unknown algorigthm");
+		jwt_write_error(jwt, "Unknown algorigthm"); // LCOV_EXCL_LINE
 	}
 
 	return jwt;

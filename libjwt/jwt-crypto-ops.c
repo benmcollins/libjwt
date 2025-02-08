@@ -42,7 +42,7 @@ struct jwt_crypto_ops *jwt_ops = &jwt_mbedtls_ops;
 int ops_compat(const jwk_item_t *item, const jwt_crypto_provider_t prov)
 {
 	if (item == NULL)
-		return 0;
+		return 0; // LCOV_EXCL_LINE
 
 	if (item->provider == prov)
 		return 1;
@@ -50,7 +50,7 @@ int ops_compat(const jwk_item_t *item, const jwt_crypto_provider_t prov)
 	if (item->provider == JWT_CRYPTO_OPS_ANY)
 		return 1;
 
-	return 0;
+	return 0; // LCOV_EXCL_LINE
 }
 
 const char *jwt_get_crypto_ops(void)
