@@ -29,12 +29,12 @@ int jwt_head_setup(jwt_t *jwt)
 
 	if (jwt->alg != JWT_ALG_NONE) {
 
-		/* Only add default 'typ' header if it has not been defined,
+		/* Only set default 'typ' header if it has not been defined,
 		 * allowing for any value of it. This allows for signaling
 		 * of application specific extensions to JWT, such as PASSporT,
 		 * RFC 8225. */
-		jwt_set_ADD_STR(&jval, "typ", "JWT");
-		if (jwt_header_add(jwt, &jval)) {
+		jwt_set_SET_STR(&jval, "typ", "JWT");
+		if (jwt_header_set(jwt, &jval)) {
 			if (jval.error != JWT_VALUE_ERR_EXIST) {
 				jwt_write_error(jwt,
 					"Error setting \"typ\" in header");
@@ -43,9 +43,9 @@ int jwt_head_setup(jwt_t *jwt)
 		}
 	}
 
-	jwt_set_ADD_STR(&jval, "alg", jwt_alg_str(jwt->alg));
+	jwt_set_SET_STR(&jval, "alg", jwt_alg_str(jwt->alg));
 	jval.replace = 1;
-	if (jwt_header_add(jwt, &jval)) {
+	if (jwt_header_set(jwt, &jval)) {
 		// LCOV_EXCL_START
 		jwt_write_error(jwt, "Error setting \"alg\" in header");
 		return 1;

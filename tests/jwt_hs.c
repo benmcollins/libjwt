@@ -17,9 +17,6 @@ static void __verify_token(const char *token, jwt_alg_t alg)
 	ck_assert_ptr_nonnull(checker);
 	ck_assert_int_eq(jwt_checker_error(checker), 0);
 
-	ret = jwt_checker_setclaims(checker, JWT_CLAIM_NONE);
-	ck_assert_int_eq(ret, 0);
-
 	ret = jwt_checker_setkey(checker, alg, g_item);
 	ck_assert_int_eq(ret, 0);
 
@@ -39,8 +36,8 @@ static void __test_alg(const char *key_file, jwt_alg_t alg, const char *expected
 	ck_assert_ptr_nonnull(builder);
 	ck_assert_int_eq(jwt_builder_error(builder), 0);
 
-	ret = jwt_builder_setclaims(builder, JWT_CLAIM_NONE);
-	ck_assert_int_eq(ret, 0);
+	ret = jwt_builder_enable_iat(builder, 0);
+	ck_assert_int_eq(ret, 1);
 
 	read_json(key_file);
 	ret = jwt_builder_setkey(builder, alg, g_item);

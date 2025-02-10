@@ -37,7 +37,6 @@ START_TEST(claims_nbf_leeway)
 	jwt_builder_auto_t *builder = NULL;
 	jwt_checker_auto_t *checker = NULL;
 	char *out = NULL;
-	time_t tm;
 	int ret;
 
 	SET_OPS();
@@ -45,20 +44,16 @@ START_TEST(claims_nbf_leeway)
 	__get_set(&builder, &checker);
 
 	/* Set nbf +10 */
-	ret = jwt_builder_time_offset_set(builder, JWT_CLAIM_NBF, 10);
+	ret = jwt_builder_time_offset(builder, JWT_CLAIM_NBF, 10);
 	ck_assert_int_eq(ret, 0);
-	tm = jwt_builder_time_offset_get(builder, JWT_CLAIM_NBF);
-	ck_assert_int_eq(tm, 10);
 
 	/* Gen with "nbf" claim */
 	out = jwt_builder_generate(builder);
 	ck_assert_ptr_nonnull(out);
 
 	/* Small leeway */
-	ret = jwt_checker_leeway_set(checker, JWT_CLAIM_NBF, 1);;
+	ret = jwt_checker_time_leeway(checker, JWT_CLAIM_NBF, 1);;
 	ck_assert_int_eq(ret, 0);
-	tm = jwt_checker_leeway_get(checker, JWT_CLAIM_NBF);;
-	ck_assert_int_eq(tm, 1);
 
 	/* Too soon */
 	ret = jwt_checker_verify(checker, out);
@@ -68,7 +63,7 @@ START_TEST(claims_nbf_leeway)
 	jwt_checker_error_clear(checker);
 
 	/* Bigger leeway */
-	ret = jwt_checker_leeway_set(checker, JWT_CLAIM_NBF, 10);;
+	ret = jwt_checker_time_leeway(checker, JWT_CLAIM_NBF, 10);;
 	ck_assert_int_eq(ret, 0);
 
 	/* Should pass */
@@ -76,16 +71,12 @@ START_TEST(claims_nbf_leeway)
 	ck_assert_int_eq(ret, 0);
 
 	/* We clear the check */
-	ret = jwt_checker_leeway_clear(checker, JWT_CLAIM_NBF);;
+	ret = jwt_checker_time_leeway(checker, JWT_CLAIM_NBF, -1);
 	ck_assert_int_eq(ret, 0);
-	tm = jwt_checker_leeway_get(checker, JWT_CLAIM_NBF);;
-	ck_assert_int_eq(tm, 0);
 
-	/* We clear the check */
-        ret = jwt_builder_time_offset_clear(builder, JWT_CLAIM_NBF);;
+	/* Should pass */
+	ret = jwt_checker_verify(checker, out);
 	ck_assert_int_eq(ret, 0);
-	tm = jwt_builder_time_offset_get(builder, JWT_CLAIM_NBF);;
-	ck_assert_int_eq(tm, 0);
 
 	free(out);
 	free_key();
@@ -97,28 +88,26 @@ START_TEST(claims_exp_leeway)
 	jwt_builder_auto_t *builder = NULL;
 	jwt_checker_auto_t *checker = NULL;
 	char *out = NULL;
-	time_t tm;
 	int ret;
 
 	SET_OPS();
 
 	__get_set(&builder, &checker);
 
-	/* Set exp -2 */
-	ret = jwt_builder_time_offset_set(builder, JWT_CLAIM_EXP, -2);
+	/* Set exp */
+	ret = jwt_builder_time_offset(builder, JWT_CLAIM_EXP, 1);
 	ck_assert_int_eq(ret, 0);
-	tm = jwt_builder_time_offset_get(builder, JWT_CLAIM_EXP);
-	ck_assert_int_eq(tm, -2);
 
 	/* Gen with "exp" claim */
 	out = jwt_builder_generate(builder);
 	ck_assert_ptr_nonnull(out);
 
-	/* Small leeway */
-	ret = jwt_checker_leeway_set(checker, JWT_CLAIM_EXP, 1);;
+	/* We gotta sleep for this to work */
+	sleep(1);
+
+	/* No leeway */
+	ret = jwt_checker_time_leeway(checker, JWT_CLAIM_EXP, 0);;
 	ck_assert_int_eq(ret, 0);
-	tm = jwt_checker_leeway_get(checker, JWT_CLAIM_EXP);;
-	ck_assert_int_eq(tm, 1);
 
 	/* Too late */
 	ret = jwt_checker_verify(checker, out);
@@ -128,7 +117,7 @@ START_TEST(claims_exp_leeway)
 	jwt_checker_error_clear(checker);
 
 	/* Bigger leeway */
-	ret = jwt_checker_leeway_set(checker, JWT_CLAIM_EXP, 10);;
+	ret = jwt_checker_time_leeway(checker, JWT_CLAIM_EXP, 10);;
 	ck_assert_int_eq(ret, 0);
 
 	/* Should pass */
@@ -136,16 +125,8 @@ START_TEST(claims_exp_leeway)
 	ck_assert_int_eq(ret, 0);
 
 	/* We clear the check */
-	ret = jwt_checker_leeway_clear(checker, JWT_CLAIM_EXP);;
+	ret = jwt_checker_time_leeway(checker, JWT_CLAIM_EXP, -1);;
 	ck_assert_int_eq(ret, 0);
-	tm = jwt_checker_leeway_get(checker, JWT_CLAIM_EXP);;
-	ck_assert_int_eq(tm, 0);
-
-	/* We clear the check */
-        ret = jwt_builder_time_offset_clear(builder, JWT_CLAIM_EXP);;
-	ck_assert_int_eq(ret, 0);
-	tm = jwt_builder_time_offset_get(builder, JWT_CLAIM_EXP);;
-	ck_assert_int_eq(tm, 0);
 
 	free(out);
 	free_key();

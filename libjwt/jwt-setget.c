@@ -106,7 +106,7 @@ static jwt_value_error_t jwt_obj_check(json_t *which, jwt_value_t *jval)
 	return JWT_VALUE_ERR_NONE;
 }
 
-static jwt_value_error_t jwt_add_str(json_t *which, jwt_value_t *jval)
+static jwt_value_error_t jwt_set_str(json_t *which, jwt_value_t *jval)
 {
 	if (!jval->name || !strlen(jval->name) || !jval->str_val)
 		return jval->error = JWT_VALUE_ERR_INVALID;
@@ -120,7 +120,7 @@ static jwt_value_error_t jwt_add_str(json_t *which, jwt_value_t *jval)
 	return jval->error;
 }
 
-static jwt_value_error_t jwt_add_int(json_t *which, jwt_value_t *jval)
+static jwt_value_error_t jwt_set_int(json_t *which, jwt_value_t *jval)
 {
 	if (!jval->name || !strlen(jval->name))
 		return jval->error = JWT_VALUE_ERR_INVALID;
@@ -135,7 +135,7 @@ static jwt_value_error_t jwt_add_int(json_t *which, jwt_value_t *jval)
 	return jval->error;
 }
 
-static jwt_value_error_t jwt_add_bool(json_t *which, jwt_value_t *jval)
+static jwt_value_error_t jwt_set_bool(json_t *which, jwt_value_t *jval)
 {
 	if (!jval->name || !strlen(jval->name))
 		return jval->error = JWT_VALUE_ERR_INVALID;
@@ -149,7 +149,7 @@ static jwt_value_error_t jwt_add_bool(json_t *which, jwt_value_t *jval)
 	return jval->error;
 }
 
-static jwt_value_error_t jwt_add_json(json_t *which, jwt_value_t *jval)
+static jwt_value_error_t jwt_set_json(json_t *which, jwt_value_t *jval)
 {
 	size_t flags = JSON_REJECT_DUPLICATES;
 	json_t *json_val = NULL;
@@ -162,7 +162,7 @@ static jwt_value_error_t jwt_add_json(json_t *which, jwt_value_t *jval)
 	if (!json_val)
 		return jval->error = JWT_VALUE_ERR_INVALID;
 
-	if (jval->name == NULL) {
+	if (jval->name == NULL || !strlen(jval->name)) {
 		/* Update the whole thing */
 		if (jval->replace)
 			ret = json_object_update(which, json_val);
@@ -195,7 +195,7 @@ jwt_value_error_t __deleter(json_t *which, const char *field)
 	return JWT_VALUE_ERR_NONE;
 }
 
-jwt_value_error_t __adder(json_t *which, jwt_value_t *value)
+jwt_value_error_t __setter(json_t *which, jwt_value_t *value)
 {
 	if (!which)
 		return value->error = JWT_VALUE_ERR_INVALID; // LCOV_EXCL_LINE
@@ -204,16 +204,16 @@ jwt_value_error_t __adder(json_t *which, jwt_value_t *value)
 
 	switch (value->type) {
 	case JWT_VALUE_INT:
-		return jwt_add_int(which, value);
+		return jwt_set_int(which, value);
 
 	case JWT_VALUE_STR:
-		return jwt_add_str(which, value);
+		return jwt_set_str(which, value);
 
 	case JWT_VALUE_BOOL:
-		return jwt_add_bool(which, value);
+		return jwt_set_bool(which, value);
 
 	case JWT_VALUE_JSON:
-		return jwt_add_json(which, value);
+		return jwt_set_json(which, value);
 
 	default:
 		return value->error = JWT_VALUE_ERR_INVALID; // LCOV_EXCL_LINE
@@ -283,9 +283,9 @@ jwt_value_error_t jwt_header_get(jwt_t *jwt, jwt_value_t *value)
 	return __run_it(jwt, __HEADER, value, __getter);
 }
 
-jwt_value_error_t jwt_header_add(jwt_t *jwt, jwt_value_t *value)
+jwt_value_error_t jwt_header_set(jwt_t *jwt, jwt_value_t *value)
 {
-	return __run_it(jwt, __HEADER, value, __adder);
+	return __run_it(jwt, __HEADER, value, __setter);
 }
 
 jwt_value_error_t jwt_header_del(jwt_t *jwt, const char *header)
@@ -301,14 +301,14 @@ jwt_value_error_t jwt_claim_get(jwt_t *jwt, jwt_value_t *value)
 	return __run_it(jwt, __CLAIM, value, __getter);
 }
 
-jwt_value_error_t jwt_claim_add(jwt_t *jwt, jwt_value_t *value)
+jwt_value_error_t jwt_claim_set(jwt_t *jwt, jwt_value_t *value)
 {
-	return __run_it(jwt, __CLAIM, value, __adder);
+	return __run_it(jwt, __CLAIM, value, __setter);
 }
 
-jwt_value_error_t jwt_claim_del(jwt_t *jwt, const char *header)
+jwt_value_error_t jwt_claim_del(jwt_t *jwt, const char *claim)
 {
 	if (!jwt)
                 return JWT_VALUE_ERR_INVALID;
-	return __deleter(jwt->claims, header);
+	return __deleter(jwt->claims, claim);
 }

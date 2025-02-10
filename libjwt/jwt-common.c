@@ -19,12 +19,12 @@
 #ifdef JWT_BUILDER
 #define jwt_common_t	jwt_builder_t
 #define FUNC(__x)	jwt_builder_##__x
-#define CLAIMS_DEF	JWT_BUILDER_CLAIMS
+#define CLAIMS_DEF	JWT_CLAIM_IAT
 #endif
 #ifdef JWT_CHECKER
 #define jwt_common_t	jwt_checker_t
 #define FUNC(__x)	jwt_checker_##__x
-#define CLAIMS_DEF	JWT_CHECKER_CLAIMS
+#define CLAIMS_DEF	(JWT_CLAIM_EXP | JWT_CLAIM_NBF)
 #endif
 
 #ifndef jwt_common_t
@@ -137,33 +137,24 @@ void FUNC(error_clear)(jwt_common_t *__cmd)
 	__cmd->error_msg[0] = '\0';
 }
 
-int FUNC(setclaims)(jwt_common_t *__cmd, jwt_claims_t claims)
+#ifdef JWT_BUILDER
+int FUNC(enable_iat)(jwt_common_t *__cmd, int enable)
 {
-	if (claims == JWT_CLAIM_DEFAULT) {
-		__cmd->c.claims = CLAIMS_DEF;
-		return 0;
-	}
+	int orig;
 
-	if (claims == JWT_CLAIM_NONE) {
-		__cmd->c.claims = claims;
-		return 0;
-	}
+	if (!__cmd)
+		return -1;
 
-	if (claims & JWT_CLAIM_NONE) {
-		jwt_write_error(__cmd,
-				"NONE claim cannot be set with others");
-		return 1;
-	}
+	orig = __cmd->c.claims & JWT_CLAIM_IAT ? 1 : 0;
 
-	if (claims & ~JWT_CLAIMS_ALL) {
-		jwt_write_error(__cmd, "Unknown claim(s) in set");
-		return 1;
-	}
+	if (enable)
+		__cmd->c.claims |= JWT_CLAIM_IAT;
+	else
+		__cmd->c.claims &= ~JWT_CLAIM_IAT;
 
-	__cmd->c.claims = claims;
-
-	return 0;
+	return orig;
 }
+#endif
 
 int FUNC(setcb)(jwt_common_t *__cmd, jwt_callback_t cb, void *ctx)
 {
@@ -179,6 +170,14 @@ int FUNC(setcb)(jwt_common_t *__cmd, jwt_callback_t cb, void *ctx)
 	__cmd->c.cb_ctx = ctx;
 
 	return 0;
+}
+
+void *FUNC(getctx)(jwt_common_t *__cmd)
+{
+	if (__cmd == NULL)
+		return NULL;
+
+	return __cmd->c.cb_ctx;
 }
 
 typedef enum {
@@ -213,22 +212,23 @@ static jwt_value_error_t __run_it(jwt_common_t *__cmd, _setget_type_t type,
 	return doer(which, value);
 }
 
+#ifdef JWT_BUILDER
 /* Claims */
 jwt_value_error_t FUNC(claim_get)(jwt_common_t *__cmd, jwt_value_t *value)
 {
 	return __run_it(__cmd, __CLAIM, value, __getter);
 }
 
-jwt_value_error_t FUNC(claim_add)(jwt_common_t *__cmd, jwt_value_t *value)
+jwt_value_error_t FUNC(claim_set)(jwt_common_t *__cmd, jwt_value_t *value)
 {
-	return __run_it(__cmd, __CLAIM, value, __adder);
+	return __run_it(__cmd, __CLAIM, value, __setter);
 }
 
-jwt_value_error_t FUNC(claim_del)(jwt_common_t *__cmd, const char *header)
+jwt_value_error_t FUNC(claim_del)(jwt_common_t *__cmd, const char *claim)
 {
 	if (!__cmd)
 		return JWT_VALUE_ERR_INVALID;
-	return __deleter(__cmd->c.payload, header);
+	return __deleter(__cmd->c.payload, claim);
 }
 
 /* Headers */
@@ -237,9 +237,9 @@ jwt_value_error_t FUNC(header_get)(jwt_common_t *__cmd, jwt_value_t *value)
 	return __run_it(__cmd, __HEADER, value, __getter);
 }
 
-jwt_value_error_t FUNC(header_add)(jwt_common_t *__cmd, jwt_value_t *value)
+jwt_value_error_t FUNC(header_set)(jwt_common_t *__cmd, jwt_value_t *value)
 {
-	return __run_it(__cmd, __HEADER, value, __adder);
+	return __run_it(__cmd, __HEADER, value, __setter);
 }
 
 jwt_value_error_t FUNC(header_del)(jwt_common_t *__cmd, const char *header)
@@ -248,79 +248,109 @@ jwt_value_error_t FUNC(header_del)(jwt_common_t *__cmd, const char *header)
 		return JWT_VALUE_ERR_INVALID;
 	return __deleter(__cmd->c.headers, header);
 }
+#endif
+
+#ifdef JWT_CHECKER
+/* Just a few types of claims */
+static const char *__get_name(jwt_claims_t type)
+{
+	if (type == JWT_CLAIM_ISS)
+		return "iss";
+	else if (type == JWT_CLAIM_AUD)
+		return "aud";
+	else if (type == JWT_CLAIM_SUB)
+		return "sub";
+	return NULL;
+}
+
+const char *FUNC(claim_get)(jwt_common_t *__cmd, jwt_claims_t type)
+{
+	const char *name = NULL;
+	jwt_value_t jval;
+
+	if (!__cmd)
+		return NULL;
+
+	name = __get_name(type);
+	if (name == NULL)
+		return NULL;
+
+	jwt_set_GET_STR(&jval, name);
+	__run_it(__cmd, __CLAIM, &jval, __getter);
+
+	/* Ignore errors, just return a string or NULL */
+	return jval.str_val;
+}
+
+int FUNC(claim_set)(jwt_common_t *__cmd, jwt_claims_t type, const char *value)
+{
+	const char *name = NULL;
+	jwt_value_t jval;
+
+	if (!__cmd || !value)
+		return 1;
+
+	name = __get_name(type);
+	if (name == NULL)
+		return 1;
+
+	__cmd->c.claims |= type;
+
+	jwt_set_SET_STR(&jval, name, value);
+	jval.replace = 1;
+
+	return __run_it(__cmd, __CLAIM, &jval, __setter) ? 1 : 0;
+}
+
+int FUNC(claim_del)(jwt_common_t *__cmd, jwt_claims_t type)
+{
+	const char *name = NULL;
+
+	if (!__cmd)
+		return 1;
+
+	name = __get_name(type);
+	if (name == NULL)
+		return 1;
+
+	__cmd->c.claims &= ~type;
+
+	return __deleter(__cmd->c.payload, name);
+}
+#endif
 
 /* Time offsets */
-#ifdef JWT_CHECKER
-int FUNC(leeway_set)(jwt_common_t *__cmd, jwt_claims_t claim, time_t secs)
+#ifdef JWT_BUILDER
+#define __DISABLE 0
 #else
-int FUNC(time_offset_set)(jwt_common_t *__cmd, jwt_claims_t claim, time_t secs)
+#define __DISABLE -1
+#endif
+#ifdef JWT_BUILDER
+int FUNC(time_offset)(jwt_common_t *__cmd, jwt_claims_t claim, time_t secs)
+#else
+int FUNC(time_leeway)(jwt_common_t *__cmd, jwt_claims_t claim, time_t secs)
 #endif
 {
 	if (!__cmd)
 		return 1;
 
-#ifdef JWT_CHECKER
-	if (claim & ~(JWT_CLAIM_EXP | JWT_CLAIM_NBF))
-		return 1;
-#else
-	if (claim != JWT_CLAIM_EXP && claim != JWT_CLAIM_NBF)
-		return 1;
-#endif
-
-	if (claim & JWT_CLAIM_EXP) {
-		__cmd->c.claims |= JWT_CLAIM_EXP;
+	switch (claim) {
+	case JWT_CLAIM_EXP:
 		__cmd->c.exp = secs;
-	}
+		break;
 
-	if (claim & JWT_CLAIM_NBF) {
-		__cmd->c.claims |= JWT_CLAIM_NBF;
+	case JWT_CLAIM_NBF:
 		__cmd->c.nbf = secs;
-	}
+		break;
 
-	return 0;
-}
-
-#ifdef JWT_CHECKER
-time_t FUNC(leeway_get)(jwt_common_t *__cmd, jwt_claims_t claim)
-#else
-time_t FUNC(time_offset_get)(jwt_common_t *__cmd, jwt_claims_t claim)
-#endif
-{
-	time_t ret = -1;
-
-	if (!__cmd)
-		return ret;
-
-	if (claim == JWT_CLAIM_EXP) {
-		ret = __cmd->c.exp;
-	} else if (claim == JWT_CLAIM_NBF) {
-		ret = __cmd->c.nbf;
-	}
-
-	return ret;
-}
-
-#ifdef JWT_CHECKER
-int FUNC(leeway_clear)(jwt_common_t *__cmd, jwt_claims_t claim)
-#else
-int FUNC(time_offset_clear)(jwt_common_t *__cmd, jwt_claims_t claim)
-#endif
-{
-	if (!__cmd)
-                return 1;
-
-	if (claim & ~(JWT_CLAIM_EXP | JWT_CLAIM_NBF))
+	default:
 		return 1;
-
-	if (claim & JWT_CLAIM_EXP) {
-		__cmd->c.claims &= ~JWT_CLAIM_EXP;
-		__cmd->c.exp = 0;
 	}
 
-	if (claim & JWT_CLAIM_NBF) {
-		__cmd->c.claims &= ~JWT_CLAIM_NBF;
-		__cmd->c.nbf = 0;
-	}
+	if (secs <= __DISABLE)
+		__cmd->c.claims &= ~claim;
+	else
+		__cmd->c.claims |= claim;
 
 	return 0;
 }
@@ -404,21 +434,21 @@ char *FUNC(generate)(jwt_common_t *__cmd)
 
 	/* Our internal work first */
 	if (__cmd->c.claims & JWT_CLAIM_IAT) {
-		jwt_set_ADD_INT(&jval, "iat", (long)tm);
+		jwt_set_SET_INT(&jval, "iat", (long)tm);
 		jval.replace = 1;
-		jwt_claim_add(jwt, &jval);
+		jwt_claim_set(jwt, &jval);
 	}
 
 	if (__cmd->c.claims & JWT_CLAIM_NBF) {
-		jwt_set_ADD_INT(&jval, "nbf", (long)(tm + __cmd->c.nbf));
+		jwt_set_SET_INT(&jval, "nbf", (long)(tm + __cmd->c.nbf));
 		jval.replace = 1;
-		jwt_claim_add(jwt, &jval);
+		jwt_claim_set(jwt, &jval);
 	}
 
 	if (__cmd->c.claims & JWT_CLAIM_EXP) {
-		jwt_set_ADD_INT(&jval, "exp", (long)(tm + __cmd->c.exp));
+		jwt_set_SET_INT(&jval, "exp", (long)(tm + __cmd->c.exp));
 		jval.replace = 1;
-		jwt_claim_add(jwt, &jval);
+		jwt_claim_set(jwt, &jval);
 	}
 
 	/* Alg and key checks */

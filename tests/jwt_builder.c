@@ -47,8 +47,8 @@ static int __gen_wcb(jwt_t *jwt, jwt_config_t *config)
 	ck_assert_ptr_nonnull(config);
 
 	ck_assert_str_eq(config->ctx, "testing");
-	jwt_set_ADD_INT(&jval, "exp", TS_CONST + 480);
-	jwt_claim_add(jwt, &jval);
+	jwt_set_SET_INT(&jval, "exp", TS_CONST + 480);
+	jwt_claim_set(jwt, &jval);
 
 	return 0;
 }
@@ -66,8 +66,10 @@ START_TEST(gen_wcb)
 	ck_assert_ptr_nonnull(builder);
 	ck_assert_int_eq(jwt_builder_error(builder), 0);
 
-	ret = jwt_builder_setclaims(builder, JWT_CLAIM_NONE);
-	ck_assert_int_eq(ret, 0);
+	ret = jwt_builder_enable_iat(builder, 1);
+	ck_assert_int_eq(ret, 1);
+	ret = jwt_builder_enable_iat(builder, 0);
+	ck_assert_int_eq(ret, 1);
 
 	ret = jwt_builder_setcb(builder, __gen_wcb, "testing");
 	ck_assert_int_eq(ret, 0);
@@ -77,6 +79,35 @@ START_TEST(gen_wcb)
 	ck_assert_str_eq(out, exp);
 
 
+}
+END_TEST
+
+static int __just_fail_cb(jwt_t *jwt, jwt_config_t *config)
+{
+	(void)jwt;
+	(void)config;
+	return 1;
+}
+
+START_TEST(just_fail_wcb)
+{
+	jwt_builder_auto_t *builder = NULL;
+	char *out;
+	int ret;
+
+	SET_OPS();
+
+	builder = jwt_builder_new();
+	ck_assert_ptr_nonnull(builder);
+	ck_assert_int_eq(jwt_builder_error(builder), 0);
+
+	ret = jwt_builder_setcb(builder, __just_fail_cb, "testing");
+	ck_assert_int_eq(ret, 0);
+
+	out = jwt_builder_generate(builder);
+	ck_assert_ptr_null(out);
+
+	free_key();
 }
 END_TEST
 
@@ -118,6 +149,44 @@ START_TEST(null_handling)
 
 	ret = jwt_builder_setkey(NULL, JWT_ALG_HS256, NULL);
 	ck_assert_int_ne(ret, 0);
+
+	jwt_set_GET_STR(&jval, "");
+	ret = jwt_builder_claim_get(builder, &jval);
+	ck_assert_int_eq(ret, JWT_VALUE_ERR_INVALID);
+	jwt_set_GET_INT(&jval, "");
+	ret = jwt_builder_claim_get(builder, &jval);
+	ck_assert_int_eq(ret, JWT_VALUE_ERR_INVALID);
+	jwt_set_GET_BOOL(&jval, "");
+	ret = jwt_builder_claim_get(builder, &jval);
+	ck_assert_int_eq(ret, JWT_VALUE_ERR_INVALID);
+	
+	jwt_set_GET_JSON(&jval, "");
+	jval.pretty = 1;
+	ret = jwt_builder_claim_get(builder, &jval);
+	ck_assert_int_eq(ret, JWT_VALUE_ERR_NONE);
+
+	jwt_set_SET_STR(&jval, "", "");
+	ret = jwt_builder_claim_set(builder, &jval);
+	ck_assert_int_eq(ret, JWT_VALUE_ERR_INVALID);
+	jwt_set_SET_INT(&jval, "", 0);
+	ret = jwt_builder_claim_set(builder, &jval);
+	ck_assert_int_eq(ret, JWT_VALUE_ERR_INVALID);
+	jwt_set_SET_BOOL(&jval, "", 0);
+	ret = jwt_builder_claim_set(builder, &jval);
+	ck_assert_int_eq(ret, JWT_VALUE_ERR_INVALID);
+
+	jwt_set_SET_JSON(&jval, "", "{}");
+	ret = jwt_builder_claim_set(builder, &jval);
+	ck_assert_int_eq(ret, JWT_VALUE_ERR_NONE);
+
+	jwt_set_SET_JSON(&jval, "", "");
+	ret = jwt_builder_claim_set(builder, &jval);
+	ck_assert_int_eq(ret, JWT_VALUE_ERR_INVALID);
+
+	jwt_set_SET_JSON(&jval, "", "{}");
+	jval.replace = 1;
+	ret = jwt_builder_claim_set(builder, &jval);
+	ck_assert_int_eq(ret, JWT_VALUE_ERR_NONE);
 
 	/* Create and clear an error */
 	ret = jwt_builder_setkey(builder, JWT_ALG_HS256, NULL);
@@ -174,14 +243,14 @@ START_TEST(null_handling)
 	ret = jwt_builder_header_del(NULL, NULL);
 	ck_assert_int_ne(ret, 0);
 
-	ret = jwt_checker_claim_del(NULL, NULL);
+	ret = jwt_checker_claim_del(NULL, JWT_CLAIM_ISS);
 	ck_assert_int_ne(ret, 0);
 
-	ret = jwt_checker_claim_add(NULL, &jval);
+	ret = jwt_checker_claim_set(NULL, JWT_CLAIM_ISS, "goo");
 	ck_assert_int_ne(ret, 0);
 
-	ret = jwt_checker_claim_get(NULL, NULL);
-	ck_assert_int_ne(ret, 0);
+	out = jwt_checker_claim_get(NULL, JWT_CLAIM_ISS);
+	ck_assert_ptr_null(out);
 
 	/* Random */
 	ck_assert_int_eq(jwt_str_alg(NULL), JWT_ALG_INVAL);
@@ -201,6 +270,10 @@ START_TEST(null_handling)
 	ck_assert_int_eq(jwt_header_get(NULL, NULL), JWT_VALUE_ERR_INVALID);
 	ck_assert_int_eq(jwt_header_get(NULL, &jval), JWT_VALUE_ERR_INVALID);
 	ck_assert_int_eq(jval.error, JWT_VALUE_ERR_INVALID);
+	ck_assert_int_eq(jwt_builder_enable_iat(NULL, 1), -1);
+	ck_assert_ptr_null(jwt_builder_getctx(NULL));
+
+	ck_assert_int_eq(jwt_builder_claim_del(NULL, NULL), JWT_VALUE_ERR_INVALID);
 }
 END_TEST
 
@@ -218,8 +291,8 @@ START_TEST(gen_hs256)
 	ck_assert_ptr_nonnull(builder);
 	ck_assert_int_eq(jwt_builder_error(builder), 0);
 
-	ret = jwt_builder_setclaims(builder, JWT_CLAIM_NONE);
-	ck_assert_int_eq(ret, 0);
+	ret = jwt_builder_enable_iat(builder, 0);
+	ck_assert_int_eq(ret, 1);
 
 	read_json("oct_key_256.json");
 	ret = jwt_builder_setkey(builder, JWT_ALG_HS256, g_item);
@@ -244,49 +317,12 @@ START_TEST(gen_hs256_bits)
 	ck_assert_ptr_nonnull(builder);
 	ck_assert_int_eq(jwt_builder_error(builder), 0);
 
-	ret = jwt_builder_setclaims(builder, JWT_CLAIM_NONE);
-	ck_assert_int_eq(ret, 0);
+	ret = jwt_builder_enable_iat(builder, 0);
+	ck_assert_int_eq(ret, 1);
 
 	read_json("oct_key_256.json");
 	ret = jwt_builder_setkey(builder, JWT_ALG_HS384, g_item);
 	ck_assert_int_ne(ret, 0);
-
-	free_key();
-}
-END_TEST
-
-START_TEST(claims_set_errors)
-{
-	jwt_builder_auto_t *builder = NULL;
-	char *out = NULL;
-	const char exp[] = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.";
-	int ret;
-
-	SET_OPS();
-
-	builder = jwt_builder_new();
-	ck_assert_ptr_nonnull(builder);
-	ck_assert_int_eq(jwt_builder_error(builder), 0);
-
-	ret = jwt_builder_setclaims(builder, JWT_CLAIM_DEFAULT);
-	ck_assert_int_eq(ret, 0);
-
-	read_json("oct_key_256.json");
-	ret = jwt_builder_setkey(builder, JWT_ALG_HS256, g_item);
-	ck_assert_int_eq(ret, 0);
-
-	out = jwt_builder_generate(builder);
-	ck_assert_ptr_nonnull(out);
-	ck_assert_mem_eq(out, exp, strlen(exp));
-
-	ret = jwt_builder_setclaims(builder, JWT_CLAIM_NONE | JWT_CLAIM_SUB);
-	ck_assert_int_ne(ret, 0);
-
-	ret = jwt_builder_setclaims(builder, ~JWT_CLAIM_NONE);
-	ck_assert_int_ne(ret, 0);
-
-	ret = jwt_builder_setclaims(builder, JWT_CLAIM_AUD);
-	ck_assert_int_eq(ret, 0);
 
 	free_key();
 }
@@ -307,8 +343,8 @@ START_TEST(gen_es384_pub)
 	ck_assert_ptr_nonnull(builder);
 	ck_assert_int_eq(jwt_builder_error(builder), 0);
 
-	ret = jwt_builder_setclaims(builder, JWT_CLAIM_NONE);
-	ck_assert_int_eq(ret, 0);
+	ret = jwt_builder_enable_iat(builder, 0);
+	ck_assert_int_eq(ret, 1);
 
 	/* Pub key */
 	read_json("ec_key_secp384r1_pub.json");
@@ -373,8 +409,8 @@ START_TEST(gen_hs256_wcb)
 	ck_assert_ptr_nonnull(builder);
 	ck_assert_int_eq(jwt_builder_error(builder), 0);
 
-	ret = jwt_builder_setclaims(builder, JWT_CLAIM_NONE);
-	ck_assert_int_eq(ret, 0);
+	ret = jwt_builder_enable_iat(builder, 0);
+	ck_assert_int_eq(ret, 1);
 
 	read_json("oct_key_256.json");
 
@@ -410,8 +446,8 @@ START_TEST(gen_hs256_stress)
 	ck_assert_ptr_nonnull(builder);
 	ck_assert_int_eq(jwt_builder_error(builder), 0);
 
-	ret = jwt_builder_setclaims(builder, JWT_CLAIM_NONE);
-	ck_assert_int_eq(ret, 0);
+	ret = jwt_builder_enable_iat(builder, 0);
+	ck_assert_int_eq(ret, 1);
 
 	read_json("oct_key_256.json");
 	ret = jwt_builder_setkey(builder, JWT_ALG_HS256, g_item);
@@ -427,7 +463,7 @@ START_TEST(gen_hs256_stress)
 }
 END_TEST
 
-START_TEST(claim_str_addgetdel)
+START_TEST(claim_str_setgetdel)
 {
 	const char exp[] = "eyJhbGciOiJub25lIn0.eyJzdWIiOiJteS1mcmllbmQifQ.";
 	jwt_builder_auto_t *builder = NULL;
@@ -441,24 +477,24 @@ START_TEST(claim_str_addgetdel)
 	ck_assert_ptr_nonnull(builder);
 	ck_assert_int_eq(jwt_builder_error(builder), 0);
 
-	ret = jwt_builder_setclaims(builder, JWT_CLAIM_NONE);
+	ret = jwt_builder_enable_iat(builder, 0);
+	ck_assert_int_eq(ret, 1);
+
+	jwt_set_SET_STR(&jval, "sub", "my-friend");
+	ret = jwt_builder_claim_set(builder, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	jwt_set_ADD_STR(&jval, "sub", "my-friend");
-	ret = jwt_builder_claim_add(builder, &jval);
+	jwt_set_SET_STR(&jval, "aud", "public");
+	ret = jwt_builder_claim_set(builder, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	jwt_set_ADD_STR(&jval, "aud", "public");
-	ret = jwt_builder_claim_add(builder, &jval);
-	ck_assert_int_eq(ret, 0);
-
-	jwt_set_ADD_STR(&jval, "aud", "private");
-	ret = jwt_builder_claim_add(builder, &jval);
+	jwt_set_SET_STR(&jval, "aud", "private");
+	ret = jwt_builder_claim_set(builder, &jval);
 	ck_assert_int_eq(ret, JWT_VALUE_ERR_EXIST);
 
-	jwt_set_ADD_STR(&jval, "aud", "employees");
+	jwt_set_SET_STR(&jval, "aud", "employees");
 	jval.replace = 1;
-	ret = jwt_builder_claim_add(builder, &jval);
+	ret = jwt_builder_claim_set(builder, &jval);
 	ck_assert_int_eq(ret, 0);
 
 	jwt_set_GET_STR(&jval, "aud");
@@ -488,7 +524,7 @@ START_TEST(claim_str_addgetdel)
 }
 END_TEST
 
-START_TEST(claim_int_addgetdel)
+START_TEST(claim_int_setgetdel)
 {
 	const char exp[] = "eyJhbGciOiJub25lIn0.eyJuYmYiOjE0NzU5ODA1NDV9.";
 	jwt_builder_auto_t *builder = NULL;
@@ -502,24 +538,24 @@ START_TEST(claim_int_addgetdel)
 	ck_assert_ptr_nonnull(builder);
 	ck_assert_int_eq(jwt_builder_error(builder), 0);
 
-	ret = jwt_builder_setclaims(builder, JWT_CLAIM_NONE);
+	ret = jwt_builder_enable_iat(builder, 0);
+	ck_assert_int_eq(ret, 1);
+
+	jwt_set_SET_INT(&jval, "nbf", TS_CONST);
+	ret = jwt_builder_claim_set(builder, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	jwt_set_ADD_INT(&jval, "nbf", TS_CONST);
-	ret = jwt_builder_claim_add(builder, &jval);
+	jwt_set_SET_INT(&jval, "exp", TS_CONST);
+	ret = jwt_builder_claim_set(builder, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	jwt_set_ADD_INT(&jval, "exp", TS_CONST);
-	ret = jwt_builder_claim_add(builder, &jval);
-	ck_assert_int_eq(ret, 0);
-
-	jwt_set_ADD_INT(&jval, "exp", TS_CONST + 360);
-	ret = jwt_builder_claim_add(builder, &jval);
+	jwt_set_SET_INT(&jval, "exp", TS_CONST + 360);
+	ret = jwt_builder_claim_set(builder, &jval);
 	ck_assert_int_eq(ret, JWT_VALUE_ERR_EXIST);
 
-	jwt_set_ADD_INT(&jval, "exp", TS_CONST + 480);
+	jwt_set_SET_INT(&jval, "exp", TS_CONST + 480);
 	jval.replace = 1;
-	ret = jwt_builder_claim_add(builder, &jval);
+	ret = jwt_builder_claim_set(builder, &jval);
 	ck_assert_int_eq(ret, 0);
 
 	jwt_set_GET_INT(&jval, "exp");
@@ -548,7 +584,7 @@ START_TEST(claim_int_addgetdel)
 }
 END_TEST
 
-START_TEST(claim_bool_addgetdel)
+START_TEST(claim_bool_setgetdel)
 {
 	const char exp[] = "eyJhbGciOiJub25lIn0.eyJhZG1pbiI6dHJ1ZX0.";
 	jwt_builder_auto_t *builder = NULL;
@@ -562,24 +598,24 @@ START_TEST(claim_bool_addgetdel)
 	ck_assert_ptr_nonnull(builder);
 	ck_assert_int_eq(jwt_builder_error(builder), 0);
 
-	ret = jwt_builder_setclaims(builder, JWT_CLAIM_NONE);
+	ret = jwt_builder_enable_iat(builder, 0);
+	ck_assert_int_eq(ret, 1);
+
+	jwt_set_SET_BOOL(&jval, "admin", 1);
+	ret = jwt_builder_claim_set(builder, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	jwt_set_ADD_BOOL(&jval, "admin", 1);
-	ret = jwt_builder_claim_add(builder, &jval);
+	jwt_set_SET_BOOL(&jval, "sudo", 1);
+	ret = jwt_builder_claim_set(builder, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	jwt_set_ADD_BOOL(&jval, "sudo", 1);
-	ret = jwt_builder_claim_add(builder, &jval);
-	ck_assert_int_eq(ret, 0);
-
-	jwt_set_ADD_BOOL(&jval, "sudo", 0);
-	ret = jwt_builder_claim_add(builder, &jval);
+	jwt_set_SET_BOOL(&jval, "sudo", 0);
+	ret = jwt_builder_claim_set(builder, &jval);
 	ck_assert_int_eq(ret, JWT_VALUE_ERR_EXIST);
 
-	jwt_set_ADD_BOOL(&jval, "sudo", 0);
+	jwt_set_SET_BOOL(&jval, "sudo", 0);
 	jval.replace = 1;
-	ret = jwt_builder_claim_add(builder, &jval);
+	ret = jwt_builder_claim_set(builder, &jval);
 	ck_assert_int_eq(ret, 0);
 
 	jwt_set_GET_BOOL(&jval, "sudo");
@@ -608,7 +644,7 @@ START_TEST(claim_bool_addgetdel)
 }
 END_TEST
 
-START_TEST(claim_json_addgetdel)
+START_TEST(claim_json_setgetdel)
 {
 	const char exp[] = "eyJhbGciOiJub25lIn0.eyJyb29tcyI6WyJvZ"
 		"mZpY2UiLCJ3YXItcm9vbSJdfQ.";
@@ -623,12 +659,12 @@ START_TEST(claim_json_addgetdel)
 	ck_assert_ptr_nonnull(builder);
 	ck_assert_int_eq(jwt_builder_error(builder), 0);
 
-	ret = jwt_builder_setclaims(builder, JWT_CLAIM_NONE);
-	ck_assert_int_eq(ret, 0);
+	ret = jwt_builder_enable_iat(builder, 0);
+	ck_assert_int_eq(ret, 1);
 
-	jwt_set_ADD_JSON(&jval, "rooms",
+	jwt_set_SET_JSON(&jval, "rooms",
 			 "[\"office\",\"war-room\"]");
-	ret = jwt_builder_claim_add(builder, &jval);
+	ret = jwt_builder_claim_set(builder, &jval);
 	ck_assert_int_eq(ret, 0);
 
 	jwt_set_GET_JSON(&jval, "rooms");
@@ -638,18 +674,18 @@ START_TEST(claim_json_addgetdel)
 	ck_assert_str_eq(jval.json_val, "[\"office\",\"war-room\"]");
 	free(jval.json_val);
 
-	jwt_set_ADD_JSON(&jval, "buildings",
+	jwt_set_SET_JSON(&jval, "buildings",
 			 "{\"main\":\"dallas\",\"accounting\":\"houston\"}");
-	ret = jwt_builder_claim_add(builder, &jval);
+	ret = jwt_builder_claim_set(builder, &jval);
 	ck_assert_int_eq(ret, 0);
 
-	jwt_set_ADD_JSON(&jval, "buildings", "{\"hq\": 0}");
-	ret = jwt_builder_claim_add(builder, &jval);
+	jwt_set_SET_JSON(&jval, "buildings", "{\"hq\": 0}");
+	ret = jwt_builder_claim_set(builder, &jval);
 	ck_assert_int_eq(ret, JWT_VALUE_ERR_EXIST);
 
-	jwt_set_ADD_JSON(&jval, "buildings", "{\"hq\": 1}");
+	jwt_set_SET_JSON(&jval, "buildings", "{\"hq\": 1}");
 	jval.replace = 1;
-	ret = jwt_builder_claim_add(builder, &jval);
+	ret = jwt_builder_claim_set(builder, &jval);
 	ck_assert_int_eq(ret, 0);
 
 	jwt_set_GET_JSON(&jval, "buildings");
@@ -680,7 +716,7 @@ START_TEST(claim_json_addgetdel)
 }
 END_TEST
 
-START_TEST(header_str_addgetdel)
+START_TEST(header_str_setgetdel)
 {
 	const char exp[] = "eyJhbGciOiJub25lIiwidHlwIjoiQ3VzdG9tIn0.e30.";
 	jwt_builder_auto_t *builder = NULL;
@@ -694,11 +730,11 @@ START_TEST(header_str_addgetdel)
 	ck_assert_ptr_nonnull(builder);
 	ck_assert_int_eq(jwt_builder_error(builder), 0);
 
-	ret = jwt_builder_setclaims(builder, JWT_CLAIM_NONE);
-	ck_assert_int_eq(ret, 0);
+	ret = jwt_builder_enable_iat(builder, 0);
+	ck_assert_int_eq(ret, 1);
 
-	jwt_set_ADD_STR(&jval, "typ", "Custom");
-	ret = jwt_builder_header_add(builder, &jval);
+	jwt_set_SET_STR(&jval, "typ", "Custom");
+	ret = jwt_builder_header_set(builder, &jval);
 	ck_assert_int_eq(ret, 0);
 
 	out = jwt_builder_generate(builder);
@@ -740,6 +776,7 @@ static Suite *libjwt_suite(const char *title)
 
 	tc_core = tcase_create("Error Handling");
 	tcase_add_loop_test(tc_core, null_handling, 0, i);
+	tcase_add_loop_test(tc_core, just_fail_wcb, 0, i);
 	suite_add_tcase(s, tc_core);
 
 	tc_core = tcase_create("HS256 Key Gen");
@@ -749,18 +786,17 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, gen_hs256_stress, 0, i);
 	suite_add_tcase(s, tc_core);
 
-	tc_core = tcase_create("Claims AddGetDel");
-	tcase_add_loop_test(tc_core, claim_str_addgetdel, 0, i);
-	tcase_add_loop_test(tc_core, claim_int_addgetdel, 0, i);
-	tcase_add_loop_test(tc_core, claim_bool_addgetdel, 0, i);
-	tcase_add_loop_test(tc_core, claim_json_addgetdel, 0, i);
-	tcase_add_loop_test(tc_core, claims_set_errors, 0, i);
+	tc_core = tcase_create("Claims SetGetDel");
+	tcase_add_loop_test(tc_core, claim_str_setgetdel, 0, i);
+	tcase_add_loop_test(tc_core, claim_int_setgetdel, 0, i);
+	tcase_add_loop_test(tc_core, claim_bool_setgetdel, 0, i);
+	tcase_add_loop_test(tc_core, claim_json_setgetdel, 0, i);
 	suite_add_tcase(s, tc_core);
 
-	tc_core = tcase_create("Header AddGetDel");
+	tc_core = tcase_create("Header SetGetDel");
 	/* All of the code paths for str/int/bool/json have been covered. We
-	 * just run this to ensure add/get/del works on headers */
-	tcase_add_loop_test(tc_core, header_str_addgetdel, 0, i);
+	 * just run this to ensure set/get/del works on headers */
+	tcase_add_loop_test(tc_core, header_str_setgetdel, 0, i);
 	suite_add_tcase(s, tc_core);
 
 	return s;

@@ -238,7 +238,7 @@ int jwt_sign(jwt_t *jwt, char **out, unsigned int *len, const char *str,
 JWT_NO_EXPORT
 jwt_value_error_t __deleter(json_t *which, const char *field);
 JWT_NO_EXPORT
-jwt_value_error_t __adder(json_t *which, jwt_value_t *value);
+jwt_value_error_t __setter(json_t *which, jwt_value_t *value);
 JWT_NO_EXPORT
 jwt_value_error_t __getter(json_t *which, jwt_value_t *value);
 

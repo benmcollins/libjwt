@@ -156,23 +156,23 @@ int main(int argc, char *argv[])
 
 			switch (t[0]) {
 			case 's':
-				jwt_set_ADD_STR(&jval, k, v);
+				jwt_set_SET_STR(&jval, k, v);
 				break;
 			case 'i':
-				jwt_set_ADD_INT(&jval, k, strtol(v, NULL, 0));
+				jwt_set_SET_INT(&jval, k, strtol(v, NULL, 0));
 				break;
 			case 'b':
 				if (v[0] == 'f' || v[0] == 'F' || v[0] == '0')
-					jwt_set_ADD_BOOL(&jval, k, 0);
+					jwt_set_SET_BOOL(&jval, k, 0);
 				else
-					jwt_set_ADD_BOOL(&jval, k, 1);
+					jwt_set_SET_BOOL(&jval, k, 1);
 				break;
 			default:
 				usage("Invalid --claim format",
 						EXIT_FAILURE);
 			}
-			if (jwt_builder_claim_add(builder, &jval)) {
-				fprintf(stderr, "Error adding %s:%s=%s\n",
+			if (jwt_builder_claim_set(builder, &jval)) {
+				fprintf(stderr, "Error setting %s:%s=%s\n",
 					t, k, v);
 				exit(EXIT_FAILURE);
 			}
@@ -234,9 +234,9 @@ int main(int argc, char *argv[])
 	}
 
 	if (json) {
-		if (jwt_builder_claim_add(builder,
-				jwt_set_ADD_JSON(&jval, NULL, json))) {
-			fprintf(stderr, "Error adding JSON (%d)\n",
+		if (jwt_builder_claim_set(builder,
+				jwt_set_SET_JSON(&jval, NULL, json))) {
+			fprintf(stderr, "Error setting JSON (%d)\n",
 				jval.error);
 			exit(EXIT_FAILURE);
 		}

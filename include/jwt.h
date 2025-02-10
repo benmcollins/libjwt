@@ -161,7 +161,7 @@ typedef enum {
  */
 typedef enum {
 	JWT_VALUE_ERR_NONE = 0,	/**< No error, success			*/
-	JWT_VALUE_ERR_EXIST,	/**< Item exists (when adding)		*/
+	JWT_VALUE_ERR_EXIST,	/**< Item exists (when setting)		*/
 	JWT_VALUE_ERR_NOEXIST,	/**< Item doesn't exist (when getting)	*/
 	JWT_VALUE_ERR_TYPE,	/**< Item is not of the type requested	*/
 	JWT_VALUE_ERR_INVALID,	/**< Invalid request (general error)	*/
@@ -169,18 +169,18 @@ typedef enum {
 } jwt_value_error_t;
 
 /** @ingroup jwt_claims_helpers_grp
- * @brief Data type for get and add actions for JWT headers and claims
+ * @brief Data type for get and set actions for JWT headers and claims
  *
- * This is used for both add and get requests. Specific rules for each type is
- * described in more detail for the add and get requests.
+ * This is used for both set and get requests. Specific rules for each type is
+ * described in more detail for the set and get requests.
  *
  * @note There are helper macros to simplify setting this structure properly and
- *  reducing common mistakes. See the jwt_set_{ADD,GET}_{INT,STR,BOOL,JSON}
+ *  reducing common mistakes. See the jwt_set_{SET,GET}_{INT,STR,BOOL,JSON}
  *  definitions.
  */
 typedef struct {
 	jwt_value_type_t type;
-	char *name;
+	const char *name;
 	union {
 		long int_val;
 		const char *str_val;
@@ -245,35 +245,14 @@ typedef int (*jwt_callback_t)(jwt_t *, jwt_config_t *);
  * @brief WFC defined claims
  */
 typedef enum {
-        JWT_CLAIM_DEFAULT       = 0x0000, /**< Nothing set, default claims  */
-        JWT_CLAIM_NONE          = 0x0001, /**< No checks                    */
-        JWT_CLAIM_ISS           = 0x0002, /**< @rfc_t{7519,4.1.1} ``"iss"`` */
-        JWT_CLAIM_SUB           = 0x0004, /**< @rfc_t{7519,4.1.2} ``"sub"`` */
-        JWT_CLAIM_AUD           = 0x0008, /**< @rfc_t{7519,4.1.3} ``"aud"`` */
-        JWT_CLAIM_EXP           = 0x0010, /**< @rfc_t{7519,4.1.4} ``"exp"`` */
-        JWT_CLAIM_NBF           = 0x0020, /**< @rfc_t{7519,4.1.5} ``"nbf"`` */
-        JWT_CLAIM_IAT           = 0x0040, /**< @rfc_t{7519,4.1.6} ``"iat"`` */
-        JWT_CLAIM_JTI           = 0x0080, /**< @rfc_t{7519,4.1.7} ``"jti"`` */
-        JWT_CLAIMS_ENFORCE      = 0x8000, /**< Fail if claim is missing     */
-        JWT_CLAIMS_ALL          = 0x80fe, /**< Mask of all claims           */
+        JWT_CLAIM_ISS           = 0x0001, /**< @rfc_t{7519,4.1.1} ``"iss"`` */
+        JWT_CLAIM_SUB           = 0x0002, /**< @rfc_t{7519,4.1.2} ``"sub"`` */
+        JWT_CLAIM_AUD           = 0x0004, /**< @rfc_t{7519,4.1.3} ``"aud"`` */
+        JWT_CLAIM_EXP           = 0x0008, /**< @rfc_t{7519,4.1.4} ``"exp"`` */
+        JWT_CLAIM_NBF           = 0x0010, /**< @rfc_t{7519,4.1.5} ``"nbf"`` */
+        JWT_CLAIM_IAT           = 0x0020, /**< @rfc_t{7519,4.1.6} ``"iat"`` */
+        JWT_CLAIM_JTI           = 0x0040, /**< @rfc_t{7519,4.1.7} ``"jti"`` */
 } jwt_claims_t;
-
-/** @ingroup jwt_claims_helpers_grp
- * @brief Default validations
- *
- * Beyond the normal validations (e.g. algorithm, and signature checks) these
- * are the ones that will be performed if the claims exist in the JWT. If the
- * claims do not exist, the validation will be ignores.
- *
- * @note If you do not set any validation flags, these will be used. If you
- * do not want them used, them you must set JWT_CLAIM_NONE to override it.
- */
-#define JWT_CHECKER_CLAIMS (JWT_CLAIM_EXP|JWT_CLAIM_NBF)
-
-/** @ingroup jwt_claims_helpers_grp
- * @brief Default claims for builders
- */
-#define JWT_BUILDER_CLAIMS (JWT_CLAIM_IAT)
 
 /**
  * @defgroup jwt_grp JSON Web Token
@@ -364,7 +343,7 @@ void jwt_builder_error_clear(jwt_builder_t *builder);
  * represents another (also not none). The ``none`` is used to represent no
  * algorithm being set. ``NULL`` represents that jwk_item_t pointer is NULL.
  *
- * | alg     | jwt_item_t | Result
+ *   alg     | jwt_item_t | Result
  * :-------: | :--------: | :-----------------------:
  * ``alg-A`` | ``alg-A``  | \emoji :white_check_mark:
  * ``none``  | ``alg-A``  | \emoji :white_check_mark:
@@ -386,28 +365,23 @@ int jwt_builder_setkey(jwt_builder_t *builder, const jwt_alg_t alg,
 		       const jwk_item_t *key);
 
 /**
- * @brief Set claims for a builder object
+ * @brief Set IssuedAt usage on builder
  *
- * These only apply to the RFC defined claims. The ``iat`` claim is the
- * only one that's automated, and will default to the time at which
- * jwt_builder_generate() was called to create the token.
- *
- * The ``nbf`` and ``exp`` claims need to have the offsets set as well. The
- * Others can be set, but will need values added with jwt_builder_claim_add()
- * in order to be enforced.
+ * By default, the builder will set the ``iat`` claim to all tokens. You can
+ * enable or disable this using this function.
  *
  * @param builder Pointer to a builder object
- * @param claims A bitwise set of values in jwt_claims_t
- * @return 0 on success, non-zero otherwise with error set in the builder
+ * @param enable 0 to disable, any other value to enable
+ * @return Previous value (0 or 1), or -1 on error
  */
 JWT_EXPORT
-int jwt_builder_setclaims(jwt_builder_t *builder, jwt_claims_t claims);
+int jwt_builder_enable_iat(jwt_builder_t *builder, int enable);
 
 /**
  * @brief Set a callback for generating tokens
  *
  * When generating a token, this callback will be run after jwt_t has been
- * created, but before the token is encoded. During this, the callback can add,
+ * created, but before the token is encoded. During this, the callback can set,
  * change, or remove claims and header attributes. It can also use the
  * jwt_value_t structure to set a key and alg to use when signing the token.
  *
@@ -421,6 +395,18 @@ int jwt_builder_setclaims(jwt_builder_t *builder, jwt_claims_t claims);
  */
 JWT_EXPORT
 int jwt_builder_setcb(jwt_builder_t *builder, jwt_callback_t cb, void *ctx);
+
+/**
+ * @brief Retrieve the callback context that was previously set
+ *
+ * This is useful for accessing the context that was previously passed in the
+ * setcb function.
+ *
+ * @param builder Pointer to a builder object
+ * @return Pointer to the context or NULL
+ */
+JWT_EXPORT
+void *jwt_builder_getctx(jwt_builder_t *builder);
 
 /**
  * @brief Generate a token
@@ -593,23 +579,6 @@ int jwt_checker_setkey(jwt_checker_t *checker, const jwt_alg_t alg, const
 		       jwk_item_t *key);
 
 /**
- * @brief Set claims for a checker object
- *
- * These only apply to the RFC defined claims. By default, a checker will verify
- * the ``nbf`` and ``exp`` claims, if present. You can enable the checker to
- * force a failure if these are not present by setting the appropriate flag in
- * the jwt_claims_t param.
- *
- * @note This replaces the current flags completely.
- *
- * @param checker Pointer to a checker object
- * @param claims A bitwise set of values in jwt_claims_t
- * @return 0 on success, non-zero otherwise with error set in the checker
- */
-JWT_EXPORT
-int jwt_checker_setclaims(jwt_checker_t *checker, jwt_claims_t claims);
-
-/**
  * @brief Set a callback for generating tokens
  *
  * When verifying a token, this callback will be run after jwt_t has been
@@ -634,6 +603,18 @@ JWT_EXPORT
 int jwt_checker_setcb(jwt_checker_t *checker, jwt_callback_t cb, void *ctx);
 
 /**
+ * @brief Retrieve the callback context that was previously set
+ *
+ * This is useful for accessing the context that was previously passed in the
+ * setcb function.
+ *
+ * @param checker Pointer to a checker object
+ * @return Pointer to the context or NULL
+ */
+JWT_EXPORT
+void *jwt_checker_getctx(jwt_checker_t *checker);
+
+/**
  * @brief Verify a token
  *
  * @note If you set a callback for this checker, this is when it will be called.
@@ -651,27 +632,46 @@ int jwt_checker_verify(jwt_checker_t *checker, const char *token);
  */
 
 /**
- * @defgroup jwt_claims_grp Working with Claims
+ * @defgroup jwt_claims_grp Claims and Headers
  *
- * Claims are information contained in the payload of a JWT. It gives
- * information to the consumer about what the token presents. This could mean
- * permissions, roles, groups, etc. When creating a token, claims are assigned
- * to define the token. When verifying a token, the claims are authenticated as
- * being the ones that were assigned to the token.
+ * Working with claims and header elements across checker and builder
+ * objects is similar, but the usage for it is not.
  *
- * While there are certain claims that are defined by the RFCs related to JWT,
- * what they actually control are application defined.
- *
- * There are three groups of claims functions. Ones for @ref jwt_builder_grp,
- * for @ref jwt_checker_grp, and finally, @ref jwt_object_grp. While they are
- * functionally the same, their use is very different.
  * @{
  */
 
 /**
- * @defgroup jwt_claims_helpers_grp Claims Helpers
+ * @defgroup jwt_claims_helpers_grp Utility Functions
+ * @{
+ */
+
+/**
+ * @defgroup jwt_helpers_get_grp Getters
  *
- * These apply to all claims usage.
+ * When getting a value, you must set type and name. On a successful return, the
+ * the value specific to the type will be filled in. Common error responses for
+ * this function are JWT_VALUE_ERR_NOEXIST when the name does not exist, and
+ * JWT_VALUE_ERR_TYPE, when the named object is not of the type you requested
+ * (e.g. you requested a string, but it's an integer value).
+ *
+ * @remarks When getting a JSON value, you can set value.name = NULL, in which
+ *  case the entire header is returned. Also, the resulting value.json_val
+ *  will be using allocated memory and must be freed by the caller.
+ *
+ * @note Normally JSON is retrieved in compact form. If you set
+ *  jwt_value_t.pretty, then you will get a tabbed format suitable for human
+ *  viewing. This must be set after calling jwt_set_GET_JSON().
+ *
+ * @code
+ *     jwt_value_error_t ret;
+ *     jwt_value_t jval;
+ *
+ *     jwt_set_GET_INT(&jval, "h1");
+ *     ret = jwt_builder_claim_get(builder, &jval);
+ *     if (ret == JWT_VALUE_ERR_NONE)
+ *         printf("h1 = %d\n", jval.int_val);
+ * @endcode
+ *
  * @{
  */
 
@@ -724,56 +724,98 @@ int jwt_checker_verify(jwt_checker_t *checker, const char *token);
 	(__v);})
 
 /**
- * @brief Setup a jwt_value_t to add an integer value
+ * @}
+ * @noop jwt_helpers_get_grp
+ */
+
+/**
+ * @defgroup jwt_helpers_set_grp Setters
+ *
+ * When setting a value, you must set the type, name, and the specific val for
+ * the type. If the value already exists, then the function will return
+ * JWT_VALUE_ERR_EXISTS and value.error will be set the same. If value.replace
+ * is non-zero, then any existing value will be overwritten.
+ *
+ * @remarks When setting a JSON value, you can set value.name = NULL, in which case
+ *  the entire header will be set to the JSON string pointed to by
+ *  value.json_val. If value.replace is not set, only values that do not already
+ *  exist will be set. If replace is set, then existing values will also be
+ *  updated. There is no indication of which values are or aren't updated in
+ *  either case.
+ *
+ * @note The replace flag must be set after calling jwt_set_SET_*() macro, as
+ *  the macros will reset it back to 0.
+ *
+ * @code
+ *     jwt_value_error_t ret;
+ *     jwt_value_t jval;
+ *
+ *     jwt_set_SET_STR(&jval, "iss", "foo.example.com");
+ *     ret = jwt_builder_header_set(jwt, &jval);
+ *
+ *     if (ret == JWT_VALUE_ERR_NONE)
+ *         printf("iss updated to: %s\n", jval.str_val);
+ * @endcode
+ *
+ * @{
+ */
+
+/**
+ * @brief Setup a jwt_value_t to set an integer value
  *
  * @param __v Pointer to a jwt_value_t object
  * @param __n Name of the value
- * @param __x Value to add
+ * @param __x Value to set
  * @return No return value
  */
-#define jwt_set_ADD_INT(__v, __n, __x) ({		\
+#define jwt_set_SET_INT(__v, __n, __x) ({		\
 	(__v)->type=JWT_VALUE_INT;(__v)->replace=0;	\
 	(__v)->name=(__n);(__v)->int_val=(__x);(__v)->error=0;\
 	(__v);})
 
 /**
- * @brief Setup a jwt_value_t to add a string value
+ * @brief Setup a jwt_value_t to set a string value
  *
  * @param __v Pointer to a jwt_value_t object
  * @param __n Name of the value
- * @param __x Value to add
+ * @param __x Value to set
  * @return No return value
  */
-#define jwt_set_ADD_STR(__v, __n, __x) ({		\
+#define jwt_set_SET_STR(__v, __n, __x) ({		\
 	(__v)->type=JWT_VALUE_STR;(__v)->replace=0;	\
 	(__v)->name=(__n);(__v)->str_val=(__x);(__v)->error=0;\
 	(__v);})
 
 /**
- * @brief Setup a jwt_value_t to add a boolean value
+ * @brief Setup a jwt_value_t to set a boolean value
  *
  * @param __v Pointer to a jwt_value_t object
  * @param __n Name of the value
- * @param __x Value to add
+ * @param __x Value to set
  * @return No return value
  */
-#define jwt_set_ADD_BOOL(__v, __n, __x) ({		\
+#define jwt_set_SET_BOOL(__v, __n, __x) ({		\
 	(__v)->type=JWT_VALUE_BOOL;(__v)->replace=0;	\
 	(__v)->name=(__n);(__v)->bool_val=(__x);(__v)->error=0;\
 	(__v);})
 
 /**
- * @brief Setup a jwt_value_t to add a JSON string
+ * @brief Setup a jwt_value_t to set a JSON string
  *
  * @param __v Pointer to a jwt_value_t object
  * @param __n Name of the value
- * @param __x Value to add
+ * @param __x Value to set
  * @return No return value
  */
-#define jwt_set_ADD_JSON(__v, __n, __x) ({			\
+#define jwt_set_SET_JSON(__v, __n, __x) ({			\
 	(__v)->type=JWT_VALUE_JSON;(__v)->replace=0;		\
 	(__v)->name=(__n);(__v)->json_val=(__x);(__v)->error=0;	\
 	(__v);})
+
+/**
+ * @}
+ * @noop jwt_helpers_set_grp
+ */
 
 /**
  * @}
@@ -781,11 +823,13 @@ int jwt_checker_verify(jwt_checker_t *checker, const char *token);
  */
 
 /**
- * @defgroup jwt_claims_builder_grp Builder Claims
+ * @defgroup jwt_claims_builder_grp Builder Functions
+ *
+ * @todo document these
  * @{
  */
 JWT_EXPORT
-jwt_value_error_t jwt_builder_header_add(jwt_builder_t *builder, jwt_value_t
+jwt_value_error_t jwt_builder_header_set(jwt_builder_t *builder, jwt_value_t
 					 *value);
 JWT_EXPORT
 jwt_value_error_t jwt_builder_header_get(jwt_builder_t *builder, jwt_value_t
@@ -794,35 +838,18 @@ JWT_EXPORT
 jwt_value_error_t jwt_builder_header_del(jwt_builder_t *builder, const char
 					 *header);
 JWT_EXPORT
-jwt_value_error_t jwt_builder_claim_add(jwt_builder_t *builder, jwt_value_t
+jwt_value_error_t jwt_builder_claim_set(jwt_builder_t *builder, jwt_value_t
 					*value);
 JWT_EXPORT
 jwt_value_error_t jwt_builder_claim_get(jwt_builder_t *builder, jwt_value_t
 					*value);
 JWT_EXPORT
 jwt_value_error_t jwt_builder_claim_del(jwt_builder_t *builder, const char
-					*header);
+					*claim);
 
-/**
- * @todo Document these
- */
 JWT_EXPORT
-int jwt_builder_time_offset_set(jwt_builder_t *builder, jwt_claims_t claim,
-				time_t secs);
-
-
-/**
- * @todo Document these
- */
-JWT_EXPORT
-time_t jwt_builder_time_offset_get(jwt_builder_t *builder, jwt_claims_t claim);
-
-
-/**
- * @todo Document these
- */
-JWT_EXPORT
-int jwt_builder_time_offset_clear(jwt_builder_t *builder, jwt_claims_t claim);
+int jwt_builder_time_offset(jwt_builder_t *builder, jwt_claims_t claim,
+			    time_t secs);
 
 /**
  * @}
@@ -830,49 +857,46 @@ int jwt_builder_time_offset_clear(jwt_builder_t *builder, jwt_claims_t claim);
  */
 
 /**
- * @defgroup jwt_claims_checker_grp Checker Claims
+ * @defgroup jwt_claims_checker_grp Checker Functions
+ *
+ * For a checker object, claims will be used to verify the token. This
+ * verification is very simplistic and only supports standards-defined
+ * claims like ``nbf``, ``iss``, etc. Even for some of these, LibJWT can
+ * only perform simple time or string comparison. For example, if you wanted
+ * to accept tokens from multiple issuers, you would need to handle that
+ * yourself, most likely in a callback.
+ *
+ * This is a list of the claims that LibJWT can check on its own, and the
+ * method that is used to decide success:
+ *
+ * Claim   | Type      | Comparison
+ * ------- | --------- | -----------------------------
+ * ``exp`` | Timestamp | ``exp`` <= (now - leeway)
+ * ``nbf`` | Timestamp | ``nbf`` > (now + leeway)
+ * ``iss`` | String    | !strcmp(``iss``, ``userval``)
+ * ``aud`` | String    | !strcmp(``aud``, ``userval``)
+ * ``sub`` | String    | !strcmp(``sub``, ``userval``)
+ *
+ * @note The checker object does not evaluate any values in the header with
+ * the exception of the ``alg`` element when validating a token. Anything you
+ * need to do there can be done in a callback with the jwt_t.
+ *
+ * @todo Document all of these
  * @{
  */
 JWT_EXPORT
-jwt_value_error_t jwt_checker_header_add(jwt_checker_t *checker, jwt_value_t
-					 *value);
-JWT_EXPORT
-jwt_value_error_t jwt_checker_header_get(jwt_checker_t *checker, jwt_value_t
-					 *value);
-JWT_EXPORT
-jwt_value_error_t jwt_checker_header_del(jwt_checker_t *checker, const char
-					 *header);
-JWT_EXPORT
-jwt_value_error_t jwt_checker_claim_add(jwt_checker_t *checker, jwt_value_t
-					*value);
-JWT_EXPORT
-jwt_value_error_t jwt_checker_claim_get(jwt_checker_t *checker, jwt_value_t
-					*value);
-JWT_EXPORT
-jwt_value_error_t jwt_checker_claim_del(jwt_checker_t *checker, const char
-					*header);
+const char *jwt_checker_claim_get(jwt_checker_t *checker, jwt_claims_t type);
 
-
-/**
- * @todo Document these
- */
 JWT_EXPORT
-int jwt_checker_leeway_set(jwt_checker_t *checker, jwt_claims_t claim,
-			   time_t secs);
+int jwt_checker_claim_set(jwt_checker_t *checker, jwt_claims_t type,
+			  const char *value);
 
-
-/**
- * @todo Document these
- */
 JWT_EXPORT
-time_t jwt_checker_leeway_get(jwt_checker_t *checker, jwt_claims_t claim);
+int jwt_checker_claim_del(jwt_checker_t *checker, jwt_claims_t type);
 
-
-/**
- * @todo Document these
- */
 JWT_EXPORT
-int jwt_checker_leeway_clear(jwt_checker_t *checker, jwt_claims_t claim);
+int jwt_checker_time_leeway(jwt_checker_t *checker, jwt_claims_t claim,
+			    time_t secs);
 
 /**
  * @}
@@ -880,38 +904,22 @@ int jwt_checker_leeway_clear(jwt_checker_t *checker, jwt_claims_t claim);
  */
 
 /**
- * @defgroup jwt_object_grp JWT Claims
+ * @defgroup jwt_object_grp JWT Claims and Headers
+ *
+ * For most usage, setting values in the builder object is enough to provide
+ * all the information you would like set in a JWT token. However, if some
+ * information is dynamic, meaning it is only known at the time the token is
+ * created, then you can provide this during the builder callback on the jwt_t
+ * object.
+ *
+ * When verifying a token, the checker callback should not modify the jwt_t
+ * object at all. Access to the jwt_t is provided only to allow additional
+ * validation beyond LibJWT's internal checks.
  * @{
  */
 
 /**
- * @brief Add a value to the header of a JWT
- *
- * When adding a value, you must set the type, name, and the specific val for
- * the type. If the value already exists, then the function will return
- * JWT_VALUE_ERR_EXISTS and value.error will be set the same. If value.replace
- * is non-zero, then any existing value will be overwritten.
- *
- * @remarks When adding a JSON value, you can set value.name = NULL, in which case
- *  the entire header will be set to the JSON string pointed to by
- *  value.json_val. If value.replace is not set, only values that do not already
- *  exist will be added. If replace is set, then existing values will also be
- *  updated. There is no indication of which values are or aren't updated in
- *  either case.
- *
- * @note The replace flag must be set after calling jwt_set_ADD_*() macro, as
- *  the macros will reset it back to 0.
- *
- * @code
- *     jwt_value_error_t ret;
- *     jwt_value_t jval;
- *
- *     jwt_set_ADD_STR(&jval, "iss", "foo.example.com");
- *     ret = jwt_header_add(jwt, &jval);
- *
- *     if (ret == JWT_VALUE_ERR_NONE)
- *         printf("iss updated to: %s\n", jval.str_val);
- * @endcode
+ * @brief Set a value in the header of a JWT
  *
  * @param jwt Pointer to a jwt_t token, previously created with jwt_create()
  * @param value A jwt_value_t structure with relevant actions filled in
@@ -919,34 +927,10 @@ int jwt_checker_leeway_clear(jwt_checker_t *checker, jwt_claims_t claim);
  *  value.error field will match this return value.
  */
 JWT_EXPORT
-jwt_value_error_t jwt_header_add(jwt_t *jwt, jwt_value_t *value);
+jwt_value_error_t jwt_header_set(jwt_t *jwt, jwt_value_t *value);
 
 /**
  * @brief Get a value from the header of a JWT
- *
- * When getting a value, you must set type and name. On a successful return, the
- * the value specific to the type will be filled in. Common error responses for
- * this function are JWT_VALUE_ERR_NOEXIST when the name does not exist, and
- * JWT_VALUE_ERR_TYPE, when the named object is not of the type you requested
- * (e.g. you requested a string, but it's an integer value).
- *
- * @remarks When getting a JSON value, you can set value.name = NULL, in which
- *  case the entire header is returned. Also, the resulting value.json_val
- *  will be using allocated memory and must be freed by the caller.
- *
- * @note Normally JSON is retrieved in compact form. If you set
- *  jwt_value_t.pretty, then you will get a tabbed format suitable for human
- *  viewing. This must be set after calling jwt_set_GET_JSON().
- *
- * @code
- *     jwt_value_error_t ret;
- *     jwt_value_t jval;
- *
- *     jwt_set_GET_INT(&jval, "h1");
- *     ret = jwt_header_get(jwt, &jval);
- *     if (ret == JWT_VALUE_ERR_NONE)
- *         printf("h1 = %d\n", jval.int_val);
- * @endcode
  *
  * @param jwt Pointer to a jwt_t token, previously created with jwt_create()
  * @param value A jwt_value_t structure with relevant actions filled in
@@ -959,10 +943,6 @@ jwt_value_error_t jwt_header_get(jwt_t *jwt, jwt_value_t *value);
 /**
  * @brief Delete a value from the header of a JWT
  *
- * Deletes the value referenced by ``header`` from the header. If you pass NULL
- * as the header, then the entire header will be cleared of all values. This
- * function will generally return without error.
- *
  * @param jwt Pointer to a jwt_t token, previously created with jwt_create()
  * @param header The name of the header to delete, or NULL to clear the entire
  *  header
@@ -972,9 +952,7 @@ JWT_EXPORT
 jwt_value_error_t jwt_header_del(jwt_t *jwt, const char *header);
 
 /**
- * @brief Add a value to the claims of a JWT
- *
- * See jwt_header_add() for detailed description.
+ * @brief Set a value in the claims of a JWT
  *
  * @param jwt Pointer to a jwt_t token, previously created with jwt_create()
  * @param value A jwt_value_t structure with relevant actions filled in
@@ -982,12 +960,10 @@ jwt_value_error_t jwt_header_del(jwt_t *jwt, const char *header);
  *  value.error field will match this return value.
  */
 JWT_EXPORT
-jwt_value_error_t jwt_claim_add(jwt_t *jwt, jwt_value_t *value);
+jwt_value_error_t jwt_claim_set(jwt_t *jwt, jwt_value_t *value);
 
 /**
  * @brief Get a value from the claims of a JWT
- *
- * See jwt_header_get() for detailed description.
  *
  * @param jwt Pointer to a jwt_t token, previously created with jwt_create()
  * @param value A jwt_value_t structure with relevant actions filled in
@@ -1000,14 +976,12 @@ jwt_value_error_t jwt_claim_get(jwt_t *jwt, jwt_value_t *value);
 /**
  * @brief Delete a value from the claims of a JWT
  *
- * See jwt_claim_get() for detailed description.
- *
  * @param jwt Pointer to a jwt_t token, previously created with jwt_create()
- * @param header The name of the claim to delete, or NULL to clear all claims
+ * @param claim The name of the claim to delete, or NULL to clear all claims
  * @return A jwt_value_error_t value, JWT_VALUE_ERR_NONE being success.
  */
 JWT_EXPORT
-jwt_value_error_t jwt_claim_del(jwt_t *jwt, const char *header);
+jwt_value_error_t jwt_claim_del(jwt_t *jwt, const char *claim);
 
 /**
  * @}
