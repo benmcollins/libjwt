@@ -33,10 +33,10 @@ jobs:
         mv build/doxygen-doc/html gh-pages
         rm -rf build
 
-    - name: Build Latest tag docs
+    - name: Build v2 release docs
       run: |
         set -e
-        git checkout $(git describe --tags --abbrev=0)
+        git checkout v2.1.1
         autoreconf -fi
         mkdir build
         cd build

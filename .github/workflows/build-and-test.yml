@@ -31,10 +31,9 @@ jobs:
     - name: Build and Test
       uses: threeal/cmake-action@v2.1.0
       with:
-        options: |
-          WITH_TESTS=YES
         build-args: |
           --
+          all
           check
 
   build-linux:
@@ -52,7 +51,7 @@ jobs:
           ENABLE_COVERAGE=YES
         build-args: |
           --
-          check
+          all
           check-code-coverage
 
     - uses: codecov/codecov-action@v5.1.2
