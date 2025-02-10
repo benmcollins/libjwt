@@ -869,10 +869,10 @@ int jwt_builder_time_offset(jwt_builder_t *builder, jwt_claims_t claim,
  * This is a list of the claims that LibJWT can check on its own, and the
  * method that is used to decide success:
  *
- * Claim   | Type      | Comparison
+ * Claim   | Type      | Comparison for Validation
  * ------- | --------- | -----------------------------
- * ``exp`` | Timestamp | ``exp`` <= (now - leeway)
- * ``nbf`` | Timestamp | ``nbf`` > (now + leeway)
+ * ``exp`` | Timestamp | ``exp`` > (now + leeway)
+ * ``nbf`` | Timestamp | ``nbf`` <= (now - leeway)
  * ``iss`` | String    | !strcmp(``iss``, ``userval``)
  * ``aud`` | String    | !strcmp(``aud``, ``userval``)
  * ``sub`` | String    | !strcmp(``sub``, ``userval``)
