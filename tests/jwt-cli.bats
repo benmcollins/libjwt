@@ -22,3 +22,20 @@ HS256_KEY="../tests/keys/oct_key_256.json"
 @test "Verify a JWT with alg HS256" {
 	./tools/jwt-verify -q -k ${HS256_KEY} ${HS256_RES}
 }
+
+CLAIM_RES="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZG1pbiI6ZmFsc2UsImV4cCI6MTgzOTMxNzU2MiwiZ3JvdXAiOiJzdGFmZiIsImlzcyI6ImRpc2suc3dpc3NkaXNrLmNvbSIsInVzZXIiOiJiY29sbGlucyJ9.83VR9A9jbQxp6KRq8iXHihIxe9LkAjnMAz3L0GdKlPI"
+
+@test "Generate a JWT with alg HS256 and claims" {
+	result="$(./tools/jwt-generate -q -n 	\
+		-k ${HS256_KEY}			\
+		-c s:group=staff		\
+		-c b:admin=false		\
+		-c s:iss=disk.swissdisk.com	\
+		-c s:user=bcollins		\
+		-c i:exp=1839317562)"
+	[ "$result" = ${CLAIM_RES} ]
+}
+
+@test "Verify a JWT with alg HS256 with claims" {
+	./tools/jwt-verify -q -k ${HS256_KEY} ${CLAIM_RES}
+}
