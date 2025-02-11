@@ -15,13 +15,16 @@ fi
 
 TOKEN=jwt-test-token
 
+EXP="$(date -d '+7 days' +%s)"
+
+
 echo Generating token
 jwt-generate -k "${JWK}"		\
 	-c s:group=staff		\
 	-c b:admin=false		\
 	-c s:iss=disk.swissdisk.com	\
 	-c s:user=bcollins		\
-	-c i:exp=1768402249 > ${TOKEN}
+	-c i:exp=${EXP} > ${TOKEN}
 
 if command -v jq > /dev/null; then
 	JQ="--print=jq -C"
