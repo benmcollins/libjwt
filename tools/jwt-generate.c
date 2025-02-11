@@ -77,7 +77,7 @@ int main(int argc, char *argv[])
 	int quiet = 0;
 	int emit_iat = 1;
 
-	char *optstr = "a:b:hj:k:lnp:qv";
+	char *optstr = "a:c:b:hj:k:lnp:qv";
 	struct option opttbl[] = {
 		{ "algorithm",  required_argument,	NULL, 'a' },
 		{ "claim",      required_argument,	NULL, 'c' },
