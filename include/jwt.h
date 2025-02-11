@@ -152,7 +152,7 @@ typedef enum {
 	JWT_VALUE_INT,		/**< Integer				*/
 	JWT_VALUE_STR,		/**< String				*/
 	JWT_VALUE_BOOL,		/**< Boolean				*/
-	JWT_VALUE_JSON,		/**< JSON String (object format ``{}``)	*/
+	JWT_VALUE_JSON,		/**< JSON String (``{..}`` or ``[..]``)	*/
 	JWT_VALUE_INVALID,	/**< Invalid (used internally)		*/
 } jwt_value_type_t;
 
@@ -825,28 +825,106 @@ int jwt_checker_verify(jwt_checker_t *checker, const char *token);
 /**
  * @defgroup jwt_claims_builder_grp Builder Functions
  *
- * @todo document these
+ * For the builder function, you can create a set of values in the header and
+ * payload that will be copied verbatim to any token generated from it. The
+ * special claims, ``nbf`` and ``exp``, can be handled more dynamically by
+ * LibJWT, if they are enabled (see jwt_builder_time_offset).
+ *
+ * For any claims that you want to handle on a per token basis (e.g. you may
+ * want a different ``sub`` depending on the user context), this can be done in
+ * a callback on the jwt_t object.
+ *
+ * These functions rely on the @ref jwt_helpers_set_grp macros to better handle
+ * the data being passed to them.
+ *
  * @{
+ */
+
+/**
+ * @brief Set a header in a builder object
+ *
+ * @param builder Pointer to a builder object
+ * @param value Pointer to a jwt_value_t object representing the value to set
+ * @return JWT_VALUE_ERR_NONE on success, one of the jwt_value_error_t return
+ *  on error.
  */
 JWT_EXPORT
 jwt_value_error_t jwt_builder_header_set(jwt_builder_t *builder, jwt_value_t
 					 *value);
+
+/**
+ * @brief Get a header from a builder object
+ *
+ * @param builder Pointer to a builder object
+ * @param value Pointer to a jwt_value_t object representing the value to get
+ * @return JWT_VALUE_ERR_NONE on success, one of the jwt_value_error_t return
+ *  on error. Also, the relevant value.*_val will be set on success.
+ */
 JWT_EXPORT
 jwt_value_error_t jwt_builder_header_get(jwt_builder_t *builder, jwt_value_t
 					 *value);
+
+/**
+ * @brief Delete a header from a builder object
+ *
+ * @param builder Pointer to a builder object
+ * @param header Name of the header delete
+ * @return JWT_VALUE_ERR_NONE on success, one of the jwt_value_error_t return
+ *  on error.
+ */
 JWT_EXPORT
 jwt_value_error_t jwt_builder_header_del(jwt_builder_t *builder, const char
 					 *header);
+
+/**
+ * @brief Set a claim in a builder object
+ *
+ * @param builder Pointer to a builder object
+ * @param value Pointer to a jwt_value_t object representing the value to set
+ * @return JWT_VALUE_ERR_NONE on success, one of the jwt_value_error_t return
+ *  on error.
+ */
 JWT_EXPORT
 jwt_value_error_t jwt_builder_claim_set(jwt_builder_t *builder, jwt_value_t
 					*value);
+
+/**
+ * @brief Get a claim from a builder object
+ *
+ * @param builder Pointer to a builder object
+ * @param value Pointer to a jwt_value_t object representing the value to get
+ * @return JWT_VALUE_ERR_NONE on success, one of the jwt_value_error_t return
+ *  on error. Also, the relevant value.*_val will be set on success.
+ */
 JWT_EXPORT
 jwt_value_error_t jwt_builder_claim_get(jwt_builder_t *builder, jwt_value_t
 					*value);
+
+/**
+ * @brief Delete a header from a builder object
+ *
+ * @param builder Pointer to a builder object
+ * @param claim Name of the claim delete
+ * @return JWT_VALUE_ERR_NONE on success, one of the jwt_value_error_t return
+ *  on error.
+ */
 JWT_EXPORT
 jwt_value_error_t jwt_builder_claim_del(jwt_builder_t *builder, const char
 					*claim);
 
+/**
+ * @brief Disable, or enable and set the ``nbf`` or ``exp`` time offsets
+ *
+ * The time offset is in seconds and will be added to ``now`` when a token is
+ * created. Negative values are not allowed. Setting the secs to 0 or less will
+ * disable adding the specified claim to the token.
+ *
+ * @param builder Pointer to a builder object
+ * @param claim One of JWT_CLAIM_NBF or JWT_CLAIM_EXP
+ * @param secs Seconds of offset to add to ``now`` when generating the
+ *  specified claim
+ * @return 0 on success, any other value for an error
+ */
 JWT_EXPORT
 int jwt_builder_time_offset(jwt_builder_t *builder, jwt_claims_t claim,
 			    time_t secs);
@@ -881,19 +959,54 @@ int jwt_builder_time_offset(jwt_builder_t *builder, jwt_claims_t claim,
  * the exception of the ``alg`` element when validating a token. Anything you
  * need to do there can be done in a callback with the jwt_t.
  *
- * @todo Document all of these
  * @{
+ */
+
+/**
+ * @brief Get the value of a validation claim
+ *
+ * @param checker Pointer to a checker object
+ * @param type One of JWT_CLAIM_ISS, JWT_CLAIM_AUD, or JWT_CLAIM_SUB
+ * @return A string representation of the claim, or NULL if it isn't set
  */
 JWT_EXPORT
 const char *jwt_checker_claim_get(jwt_checker_t *checker, jwt_claims_t type);
 
+/**
+ * @brief Set the value of a validation claim
+ *
+ * @param checker Pointer to a checker object
+ * @param type One of JWT_CLAIM_ISS, JWT_CLAIM_AUD, or JWT_CLAIM_SUB
+ * @param value A string to set as the new value of the validation
+ * @return 0 on success, any other value is an error
+ */
 JWT_EXPORT
 int jwt_checker_claim_set(jwt_checker_t *checker, jwt_claims_t type,
 			  const char *value);
 
+/**
+ * @brief Delete the value of a validation claim
+ *
+ * @param checker Pointer to a checker object
+ * @param type One of JWT_CLAIM_ISS, JWT_CLAIM_AUD, or JWT_CLAIM_SUB
+ * @return 0 on success, any other value is an error
+ */
 JWT_EXPORT
 int jwt_checker_claim_del(jwt_checker_t *checker, jwt_claims_t type);
 
+/**
+ * @brief Setup the exp or nbf claim leeway values
+ *
+ * This allows you to set a leeway for exp and nbf claims to account for any
+ * skew. The value is in seconds.
+ *
+ * To disable either one, set the secs to -1.
+ *
+ * @param checker Pointer to a checker object
+ * @param claim One of JWT_CLAIM_NBF or JWT_CLAIM_EXP
+ * @param secs The number of seconds of leeway to account for being valid
+ * @return 0 on success, any other value is an error
+ */
 JWT_EXPORT
 int jwt_checker_time_leeway(jwt_checker_t *checker, jwt_claims_t claim,
 			    time_t secs);
@@ -904,7 +1017,7 @@ int jwt_checker_time_leeway(jwt_checker_t *checker, jwt_claims_t claim,
  */
 
 /**
- * @defgroup jwt_object_grp JWT Claims and Headers
+ * @defgroup jwt_object_grp JWT Functions
  *
  * For most usage, setting values in the builder object is enough to provide
  * all the information you would like set in a JWT token. However, if some
@@ -1023,7 +1136,7 @@ const char *jwt_alg_str(jwt_alg_t alg);
  * @returns Returns a @ref jwt_alg_t matching the string
  *  or @ref JWT_ALG_INVAL if no  matches were found.
  *
- * Note, this only works for algorithms that LibJWT supports or knows about.
+ * @note This only works for algorithms that LibJWT supports or knows about.
  */
 JWT_EXPORT
 jwt_alg_t jwt_str_alg(const char *alg);
@@ -1189,8 +1302,9 @@ JWT_EXPORT
 int jwks_error_any(jwk_set_t *jwk_set);
 
 /**
- * @brief Retrieve an error message from a jwk_set. Note, a zero
- * length string is valid if jwos_error() returns non-zero.
+ * @brief Retrieve an error message from a jwk_set
+ *
+ * @note A zero length string is valid even if jwks_error() returns non-zero.
  *
  * @param jwk_set An existing jwk_set_t
  * @return A string message. The string may be empty.
@@ -1443,8 +1557,8 @@ int jwks_item_free_all(jwk_set_t *jwk_set);
   * any of the parameters or NULL to use the corresponding default
   * allocator function.
   *
-  * Note that this function will also set the memory allocator
-  * for the Jansson library.
+  * @note This function will also set the memory allocator for the Jansson
+  * library.
   *
   * @param pmalloc The function to use for allocating memory or
   *     NULL to use malloc

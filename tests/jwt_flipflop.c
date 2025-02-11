@@ -61,7 +61,7 @@ START_TEST(test_alloc_funcs)
 	ck_assert(r == test_realloc);
 	ck_assert(f == test_free);
 
-	/* XXX Need to do a build/verify to excercise the functions */
+	/* XXX Need to do a build/verify to exercise the functions */
 }
 END_TEST
 
