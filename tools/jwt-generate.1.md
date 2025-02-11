@@ -54,6 +54,10 @@ exit status from the program will cause generating the token to fail.
   ~ Do not output anything except for hard errors. On success you will only
   see the token generared.
 
+**\-n**, **\-\-no-iat**
+  ~ Do not add the iat (Issued-At) time to the token. Useful for a slightly
+  smaller token, and for reproducible output.
+
 **\-a** _ALG_, **\-\-algorithm**=_ALG_
   ~ Specify the algorithm to be used when signing the token.
 

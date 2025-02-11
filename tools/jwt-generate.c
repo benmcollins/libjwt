@@ -35,6 +35,7 @@ Generate and (optionally) sign a JSON Web Token\n\
                         key provided with -k does not have an \"alg\"\n\
 			attribute\n\
   -p, --print=CMD       When printing JSON, pipe through CMD\n\
+  -n, --no-iat          Disable adding iat (Issued-At) to token\n\
   -k, --key=FILE        Filename containing a JSON Web Key\n\
   -c, --claim=t:k=v     Add a claim to the JWT\n\
       t                 One of i, s, or b for integer, string or boolean\n\
@@ -74,18 +75,20 @@ int main(int argc, char *argv[])
 	int oc = 0;
 	int verbose = 0;
 	int quiet = 0;
+	int emit_iat = 1;
 
-	char *optstr = "hk:a:c:j:lvqp:";
+	char *optstr = "a:b:hj:k:lnp:qv";
 	struct option opttbl[] = {
-		{ "help",       no_argument,		NULL, 'h' },
-		{ "key",        required_argument,	NULL, 'k' },
 		{ "algorithm",  required_argument,	NULL, 'a' },
 		{ "claim",      required_argument,	NULL, 'c' },
+		{ "help",       no_argument,		NULL, 'h' },
 		{ "json",       required_argument,	NULL, 'j' },
-		{ "print",	required_argument,	NULL, 'p' },
+		{ "key",        required_argument,	NULL, 'k' },
 		{ "list",       no_argument,		NULL, 'l' },
+		{ "no-iat",     no_argument,		NULL, 'n' },
+		{ "print",	required_argument,	NULL, 'p' },
+		{ "quiet",      no_argument,		NULL, 'q' },
 		{ "verbose",    no_argument,		NULL, 'v' },
-		{ "quiet",	no_argument,		NULL, 'q' },
 		{ NULL, 0, 0, 0 },
 	};
 
@@ -124,6 +127,10 @@ int main(int argc, char *argv[])
 
 		case 'k':
 			key_file = optarg;
+			break;
+
+		case 'n':
+			emit_iat = 0;
 			break;
 
 		case 'a':
@@ -203,6 +210,8 @@ int main(int argc, char *argv[])
 	if (alg != JWT_ALG_NONE && key_file == NULL)
 		usage("Algorithm requires --key",
 				EXIT_FAILURE);
+
+	jwt_builder_enable_iat(builder, emit_iat);
 
 	if (key_file) {
 		jwk_set = jwks_create_fromfile(key_file);
