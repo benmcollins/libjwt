@@ -141,7 +141,8 @@ static int __check_str_claim(jwt_t *jwt, jwt_claims_t claim, char *claim_str)
 
 	str = jwt_checker_claim_get(checker, claim);
 	if (str == NULL)
-		return 1;
+		return 1; // LCOV_EXCL_LINE
+			  // Check above makes this nearly impossible to hit
 
 	jwt_set_GET_STR(&jval, claim_str);
 	err = jwt_claim_get(jwt, &jval);
@@ -170,7 +171,7 @@ static jwt_claims_t __verify_claims(jwt_t *jwt)
 				failed |= JWT_CLAIM_EXP;
 			}
 		} else if (err != JWT_VALUE_ERR_NOEXIST)
-			failed |= JWT_CLAIM_EXP;
+			failed |= JWT_CLAIM_EXP; // LVOC_EXCL_LINE
 	}
 
 	/* not valid before now */
@@ -183,7 +184,7 @@ static jwt_claims_t __verify_claims(jwt_t *jwt)
 				failed |= JWT_CLAIM_NBF;
 			}
 		} else if (err != JWT_VALUE_ERR_NOEXIST)
-			failed |= JWT_CLAIM_NBF;
+			failed |= JWT_CLAIM_NBF; // LVOC_EXCL_LINE
 	}
 
 	/* issuer doesn't match */

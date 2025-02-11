@@ -133,6 +133,71 @@ START_TEST(claims_exp_leeway)
 }
 END_TEST
 
+static void __test_claim(const char *cstr, jwt_claims_t claim)
+{
+	jwt_builder_auto_t *builder = NULL;
+	jwt_checker_auto_t *checker = NULL;
+	jwt_value_error_t jerr;
+	jwt_value_t jval;
+	char *out = NULL;
+	int ret;
+
+	__get_set(&builder, &checker);
+
+	/* Gen with claim */
+	out = jwt_builder_generate(builder);
+	ck_assert_ptr_nonnull(out);
+
+	/* Set what to expect */
+	ret = jwt_checker_claim_set(checker, claim, "foo.example.com");;
+	ck_assert_int_eq(ret, 0);
+
+	/* Should fail, because it's missing */
+	ret = jwt_checker_verify(checker, out);
+	ck_assert_int_ne(ret, 0);
+
+	/* Set claim string */
+	jwt_set_SET_STR(&jval, cstr, "disk.swissdisk.com");
+	jerr = jwt_builder_claim_set(builder, &jval);
+	ck_assert_int_eq(jerr, JWT_VALUE_ERR_NONE);
+
+	/* Gen new with claim set */
+	free(out);
+	out = jwt_builder_generate(builder);
+	ck_assert_ptr_nonnull(out);
+
+	/* Should fail, because of mismatch */
+	ret = jwt_checker_verify(checker, out);
+	ck_assert_int_ne(ret, 0);
+
+	free(out);
+	free_key();
+}
+
+START_TEST(claims_iss)
+{
+	SET_OPS();
+
+	__test_claim("iss", JWT_CLAIM_ISS);
+}
+END_TEST
+
+START_TEST(claims_aud)
+{
+	SET_OPS();
+
+	__test_claim("aud", JWT_CLAIM_AUD);
+}
+END_TEST
+
+START_TEST(claims_sub)
+{
+	SET_OPS();
+
+	__test_claim("sub", JWT_CLAIM_SUB);
+}
+END_TEST
+
 static Suite *libjwt_suite(const char *title)
 {
 	Suite *s;
@@ -144,6 +209,9 @@ static Suite *libjwt_suite(const char *title)
 	tc_core = tcase_create("Claims Build/Check");
 	tcase_add_loop_test(tc_core, claims_nbf_leeway, 0, i);
 	tcase_add_loop_test(tc_core, claims_exp_leeway, 0, i);
+	tcase_add_loop_test(tc_core, claims_iss, 0, i);
+	tcase_add_loop_test(tc_core, claims_aud, 0, i);
+	tcase_add_loop_test(tc_core, claims_sub, 0, i);
 	suite_add_tcase(s, tc_core);
 
 	return s;
