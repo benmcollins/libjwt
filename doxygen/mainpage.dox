@@ -56,9 +56,9 @@ JWS Algorithm ``alg``         | OpenSSL                   | GnuTLS              
 
 @section docs \emoji :open_book: Docs and Source
 
-\emoji :link: [Current codebase](https://libjwt.io)
+\emoji :link: [Current Docs](https://libjwt.io)
 
-\emoji :link: [Stable](https://libjwt.io/stable)
+\emoji :link: [Legacy Docs v2.1.1](https://libjwt.io/stable)
 
 \emoji :link: [GitHub Repo](https://github.com/benmcollins/libjwt)
 

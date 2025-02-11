@@ -62,9 +62,9 @@ JWS Algorithm ``alg``         | OpenSSL            | GnuTLS             | MbedTL
 
 ## :books: Docs and Source
 
-:link: [Current codebase](https://libjwt.io)
+:link: [Current Docs](https://libjwt.io)
 
-:link: [Stable](https://libjwt.io/stable)
+:link: [Legacy Docs v2.1.1](https://libjwt.io/stable)
 
 :link: [GitHub Repo](https://github.com/benmcollins/libjwt)
 
