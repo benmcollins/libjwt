@@ -207,6 +207,19 @@ const jwk_item_t *jwks_item_get(const jwk_set_t *jwk_set, size_t index)
 	return NULL;
 }
 
+int jwks_error_any(const jwk_set_t *jwk_set)
+{
+	jwk_item_t *item = NULL;
+	int count = jwk_set->error;
+
+	list_for_each_entry(item, &jwk_set->head, node) {
+		if (item->error)
+			count++;
+	}
+
+	return count;
+}
+
 int jwks_item_is_private(const jwk_item_t *item)
 {
 	return item->is_private_key ? 1 : 0;
@@ -297,6 +310,22 @@ static int jwks_item_add(jwk_set_t *jwk_set, jwk_item_t *item)
 	return 0;
 }
 
+static void __item_free(jwk_item_t *todel)
+{
+	if (todel->provider == JWT_CRYPTO_OPS_ANY)
+		jwt_freemem(todel->oct.key);
+	else
+		jwt_ops->process_item_free(todel);
+
+	/* A few non-crypto specific things. */
+	jwt_freemem(todel->kid);
+	json_decrefp(&todel->json);
+	list_del(&todel->node);
+
+	/* Free the container and the item itself. */
+	jwt_freemem(todel);
+}
+
 int jwks_item_free(jwk_set_t *jwk_set, const size_t index)
 {
 	jwk_item_t *item = NULL, *todel = NULL;
@@ -316,20 +345,35 @@ int jwks_item_free(jwk_set_t *jwk_set, const size_t index)
 	if (todel == NULL)
 		return 0;
 
-	if (todel->provider == JWT_CRYPTO_OPS_ANY)
-		jwt_freemem(todel->oct.key);
-	else
-		jwt_ops->process_item_free(todel);
-
-	/* A few non-crypto specific things. */
-	jwt_freemem(todel->kid);
-	json_decrefp(&todel->json);
-	list_del(&todel->node);
-
-	/* Free the container and the item itself. */
-	jwt_freemem(todel);
+	__item_free(todel);
 
 	return 1;
+}
+
+size_t jwks_item_count(const jwk_set_t *jwk_set)
+{
+	size_t count = 0;
+	jwk_item_t *item = NULL;
+
+	list_for_each_entry(item, &jwk_set->head, node)
+		count++;
+
+	return count;
+}
+
+int jwks_item_free_bad(jwk_set_t *jwk_set)
+{
+	jwk_item_t *item, *pos;
+	int count = 0;
+
+	list_for_each_entry_safe(item, pos, &jwk_set->head, node) {
+		if (!item->error)
+			continue;
+		__item_free(item);
+		count++;
+	}
+
+	return count;
 }
 
 int jwks_item_free_all(jwk_set_t *jwk_set)

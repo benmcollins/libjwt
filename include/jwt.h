@@ -1296,10 +1296,10 @@ int jwks_error(const jwk_set_t *jwk_set);
  * the jwk_item_t in the set.
  *
  * @param jwk_set An existing jwk_set_t
- * @return 0 if no error exists, 1 if any exists.
+ * @return 0 if no error exists, or the number of errors in the set
  */
 JWT_EXPORT
-int jwks_error_any(jwk_set_t *jwk_set);
+int jwks_error_any(const jwk_set_t *jwk_set);
 
 /**
  * @brief Retrieve an error message from a jwk_set
@@ -1504,9 +1504,9 @@ JWT_EXPORT
 int jwks_item_key_bits(const jwk_item_t *item);
 
 /**
- * Free all memory associated with the nth jwk_item_t in a jwk_set
+ * @brief Free remove and free the nth jwk_item_t in a jwk_set
  *
- * @param jwk_set A JWKS object
+ * @param jwk_set Pointer to a JWKS object
  * @param index the position of the item in the index
  * @return 0 if no item was was deleted (found), 1 if it was
  */
@@ -1514,14 +1514,35 @@ JWT_EXPORT
 int jwks_item_free(jwk_set_t *jwk_set, size_t index);
 
 /**
- * Free all memory associated with all @ref jwk_item_t in a @ref jwk_set_t.
+ * @brief Remove and free all jwk_item_t in a jwk_set_t
+ *
  * The jwk_set_t becomes an empty set.
  *
- * @param jwk_set A JWKS object
+ * @param jwk_set Pointer to a JWKS object
  * @return The number of items deleted
  */
 JWT_EXPORT
 int jwks_item_free_all(jwk_set_t *jwk_set);
+
+/**
+ * @brief Free all keys marked with an error in a jwk_set_t
+ *
+ * The jwk_set_t becomes an empty set.
+ *
+ * @param jwk_set Pointer to a JWKS object
+ * @return The number of items with an error that were deleted
+ */
+JWT_EXPORT
+int jwks_item_free_bad(jwk_set_t *jwk_set);
+
+/**
+ * @brief Return the number of keys in a jwk_set_t
+ *
+ * @param jwk_set Pointer to a JWKS object
+ * @return The number of items in the set
+ */
+JWT_EXPORT
+size_t jwks_item_count(const jwk_set_t *jwk_set);
 
 /**
  * @}

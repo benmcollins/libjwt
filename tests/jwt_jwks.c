@@ -54,8 +54,19 @@ START_TEST(test_jwks_keyring_load)
 	ck_assert_int_eq(fails, 0);
 
 	ck_assert_int_eq(i, 27);
+	i = jwks_item_count(g_jwk_set);
+	ck_assert_int_eq(i, 27);
 
 	ck_assert(jwks_item_free(g_jwk_set, 3));
+
+	i = jwks_item_count(g_jwk_set);
+	ck_assert_int_eq(i, 26);
+
+	i = jwks_item_free_bad(g_jwk_set);
+	ck_assert_int_eq(i, 0);
+
+	i = jwks_item_count(g_jwk_set);
+	ck_assert_int_eq(i, 26);
 
 	free_key();
 }
@@ -72,6 +83,9 @@ START_TEST(test_jwks_keyring_all_bad)
 	jwk_set = jwks_create_fromfile(KEYDIR "/bad_keys.json");
 	ck_assert_ptr_nonnull(jwk_set);
 
+	i = jwks_error_any(jwk_set);
+	ck_assert_int_eq(i, 14);
+
 	for (i = 0; (item = jwks_item_get(jwk_set, i)); i++) {
 		if (!jwks_item_error(item)) {
 			fprintf(stderr, "KID: %s\n",
@@ -81,6 +95,12 @@ START_TEST(test_jwks_keyring_all_bad)
 	}
 
 	ck_assert_int_eq(i, 14);
+
+	i = jwks_item_free_bad(jwk_set);
+	ck_assert_int_eq(i, 14);
+
+	i = jwks_item_count(jwk_set);
+	ck_assert_int_eq(i, 0);
 }
 END_TEST
 
