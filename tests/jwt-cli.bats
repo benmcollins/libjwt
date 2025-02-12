@@ -49,11 +49,13 @@ CLAIM_RES="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZG1pbiI6ZmFsc2UsImV4cCI6MTgz
 }
 
 @test "Convert JWK to PEM - RSA" {
+	rm -f rsa_1024_0023a6e1-f093-448d-9038-9ff168611b86.pem
 	./tools/jwk2key -d . ${SRCDIR}/tests/keys/rsa_key_1024.json
 	cmp rsa_1024_0023a6e1-f093-448d-9038-9ff168611b86.pem ${SRCDIR}/tests/keys/pem-files/rsa_key_1024.pem
 }
 
 @test "Convert JWK to PEM - OCT" {
+	rm -f oct_384.bin
 	./tools/jwk2key -d . ${SRCDIR}/tests/keys/oct_key_384.json
 	cmp oct_384.bin ${SRCDIR}/tests/cli/oct_384.bin
 }
