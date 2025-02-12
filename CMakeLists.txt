@@ -18,6 +18,7 @@ project(${LIBJWT_PROJECT}
 	HOMEPAGE_URL ${LIBJWT_HOMEPAGE_URL}
 	LANGUAGES C)
 
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 add_compile_options(-Wall -Werror -Wextra -Wunused)
 
 # Must be set after the above
