@@ -225,7 +225,7 @@ static json_t *parse_one_file(const char *file)
 	EVP_PKEY *pkey;
 	json_t *jwk, *ops;
 	size_t len = 0;
-	unsigned char file_buf[64];
+	unsigned char file_buf[BUFSIZ];
 
 	fp = fopen(file, "r");
 	if (!fp) {
@@ -246,7 +246,7 @@ static json_t *parse_one_file(const char *file)
 		/* Check length to see if it can be HMAC */
 		fseek(fp, 0, SEEK_END);
 		len = ftell(fp);
-		if (do_not_assume_hmac || len < 32) {
+		if (do_not_assume_hmac || len < 32 || len > sizeof(file_buf)) {
 			fprintf(stderr, "Error parsing key file\n");
 			print_openssl_errors_and_exit();
 		}
