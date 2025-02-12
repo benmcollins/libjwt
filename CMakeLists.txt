@@ -240,6 +240,7 @@ if (WITH_TESTS)
 		set(CHECK_REQUIRED REQUIRED)
 	endif()
 	pkg_check_modules(CHECK check>=0.9.10 IMPORTED_TARGET ${CHECK_REQUIRED})
+	find_program (BATS_CMD bats)
 else()
 	if (ENABLE_COVERAGE)
 		message(SEND_ERROR "You must set WITH_TESTS=ON to enable code coverage")
@@ -279,6 +280,10 @@ if (CHECK_FOUND)
 	foreach (TEST ${UNIT_TESTS})
 		jwt_add_test(NAME ${TEST})
 	endforeach()
+
+	if (BATS_CMD)
+		add_test(NAME jwt_cli COMMAND /bin/bash -c "export SRCDIR=\"${CMAKE_SOURCE_DIR}\"; \"${CMAKE_SOURCE_DIR}\"/tests/jwt-cli.bats")
+	endif()
 
 	add_custom_target(check
 		COMMAND ${CMAKE_CTEST_COMMAND}
