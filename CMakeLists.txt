@@ -66,20 +66,9 @@ set(JWT_SOURCES libjwt/base64.c
 	libjwt/jwt-setget.c
 	libjwt/jwt-crypto-ops.c
 	libjwt/jwt-encode.c
-	libjwt/jwt-verify.c)
-
-add_library(builder OBJECT)
-target_sources(builder PRIVATE libjwt/jwt-common.c)
-target_compile_definitions(builder PRIVATE JWT_BUILDER)
-set_property(TARGET builder PROPERTY POSITION_INDEPENDENT_CODE ON)
-
-add_library(checker OBJECT)
-target_sources(checker PRIVATE libjwt/jwt-common.c)
-target_compile_definitions(checker PRIVATE JWT_CHECKER)
-set_property(TARGET checker PROPERTY POSITION_INDEPENDENT_CODE ON)
-
-target_link_libraries(jwt PRIVATE builder checker)
-target_link_libraries(jwt_static PRIVATE builder checker)
+	libjwt/jwt-verify.c
+	libjwt/jwt-builder.c
+	libjwt/jwt-checker.c)
 
 # Allow building without deprecated functions (suggested)
 option(EXCLUDE_DEPRECATED
@@ -95,8 +84,6 @@ include_directories(${CMAKE_SOURCE_DIR}/include ${CMAKE_BINARY_DIR}
 
 target_link_libraries(jwt PUBLIC PkgConfig::JANSSON)
 target_link_libraries(jwt_static PUBLIC PkgConfig::JANSSON)
-target_link_libraries(builder PUBLIC PkgConfig::JANSSON)
-target_link_libraries(checker PUBLIC PkgConfig::JANSSON)
 
 # Process the detected packages
 set(HAVE_CRYPTO FALSE)
@@ -294,7 +281,7 @@ if (CHECK_FOUND)
 		include(CodeCoverage)
 		append_coverage_compiler_flags()
 
-		set(COVERAGE_LCOV_INCLUDES "${CMAKE_SOURCE_DIR}/libjwt/*.c")
+		set(COVERAGE_LCOV_INCLUDES "${CMAKE_SOURCE_DIR}/libjwt/")
 		setup_target_for_coverage_lcov(
 			NAME check-code-coverage
 			OUTPUT "${PROJECT_NAME}-${PROJECT_VERSION}-coverage"

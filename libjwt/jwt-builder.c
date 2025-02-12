@@ -13,9 +13,9 @@
 
 #include "jwt-private.h"
 
-/* XXX This file is used to generate jwt-builder.c and jwt-checker.c */
+/* XXX This file is generated, do not edit! */
 
-void FUNC(free)(jwt_common_t *__cmd)
+void jwt_builder_free(jwt_builder_t *__cmd)
 {
 	if (__cmd == NULL)
 		return;
@@ -28,9 +28,9 @@ void FUNC(free)(jwt_common_t *__cmd)
 	jwt_freemem(__cmd);
 }
 
-jwt_common_t *FUNC(new)(void)
+jwt_builder_t *jwt_builder_new(void)
 {
-	jwt_common_t *__cmd = jwt_malloc(sizeof(*__cmd));
+	jwt_builder_t *__cmd = jwt_malloc(sizeof(*__cmd));
 
 	if (__cmd == NULL)
 		return NULL; // LCOV_EXCL_LINE
@@ -39,7 +39,7 @@ jwt_common_t *FUNC(new)(void)
 
 	__cmd->c.payload = json_object();
 	__cmd->c.headers = json_object();
-	__cmd->c.claims = CLAIMS_DEF;
+	__cmd->c.claims = JWT_CLAIM_IAT;
 
 	if (!__cmd->c.payload || !__cmd->c.headers)
 		jwt_freemem(__cmd); // LCOV_EXCL_LINE
@@ -47,18 +47,16 @@ jwt_common_t *FUNC(new)(void)
 	return __cmd;
 }
 
-static int __setkey_check(jwt_common_t *__cmd, const jwt_alg_t alg,
+static int __setkey_check(jwt_builder_t *__cmd, const jwt_alg_t alg,
 		       const jwk_item_t *key)
 {
 	if (__cmd == NULL)
 		return 1;
 
-#ifdef JWT_BUILDER
 	if (key && !key->is_private_key) {
 		jwt_write_error(__cmd, "Signing requires a private key");
 		return 1;
 	}
-#endif
 	/* TODO: Check key_ops and use */
 
 	if (key == NULL) {
@@ -84,7 +82,7 @@ static int __setkey_check(jwt_common_t *__cmd, const jwt_alg_t alg,
 	return 1;
 }
 
-int FUNC(setkey)(jwt_common_t *__cmd, const jwt_alg_t alg,
+int jwt_builder_setkey(jwt_builder_t *__cmd, const jwt_alg_t alg,
 		 const jwk_item_t *key)
 {
 	if (__setkey_check(__cmd, alg, key))
@@ -96,7 +94,7 @@ int FUNC(setkey)(jwt_common_t *__cmd, const jwt_alg_t alg,
 	return 0;
 }
 
-int FUNC(error)(const jwt_common_t *__cmd)
+int jwt_builder_error(const jwt_builder_t *__cmd)
 {
 	if (__cmd == NULL)
 		return 1;
@@ -104,7 +102,7 @@ int FUNC(error)(const jwt_common_t *__cmd)
 	return __cmd->error ? 1 : 0;
 }
 
-const char *FUNC(error_msg)(const jwt_common_t *__cmd)
+const char *jwt_builder_error_msg(const jwt_builder_t *__cmd)
 {
 	if (__cmd == NULL)
 		return NULL;
@@ -112,7 +110,7 @@ const char *FUNC(error_msg)(const jwt_common_t *__cmd)
 	return __cmd->error_msg;
 }
 
-void FUNC(error_clear)(jwt_common_t *__cmd)
+void jwt_builder_error_clear(jwt_builder_t *__cmd)
 {
 	if (__cmd == NULL)
 		return;
@@ -121,8 +119,7 @@ void FUNC(error_clear)(jwt_common_t *__cmd)
 	__cmd->error_msg[0] = '\0';
 }
 
-#ifdef JWT_BUILDER
-int FUNC(enable_iat)(jwt_common_t *__cmd, int enable)
+int jwt_builder_enable_iat(jwt_builder_t *__cmd, int enable)
 {
 	int orig;
 
@@ -138,9 +135,8 @@ int FUNC(enable_iat)(jwt_common_t *__cmd, int enable)
 
 	return orig;
 }
-#endif
 
-int FUNC(setcb)(jwt_common_t *__cmd, jwt_callback_t cb, void *ctx)
+int jwt_builder_setcb(jwt_builder_t *__cmd, jwt_callback_t cb, void *ctx)
 {
 	if (__cmd == NULL)
 		return 1;
@@ -156,7 +152,7 @@ int FUNC(setcb)(jwt_common_t *__cmd, jwt_callback_t cb, void *ctx)
 	return 0;
 }
 
-void *FUNC(getctx)(jwt_common_t *__cmd)
+void *jwt_builder_getctx(jwt_builder_t *__cmd)
 {
 	if (__cmd == NULL)
 		return NULL;
@@ -171,7 +167,7 @@ typedef enum {
 
 typedef jwt_value_error_t (*__doer_t)(json_t *, jwt_value_t *);
 
-static jwt_value_error_t __run_it(jwt_common_t *__cmd, _setget_type_t type,
+static jwt_value_error_t __run_it(jwt_builder_t *__cmd, _setget_type_t type,
 				  jwt_value_t *value, __doer_t doer)
 {
 	json_t *which = NULL;
@@ -196,19 +192,18 @@ static jwt_value_error_t __run_it(jwt_common_t *__cmd, _setget_type_t type,
 	return doer(which, value);
 }
 
-#ifdef JWT_BUILDER
 /* Claims */
-jwt_value_error_t FUNC(claim_get)(jwt_common_t *__cmd, jwt_value_t *value)
+jwt_value_error_t jwt_builder_claim_get(jwt_builder_t *__cmd, jwt_value_t *value)
 {
 	return __run_it(__cmd, __CLAIM, value, __getter);
 }
 
-jwt_value_error_t FUNC(claim_set)(jwt_common_t *__cmd, jwt_value_t *value)
+jwt_value_error_t jwt_builder_claim_set(jwt_builder_t *__cmd, jwt_value_t *value)
 {
 	return __run_it(__cmd, __CLAIM, value, __setter);
 }
 
-jwt_value_error_t FUNC(claim_del)(jwt_common_t *__cmd, const char *claim)
+jwt_value_error_t jwt_builder_claim_del(jwt_builder_t *__cmd, const char *claim)
 {
 	if (!__cmd)
 		return JWT_VALUE_ERR_INVALID;
@@ -216,100 +211,26 @@ jwt_value_error_t FUNC(claim_del)(jwt_common_t *__cmd, const char *claim)
 }
 
 /* Headers */
-jwt_value_error_t FUNC(header_get)(jwt_common_t *__cmd, jwt_value_t *value)
+jwt_value_error_t jwt_builder_header_get(jwt_builder_t *__cmd, jwt_value_t *value)
 {
 	return __run_it(__cmd, __HEADER, value, __getter);
 }
 
-jwt_value_error_t FUNC(header_set)(jwt_common_t *__cmd, jwt_value_t *value)
+jwt_value_error_t jwt_builder_header_set(jwt_builder_t *__cmd, jwt_value_t *value)
 {
 	return __run_it(__cmd, __HEADER, value, __setter);
 }
 
-jwt_value_error_t FUNC(header_del)(jwt_common_t *__cmd, const char *header)
+jwt_value_error_t jwt_builder_header_del(jwt_builder_t *__cmd, const char *header)
 {
 	if (!__cmd)
 		return JWT_VALUE_ERR_INVALID;
 	return __deleter(__cmd->c.headers, header);
 }
-#endif
 
-#ifdef JWT_CHECKER
-/* Just a few types of claims */
-static const char *__get_name(jwt_claims_t type)
-{
-	if (type == JWT_CLAIM_ISS)
-		return "iss";
-	else if (type == JWT_CLAIM_AUD)
-		return "aud";
-	else if (type == JWT_CLAIM_SUB)
-		return "sub";
-	return NULL;
-}
-
-const char *FUNC(claim_get)(jwt_common_t *__cmd, jwt_claims_t type)
-{
-	const char *name = NULL;
-	jwt_value_t jval;
-
-	if (!__cmd)
-		return NULL;
-
-	name = __get_name(type);
-	if (name == NULL)
-		return NULL;
-
-	jwt_set_GET_STR(&jval, name);
-	__run_it(__cmd, __CLAIM, &jval, __getter);
-
-	/* Ignore errors, just return a string or NULL */
-	return jval.str_val;
-}
-
-int FUNC(claim_set)(jwt_common_t *__cmd, jwt_claims_t type, const char *value)
-{
-	const char *name = NULL;
-	jwt_value_t jval;
-
-	if (!__cmd || !value)
-		return 1;
-
-	name = __get_name(type);
-	if (name == NULL)
-		return 1;
-
-	__cmd->c.claims |= type;
-
-	jwt_set_SET_STR(&jval, name, value);
-	jval.replace = 1;
-
-	return __run_it(__cmd, __CLAIM, &jval, __setter) ? 1 : 0;
-}
-
-int FUNC(claim_del)(jwt_common_t *__cmd, jwt_claims_t type)
-{
-	const char *name = NULL;
-
-	if (!__cmd)
-		return 1;
-
-	name = __get_name(type);
-	if (name == NULL)
-		return 1;
-
-	__cmd->c.claims &= ~type;
-
-	return __deleter(__cmd->c.payload, name);
-}
-#endif
 
 /* Time offsets */
-#ifdef JWT_BUILDER
-int FUNC(time_offset)(jwt_common_t *__cmd, jwt_claims_t claim, time_t secs)
-#endif
-#ifdef JWT_CHECKER
-int FUNC(time_leeway)(jwt_common_t *__cmd, jwt_claims_t claim, time_t secs)
-#endif
+int jwt_builder_time_offset(jwt_builder_t *__cmd, jwt_claims_t claim, time_t secs)
 {
 	if (!__cmd)
 		return 1;
@@ -327,7 +248,7 @@ int FUNC(time_leeway)(jwt_common_t *__cmd, jwt_claims_t claim, time_t secs)
 		return 1;
 	}
 
-	if (secs <= __DISABLE)
+	if (secs <= 0)
 		__cmd->c.claims &= ~claim;
 	else
 		__cmd->c.claims |= claim;
@@ -335,64 +256,8 @@ int FUNC(time_leeway)(jwt_common_t *__cmd, jwt_claims_t claim, time_t secs)
 	return 0;
 }
 
-#ifdef JWT_CHECKER
-int FUNC(verify)(jwt_common_t *__cmd, const char *token)
-{
-	JWT_CONFIG_DECLARE(config);
-	unsigned int payload_len;
-	jwt_auto_t *jwt = NULL;
 
-	if (__cmd == NULL)
-		return 1;
-
-	if (token == NULL || !strlen(token)) {
-		jwt_write_error(__cmd, "Must pass a token");
-		return 1;
-	}
-
-	jwt = jwt_new();
-	if (jwt == NULL) {
-		// LCOV_EXCL_START
-		jwt_write_error(__cmd, "Could not allocate JWT object");
-		return 1;
-		// LCOV_EXCL_STOP
-	}
-
-	/* First parsing pass, error will be set for us */
-        if (jwt_parse(jwt, token, &payload_len)) {
-		jwt_copy_error(__cmd, jwt);
-		return 1;
-	};
-
-	config.key = __cmd->c.key;
-	config.alg = __cmd->c.alg;
-	config.ctx = __cmd->c.cb_ctx;
-
-	/* Let the user handle this and update config */
-        if (__cmd->c.cb && __cmd->c.cb(jwt, &config)) {
-		jwt_write_error(__cmd, "User callback returned error");
-		return 1;
-	}
-
-	/* Callback may have changed this */
-        if (__setkey_check(__cmd, config.alg, config.key))
-		return 1;
-
-	jwt->key = config.key;
-	jwt->checker = __cmd;
-
-	/* Finish it up */
-	jwt = jwt_verify_complete(jwt, &config, token, payload_len);
-
-	/* Copy any errors back */
-	jwt_copy_error(__cmd, jwt);
-
-	return __cmd->error;
-}
-#endif
-
-#ifdef JWT_BUILDER
-char *FUNC(generate)(jwt_common_t *__cmd)
+char *jwt_builder_generate(jwt_builder_t *__cmd)
 {
 	JWT_CONFIG_DECLARE(config);
 	jwt_auto_t *jwt = NULL;
@@ -461,4 +326,3 @@ char *FUNC(generate)(jwt_common_t *__cmd)
 
 	return out;
 }
-#endif
