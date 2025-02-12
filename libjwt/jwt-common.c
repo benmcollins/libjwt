@@ -395,7 +395,7 @@ int FUNC(verify)(jwt_common_t *__cmd, const char *token)
 	}
 
 	/* Callback may have changed this */
-        if (FUNC(setkey)(__cmd, config.alg, config.key))
+        if (__setkey_check(__cmd, config.alg, config.key))
 		return 1;
 
 	jwt->key = config.key;
