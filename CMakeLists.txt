@@ -71,10 +71,12 @@ set(JWT_SOURCES libjwt/base64.c
 add_library(builder OBJECT)
 target_sources(builder PRIVATE libjwt/jwt-common.c)
 target_compile_definitions(builder PRIVATE JWT_BUILDER)
+set_property(TARGET builder PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 add_library(checker OBJECT)
 target_sources(checker PRIVATE libjwt/jwt-common.c)
 target_compile_definitions(checker PRIVATE JWT_CHECKER)
+set_property(TARGET checker PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 target_link_libraries(jwt PRIVATE builder checker)
 target_link_libraries(jwt_static PRIVATE builder checker)

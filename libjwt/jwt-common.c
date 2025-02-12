@@ -63,7 +63,7 @@ jwt_common_t *FUNC(new)(void)
 	return __cmd;
 }
 
-int FUNC(setkey_check)(jwt_common_t *__cmd, const jwt_alg_t alg,
+static int __setkey_check(jwt_common_t *__cmd, const jwt_alg_t alg,
 		       const jwk_item_t *key)
 {
 	if (__cmd == NULL)
@@ -103,7 +103,7 @@ int FUNC(setkey_check)(jwt_common_t *__cmd, const jwt_alg_t alg,
 int FUNC(setkey)(jwt_common_t *__cmd, const jwt_alg_t alg,
 		 const jwk_item_t *key)
 {
-	if (FUNC(setkey_check)(__cmd, alg, key))
+	if (__setkey_check(__cmd, alg, key))
 		return 1;
 
 	__cmd->c.alg = alg;
@@ -465,7 +465,7 @@ char *FUNC(generate)(jwt_common_t *__cmd)
 	}
 
 	/* Callback may have changed this */
-	if (FUNC(setkey_check)(__cmd, config.alg, config.key)) {
+	if (__setkey_check(__cmd, config.alg, config.key)) {
 		jwt_write_error(__cmd, "Algorithm and key returned by callback invalid");
 		return NULL;
 	}

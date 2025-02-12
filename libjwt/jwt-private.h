@@ -249,13 +249,6 @@ jwt_t *jwt_verify_complete(jwt_t *jwt, const jwt_config_t *config,
 			   const char *token, unsigned int payload_len);
 
 JWT_NO_EXPORT
-int jwt_builder_setkey_check(jwt_builder_t *builder, const jwt_alg_t alg,
-			     const jwk_item_t *key);
-JWT_NO_EXPORT
-int jwt_checker_setkey_check(jwt_checker_t *checker, const jwt_alg_t alg,
-			     const jwk_item_t *key);
-
-JWT_NO_EXPORT
 char *jwt_encode_str(jwt_t *jwt);
 
 JWT_NO_EXPORT
