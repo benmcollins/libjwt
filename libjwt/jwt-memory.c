@@ -55,21 +55,6 @@ void __jwt_freemem(void *ptr)
 		free(ptr);
 }
 
-char *jwt_strdup(const char *str)
-{
-	size_t len;
-	char *result;
-
-	len = strlen(str);
-	result = (char *)jwt_malloc(len + 1);
-	if (!result)
-		return NULL; // LCOV_EXCL_LINE
-
-	memcpy(result, str, len);
-	result[len] = '\0';
-	return result;
-}
-
 /* A time-safe strcmp function */
 int jwt_strcmp(const char *str1, const char *str2)
 {

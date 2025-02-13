@@ -222,12 +222,6 @@ JWT_NO_EXPORT
 int jwt_strcmp(const char *str1, const char *str2);
 
 JWT_NO_EXPORT
-char *jwt_strdup(const char *str);
-
-JWT_NO_EXPORT
-void jwt_scrub_key(jwt_t *jwt);
-
-JWT_NO_EXPORT
 jwt_t *jwt_verify_sig(jwt_t *jwt, const char *head, unsigned int head_len,
                    const char *sig);
 JWT_NO_EXPORT

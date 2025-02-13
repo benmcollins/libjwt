@@ -84,15 +84,18 @@ int jwt_parse(jwt_t *jwt, const char *token, unsigned int *len)
 {
 	char_auto *head = NULL;
 	char *payload, *sig;
+	int head_len = strlen(token) + 1;
 
-	head = jwt_strdup(token);
-
+	head = jwt_malloc(head_len);
 	if (!head) {
 		// LCOV_EXCL_START
 		jwt_write_error(jwt, "Error allocating memory");
 		return 1;
 		// LCOV_EXCL_STOP
 	}
+
+	/* head_len includes nil */
+	memcpy(head, token, head_len);
 
 	/* Find the components. */
 	for (payload = head; payload[0] != '.'; payload++) {
