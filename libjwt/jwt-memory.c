@@ -15,7 +15,6 @@
 #include "jwt-private.h"
 
 static jwt_malloc_t pfn_malloc;
-static jwt_realloc_t pfn_realloc;
 static jwt_free_t pfn_free;
 
 void *jwt_malloc(size_t size)
@@ -26,19 +25,10 @@ void *jwt_malloc(size_t size)
 	return malloc(size);
 }
 
-void *jwt_realloc(void *ptr, size_t size)
-{
-	if (pfn_realloc)
-		return pfn_realloc(ptr, size);
-
-	return realloc(ptr, size);
-}
-
-int jwt_set_alloc(jwt_malloc_t pmalloc, jwt_realloc_t prealloc, jwt_free_t pfree)
+int jwt_set_alloc(jwt_malloc_t pmalloc, jwt_free_t pfree)
 {
 	/* Set allocator functions for LibJWT. */
 	pfn_malloc = pmalloc;
-	pfn_realloc = prealloc;
 	pfn_free = pfree;
 
 	/* Set same allocator functions for Jansson. */
@@ -47,14 +37,10 @@ int jwt_set_alloc(jwt_malloc_t pmalloc, jwt_realloc_t prealloc, jwt_free_t pfree
 	return 0;
 }
 
-void jwt_get_alloc(jwt_malloc_t *pmalloc, jwt_realloc_t *prealloc,
-		   jwt_free_t *pfree)
+void jwt_get_alloc(jwt_malloc_t *pmalloc, jwt_free_t *pfree)
 {
 	if (pmalloc)
 		*pmalloc = pfn_malloc;
-
-	if (prealloc)
-		*prealloc = pfn_realloc;
 
 	if (pfree)
 		*pfree = pfn_free;

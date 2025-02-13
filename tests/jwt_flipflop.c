@@ -19,14 +19,9 @@ static void test_free(void *ptr)
 	free(ptr);
 }
 
-static void *test_realloc(void *ptr, size_t size)
-{
-	return realloc(ptr, size);
-}
-
 static int test_set_alloc(void)
 {
-	return jwt_set_alloc(test_malloc, test_realloc, test_free);
+	return jwt_set_alloc(test_malloc, test_free);
 }
 
 #ifdef JWT_CONSTRUCTOR
@@ -42,23 +37,20 @@ END_TEST
 START_TEST(test_alloc_funcs)
 {
 	jwt_malloc_t m = NULL;
-	jwt_realloc_t r = NULL;
 	jwt_free_t f = NULL;
 	int ret;
 
 	SET_OPS();
 
-	jwt_get_alloc(&m, &r, &f);
+	jwt_get_alloc(&m, &f);
 	ck_assert_ptr_null(m);
-	ck_assert_ptr_null(r);
 	ck_assert_ptr_null(f);
 
 	ret = test_set_alloc();
 	ck_assert_int_eq(ret, 0);
 
-	jwt_get_alloc(&m, &r, &f);
+	jwt_get_alloc(&m, &f);
 	ck_assert(m == test_malloc);
-	ck_assert(r == test_realloc);
 	ck_assert(f == test_free);
 
 	/* XXX Need to do a build/verify to exercise the functions */

@@ -183,8 +183,6 @@ JWT_NO_EXPORT
 void *jwt_malloc(size_t size);
 JWT_NO_EXPORT
 void __jwt_freemem(void *ptr);
-JWT_NO_EXPORT
-void *jwt_realloc(void *ptr, size_t size);
 
 JWT_NO_EXPORT
 jwt_t *jwt_new(void);

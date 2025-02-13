@@ -207,11 +207,6 @@ typedef struct jwk_item jwk_item_t;
 typedef void *(*jwt_malloc_t)(size_t);
 
 /** @ingroup jwt_memory_grp
- * @brief Prototype for realloc(3)
- */
-typedef void *(*jwt_realloc_t)(void *, size_t);
-
-/** @ingroup jwt_memory_grp
  * @brief Prototype for free(3)
  */
 typedef void (*jwt_free_t)(void *);
@@ -1568,7 +1563,7 @@ size_t jwks_item_count(const jwk_set_t *jwk_set);
  /**
   * @brief Set functions to be used for memory management
   *
-  * By default, LibJWT uses malloc, realloc, and free for memory
+  * By default, LibJWT uses malloc and free for memory
   * management. This function allows the user of the library to
   * specify its own memory management functions. This is especially
   * useful on Windows where mismatches in runtimes across DLLs can
@@ -1583,26 +1578,21 @@ size_t jwks_item_count(const jwk_set_t *jwk_set);
   *
   * @param pmalloc The function to use for allocating memory or
   *     NULL to use malloc
-  * @param prealloc The function to use for reallocating memory or
-  *     NULL to use realloc
   * @param pfree The function to use for freeing memory or
   *     NULL to use free
   * @returns 0 on success or errno otherwise.
   */
 JWT_EXPORT
-int jwt_set_alloc(jwt_malloc_t pmalloc, jwt_realloc_t prealloc,
-			 jwt_free_t pfree);
+int jwt_set_alloc(jwt_malloc_t pmalloc, jwt_free_t pfree);
 
 /**
  * Get functions used for allocating and freeing memory.
  *
  * @param pmalloc Pointer to malloc function output variable, or NULL
- * @param prealloc Pointer to realloc function output variable, or NULL
  * @param pfree Pointer to free function output variable, or NULL
  */
 JWT_EXPORT
-void jwt_get_alloc(jwt_malloc_t *pmalloc, jwt_realloc_t *prealloc,
-			  jwt_free_t *pfree);
+void jwt_get_alloc(jwt_malloc_t *pmalloc, jwt_free_t *pfree);
 
  /**
   * @}
