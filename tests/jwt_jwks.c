@@ -53,6 +53,12 @@ START_TEST(test_jwks_keyring_load)
 	}
 	ck_assert_int_eq(fails, 0);
 
+	item = jwks_find_bykid(g_jwk_set, "SDSDS");
+	ck_assert_ptr_null(item);
+
+	item = jwks_find_bykid(g_jwk_set, "354912a0-b90a-435e-886a-1629f7b2665e");
+	ck_assert_ptr_nonnull(item);
+
 	ck_assert_int_eq(i, 27);
 	i = jwks_item_count(g_jwk_set);
 	ck_assert_int_eq(i, 27);

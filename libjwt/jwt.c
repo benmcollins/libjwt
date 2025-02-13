@@ -471,8 +471,7 @@ jwt_t *jwt_verify_sig(jwt_t *jwt, const char *head, unsigned int head_len,
 	// LCOV_EXCL_START
 	default:
 		jwt_write_error(jwt, "Unknown algorigthm");
-	// LCOV_EXCL_STOP
-	}
+	} // LCOV_EXCL_STOP
 
 	return jwt;
 }

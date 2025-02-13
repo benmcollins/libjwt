@@ -411,7 +411,7 @@ static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 	/* One-shot update and verify */
 	if (EVP_DigestVerify(mdctx, sig, slen, (const unsigned char *)head,
 			     head_len) != 1)
-		VERIFY_ERROR("Signature failed validation");
+		VERIFY_ERROR("Failed to verify signature");
 
 jwt_verify_sha_pem_done:
 	BIO_free(bufkey);

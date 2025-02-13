@@ -1382,6 +1382,19 @@ JWT_EXPORT
 const jwk_item_t *jwks_item_get(const jwk_set_t *jwk_set, size_t index);
 
 /**
+ * @brief Find a jwk_item_t with a specific kid (Key ID)
+ *
+ * LibJWT does not ensure that kid's are unique in a given keyring, so care
+ * must be taken. This will return the first match.
+ *
+ * @param jwk_set An existing jwk_set_t
+ * @param kid String representing a ``kid`` to find
+ * @return A jwk_item_t object or NULL if none found
+ */
+JWT_EXPORT
+jwk_item_t *jwks_find_bykid(jwk_set_t *jwk_set, const char *kid);
+
+/**
  * @brief Whether this key is private (or public)
  *
  * @param item A JWK Item

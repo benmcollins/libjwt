@@ -329,7 +329,7 @@ static int mbedtls_verify_sha_pem(jwt_t *jwt, const char *head,
 		/* Verify ECDSA signature */
 		if (mbedtls_ecdsa_verify(&ecdsa.private_grp, hash,
 			mbedtls_md_get_size(md_info), &ecdsa.private_Q, &r, &s))
-			VERIFY_ERROR("ECDSA signature verification failed"); // LCOV_EXCL_LINE
+			VERIFY_ERROR("Failed to verify signature"); // LCOV_EXCL_LINE
 
 		/* Free ECDSA resources */
 		mbedtls_mpi_free(&r);
@@ -343,13 +343,13 @@ static int mbedtls_verify_sha_pem(jwt_t *jwt, const char *head,
 					mbedtls_md_get_type(md_info),
 					mbedtls_md_get_size(md_info),
 					hash, sig))
-				VERIFY_ERROR("RSASSA-PSS verify failed"); // LCOV_EXCL_LINE
+				VERIFY_ERROR("Failed to verify signature"); // LCOV_EXCL_LINE
 		} else {
 			if (mbedtls_rsa_pkcs1_verify(mbedtls_pk_rsa(pk),
 					mbedtls_md_get_type(md_info),
 					mbedtls_md_get_size(md_info),
 					hash, sig))
-				VERIFY_ERROR("RSA verify failed"); // LCOV_EXCL_LINE
+				VERIFY_ERROR("Failed to verify signature"); // LCOV_EXCL_LINE
 		}
 	} else {
 		VERIFY_ERROR("Unexpected key typ"); // LCOV_EXCL_LINE

@@ -310,6 +310,19 @@ static int jwks_item_add(jwk_set_t *jwk_set, jwk_item_t *item)
 	return 0;
 }
 
+jwk_item_t *jwks_find_bykid(jwk_set_t *jwk_set, const char *kid)
+{
+	jwk_item_t *item = NULL;
+
+	list_for_each_entry(item, &jwk_set->head, node) {
+		if (item->kid == NULL || strcmp(item->kid, kid))
+			continue;
+		return item;
+        }
+
+	return NULL;
+}
+
 static void __item_free(jwk_item_t *todel)
 {
 	if (todel->provider == JWT_CRYPTO_OPS_ANY)
