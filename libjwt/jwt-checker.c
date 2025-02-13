@@ -151,17 +151,7 @@ static jwt_value_error_t __run_it(jwt_checker_t *__cmd, _setget_type_t type,
 				  jwt_value_t *value, __doer_t doer)
 {
 	json_t *which = NULL;
-
-	if (!__cmd || !value) {
-		if (value)
-			return value->error = JWT_VALUE_ERR_INVALID;
-		return JWT_VALUE_ERR_INVALID;
-	}
-
 	switch (type) {
-	case __HEADER:
-		which = __cmd->c.headers;
-		break;
 	case __CLAIM:
 		which = __cmd->c.payload;
 		break;

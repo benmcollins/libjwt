@@ -171,13 +171,11 @@ static jwt_value_error_t __run_it(jwt_builder_t *__cmd, _setget_type_t type,
 				  jwt_value_t *value, __doer_t doer)
 {
 	json_t *which = NULL;
-
 	if (!__cmd || !value) {
 		if (value)
 			return value->error = JWT_VALUE_ERR_INVALID;
 		return JWT_VALUE_ERR_INVALID;
 	}
-
 	switch (type) {
 	case __HEADER:
 		which = __cmd->c.headers;
@@ -319,7 +317,7 @@ char *jwt_builder_generate(jwt_builder_t *__cmd)
 	jwt->key = config.key;
 
 	if (jwt_head_setup(jwt))
-		return NULL;
+		return NULL; // LCOV_EXCL_LINE
 
 	out = jwt_encode_str(jwt);
 	jwt_copy_error(__cmd, jwt);

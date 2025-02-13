@@ -58,6 +58,7 @@ START_TEST(gen_wcb)
 	const char exp[] = "eyJhbGciOiJub25lIn0.eyJleHAiOjE0NzU5ODEwMjV9.";
 	jwt_builder_auto_t *builder = NULL;
 	char_auto *out = NULL;
+	const char *ctx;
 	int ret;
 
 	SET_OPS();
@@ -78,7 +79,61 @@ START_TEST(gen_wcb)
 	ck_assert_ptr_nonnull(out);
 	ck_assert_str_eq(out, exp);
 
+	ctx = jwt_builder_getctx(builder);
+	ck_assert_str_eq(ctx, "testing");
+}
+END_TEST
 
+static int __set_alg_cb(jwt_t *jwt, jwt_config_t *config)
+{
+	jwt_value_t jval;
+	int ret;
+
+	ck_assert_ptr_nonnull(jwt);
+	ck_assert_ptr_nonnull(config);
+
+	/* Clear the whole header */
+	ret = jwt_header_del(jwt, NULL);
+	ck_assert_int_eq(ret, JWT_VALUE_ERR_NONE);
+
+	/* This will get overwritten */
+	jwt_set_SET_INT(&jval, "alg", JWT_ALG_HS256);
+	jwt_header_set(jwt, &jval);
+
+	/* This wont */
+	jwt_set_SET_STR(&jval, "typ", "NOTJWT");
+	jwt_header_set(jwt, &jval);
+
+	return 0;
+}
+
+START_TEST(set_alg)
+{
+	jwt_builder_auto_t *builder = NULL;
+	const char *exp = "eyJhbGciOiJIUzI1NiIsInR5cCI6Ik5PVEpXVCJ9.e30.GsBNaD"
+		"rcrck5dXU9za1MrrOxpz8KQXjq-JHmeCyFhAA";
+	char *out = NULL;
+	int ret;
+
+	SET_OPS();
+
+	builder = jwt_builder_new();
+	ck_assert_ptr_nonnull(builder);
+	ck_assert_int_eq(jwt_builder_error(builder), 0);
+
+	ret = jwt_builder_enable_iat(builder, 0);
+	ck_assert_int_eq(ret, 1);
+
+	ret = jwt_builder_setcb(builder, __set_alg_cb, NULL);
+	ck_assert_int_eq(ret, 0);
+
+	read_json("oct_key_256.json");
+	ret = jwt_builder_setkey(builder, JWT_ALG_HS256, g_item);
+	ck_assert_int_eq(ret, 0);
+
+        out = jwt_builder_generate(builder);
+        ck_assert_ptr_nonnull(out);
+	ck_assert_str_eq(out, exp);
 }
 END_TEST
 
@@ -274,6 +329,13 @@ START_TEST(null_handling)
 	ck_assert_ptr_null(jwt_builder_getctx(NULL));
 
 	ck_assert_int_eq(jwt_builder_claim_del(NULL, NULL), JWT_VALUE_ERR_INVALID);
+
+	ck_assert_int_eq(jwt_builder_claim_get(NULL, &jval), JWT_VALUE_ERR_INVALID);
+	ck_assert_int_eq(jwt_builder_claim_get(builder, NULL), JWT_VALUE_ERR_INVALID);
+
+	ck_assert_int_eq(jwt_builder_time_offset(NULL, JWT_CLAIM_NBF, 0), 1);
+	ck_assert_int_eq(jwt_builder_time_offset(builder, JWT_CLAIM_SUB, 0), 1);
+	ck_assert_int_eq(jwt_builder_time_offset(builder, JWT_CLAIM_NBF, 0), 0);
 }
 END_TEST
 
@@ -772,6 +834,7 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, gen_stress, 0, i);
 	tcase_add_loop_test(tc_core, gen_wcb, 0, i);
 	tcase_add_loop_test(tc_core, gen_es384_pub, 0, i);
+	tcase_add_loop_test(tc_core, set_alg, 0, i);
 	suite_add_tcase(s, tc_core);
 
 	tc_core = tcase_create("Error Handling");

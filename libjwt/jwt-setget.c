@@ -170,12 +170,12 @@ static jwt_value_error_t jwt_set_json(json_t *which, jwt_value_t *jval)
 			ret = json_object_update_missing(which, json_val);
 
 		if (ret)
-			jval->error = JWT_VALUE_ERR_INVALID;
+			jval->error = JWT_VALUE_ERR_INVALID; // LCOV_EXCL_LINE
 	} else {
 		/* Add object at name */
 		if (!jwt_obj_check(which, jval)) {
 			if (json_object_set_new(which, jval->name, json_val))
-				jval->error = JWT_VALUE_ERR_INVALID;
+				jval->error = JWT_VALUE_ERR_INVALID; // LCOV_EXCL_LINE
 		}
 	}
 

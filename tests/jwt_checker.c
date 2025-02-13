@@ -39,6 +39,26 @@ START_TEST(verify)
 }
 END_TEST
 
+START_TEST(alg_none_with_sig)
+{
+	const char token[] = "eyJhbGciOiJub25lIn0.eyJpc3MiOiJka"
+		"XNrLnN3aXNzZGlzay5jb20ifQ.XNrLnN3aXNzZGlzay5jb20ifQ";
+	jwt_checker_auto_t *checker = NULL;
+	int ret;
+
+	SET_OPS();
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+	ck_assert_int_eq(jwt_checker_error(checker), 0);
+
+	ret = jwt_checker_verify(checker, token);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_str_eq(jwt_checker_error_msg(checker),
+			"JWT has signature block, but no alg set");
+}
+END_TEST
+
 START_TEST(bad_alg)
 {
 	const char token[] = "eyJhbGciOiJmb28ifQo.e30K.";
@@ -306,6 +326,26 @@ START_TEST(null_handling)
 	ret = jwt_checker_time_leeway(NULL, JWT_CLAIM_IAT, 0);
 	ck_assert_int_ne(ret, 0);
 	ret = jwt_checker_time_leeway(checker, JWT_CLAIM_IAT, 0);
+
+	/* Some alg mismatches */
+	read_json("eddsa_key_ed25519_pub.json");
+	ret = jwt_checker_setkey(checker, JWT_ALG_NONE, g_item);
+	ck_assert_int_ne(ret, 0);
+
+	jwt_checker_error_clear(checker);
+
+	read_json("oct_key_256.json");
+	ret = jwt_checker_setkey(checker, JWT_ALG_ES256, g_item);
+	ck_assert_int_ne(ret, 0);
+
+	/* Callbacks */
+	ck_assert_int_ne(jwt_checker_setcb(NULL, NULL, NULL), 0);
+	ck_assert_int_ne(jwt_checker_setcb(checker, NULL, "foo"), 0);
+	ck_assert_ptr_null(jwt_checker_getctx(NULL));
+
+	/* Some claims stuff */
+	ck_assert_ptr_null(jwt_checker_claim_get(NULL, JWT_CLAIM_SUB));
+	ck_assert_ptr_null(jwt_checker_claim_get(checker, JWT_CLAIM_IAT));
 }
 END_TEST
 
@@ -328,6 +368,104 @@ START_TEST(verify_hs256)
 
 	ret = jwt_checker_verify(checker, token);
 	ck_assert_int_eq(ret, 0);
+
+	free_key();
+}
+END_TEST
+
+START_TEST(hs256_no_key)
+{
+	jwt_checker_auto_t *checker = NULL;
+	const char token[] = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.CM4dD95Nj"
+		"0vSfMGtDas432AUW1HAo7feCiAbt5Yjuds";
+	int ret;
+
+	SET_OPS();
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+	ck_assert_int_eq(jwt_checker_error(checker), 0);
+
+	ret = jwt_checker_verify(checker, token);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_str_eq(jwt_checker_error_msg(checker),
+			"JWT has signature, but no key was given");
+}
+END_TEST
+
+START_TEST(hs256_wrong_key)
+{
+	jwt_checker_auto_t *checker = NULL;
+	const char token[] = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.CM4dD95Nj"
+		"0vSfMGtDas432AUW1HAo7feCiAbt5Yjuds";
+	int ret;
+
+	SET_OPS();
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+	ck_assert_int_eq(jwt_checker_error(checker), 0);
+
+	read_json("ec_key_secp384r1_pub.json");
+	ret = jwt_checker_setkey(checker, JWT_ALG_NONE, g_item);
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_checker_verify(checker, token);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_str_eq(jwt_checker_error_msg(checker),
+			"Key alg does not match JWT");
+
+	free_key();
+}
+END_TEST
+
+START_TEST(hs256_token_failed)
+{
+	jwt_checker_auto_t *checker = NULL;
+	const char token[] = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.CM4dD95Nj"
+		"0vSfMGtDas432AUW1HAo7feCiAbt5Yjuds";
+	int ret;
+
+	SET_OPS();
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+	ck_assert_int_eq(jwt_checker_error(checker), 0);
+
+	read_json("eddsa_key_ed25519_pub.json");
+	ret = jwt_checker_setkey(checker, JWT_ALG_HS256, g_item);
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_checker_verify(checker, token);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_str_eq(jwt_checker_error_msg(checker),
+			"Token failed verification");
+
+	free_key();
+}
+END_TEST
+
+START_TEST(hs256_wrong_key_alg)
+{
+	jwt_checker_auto_t *checker = NULL;
+	const char token[] = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.CM4dD95Nj"
+		"0vSfMGtDas432AUW1HAo7feCiAbt5Yjuds";
+	int ret;
+
+	SET_OPS();
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+	ck_assert_int_eq(jwt_checker_error(checker), 0);
+
+	read_json("eddsa_key_ed25519_pub.json");
+	ret = jwt_checker_setkey(checker, JWT_ALG_EDDSA, g_item);
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_checker_verify(checker, token);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_str_eq(jwt_checker_error_msg(checker),
+			"Config alg does not match JWT");
 
 	free_key();
 }
@@ -665,6 +803,11 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, no_alg, 0, i);
 	tcase_add_loop_test(tc_core, no_first_dot, 0, i);
 	tcase_add_loop_test(tc_core, no_second_dot, 0, i);
+	tcase_add_loop_test(tc_core, alg_none_with_sig, 0, i);
+	tcase_add_loop_test(tc_core, hs256_no_key, 0, i);
+	tcase_add_loop_test(tc_core, hs256_wrong_key, 0, i);
+	tcase_add_loop_test(tc_core, hs256_wrong_key_alg, 0, i);
+	tcase_add_loop_test(tc_core, hs256_token_failed, 0, i);
 	suite_add_tcase(s, tc_core);
 
 	tc_core = tcase_create("HS256 Key Verify");

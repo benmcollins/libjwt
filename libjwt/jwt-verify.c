@@ -174,7 +174,7 @@ static jwt_claims_t __verify_claims(jwt_t *jwt)
 				failed |= JWT_CLAIM_EXP;
 			}
 		} else if (err != JWT_VALUE_ERR_NOEXIST)
-			failed |= JWT_CLAIM_EXP; // LVOC_EXCL_LINE
+			failed |= JWT_CLAIM_EXP; // LCOV_EXCL_LINE
 	}
 
 	/* not valid before now */
@@ -187,7 +187,7 @@ static jwt_claims_t __verify_claims(jwt_t *jwt)
 				failed |= JWT_CLAIM_NBF;
 			}
 		} else if (err != JWT_VALUE_ERR_NOEXIST)
-			failed |= JWT_CLAIM_NBF; // LVOC_EXCL_LINE
+			failed |= JWT_CLAIM_NBF; // LCOV_EXCL_LINE
 	}
 
 	/* issuer doesn't match */
