@@ -109,8 +109,8 @@ static void ec_alg_type(EVP_PKEY *pkey, char crv[32], char alg[32])
 	}
 
 	if (!__alg || !__crv) {
-		fprintf(stderr, "EC: Unknown curve %s with %zd bits\n",
-			__named_crv, bits);
+		fprintf(stderr, "EC: Unknown curve %s with %d bits\n",
+			__named_crv, (int)bits);
 		return;
 	}
 
@@ -480,7 +480,12 @@ int main(int argc, char **argv)
 	time_str[strlen(time_str) - 1] = '\0';
 	json_object_set_new(jwk_set, "libjwt.io:date", json_string(time_str));
 
+#ifdef _WIN32
+	DWORD hostnamesize = sizeof(comment);
+	GetComputerNameA(comment, &hostnamesize);
+#else
 	gethostname(comment, sizeof(comment));
+#endif
 	comment[sizeof(comment) - 1] = '\0';
 	json_object_set_new(jwk_set, "libjwt.io:hostname",
 			    json_string(comment));
