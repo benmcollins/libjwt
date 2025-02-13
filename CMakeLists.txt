@@ -60,10 +60,16 @@ set_target_properties(jwt_static PROPERTIES
 	COMPILE_FLAGS -DJWT_STATIC_DEFINE)
 
 add_custom_command(
-	OUTPUT ${CMAKE_SOURCE_DIR}/libjwt/jwt-builder.c ${CMAKE_SOURCE_DIR}/libjwt/jwt-checker.c
-	WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-	COMMAND make -C libjwt
-	DEPENDS libjwt/jwt-common.c)
+	OUTPUT ${CMAKE_SOURCE_DIR}/libjwt/jwt-builder.c
+	WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/libjwt
+	COMMAND sed -f builder.sed jwt-common.c > jwt-builder.c
+	DEPENDS libjwt/jwt-common.c libjwt/builder.sed)
+
+add_custom_command(
+	OUTPUT ${CMAKE_SOURCE_DIR}/libjwt/jwt-checker.c
+	WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/libjwt
+	COMMAND sed -f checker.sed jwt-common.c > jwt-checker.c
+	DEPENDS libjwt/jwt-common.c libjwt/checker.sed)
 
 set(JWT_SOURCES libjwt/base64.c
 	libjwt/jwt-memory.c
