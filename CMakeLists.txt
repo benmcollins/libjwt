@@ -59,6 +59,12 @@ set_target_properties(jwt_static PROPERTIES
 	OUTPUT_NAME jwt
 	COMPILE_FLAGS -DJWT_STATIC_DEFINE)
 
+add_custom_command(
+	OUTPUT ${CMAKE_SOURCE_DIR}/libjwt/jwt-builder.c ${CMAKE_SOURCE_DIR}/libjwt/jwt-checker.c
+	WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+	COMMAND make -C libjwt
+	DEPENDS libjwt/jwt-common.c)
+
 set(JWT_SOURCES libjwt/base64.c
 	libjwt/jwt-memory.c
 	libjwt/jwt.c
@@ -115,10 +121,13 @@ list(APPEND JWT_SOURCES
      libjwt/openssl/jwk-parse.c
      libjwt/openssl/sign-verify.c)
 
+set(TOOLS)
+
 function(jwt_add_tool)
 	set(oneValueArgs NAME SRC DIR)
 	cmake_parse_arguments(Tool "" "${oneValueArgs}" "" ${ARGN})
 
+	list(APPEND TOOLS ${Tool_NAME})
 	add_executable(${Tool_NAME} ${Tool_SRC})
 	target_link_libraries(${Tool_NAME} PRIVATE jwt_static PkgConfig::OPENSSL)
 	# target_link_libraries(${Tool_NAME} PRIVATE jwt)
@@ -275,7 +284,7 @@ if (CHECK_FOUND)
 
 	add_custom_target(check
 		COMMAND ${CMAKE_CTEST_COMMAND}
-		DEPENDS ${UNIT_TESTS})
+		DEPENDS ${UNIT_TESTS} ${TOOLS})
 
 	if (ENABLE_COVERAGE)
 		set(CMAKE_BUILD_TYPE "Debug")
@@ -288,7 +297,7 @@ if (CHECK_FOUND)
 			OUTPUT "${PROJECT_NAME}-${PROJECT_VERSION}-coverage"
 			TITLE "${PROJECT_NAME}-${PROJECT_VERSION} Code Coverage"
 			EXECUTABLE ctest -j ${PROCESSOR_COUNT}
-			DEPENDENCIES ${UNIT_TESTS})
+			DEPENDENCIES ${UNIT_TESTS} ${TOOLS})
 	endif()
 elseif(ENABLE_COVERAGE)
 	message(SEND_ERROR "Coverage enabled, but did not find check library")
