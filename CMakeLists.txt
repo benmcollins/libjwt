@@ -124,7 +124,8 @@ function(jwt_add_tool)
 	# target_link_libraries(${Tool_NAME} PRIVATE jwt)
 	set_target_properties(${Tool_NAME} PROPERTIES
 		RUNTIME_OUTPUT_DIRECTORY
-		"${CMAKE_BINARY_DIR}/tools")
+		"${CMAKE_BINARY_DIR}/tools"
+		COMPILE_FLAGS -DJWT_STATIC_DEFINE)
 	install(TARGETS ${Tool_NAME}
 		RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 endfunction()

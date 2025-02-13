@@ -6,7 +6,6 @@
    file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include <unistd.h>
-#include <sys/wait.h>
 
 static char *pipe_cmd;
 
@@ -14,6 +13,8 @@ static FILE *json_fp;
 
 #ifdef _WIN32
 #include <windows.h>
+#else
+#include <sys/wait.h>
 #endif
 
 static inline int write_json(const char *title, const char *str)
@@ -127,7 +128,7 @@ static inline int __jwt_wcb(jwt_t *jwt, jwt_config_t *config)
 }
 
 #ifdef _WIN32
-extern char **__argv;
+__declspec(dllimport) extern char **__argv;
 static inline const char *get_progname(void)
 {
 	return __argv[0];
