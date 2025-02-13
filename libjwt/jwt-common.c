@@ -156,6 +156,12 @@ int FUNC(setcb)(jwt_common_t *__cmd, jwt_callback_t cb, void *ctx)
 	if (__cmd == NULL)
 		return 1;
 
+	/* This just updates the CTX */
+	if (cb == NULL && __cmd->c.cb != NULL && ctx != NULL) {
+		__cmd->c.cb_ctx = ctx;
+		return 0;
+	}
+
 	if (cb == NULL && ctx != NULL) {
 		jwt_write_error(__cmd, "Setting ctx without a cb won't work");
 		return 1;

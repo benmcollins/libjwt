@@ -343,6 +343,17 @@ START_TEST(null_handling)
 	ck_assert_int_ne(jwt_checker_setcb(checker, NULL, "foo"), 0);
 	ck_assert_ptr_null(jwt_checker_getctx(NULL));
 
+	/* Changing ctx for cb */
+	ret = jwt_checker_setcb(checker, __verify_wcb, NULL);
+	ck_assert_int_eq(ret, 0);
+	ck_assert_ptr_null(jwt_checker_getctx(checker));
+	ret = jwt_checker_setcb(checker, NULL, "foo");
+	ck_assert_int_eq(ret, 0);
+	ck_assert_ptr_nonnull(jwt_checker_getctx(checker));
+	ret = jwt_checker_setcb(checker, NULL, NULL);
+	ck_assert_int_eq(ret, 0);
+	ck_assert_ptr_null(jwt_checker_getctx(checker));
+
 	/* Some claims stuff */
 	ck_assert_ptr_null(jwt_checker_claim_get(NULL, JWT_CLAIM_SUB));
 	ck_assert_ptr_null(jwt_checker_claim_get(checker, JWT_CLAIM_IAT));

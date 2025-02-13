@@ -383,6 +383,10 @@ int jwt_builder_enable_iat(jwt_builder_t *builder, int enable);
  * The ctx value is also passed to the callback as part of the jwt_value_t
  * struct.
  *
+ * @note Calling this with a NULL cb param and a new ctx param after already
+ * setting the callback will allow updating the ctx passed to the callback.
+ * Calling with both values as NULL will disable the callback completely.
+ *
  * @param builder Pointer to a builder object
  * @param cb Pointer to a callback function
  * @param ctx Pointer to data to pass to the callback function
@@ -588,6 +592,10 @@ int jwt_checker_setkey(jwt_checker_t *checker, const jwt_alg_t alg, const
  *
  * The ctx value is also passed to the callback as part of the jwt_value_t
  * struct.
+ *
+ * @note Calling this with a NULL cb param and a new ctx param after already
+ * setting the callback will allow updating the ctx passed to the callback.
+ * Calling with both values as NULL will disable the callback completely.
  *
  * @param checker Pointer to a checker object
  * @param cb Pointer to a callback function
