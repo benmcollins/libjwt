@@ -16,6 +16,8 @@
 
 #include <jwt.h>
 
+#include "jwt-util.h"
+
 static char *out_dir;
 static int retry;
 
@@ -128,8 +130,6 @@ static int check_directory(const char *path)
 }
 
 
-extern const char *__progname;
-
 _Noreturn static void usage(const char *error, int exit_state)
 {
 	if (error)
@@ -160,7 +160,7 @@ written as a binary file (.bin extension).\n\
 \n\
 By default, existing files will not be overwritten. If you use the --retry\n\
 option, an attempt will be made to add -X to the file name, up to -9, in\n\
-an attempt to create the file.\n", __progname);
+an attempt to create the file.\n", get_progname());
 
         exit(exit_state);
 }

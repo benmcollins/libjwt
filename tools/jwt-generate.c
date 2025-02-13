@@ -17,8 +17,6 @@
 
 #include "jwt-util.h"
 
-extern const char *__progname;
-
 _Noreturn static void usage(const char *error, int exit_state)
 {
 	if (error)
@@ -56,7 +54,7 @@ is useful if you wanted to use something like `jq -C` to colorize it. A\n\
 non-0 exit status will stop the token from getting generated.\n\
 \n\
 If you need to convert a key to JWT (e.g. from PEM or DER format) see\n\
-key2jwk(1).\n", __progname);
+key2jwk(1).\n", get_progname());
 
 	exit(exit_state);
 }

@@ -12,18 +12,46 @@ static char *pipe_cmd;
 
 static FILE *json_fp;
 
-static int write_json(const char *title, const char *str)
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
+static inline int write_json(const char *title, const char *str)
 {
-	char *argv[4] = { "/bin/sh", "-c", NULL, NULL };
+	int exit_code = 0;
+
+	if (json_fp == NULL)
+		json_fp = stdout;
+
+	fprintf(json_fp, "\033[0;95m[%s]\033[0m\n", title);
+
+#ifdef _WIN32
+	FILE *pipe_fp = NULL;
+	if (pipe_cmd) {
+		pipe_fp = _popen(pipe_cmd, "w");
+		if (!pipe_fp) {
+			perror("popen");
+			return -1;
+		}
+	}
+
+	if (pipe_fp) {
+		if (fwrite(str, 1, strlen(str), pipe_fp) < strlen(str)) {
+			perror("fwrite");
+			exit_code = -1;
+		}
+
+		_pclose(pipe_fp);
+	}
+#else
 	int pipe_fd[2];
 	int myfd = 0;
 	pid_t pid;
 	int status;
 
-	if (json_fp == NULL)
-		json_fp = stdout;
-
 	if (pipe_cmd) {
+		char *argv[4] = { "/bin/sh", "-c", NULL, NULL };
+
 		if (pipe(pipe_fd)) {
 			perror(pipe_cmd);
 			exit(EXIT_FAILURE);
@@ -41,7 +69,6 @@ static int write_json(const char *title, const char *str)
 			close(pipe_fd[0]);
 
 			execvp(argv[0], argv);
-
 			perror("execvp");
 			exit(EXIT_FAILURE);
 		} else {
@@ -50,27 +77,29 @@ static int write_json(const char *title, const char *str)
 		}
 	}
 
-	fprintf(json_fp, "\033[0;95m[%s]\033[0m\n", title);
-
 	if (myfd) {
 		if (write(myfd, str, strlen(str)) < 0) {
 			perror(pipe_cmd);
 			exit(EXIT_FAILURE);
 		}
-	} else {
+	}
+#endif
+	else {
 		fprintf(json_fp, "\033[0;96m%s\033[0m\n", str);
 	}
 
+#ifndef _WIN32
 	if (myfd) {
 		close(myfd);
 		waitpid(pid, &status, 0);
-		return WEXITSTATUS(status);
+		exit_code = WEXITSTATUS(status);
 	}
+#endif
 
-	return 0;
+	return exit_code;
 }
 
-static int __jwt_wcb(jwt_t *jwt, jwt_config_t *config)
+static inline int __jwt_wcb(jwt_t *jwt, jwt_config_t *config)
 {
 	jwt_value_t jval;
 	int ret = 0, result = 0;
@@ -96,3 +125,17 @@ static int __jwt_wcb(jwt_t *jwt, jwt_config_t *config)
 
 	return result;
 }
+
+#ifdef _WIN32
+extern char **__argv;
+static inline const char *get_progname(void)
+{
+	return __argv[0];
+}
+#else
+extern const char *__progname;
+static inline const char *get_progname(void)
+{
+	return __progname;
+}
+#endif

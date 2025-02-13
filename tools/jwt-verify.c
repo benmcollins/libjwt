@@ -17,8 +17,6 @@
 
 #include "jwt-util.h"
 
-extern const char *__progname;
-
 _Noreturn static void usage(const char *error, int exit_state)
 {
 	if (error)
@@ -49,7 +47,7 @@ for the HEAD, and once for the PAYLOAD. A non-0 exit status will cause\n\
 the verification to fail.\n\
 \n\
 If you need to convert a key to JWK (e.g. from PEM or DER format) see\n\
-key2jwk(1).\n", __progname);
+key2jwk(1).\n", get_progname());
 
 	exit(exit_state);
 }

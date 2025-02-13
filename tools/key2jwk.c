@@ -28,6 +28,8 @@
 
 #include <jwt.h>
 
+#include "jwt-util.h"
+
 /* We make use of some LibJWT internals. Soon, this code will move into LibJWT
  * so it can be used to important PEM/DER keys into a JWK keyring. Until then,
  * we hack around it here. */
@@ -327,8 +329,6 @@ static json_t *parse_one_file(const char *file)
 	return jwk;
 }
 
-extern const char *__progname;
-
 _Noreturn static void usage(const char *error, int exit_state)
 {
 	if (error)
@@ -360,7 +360,7 @@ RSA-PSS keys will be set to PS256, otherwise they will look no different\n\
 than an RSA key.\n\
 \n\
 All keys will get a generated randomized uuidv4 \"kid\" attribute unless you\n\
-use the -k option..\n", __progname);
+use the -k option..\n", get_progname());
 
 	exit(exit_state);
 }
