@@ -36,9 +36,11 @@ int jwt_head_setup(jwt_t *jwt)
 		jwt_set_SET_STR(&jval, "typ", "JWT");
 		if (jwt_header_set(jwt, &jval)) {
 			if (jval.error != JWT_VALUE_ERR_EXIST) {
+				// LCOV_EXCL_START
 				jwt_write_error(jwt,
 					"Error setting \"typ\" in header");
 				return 1;
+				// LCOV_EXCL_STOP
 			}
 		}
 	}
