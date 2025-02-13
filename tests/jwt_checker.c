@@ -815,6 +815,35 @@ START_TEST(verify_ps256_bad_b64_sig)
 }
 END_TEST
 
+START_TEST(verify_ps256_bad_b64_sig_255)
+{
+	jwt_checker_auto_t *checker = NULL;
+	const char token[] = "eyJhbGciOiJQUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZG1pbiI"
+		"6ZmFsc2UsImlhdCI6MTczNjY5NDU5NCwiaXNzIjoiaHR0cHM6Ly9zd2lzc2Rp"
+		"c2suY29tIiwidXNlciI6ImJlbmNvbGxpbnMifQ.eyJhbGciOiJQUzI1N[IsIn"
+		"R5cCI6I!pXVCJ9";
+	int ret;
+
+	SET_OPS();
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+	ck_assert_int_eq(jwt_checker_error(checker), 0);
+
+	read_json("rsa_pss_key_2048.json");
+
+	ret = jwt_checker_setkey(checker, JWT_ALG_PS256, g_item);
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_checker_verify(checker, token);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_str_eq(jwt_checker_error_msg(checker),
+			 "Error decoding signature");
+
+	free_key();
+}
+END_TEST
+
 START_TEST(verify_ps256_bad_sig)
 {
 	jwt_checker_auto_t *checker = NULL;
@@ -898,6 +927,7 @@ static Suite *libjwt_suite(const char *title)
 	tc_core = tcase_create("Corner cases");
 	tcase_add_loop_test(tc_core, verify_ps256_nosig, 0, i);
 	tcase_add_loop_test(tc_core, verify_ps256_bad_b64_sig, 0, i);
+	tcase_add_loop_test(tc_core, verify_ps256_bad_b64_sig_255, 0, i);
 	tcase_add_loop_test(tc_core, verify_ps256_bad_sig, 0, i);
 	suite_add_tcase(s, tc_core);
 

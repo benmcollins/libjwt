@@ -126,6 +126,7 @@ base64_decode(const char *in, unsigned int inlen, unsigned char *out)
 	unsigned char c;
 
 	if (inlen & 0x3) {
+		/* We sanitize the input to where this never gets hit */
 		return 0; // LCOV_EXCL_LINE
 	}
 
@@ -134,12 +135,12 @@ base64_decode(const char *in, unsigned int inlen, unsigned char *out)
 			break;
 		}
 		if (in[i] < BASE64DE_FIRST || in[i] > BASE64DE_LAST) {
-			return 0; // LCOV_EXCL_LINE
+			return 0;
 		}
 
 		c = base64de[(unsigned char)in[i]];
 		if (c == 255) {
-			return 0; // LCOV_EXCL_LINE
+			return 0;
 		}
 
 		switch (i & 0x3) {
