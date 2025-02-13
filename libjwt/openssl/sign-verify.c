@@ -283,7 +283,7 @@ static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 
 	if (!ops_compat(jwt->key, JWT_CRYPTO_OPS_OPENSSL))
 		VERIFY_ERROR("Key is not compatible"); // LCOV_EXCL_LINE
-	
+
 	pkey = jwt->key->provider_data;
 
 	switch (jwt->alg) {
@@ -373,8 +373,8 @@ static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 
 		slen = i2d_ECDSA_SIG(ec_sig, NULL);
 
-		/* Reset this with the new information. */
-		sig = jwt_realloc(sig, slen);
+		/* Reset this with the new information */
+		sig = jwt_malloc(slen);
 		if (sig == NULL)
 			VERIFY_ERROR("Out of memory"); // LCOV_EXCL_LINE
 
