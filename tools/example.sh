@@ -1,5 +1,9 @@
 #!/bin/bash
 
+if command -v jq > /dev/null; then
+	JQ="--print=jq -C"
+fi
+
 KEY=jwt-test-key.bin
 JWK=jwk-test-key.json
 
@@ -11,6 +15,11 @@ fi
 if [ ! -e "$JWK" ]; then
 	echo Converting key to JWK
 	key2jwk -o "${JWK}" "${KEY}"
+	if [ -n "$JQ" ]; then
+		cat "${JWK}" | jq -C
+	else
+		cat "${JWK}"
+	fi
 fi
 
 TOKEN=jwt-test-token
@@ -25,10 +34,6 @@ jwt-generate -k "${JWK}"		\
 	-c s:iss=disk.swissdisk.com	\
 	-c s:user=bcollins		\
 	-c i:exp=${EXP} > ${TOKEN}
-
-if command -v jq > /dev/null; then
-	JQ="--print=jq -C"
-fi
 
 echo Verifying token
 cat ${TOKEN} | jwt-verify -k "${JWK}" "${JQ}" -v -
