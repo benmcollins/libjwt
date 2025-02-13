@@ -67,28 +67,6 @@ static int gnutls_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 	return 0;
 }
 
-static int gnutls_verify_sha_hmac(jwt_t *jwt, const char *head,
-				  unsigned int head_len, const char *sig)
-{
-	char *sig_check, *buf = NULL;
-	unsigned int len;
-	int ret;
-
-	if (gnutls_sign_sha_hmac(jwt, &sig_check, &len, head, head_len))
-		return 1; // LCOV_EXCL_LINE
-
-	ret = jwt_base64uri_encode(&buf, sig_check, len);
-	if (ret <= 0 || buf == NULL)
-		return 1; // LCOV_EXCL_LINE
-
-	ret = jwt_strcmp(sig, buf);
-
-	jwt_freemem(buf);
-	jwt_freemem(sig_check);
-
-	return ret;
-}
-
 #define SIGN_ERROR(_msg) { jwt_write_error(jwt, "JWT[GnuTLS]: " _msg); goto sign_clean_privkey; }
 
 static int gnutls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
@@ -439,7 +417,6 @@ struct jwt_crypto_ops jwt_gnutls_ops = {
 	.provider		= JWT_CRYPTO_OPS_GNUTLS,
 
 	.sign_sha_hmac		= gnutls_sign_sha_hmac,
-	.verify_sha_hmac	= gnutls_verify_sha_hmac,
 	.sign_sha_pem		= gnutls_sign_sha_pem,
 	.verify_sha_pem		= gnutls_verify_sha_pem,
 

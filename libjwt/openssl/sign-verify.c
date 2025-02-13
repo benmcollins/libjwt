@@ -73,34 +73,6 @@ static int openssl_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 	return 0;
 }
 
-static int openssl_verify_sha_hmac(jwt_t *jwt, const char *head,
-				   unsigned int head_len, const char *sig)
-{
-	char *res;
-	unsigned int res_len;
-	char *buf = NULL;
-	int ret;
-
-	ret = openssl_sign_sha_hmac(jwt, &res, &res_len, head, head_len);
-	if (ret)
-		return ret; // LCOV_EXCL_LINE
-
-	ret = jwt_base64uri_encode(&buf, (char *)res, res_len);
-	if (ret <= 0) {
-		// LCOV_EXCL_START
-		jwt_freemem(res);
-		return -ret;
-		// LCOV_EXCL_STOP
-	}
-
-	ret = jwt_strcmp(buf, sig) ? 1 : 0;
-	jwt_freemem(buf);
-	jwt_freemem(res);
-
-	/* And now... */
-	return ret;
-}
-
 static int jwt_ec_d2i(jwt_t *jwt, char **out, unsigned int *len,
 		      unsigned char *sig, unsigned int slen)
 {
@@ -455,7 +427,6 @@ struct jwt_crypto_ops jwt_openssl_ops = {
 	.provider		= JWT_CRYPTO_OPS_OPENSSL,
 
 	.sign_sha_hmac		= openssl_sign_sha_hmac,
-	.verify_sha_hmac	= openssl_verify_sha_hmac,
 	.sign_sha_pem		= openssl_sign_sha_pem,
 	.verify_sha_pem		= openssl_verify_sha_pem,
 

@@ -109,7 +109,7 @@ static void ec_alg_type(EVP_PKEY *pkey, char crv[32], char alg[32])
 	}
 
 	if (!__alg || !__crv) {
-		fprintf(stderr, "EC: Unknown curve %s with %ld bits\n",
+		fprintf(stderr, "EC: Unknown curve %s with %zd bits\n",
 			__named_crv, bits);
 		return;
 	}

@@ -146,8 +146,8 @@ struct jwt_crypto_ops {
 	/* Signing/Verifying */
 	int (*sign_sha_hmac)(jwt_t *jwt, char **out, unsigned int *len,
 		const char *str, unsigned int str_len);
-	int (*verify_sha_hmac)(jwt_t *jwt, const char *head,
-		unsigned int head_len, const char *sig);
+	/* Verifying hmac is basically signing the current token and cmparing
+	 * the signatures. */
 	int (*sign_sha_pem)(jwt_t *jwt, char **out, unsigned int *len,
 		const char *str, unsigned int str_len);
 	int (*verify_sha_pem)(jwt_t *jwt, const char *head,

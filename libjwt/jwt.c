@@ -390,6 +390,34 @@ int jwt_sign(jwt_t *jwt, char **out, unsigned int *len, const char *str,
 	}
 }
 
+static int _verify_sha_hmac(jwt_t *jwt, const char *head,
+			    unsigned int head_len, const char *sig)
+{
+	char *res;
+	unsigned int res_len;
+	char *buf = NULL;
+	int ret;
+
+	ret = jwt_ops->sign_sha_hmac(jwt, &res, &res_len, head, head_len);
+	if (ret)
+		return ret; // LCOV_EXCL_LINE
+
+	ret = jwt_base64uri_encode(&buf, (char *)res, res_len);
+	if (ret <= 0) {
+		// LCOV_EXCL_START
+		jwt_freemem(res);
+		return -ret;
+		// LCOV_EXCL_STOP
+	}
+
+	ret = jwt_strcmp(buf, sig) ? 1 : 0;
+	jwt_freemem(buf);
+	jwt_freemem(res);
+
+	/* And now... */
+	return ret;
+}
+
 jwt_t *jwt_verify_sig(jwt_t *jwt, const char *head, unsigned int head_len,
 		      const char *sig)
 {
@@ -398,7 +426,7 @@ jwt_t *jwt_verify_sig(jwt_t *jwt, const char *head, unsigned int head_len,
 	case JWT_ALG_HS256:
 	case JWT_ALG_HS384:
 	case JWT_ALG_HS512:
-		if (jwt_ops->verify_sha_hmac(jwt, head, head_len, sig))
+		if (_verify_sha_hmac(jwt, head, head_len, sig))
 			jwt_write_error(jwt, "Token failed verification");
 		break;
 
