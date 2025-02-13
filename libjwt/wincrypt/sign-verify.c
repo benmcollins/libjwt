@@ -783,7 +783,9 @@ jwt_sign_sha_pem_done:
 
 #define VERIFY_PEM_ERROR(__err) { ret = __err; goto jwt_verify_sha_pem_done; }
 
-static int wincrypt_verify_sha_pem(jwt_t *jwt, const char *head, const char *sig_b64)
+static int wincrypt_verify_sha_pem(jwt_t *jwt, const char *head,
+				   unsigned char *sig,
+				   int sig_len)
 {
 	int ret = EINVAL;
 	LPCWSTR alg;
@@ -837,9 +839,8 @@ static int wincrypt_verify_sha_pem(jwt_t *jwt, const char *head, const char *sig
 		VERIFY_PEM_ERROR(EINVAL);
 	}
 
-	/* Decode signature. */
-	if (!(pbSignature = jwt_b64_decode(sig_b64, &cbSignature)))
-		VERIFY_PEM_ERROR(EINVAL);
+	pbSignature = sig;
+	cbSignature = sig_len;
 
 	/* Open handle to public key. */
 	if (is_public_key_pem(jwt->key, jwt->key_len))
@@ -933,9 +934,6 @@ static int wincrypt_verify_sha_pem(jwt_t *jwt, const char *head, const char *sig
 	ret = 0;
 
 jwt_verify_sha_pem_done:
-	if (pbSignature)
-		jwt_freemem(pbSignature);
-
 	if (pbHashObject)
 		jwt_freemem(pbHashObject);
 

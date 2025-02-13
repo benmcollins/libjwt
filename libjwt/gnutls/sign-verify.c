@@ -249,7 +249,8 @@ sign_clean_privkey:
 #define VERIFY_ERROR(_msg) { jwt_write_error(jwt, "JWT[GnuTLS]: " _msg); goto verify_clean_sig; }
 
 static int gnutls_verify_sha_pem(jwt_t *jwt, const char *head,
-				 unsigned int head_len, const char *sig_b64)
+				 unsigned int head_len, unsigned char *sig,
+				 int sig_len)
 {
 	gnutls_datum_t r, s;
 	gnutls_datum_t data = {
@@ -258,8 +259,7 @@ static int gnutls_verify_sha_pem(jwt_t *jwt, const char *head,
 	};
 	gnutls_datum_t sig_dat = { NULL, 0 };
 	gnutls_pubkey_t pubkey;
-	int alg, ret = 0, sig_len;
-	unsigned char *sig = NULL;
+	int alg, ret = 0;
 
 	if (gnutls_pubkey_init(&pubkey))
 		VERIFY_ERROR("Failed initializing pubkey") // LCOV_EXCL_LINE
@@ -353,10 +353,6 @@ static int gnutls_verify_sha_pem(jwt_t *jwt, const char *head,
 		VERIFY_ERROR("Unknown alg") // LCOV_EXCL_LINE
 	}
 
-	sig = (unsigned char *)jwt_base64uri_decode(sig_b64, &sig_len);
-	if (sig == NULL)
-		VERIFY_ERROR("Error decoding signature") // LCOV_EXCL_LINE
-
 	/* Rebuild signature using r and s extracted from sig when jwt->alg
 	 * is ESxxx. */
 	switch (jwt->alg) {
@@ -406,7 +402,6 @@ static int gnutls_verify_sha_pem(jwt_t *jwt, const char *head,
 
 verify_clean_sig:
 	gnutls_pubkey_deinit(pubkey);
-	jwt_freemem(sig);
 
 	return ret;
 }

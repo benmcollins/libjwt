@@ -151,7 +151,8 @@ struct jwt_crypto_ops {
 	int (*sign_sha_pem)(jwt_t *jwt, char **out, unsigned int *len,
 		const char *str, unsigned int str_len);
 	int (*verify_sha_pem)(jwt_t *jwt, const char *head,
-		unsigned int head_len, const char *sig_b64);
+		unsigned int head_len, unsigned char *sig,
+		int sig_len);
 
 	/* Parsing a JWK to prepare it for use */
 	int jwk_implemented;

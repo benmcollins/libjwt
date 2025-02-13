@@ -419,14 +419,19 @@ static int _verify_sha_hmac(jwt_t *jwt, const char *head,
 }
 
 jwt_t *jwt_verify_sig(jwt_t *jwt, const char *head, unsigned int head_len,
-		      const char *sig)
+		      const char *sig_b64)
 {
+	int sig_len;
+	unsigned char *sig;
+
+	sig = jwt_base64uri_decode(sig_b64, &sig_len);
+
 	switch (jwt->alg) {
 	/* HMAC */
 	case JWT_ALG_HS256:
 	case JWT_ALG_HS384:
 	case JWT_ALG_HS512:
-		if (_verify_sha_hmac(jwt, head, head_len, sig))
+		if (_verify_sha_hmac(jwt, head, head_len, sig_b64))
 			jwt_write_error(jwt, "Token failed verification");
 		break;
 
@@ -448,8 +453,16 @@ jwt_t *jwt_verify_sig(jwt_t *jwt, const char *head, unsigned int head_len,
 
 	/* EdDSA */
 	case JWT_ALG_EDDSA:
-		if (jwt_ops->verify_sha_pem(jwt, head, head_len, sig))
+		sig = jwt_base64uri_decode(sig_b64, &sig_len);
+		if (sig == NULL) {
+			jwt_write_error(jwt, "Error decoding signature");
+			return jwt;
+		}
+
+		if (jwt_ops->verify_sha_pem(jwt, head, head_len, sig, sig_len))
 			jwt_write_error(jwt, "Token failed verification");
+
+		jwt_freemem(sig);
 		break;
 
 	/* You wut, mate? */

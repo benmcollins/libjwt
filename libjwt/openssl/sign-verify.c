@@ -268,9 +268,9 @@ jwt_sign_sha_pem_done:
 #define VERIFY_ERROR(_msg) { jwt_write_error(jwt, "JWT[OpenSSL]: " _msg); goto jwt_verify_sha_pem_done; }
 
 static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
-				  unsigned int head_len, const char *sig_b64)
+				  unsigned int head_len,
+				  unsigned char *sig, int slen)
 {
-	unsigned char *sig = NULL;
 	EVP_MD_CTX *mdctx = NULL;
 	EVP_PKEY_CTX *pkey_ctx = NULL;
 	ECDSA_SIG *ec_sig = NULL;
@@ -280,7 +280,6 @@ static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 	const EVP_MD *alg;
 	int type;
 	BIO *bufkey = NULL;
-	int slen;
 
 	if (!ops_compat(jwt->key, JWT_CRYPTO_OPS_OPENSSL))
 		VERIFY_ERROR("Key is not compatible"); // LCOV_EXCL_LINE
@@ -344,10 +343,6 @@ static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 	default:
 		VERIFY_ERROR("Unknown algorithm"); // LCOV_EXCL_LINE
 	}
-
-	sig = jwt_base64uri_decode(sig_b64, &slen);
-	if (sig == NULL)
-		VERIFY_ERROR("Error decoding signature");
 
 	if (type == EVP_PKEY_RSA_PSS) {
 		if (EVP_PKEY_id(pkey) != EVP_PKEY_RSA_PSS &&
@@ -415,7 +410,6 @@ static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 jwt_verify_sha_pem_done:
 	BIO_free(bufkey);
 	EVP_MD_CTX_destroy(mdctx);
-	jwt_freemem(sig);
 	ECDSA_SIG_free(ec_sig);
 
 	return jwt->error;
