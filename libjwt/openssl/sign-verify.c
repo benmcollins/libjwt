@@ -53,8 +53,10 @@ static int openssl_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 	case JWT_ALG_HS512:
 		alg = EVP_sha512();
 		break;
+	// LCOV_EXCL_START
 	default:
-		return 1; // LCOV_EXCL_LINE
+		return 1;
+	// LCOV_EXCL_STOP
 	}
 
 	*out = jwt_malloc(EVP_MAX_MD_SIZE);
@@ -194,8 +196,10 @@ static int openssl_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 			SIGN_ERROR("Unknown EdDSA curve"); // LCOV_EXCL_LINE
 		break;
 
+	// LCOV_EXCL_START
 	default:
-		return 1; // LCOV_EXCL_LINE
+		return 1;
+	// LCOV_EXCL_STOP
 	}
 
 	if (type == EVP_PKEY_RSA_PSS) {
@@ -340,8 +344,10 @@ static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 			VERIFY_ERROR("Unknown EdDSA curve"); // LCOV_EXCL_LINE
 		break;
 
+	// LCOV_EXCL_START
 	default:
-		VERIFY_ERROR("Unknown algorithm"); // LCOV_EXCL_LINE
+		VERIFY_ERROR("Unknown algorithm");
+	// LCOV_EXCL_STOP
 	}
 
 	if (type == EVP_PKEY_RSA_PSS) {

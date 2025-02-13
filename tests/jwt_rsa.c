@@ -8,7 +8,7 @@
 
 #include "jwt_tests.h"
 
-START_TEST(test_jwks_rsa_pub_missing)
+START_TEST(rsa_pub_missing)
 {
 	const char *json = "{\"kty\":\"RSA\"}";
 	jwk_set_t *jwk_set = NULL;
@@ -32,7 +32,8 @@ START_TEST(test_jwks_rsa_pub_missing)
 }
 END_TEST
 
-START_TEST(test_jwks_rsa_pub_bad_type)
+
+START_TEST(rsa_pub_bad_type)
 {
 	const char *json = "{\"kty\":\"RSA\",\"n\":\"YmFkdmFsdWUK\",\"e\":1}";
 	jwk_set_t *jwk_set = NULL;
@@ -56,7 +57,7 @@ START_TEST(test_jwks_rsa_pub_bad_type)
 }
 END_TEST
 
-START_TEST(test_jwks_rsa_pub_bad64)
+START_TEST(rsa_pub_bad64)
 {
 	const char *json = "{\"kty\":\"RSA\",\"n\":\"\",\"e\":\"asaadaaaaaa\"}";
 	jwk_set_t *jwk_set = NULL;
@@ -80,7 +81,7 @@ START_TEST(test_jwks_rsa_pub_bad64)
 }
 END_TEST
 
-START_TEST(test_jwks_rsa_pub_binary64)
+START_TEST(rsa_pub_binary64)
 {
 	const char *json = "{\"kty\":\"RSA\",\"n\":"
 		"\"2fyxRFHaYP2a4pbdTK/s9x4YWV7qAWwJMXMkbRmy51w\","
@@ -104,7 +105,7 @@ START_TEST(test_jwks_rsa_pub_binary64)
 }
 END_TEST
 
-START_TEST(test_jwks_rsa_priv_missing)
+START_TEST(rsa_priv_missing)
 {
 	const char *json = "{\"kty\":\"RSA\",\"n\":\"YmFkdmFsdWUK\","
 		"\"e\":\"YmFkdmFsdWUK\",\"d\":\"YmFkdmFsdWUK\"}";
@@ -129,7 +130,7 @@ START_TEST(test_jwks_rsa_priv_missing)
 }
 END_TEST
 
-START_TEST(test_jwks_rsa_priv_bad64)
+START_TEST(rsa_priv_bad64)
 {
 	const char *json = "{\"kty\":\"RSA\",\"n\":\"YmFkdmFsdWUK\","
 		"\"e\":\"YmFkdmFsdWUK\",\"d\":"
@@ -156,6 +157,80 @@ START_TEST(test_jwks_rsa_priv_bad64)
 }
 END_TEST
 
+START_TEST(rsa_short)
+{
+	jwt_builder_auto_t *builder = NULL;
+	char *out = NULL;
+	int ret;
+
+	SET_OPS();
+
+	builder = jwt_builder_new();
+	ck_assert_ptr_nonnull(builder);
+	ck_assert_int_eq(jwt_builder_error(builder), 0);
+
+	read_json("rsa_key_1024.json");
+	ret = jwt_builder_setkey(builder, JWT_ALG_RS256, g_item);
+	ck_assert_int_eq(ret, 0);
+
+	out = jwt_builder_generate(builder);
+	ck_assert_ptr_null(out);
+	ck_assert_str_eq(jwt_builder_error_msg(builder),
+			"Key too short for RSA algs: 1024 bits");
+
+	free_key();
+}
+END_TEST
+
+START_TEST(rsa_ec_short)
+{
+        jwt_builder_auto_t *builder = NULL;
+        char *out = NULL;
+        int ret;
+
+	SET_OPS();
+
+	builder = jwt_builder_new();
+	ck_assert_ptr_nonnull(builder);
+	ck_assert_int_eq(jwt_builder_error(builder), 0);
+
+	read_json("rsa_key_1024.json");
+	ret = jwt_builder_setkey(builder, JWT_ALG_ES256, g_item);
+        ck_assert_int_eq(ret, 0);
+
+	out = jwt_builder_generate(builder);
+	ck_assert_ptr_null(out);
+	ck_assert_str_eq(jwt_builder_error_msg(builder),
+			"Key needs to be 256 bits: 1024 bits");
+
+	ret = jwt_builder_setkey(builder, JWT_ALG_EDDSA, g_item);
+	ck_assert_int_eq(ret, 0);
+
+	out = jwt_builder_generate(builder);
+	ck_assert_ptr_null(out);
+	ck_assert_str_eq(jwt_builder_error_msg(builder),
+			"Key needs to be 256 or 456 bits: 1024 bits");
+
+	ret = jwt_builder_setkey(builder, JWT_ALG_ES384, g_item);
+	ck_assert_int_eq(ret, 0);
+
+	out = jwt_builder_generate(builder);
+	ck_assert_ptr_null(out);
+	ck_assert_str_eq(jwt_builder_error_msg(builder),
+			"Key needs to be 384 bits: 1024 bits");
+
+	ret = jwt_builder_setkey(builder, JWT_ALG_ES512, g_item);
+	ck_assert_int_eq(ret, 0);
+
+	out = jwt_builder_generate(builder);
+	ck_assert_ptr_null(out);
+	ck_assert_str_eq(jwt_builder_error_msg(builder),
+			"Key needs to be 521 bits: 1024 bits");
+
+	free_key();
+}
+END_TEST
+
 static Suite *libjwt_suite(const char *title)
 {
 	Suite *s;
@@ -167,12 +242,14 @@ static Suite *libjwt_suite(const char *title)
 	tc_core = tcase_create("jwt_jwks_rsa");
 
 	/* RSA specific error path tests */
-	tcase_add_loop_test(tc_core, test_jwks_rsa_pub_missing, 0, i);
-	tcase_add_loop_test(tc_core, test_jwks_rsa_pub_bad64, 0, i);
-	tcase_add_loop_test(tc_core, test_jwks_rsa_pub_bad_type, 0, i);
-	tcase_add_loop_test(tc_core, test_jwks_rsa_pub_binary64, 0, i);
-	tcase_add_loop_test(tc_core, test_jwks_rsa_priv_missing, 0, i);
-	tcase_add_loop_test(tc_core, test_jwks_rsa_priv_bad64, 0, i);
+	tcase_add_loop_test(tc_core, rsa_pub_missing, 0, i);
+	tcase_add_loop_test(tc_core, rsa_pub_bad64, 0, i);
+	tcase_add_loop_test(tc_core, rsa_pub_bad_type, 0, i);
+	tcase_add_loop_test(tc_core, rsa_pub_binary64, 0, i);
+	tcase_add_loop_test(tc_core, rsa_priv_missing, 0, i);
+	tcase_add_loop_test(tc_core, rsa_priv_bad64, 0, i);
+	tcase_add_loop_test(tc_core, rsa_short, 0, i);
+	tcase_add_loop_test(tc_core, rsa_ec_short, 0, i);
 
 	tcase_set_timeout(tc_core, 30);
 

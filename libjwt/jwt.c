@@ -275,9 +275,10 @@ static int __check_hmac(jwt_t *jwt)
 		jwt_write_error(jwt, "Key too short for HS512: %d bits",
 				key_bits);
 		break;
-
+	// LCOV_EXCL_START
 	default:
-		return 1; // LCOV_EXCL_LINE
+		return 1;
+	// LCOV_EXCL_STOP
 	}
 
 	return 1;
@@ -329,12 +330,13 @@ static int __check_key_bits(jwt_t *jwt)
 		jwt_write_error(jwt, "Key needs to be 521 bits: %d bits",
 				key_bits);
 		break;
-
+	// LCOV_EXCL_START
 	default:
-		return 1; // LCOV_EXCL_LINE
+		break;
+	// LCOV_EXCL_STOP
 	}
 
-	return 1;
+	return 1; // LCOV_EXCL_LINE
 }
 
 int jwt_sign(jwt_t *jwt, char **out, unsigned int *len, const char *str,
@@ -382,11 +384,11 @@ int jwt_sign(jwt_t *jwt, char **out, unsigned int *len, const char *str,
 		}
 
 	/* You wut, mate? */
+	// LCOV_EXCL_START
 	default:
-		// LCOV_EXCL_START
 		jwt_write_error(jwt, "Unknown algorigthm");
 		return 1;
-		// LCOV_EXCL_STOP
+	// LCOV_EXCL_STOP
 	}
 }
 
@@ -466,8 +468,10 @@ jwt_t *jwt_verify_sig(jwt_t *jwt, const char *head, unsigned int head_len,
 		break;
 
 	/* You wut, mate? */
+	// LCOV_EXCL_START
 	default:
-		jwt_write_error(jwt, "Unknown algorigthm"); // LCOV_EXCL_LINE
+		jwt_write_error(jwt, "Unknown algorigthm");
+	// LCOV_EXCL_STOP
 	}
 
 	return jwt;

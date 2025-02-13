@@ -4,7 +4,6 @@
     "verify",
     "sign"
   ],
-  "alg": "RS256",
   "kid": "0023a6e1-f093-448d-9038-9ff168611b86",
   "kty": "RSA",
   "n": "tY1EN770i5YmM04J-5TJr4eVjTtmJ7qVZdg46RjMVL9kXmNUSjRZKOoI798IoGhHCOSUOs26lxnegazKIeADuFOpgWXWwcC9jGrCly30zho_pUAHA8LEZjaQtuZatT9XyRSQC6inHIyRZrqq7hzhyFpcL-7sqwITtTSPADVRjPk",

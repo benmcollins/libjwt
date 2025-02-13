@@ -214,9 +214,10 @@ jwt_value_error_t __setter(json_t *which, jwt_value_t *value)
 
 	case JWT_VALUE_JSON:
 		return jwt_set_json(which, value);
-
+	// LCOV_EXCL_START
 	default:
-		return value->error = JWT_VALUE_ERR_INVALID; // LCOV_EXCL_LINE
+		return value->error = JWT_VALUE_ERR_INVALID;
+	// LCOV_EXCL_STOP
 	}
 }
 
@@ -239,9 +240,10 @@ jwt_value_error_t __getter(json_t *which, jwt_value_t *value)
 
 	case JWT_VALUE_JSON:
 		return jwt_get_json(which, value);
-
+	// LCOV_EXCL_START
 	default:
-		return value->error = JWT_VALUE_ERR_INVALID; // LCOV_EXCL_LINE
+		return value->error = JWT_VALUE_ERR_INVALID;
+	// LCOV_EXCL_STOP
 	}
 }
 
@@ -270,8 +272,10 @@ static jwt_value_error_t __run_it(jwt_t *jwt, _setget_type_t type,
 	case __CLAIM:
 		which = jwt->claims;
 		break;
+	// LCOV_EXCL_START
 	default:
-		return value->error = JWT_VALUE_ERR_INVALID; // LCOV_EXCL_LINE
+		return value->error = JWT_VALUE_ERR_INVALID;
+	// LCOV_EXCL_STOP
 	}
 
 	return doer(which, value);

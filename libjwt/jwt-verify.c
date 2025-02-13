@@ -251,8 +251,11 @@ static int __verify_config_post(jwt_t *jwt, const jwt_config_t *config,
 			return 1;
 		}
 	} else if (config->alg != config->key->alg) {
+		/* It's not really possible to get here due to checks in setkey */
+		// LCOV_EXCL_START
 		jwt_write_error(jwt, "Config and key alg does not match");
 		return 1;
+		// LCOV_EXCL_STOP
 	}
 
 	return 0;

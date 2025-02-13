@@ -191,8 +191,10 @@ static jwt_value_error_t __run_it(jwt_common_t *__cmd, _setget_type_t type,
 	case __CLAIM:
 		which = __cmd->c.payload;
 		break;
+	// LCOV_EXCL_START
 	default:
-		return value->error = JWT_VALUE_ERR_INVALID; // LCOV_EXCL_LINE
+		return value->error = JWT_VALUE_ERR_INVALID;
+	// LCOV_EXCL_STOP
 	}
 
 	return doer(which, value);
