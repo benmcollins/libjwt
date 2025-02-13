@@ -6,14 +6,25 @@
    License, v. 2.0. If a copy of the MPL was not distributed with this
    file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include <stdlib.h>
-#include <string.h>
+/* XXX This file is used to generate jwt-builder.i and jwt-checker.i */
 
-#include <jwt.h>
+#ifdef JWT_BUILDER
+#define jwt_common_t	jwt_builder_t
+#define FUNC(__x)	jwt_builder_##__x
+#define CLAIMS_DEF	JWT_CLAIM_IAT
+#define __DISABLE	0
+#endif
 
-#include "jwt-private.h"
+#ifdef JWT_CHECKER
+#define jwt_common_t	jwt_checker_t
+#define FUNC(__x)	jwt_checker_##__x
+#define CLAIMS_DEF	(JWT_CLAIM_EXP | JWT_CLAIM_NBF)
+#define __DISABLE	-1
+#endif
 
-/* XXX This file is used to generate jwt-builder.c and jwt-checker.c */
+#ifndef jwt_common_t
+#error Must have target defined
+#endif
 
 void FUNC(free)(jwt_common_t *__cmd)
 {

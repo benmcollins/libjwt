@@ -60,16 +60,22 @@ set_target_properties(jwt_static PROPERTIES
 	COMPILE_FLAGS -DJWT_STATIC_DEFINE)
 
 add_custom_command(
-	OUTPUT ${CMAKE_SOURCE_DIR}/libjwt/jwt-builder.c
-	WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/libjwt
-	COMMAND sed -f builder.sed jwt-common.c > jwt-builder.c
-	DEPENDS libjwt/jwt-common.c libjwt/builder.sed)
+	OUTPUT jwt-builder.i
+	COMMAND ${CMAKE_C_COMPILER} -E ${CMAKE_SOURCE_DIR}/libjwt/jwt-common.c -DJWT_BUILDER
+		-o jwt-builder.i
+	DEPENDS libjwt/jwt-common.c)
 
 add_custom_command(
-	OUTPUT ${CMAKE_SOURCE_DIR}/libjwt/jwt-checker.c
-	WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/libjwt
-	COMMAND sed -f checker.sed jwt-common.c > jwt-checker.c
-	DEPENDS libjwt/jwt-common.c libjwt/checker.sed)
+	OUTPUT jwt-checker.i
+	COMMAND ${CMAKE_C_COMPILER} -E ${CMAKE_SOURCE_DIR}/libjwt/jwt-common.c -DJWT_CHECKER
+		-o jwt-checker.i
+	DEPENDS libjwt/jwt-common.c)
+
+add_custom_target(gen_jwt_builder ALL DEPENDS jwt-builder.i)
+add_custom_target(gen_jwt_checker ALL DEPENDS jwt-checker.i)
+
+add_dependencies(jwt        gen_jwt_builder gen_jwt_checker)
+add_dependencies(jwt_static gen_jwt_builder gen_jwt_checker)
 
 set(JWT_SOURCES libjwt/base64.c
 	libjwt/jwt-memory.c
@@ -106,7 +112,6 @@ if (GNUTLS_FOUND)
 	target_link_libraries(jwt_static PUBLIC PkgConfig::GNUTLS)
 	list(APPEND JWT_SOURCES
 	     libjwt/gnutls/sign-verify.c)
-	# libjwt/gnutls/jwk-parse.c
 endif()
 
 if (MBEDTLS_FOUND)
@@ -116,7 +121,6 @@ if (MBEDTLS_FOUND)
 	target_link_libraries(jwt_static PUBLIC PkgConfig::MBEDTLS)
 	list(APPEND JWT_SOURCES
 	     libjwt/mbedtls/sign-verify.c)
-        # libjwt/mbedtls/jwk-parse.c
 endif()
 
 set(HAVE_CRYPTO TRUE)
