@@ -26,7 +26,7 @@ jobs:
     - uses: actions/checkout@v4
     - uses: ConorMacBride/install-package@v1
       with:
-        brew: gnutls openssl@3 jansson pkgconf cmake check curl
+        brew: gnutls openssl@3 jansson pkgconf cmake check curl bats-core
 
     - name: Build and Test
       uses: threeal/cmake-action@v2.1.0
@@ -44,7 +44,7 @@ jobs:
     - uses: actions/checkout@v4
     - uses: ConorMacBride/install-package@v1
       with:
-        apt: gnutls-dev libssl-dev libjansson-dev pkg-config check lcov valgrind libcurl4-openssl-dev
+        apt: gnutls-dev libssl-dev libjansson-dev pkg-config check lcov valgrind libcurl4-openssl-dev bats
 
     - name: Build, Test, and Coverage
       uses: threeal/cmake-action@v2.1.0
