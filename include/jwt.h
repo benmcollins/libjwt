@@ -1174,7 +1174,7 @@ jwt_alg_t jwt_str_alg(const char *alg);
  */
 
 /**
- * @brief Create or add to a keyring of JSON Web Keys
+ * @brief Create or add to a keyring from a null terminated string
  *
  * This function, and the utility versions, allow you to create a keyring
  * used to verify and/or create JSON Web Tokens. It accepts either single
@@ -1201,7 +1201,7 @@ JWT_EXPORT
 jwk_set_t *jwks_load(jwk_set_t *jwk_set, const char *jwk_json_str);
 
 /**
- * @brief Create a new JWKS object from a string of known length
+ * @brief Create or add to a keyring from a string of known length
  *
  * Useful if the string is not null terminated. Otherwise, it works the same
  * as jwks_load().
@@ -1220,7 +1220,7 @@ jwk_set_t *jwks_load_strn(jwk_set_t *jwk_set, const char *jwk_json_str,
 			    const size_t len);
 
 /**
- * @brief Create a new JWKS object from a file
+ * @brief Create or add to a keyring from a file
  *
  * The JSON will be read from a file on the system. Must be readable by the
  * running process. The end result of this function is the same as jwks_load.
@@ -1236,7 +1236,7 @@ JWT_EXPORT
 jwk_set_t *jwks_load_fromfile(jwk_set_t *jwk_set, const char *file_name);
 
 /**
- * @brief Create a new JWKS object from a FILE pointer
+ * @brief Create or add to a keyring from a FILE pointer
  *
  * The JSON will be read from a FILE pointer. The end result of this function
  * is the same as jwks_load. The FILE pointer must be set to the starting
@@ -1252,6 +1252,26 @@ jwk_set_t *jwks_load_fromfile(jwk_set_t *jwk_set, const char *file_name);
  */
 JWT_EXPORT
 jwk_set_t *jwks_load_fromfp(jwk_set_t *jwk_set, FILE *input);
+
+/**
+ * @brief Create or add to a keyring from a URL
+ *
+ * The JSON will be retrieved from a URL. This can be any URL understood by
+ * by Libcurl.
+ *
+ * Example: https://example.com/.well-known/jwks.json
+ *
+ * @warning You should not have private keys available on public web sites.
+ *
+ * @param jwk_set Either NULL to create a new set, or an existing jwt_set
+ *   to add new keys to it.
+ * @param url A string URL to where the JSON representation of a single key
+ *   or array of "keys" can be retrieved from. Generally a json file.
+ * @return A valid jwt_set_t on success. On failure, either NULL
+ *   or a jwt_set_t with error set. NULL generally means ENOMEM.
+ */
+JWT_EXPORT
+jwk_set_t *jwks_load_fromurl(jwk_set_t *jwk_set, const char *url);
 
 /**
  * @brief Wrapper around jwks_load() that explicitly creates a new keyring
@@ -1278,6 +1298,13 @@ jwk_set_t *jwks_create_fromfile(const char *file_name);
  */
 JWT_EXPORT
 jwk_set_t *jwks_create_fromfp(FILE *input);
+
+/**
+ * @brief Wrapper around jwks_load_fromurl() that explicitly creates a new
+ *  keyring
+ */
+JWT_EXPORT
+jwk_set_t *jwks_create_fromurl(const char *url);
 
 /**
  * @brief Check if there is an error with a jwk_set

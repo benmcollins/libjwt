@@ -78,6 +78,42 @@ START_TEST(test_jwks_keyring_load)
 }
 END_TEST
 
+#ifdef HAVE_LIBCURL
+START_TEST(load_fromurl)
+{
+	jwk_set_auto_t *jwk_set = NULL;
+
+	SET_OPS();
+
+	jwk_set = jwks_create_fromurl(NULL);
+	ck_assert_ptr_null(jwk_set);
+
+	jwk_set = jwks_create_fromurl("file:///DOESNOTEXIST");
+	ck_assert_ptr_nonnull(jwk_set);
+	ck_assert_str_eq(jwks_error_msg(jwk_set),
+			"Couldn't read a file:// file");
+	jwks_error_clear(jwk_set);
+
+	jwk_set = jwks_load_fromurl(jwk_set, "https://127.0.0.1:8989");
+	ck_assert_ptr_nonnull(jwk_set);
+	ck_assert_str_eq(jwks_error_msg(jwk_set),
+			"Couldn't connect to server");
+	jwks_error_clear(jwk_set);
+
+	//jwk_set = jwks_load_fromurl("https://maclara-llc.com/.well-known/jwks.json");
+	jwk_set = jwks_load_fromurl(jwk_set, "file://" KEYDIR "/jwks_keyring.json");
+	ck_assert_ptr_nonnull(jwk_set);
+
+	ck_assert_int_eq(jwks_item_count(jwk_set), 27);
+}
+#else
+START_TEST(load_fromurl)
+{
+	ck_assert_ptr_null(jwks_create_fromurl(NULL));
+}
+END_TEST
+#endif
+
 START_TEST(test_jwks_keyring_all_bad)
 {
 	const jwk_item_t *item;
@@ -174,6 +210,8 @@ static Suite *libjwt_suite(const char *title)
 	/* Load a whole keyring */
 	tcase_add_loop_test(tc_core, test_jwks_keyring_load, 0, i);
 	tcase_add_loop_test(tc_core, test_jwks_keyring_all_bad, 0, i);
+
+	tcase_add_loop_test(tc_core, load_fromurl, 0, i);
 
 	/* Some coverage attempts */
 	tcase_add_loop_test(tc_core, test_jwks_key_op_all_types, 0, i);

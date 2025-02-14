@@ -35,6 +35,7 @@ endif()
 
 option(WITH_GNUTLS "Whether to use GnuTLS (default is auto detect)" ON)
 option(WITH_MBEDTLS "Whether to use mbedTLS (default is OFF)" OFF)
+option(WITH_LIBCURL "Whether to include CUrl for retrieving JWKS (default is OFF)" OFF)
 option(WITH_TESTS "Whether to build and run the testsuite (default is ON)" ON)
 
 # Optional
@@ -45,8 +46,13 @@ if (WITH_GNUTLS)
 	pkg_check_modules(GNUTLS gnutls>=3.6.0 IMPORTED_TARGET
 			  ${GNUTLS_REQUIRED})
 endif()
+
 if (WITH_MBEDTLS)
-	pkg_check_modules(MBEDTLS mbedcrypto>=3.6.0 IMPORTED_TARGET)
+	pkg_check_modules(MBEDTLS mbedcrypto>=3.6.0 IMPORTED_TARGET REQUIRED)
+endif()
+
+if (WITH_LIBCURL)
+	pkg_check_modules(LIBCURL libcurl>=8.0.0 IMPORTED_TARGET REQUIRED)
 endif()
 
 # Required
@@ -86,7 +92,8 @@ set(JWT_SOURCES libjwt/base64.c
 	libjwt/jwt-encode.c
 	libjwt/jwt-verify.c
 	libjwt/jwt-builder.c
-	libjwt/jwt-checker.c)
+	libjwt/jwt-checker.c
+	libjwt/jwks-curl.c)
 
 # Allow building without deprecated functions (suggested)
 option(EXCLUDE_DEPRECATED
@@ -130,6 +137,12 @@ target_link_libraries(jwt_static PUBLIC PkgConfig::OPENSSL)
 list(APPEND JWT_SOURCES
      libjwt/openssl/jwk-parse.c
      libjwt/openssl/sign-verify.c)
+
+if (LIBCURL_FOUND)
+	add_definitions(-DHAVE_LIBCURL)
+	target_link_libraries(jwt PUBLIC PkgConfig::LIBCURL)
+	target_link_libraries(jwt_static PUBLIC PkgConfig::LIBCURL)
+endif()
 
 set(TOOLS)
 
@@ -210,7 +223,7 @@ install(EXPORT ${LIBJWT_PROJECT}Targets
 # For pkg-config users
 unset(LIBJWT_LDFLAGS)
 foreach (FLAG ${JANSSON_LDFLAGS} ${OPENSSL_LDFLAGS} ${GNUTLS_LDFLAGS}
-	${MBEDTLS_LDFLAGS})
+		${MBEDTLS_LDFLAGS} ${LIBCURL_LDFLAGS})
 	string(APPEND LIBJWT_LDFLAGS " " ${FLAG})
 endforeach()
 
