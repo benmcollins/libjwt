@@ -23,7 +23,7 @@ jobs:
         fetch-depth: 0
     - uses: ConorMacBride/install-package@v1
       with:
-        brew: gnutls openssl@3 jansson pkgconf cmake doxygen graphviz autoconf automake libtool
+        brew: openssl@3 jansson pkgconf cmake doxygen graphviz autoconf automake libtool
 
     - name: Build Head docs
       run: |
