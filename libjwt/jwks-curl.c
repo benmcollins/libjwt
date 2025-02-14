@@ -55,7 +55,8 @@ static size_t write_cb(void *contents, size_t size, size_t nmemb, void *ctx)
 	return total_size;
 }
 
-static char *__curl_get(jwk_set_t *jwk_set, const char *url, size_t *len)
+static char *__curl_get(jwk_set_t *jwk_set, const char *url, size_t *len,
+			int verify)
 {
 	CURL *curl;
 	CURLcode res;
@@ -78,6 +79,10 @@ static char *__curl_get(jwk_set_t *jwk_set, const char *url, size_t *len)
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_cb);
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&data);
 
+	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, verify ? 1L : 0L);
+	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, verify ? 1L : 0L);
+	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYSTATUS, verify ? 1L : 0L);
+
         res = curl_easy_perform(curl);
 
 	curl_easy_cleanup(curl);
@@ -93,7 +98,7 @@ static char *__curl_get(jwk_set_t *jwk_set, const char *url, size_t *len)
 	return data.buf;
 }
 
-jwk_set_t *jwks_load_fromurl(jwk_set_t *jwk_set, const char *url)
+jwk_set_t *jwks_load_fromurl(jwk_set_t *jwk_set, const char *url, int verify)
 {
 	char *str = NULL;
 	size_t len;
@@ -106,7 +111,7 @@ jwk_set_t *jwks_load_fromurl(jwk_set_t *jwk_set, const char *url)
 	if (jwk_set == NULL)
 		return NULL; // LCOV_EXCL_LINE
 
-	str = __curl_get(jwk_set, url, &len);
+	str = __curl_get(jwk_set, url, &len, verify);
 	if (str != NULL) {
 		jwk_set = jwks_load_strn(jwk_set, str, len);
 		jwt_freemem(str);
@@ -117,16 +122,17 @@ jwk_set_t *jwks_load_fromurl(jwk_set_t *jwk_set, const char *url)
 
 #else
 
-jwk_set_t *jwks_load_fromurl(jwk_set_t *jwk_set, const char *url)
+jwk_set_t *jwks_load_fromurl(jwk_set_t *jwk_set, const char *url, int verify)
 {
 	(void)jwk_set;
 	(void)url;
+	(void)verify;
 	return NULL;
 }
 
 #endif
 
-jwk_set_t *jwks_create_fromurl(const char *url)
+jwk_set_t *jwks_create_fromurl(const char *url, int verify)
 {
-	return jwks_load_fromurl(NULL, url);
+	return jwks_load_fromurl(NULL, url, verify);
 }

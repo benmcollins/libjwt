@@ -85,23 +85,23 @@ START_TEST(load_fromurl)
 
 	SET_OPS();
 
-	jwk_set = jwks_create_fromurl(NULL);
+	jwk_set = jwks_create_fromurl(NULL, 1);
 	ck_assert_ptr_null(jwk_set);
 
-	jwk_set = jwks_create_fromurl("file:///DOESNOTEXIST");
+	jwk_set = jwks_create_fromurl("file:///DOESNOTEXIST", 1);
 	ck_assert_ptr_nonnull(jwk_set);
 	ck_assert_str_eq(jwks_error_msg(jwk_set),
 			"Couldn't read a file:// file");
 	jwks_error_clear(jwk_set);
 
-	jwk_set = jwks_load_fromurl(jwk_set, "https://127.0.0.1:8989");
+	jwk_set = jwks_load_fromurl(jwk_set, "https://127.0.0.1:8989", 1);
 	ck_assert_ptr_nonnull(jwk_set);
 	ck_assert_str_eq(jwks_error_msg(jwk_set),
 			"Couldn't connect to server");
 	jwks_error_clear(jwk_set);
 
-	//jwk_set = jwks_load_fromurl("https://maclara-llc.com/.well-known/jwks.json");
-	jwk_set = jwks_load_fromurl(jwk_set, "file://" KEYDIR "/jwks_keyring.json");
+	//jwk_set = jwks_load_fromurl("https://maclara-llc.com/.well-known/jwks.json", 1);
+	jwk_set = jwks_load_fromurl(jwk_set, "file://" KEYDIR "/jwks_keyring.json", 1);
 	ck_assert_ptr_nonnull(jwk_set);
 
 	ck_assert_int_eq(jwks_item_count(jwk_set), 27);
@@ -109,7 +109,7 @@ START_TEST(load_fromurl)
 #else
 START_TEST(load_fromurl)
 {
-	ck_assert_ptr_null(jwks_create_fromurl(NULL));
+	ck_assert_ptr_null(jwks_create_fromurl("file:///", 1));
 }
 END_TEST
 #endif

@@ -1267,11 +1267,13 @@ jwk_set_t *jwks_load_fromfp(jwk_set_t *jwk_set, FILE *input);
  *   to add new keys to it.
  * @param url A string URL to where the JSON representation of a single key
  *   or array of "keys" can be retrieved from. Generally a json file.
+ * @param verify Set to 1 to verify the SSL Certificate Host, Peer, and Status.
+ *   This is recommended, but can be disabled for testing or known hosts.
  * @return A valid jwt_set_t on success. On failure, either NULL
  *   or a jwt_set_t with error set. NULL generally means ENOMEM.
  */
 JWT_EXPORT
-jwk_set_t *jwks_load_fromurl(jwk_set_t *jwk_set, const char *url);
+jwk_set_t *jwks_load_fromurl(jwk_set_t *jwk_set, const char *url, int verify);
 
 /**
  * @brief Wrapper around jwks_load() that explicitly creates a new keyring
@@ -1304,7 +1306,7 @@ jwk_set_t *jwks_create_fromfp(FILE *input);
  *  keyring
  */
 JWT_EXPORT
-jwk_set_t *jwks_create_fromurl(const char *url);
+jwk_set_t *jwks_create_fromurl(const char *url, int verify);
 
 /**
  * @brief Check if there is an error with a jwk_set
