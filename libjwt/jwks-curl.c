@@ -79,9 +79,8 @@ static char *__curl_get(jwk_set_t *jwk_set, const char *url, size_t *len,
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_cb);
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&data);
 
-	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, verify ? 1L : 0L);
-	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, verify ? 1L : 0L);
-	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYSTATUS, verify ? 1L : 0L);
+	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, (verify > 0) ? 2L : 0L);
+	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, (verify > 1) ? 1L : 0L);
 
         res = curl_easy_perform(curl);
 

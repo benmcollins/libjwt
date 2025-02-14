@@ -82,6 +82,7 @@ END_TEST
 START_TEST(load_fromurl)
 {
 	jwk_set_auto_t *jwk_set = NULL;
+	const char *test_url = getenv("LIBJWT_TEST_URL");
 
 	SET_OPS();
 
@@ -100,11 +101,13 @@ START_TEST(load_fromurl)
 			"Couldn't connect to server");
 	jwks_error_clear(jwk_set);
 
-	//jwk_set = jwks_load_fromurl("https://maclara-llc.com/.well-known/jwks.json", 1);
-	jwk_set = jwks_load_fromurl(jwk_set, "file://" KEYDIR "/jwks_keyring.json", 1);
+	if (test_url == NULL || !strlen(test_url))
+		test_url = "file://" KEYDIR "/jwks_keyring.json";
+
+	jwk_set = jwks_load_fromurl(jwk_set, test_url, 2);
 	ck_assert_ptr_nonnull(jwk_set);
 
-	ck_assert_int_eq(jwks_item_count(jwk_set), 27);
+	ck_assert_int_gt(jwks_item_count(jwk_set), 0);
 }
 #else
 START_TEST(load_fromurl)
