@@ -159,7 +159,16 @@ END_TEST
 
 START_TEST(rsa_short)
 {
+	const char token[] = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI"
+		"xMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlh"
+		"dCI6MTUxNjIzOTAyMn0.NHVaYe26MbtOYhSKkoKYdFVomg4i8ZJd8_-RU8VNb"
+		"ftc4TSMb4bXP3l3YlNWACwyXPGffz5aXHc6lty1Y2t4SWRqGteragsVdZufDn"
+		"5BlnJl9pdR_kdVFUsra2rWKEofkZeIC4yWytE58sMIihvo9H1ScmmVwBcQP6X"
+		"ETqYd0aSHp1gOa9RdUPDvoXQ5oqygTqVtxaDr6wUFKrKItgBMzWIdNZ6y7O9E"
+		"0DhEPTbE9rfBo6KTFsHAZnMg4k68CDp2woYIaXbmYTWcvbzIuHO7_37GT79Xd"
+		"Iwkm95QJ7hYC9RiwrV7mesbY4PAahERJawntho0my942XheVLmGwLMBkQ";
 	jwt_builder_auto_t *builder = NULL;
+	jwt_checker_auto_t *checker = NULL;
 	char *out = NULL;
 	int ret;
 
@@ -177,6 +186,21 @@ START_TEST(rsa_short)
 	ck_assert_ptr_null(out);
 	ck_assert_str_eq(jwt_builder_error_msg(builder),
 			"Key too short for RSA algs: 1024 bits");
+
+	ret = jwt_builder_setkey(builder, JWT_ALG_RS256, g_item);
+	ck_assert_int_eq(ret, 0);
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+	ck_assert_int_eq(jwt_checker_error(checker), 0);
+
+	ret = jwt_checker_setkey(checker, JWT_ALG_RS256, g_item);
+        ck_assert_int_eq(ret, 0);
+
+	ret = jwt_checker_verify(checker, token);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_str_eq(jwt_checker_error_msg(checker),
+			 "Key too short for RSA algs: 1024 bits");
 
 	free_key();
 }

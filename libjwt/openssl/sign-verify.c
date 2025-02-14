@@ -34,9 +34,6 @@ static int openssl_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 	void *key;
 	size_t key_len;
 
-	if (!ops_compat(jwt->key, JWT_CRYPTO_OPS_OPENSSL))
-		return 1; // LCOV_EXCL_LINE
-
 	key = jwt->key->oct.key;
 	key_len = jwt->key->oct.len;
 
@@ -136,9 +133,6 @@ static int openssl_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 	EVP_PKEY *pkey = NULL;
 	unsigned char *sig = NULL;
 	size_t slen;
-
-	if (!ops_compat(jwt->key, JWT_CRYPTO_OPS_OPENSSL))
-		SIGN_ERROR("Key is not compatible"); // LCOV_EXCL_LINE
 
 	pkey = jwt->key->provider_data;
 
@@ -284,9 +278,6 @@ static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 	const EVP_MD *alg;
 	int type;
 	BIO *bufkey = NULL;
-
-	if (!ops_compat(jwt->key, JWT_CRYPTO_OPS_OPENSSL))
-		VERIFY_ERROR("Key is not compatible"); // LCOV_EXCL_LINE
 
 	pkey = jwt->key->provider_data;
 

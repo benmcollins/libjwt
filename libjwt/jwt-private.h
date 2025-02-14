@@ -175,9 +175,6 @@ JWT_NO_EXPORT
 extern struct jwt_crypto_ops jwt_mbedtls_ops;
 #endif
 
-JWT_NO_EXPORT
-int ops_compat(const jwk_item_t *item, const jwt_crypto_provider_t prov);
-
 /* Memory allocators. */
 JWT_NO_EXPORT
 void *jwt_malloc(size_t size);

@@ -1,0 +1,16 @@
+{
+  "keys": [
+    {
+      "use": "sig",
+      "key_ops": [
+        "verify",
+        "sign"
+      ],
+      "kid": "7dc4a07e-51b6-47dd-ae8c-2da0ef921818",
+      "kty": "OKP",
+      "crv": "Ed25519",
+      "x": "HUj-14kN6N4i5qNVkfEhwKiCf-tSrvRHstQdtV8a5QM",
+      "d": "XY5oUZqGWVZhX7J09hG-rRnAKXiw1g_aBh-Bc52KZ_Y"
+    }
+  ]
+}

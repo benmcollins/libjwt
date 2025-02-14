@@ -218,15 +218,10 @@ int jwt_base64uri_encode(char **_dst, const char *plain, int plain_len)
 	dst = jwt_malloc(len + 1);
 	if (dst == NULL)
 		return -1; // LCOV_EXCL_LINE
+	*_dst = dst;
 
 	/* First, a normal base64 encoding */
 	len = base64_encode((const unsigned char *)plain, plain_len, dst);
-	if (len <= 0) {
-		// LCOV_EXCL_START
-		jwt_freemem(dst);
-		return 0;
-		// LCOV_EXCL_STOP
-	}
 
 	/* Now for the URI encoding */
 	for (i = 0; i < len; i++) {
@@ -245,7 +240,6 @@ int jwt_base64uri_encode(char **_dst, const char *plain, int plain_len)
 
 	/* Just in case there's no padding. */
 	dst[i] = '\0';
-	*_dst = dst;
 
 	return i;
 }
@@ -350,8 +344,14 @@ int jwt_sign(jwt_t *jwt, char **out, unsigned int *len, const char *str,
 		if (__check_hmac(jwt))
 			return 1;
 		if (jwt_ops->sign_sha_hmac(jwt, out, len, str, str_len)) {
+			/* There's not really a way to induce failure here,
+			 * and there's not really much of a chance this can fail
+			 * other than an internal fatal error in the crypto
+			 * library. */
+			// LCOV_EXCL_START
 			jwt_write_error(jwt, "Token failed signing");
 			return 1;
+			// LCOV_EXCL_STOP
 		} else {
 			return 0;
 		}
@@ -395,36 +395,27 @@ int jwt_sign(jwt_t *jwt, char **out, unsigned int *len, const char *str,
 static int _verify_sha_hmac(jwt_t *jwt, const char *head,
 			    unsigned int head_len, const char *sig)
 {
-	char *res;
+	char_auto *res = NULL;
+	char_auto *buf = NULL;
 	unsigned int res_len;
-	char *buf = NULL;
 	int ret;
 
-	ret = jwt_ops->sign_sha_hmac(jwt, &res, &res_len, head, head_len);
+	ret = jwt_sign(jwt, &res, &res_len, head, head_len);
 	if (ret)
-		return ret; // LCOV_EXCL_LINE
+		return 1; // LCOV_EXCL_LINE
 
-	ret = jwt_base64uri_encode(&buf, (char *)res, res_len);
-	if (ret <= 0) {
-		// LCOV_EXCL_START
-		jwt_freemem(res);
-		return -ret;
-		// LCOV_EXCL_STOP
-	}
+	ret = jwt_base64uri_encode(&buf, res, res_len);
+	if (ret <= 0)
+		return 1; // LCOV_EXCL_LINE
 
-	ret = jwt_strcmp(buf, sig) ? 1 : 0;
-	jwt_freemem(buf);
-	jwt_freemem(res);
-
-	/* And now... */
-	return ret;
+	return jwt_strcmp(buf, sig) ? 1 : 0;
 }
 
 jwt_t *jwt_verify_sig(jwt_t *jwt, const char *head, unsigned int head_len,
 		      const char *sig_b64)
 {
 	int sig_len;
-	unsigned char *sig;
+	unsigned char *sig = NULL;
 
 	sig = jwt_base64uri_decode(sig_b64, &sig_len);
 
@@ -455,10 +446,13 @@ jwt_t *jwt_verify_sig(jwt_t *jwt, const char *head, unsigned int head_len,
 
 	/* EdDSA */
 	case JWT_ALG_EDDSA:
+		if (__check_key_bits(jwt))
+			break;
+
 		sig = jwt_base64uri_decode(sig_b64, &sig_len);
 		if (sig == NULL) {
 			jwt_write_error(jwt, "Error decoding signature");
-			return jwt;
+			break;
 		}
 
 		if (jwt_ops->verify_sha_pem(jwt, head, head_len, sig, sig_len))

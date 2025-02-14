@@ -31,9 +31,6 @@ static int gnutls_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 	void *key;
 	size_t key_len;
 
-	if (!ops_compat(jwt->key, JWT_CRYPTO_OPS_OPENSSL))
-		return 1; // LCOV_EXCL_LINE
-
 	key = jwt->key->oct.key;
 	key_len = jwt->key->oct.len;
 
@@ -61,7 +58,6 @@ static int gnutls_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 	if (gnutls_hmac_fast(alg, key, key_len, str, str_len, *out)) {
 		// LCOV_EXCL_START
 		jwt_freemem(*out);
-		*out = NULL;
 		return 1;
 		// LCOV_EXCL_STOP
 	}
@@ -88,10 +84,10 @@ static int gnutls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		SIGN_ERROR("Error initializing privkey"); // LCOV_EXCL_LINE
 
 	if (jwt->alg == JWT_ALG_ES256K)
-		SIGN_ERROR("ES256K not supported");
+		SIGN_ERROR("ES256K not supported"); // LCOV_EXCL_LINE
 
 	if (jwt->key->pem == NULL)
-		SIGN_ERROR("No PEM found");
+		SIGN_ERROR("No PEM to load"); // LCOV_EXCL_LINE
 
 	gnutls_datum_t key_dat = {
 		(unsigned char *)jwt->key->pem,
@@ -268,7 +264,7 @@ static int gnutls_verify_sha_pem(jwt_t *jwt, const char *head,
 		VERIFY_ERROR("Failed initializing pubkey"); // LCOV_EXCL_LINE
 
 	if (jwt->key->pem == NULL)
-		return 1;
+		VERIFY_ERROR("No PEM to load"); // LCOV_EXCL_LINE
 
 	gnutls_datum_t cert_dat = {
 		(unsigned char *)jwt->key->pem,

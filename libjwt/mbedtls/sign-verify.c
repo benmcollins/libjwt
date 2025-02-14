@@ -31,9 +31,6 @@ static int mbedtls_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 	size_t key_len;
 	int ret = 1;
 
-	if (!ops_compat(jwt->key, JWT_CRYPTO_OPS_MBEDTLS))
-		return 1;
-
 	key = jwt->key->oct.key;
 	key_len = jwt->key->oct.len;
 
