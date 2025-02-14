@@ -495,11 +495,10 @@ START_TEST(gen_hs256_wcb)
 }
 END_TEST
 
-START_TEST(gen_hs256_stress)
+START_TEST(gen_ec_stress)
 {
 	jwt_builder_auto_t *builder = NULL;
-	const char exp[] = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.CM4dD95Nj"
-		"0vSfMGtDas432AUW1HAo7feCiAbt5Yjuds";
+	const char exp[] = "eyJhbGciOiJFUzM4NCIsInR5cCI6IkpXVCJ9.e30.";
 	int ret, i;
 
 	SET_OPS();
@@ -511,14 +510,15 @@ START_TEST(gen_hs256_stress)
 	ret = jwt_builder_enable_iat(builder, 0);
 	ck_assert_int_eq(ret, 1);
 
-	read_json("oct_key_256.json");
-	ret = jwt_builder_setkey(builder, JWT_ALG_HS256, g_item);
+	read_json("ec_key_secp384r1.json");
+	ret = jwt_builder_setkey(builder, JWT_ALG_ES384, g_item);
 	ck_assert_int_eq(ret, 0);
 
 	for (i = 0; i < 1000; i++) {
 		char_auto *out = jwt_builder_generate(builder);
 		ck_assert_ptr_nonnull(out);
-		ck_assert_str_eq(out, exp);
+		ck_assert_mem_eq(out, exp, strlen(exp));
+		ck_assert_int_eq(strlen(out), 169);
 	}
 
 	free_key();
@@ -866,6 +866,7 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, gen_wcb, 0, i);
 	tcase_add_loop_test(tc_core, gen_es384_pub, 0, i);
 	tcase_add_loop_test(tc_core, set_alg, 0, i);
+	tcase_add_loop_test(tc_core, gen_ec_stress, 0, i);
 	suite_add_tcase(s, tc_core);
 
 	tc_core = tcase_create("Error Handling");
@@ -878,7 +879,6 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, gen_hs256, 0, i);
 	tcase_add_loop_test(tc_core, gen_hs256_bits, 0, i);
 	tcase_add_loop_test(tc_core, gen_hs256_wcb, 0, i);
-	tcase_add_loop_test(tc_core, gen_hs256_stress, 0, i);
 	suite_add_tcase(s, tc_core);
 
 	tc_core = tcase_create("Claims SetGetDel");
