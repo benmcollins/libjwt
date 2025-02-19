@@ -45,18 +45,19 @@ else ()
 	set (SSL_LIBRARY_INCLUDE_DIR ${OPENSSL_INCLUDE_DIR})
 	set (SSL_LIBRARIES_DEBUG ${OPENSSL_LIBRARIES})
 	set (SSL_LIBRARIES_OPTIMIZED ${OPENSSL_LIBRARIES})
+	set (HAVE_OPENSSL TRUE)
 endif ()
 
 if (USE_INSTALLED_JANSSON)
-    PKG_SEARCH_MODULE( JANSSON jansson )
+	pkg_check_modules(JANSSON jansson>=2.0 REQUIRED IMPORTED_TARGET)
 else()
-    FetchContent_Declare(
-    jansson
-    GIT_REPOSITORY https://github.com/akheron/jansson.git
-    GIT_TAG        v2.14
-    )
+	FetchContent_Declare(
+		jansson
+		GIT_REPOSITORY https://github.com/akheron/jansson.git
+		GIT_TAG        v2.14
+	)
 
-    FetchContent_MakeAvailable(jansson)
+	FetchContent_MakeAvailable(jansson)
 endif()
 
 write_file(${CMAKE_CURRENT_BINARY_DIR}/config.h "")
@@ -66,12 +67,24 @@ list (REMOVE_ITEM SOURCE_FILES ${FILES_TO_REMOVE})
 
 add_library (${TARGET_NAME} ${LIBRARY_TYPE} ${SOURCE_FILES})
 
+target_link_libraries (${TARGET_NAME}
+	debug ${SSL_LIBRARIES_DEBUG}
+	optimized ${SSL_LIBRARIES_OPTIMIZED}
+)
+
+if (USE_INSTALLED_JANSSON)
+	target_link_libraries(${TARGET_NAME} optimized PkgConfig::JANSSON)
+else ()
+	target_include_directories (${TARGET_NAME} PRIVATE
+		${jansson_SOURCE_DIR}/src
+		${jansson_SOURCE_DIR}/android
+	)
+endif ()
+
 target_include_directories (${TARGET_NAME} PRIVATE
 	${SSL_LIBRARY_INCLUDE_DIR}
-       ${jansson_SOURCE_DIR}/src
-       ${jansson_SOURCE_DIR}/android
-       ${CMAKE_CURRENT_BINARY_DIR}
-	)
+	${CMAKE_CURRENT_BINARY_DIR}
+)
 
 # Need for using the project by add_subdirectory
 target_include_directories (${TARGET_NAME} INTERFACE
@@ -80,6 +93,10 @@ target_include_directories (${TARGET_NAME} INTERFACE
 
 if (UNIX)
 	target_compile_definitions (${TARGET_NAME} PUBLIC _GNU_SOURCE)
+endif ()
+
+if (HAVE_OPENSSL)
+	target_compile_definitions(${TARGET_NAME} PRIVATE HAVE_OPENSSL)
 endif ()
 
 if (UNIX AND ENABLE_LTO)
@@ -99,11 +116,6 @@ endif ()
 if (NOT BUILD_SHARED_LIBS AND ENABLE_PIC)
 	target_compile_options (${TARGET_NAME} PRIVATE -fPIC)
 endif ()
-
-target_link_libraries (${TARGET_NAME}
-	debug ${SSL_LIBRARIES_DEBUG} optimized ${SSL_LIBRARIES_OPTIMIZED}
-	jansson
-	)
 
 install (TARGETS ${TARGET_NAME}
 	RUNTIME DESTINATION bin

@@ -157,6 +157,7 @@ jwt_verify_hmac_done:
 static int jwt_degree_for_key(EVP_PKEY *pkey, jwt_t *jwt)
 {
 	int degree = 0;
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
 	char groupNameBuffer[24] = {0};
 	size_t groupNameBufferLen = 0;
 
@@ -172,7 +173,6 @@ static int jwt_degree_for_key(EVP_PKEY *pkey, jwt_t *jwt)
 			return -EINVAL;
 	}
 
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
 	int curve_nid;
 	EC_GROUP *group;
 	/* OpenSSL 3.0.0 and later has a new API for this. */
@@ -191,6 +191,7 @@ static int jwt_degree_for_key(EVP_PKEY *pkey, jwt_t *jwt)
 	EC_GROUP_free(group);
 #else
 	EC_KEY *ec_key;
+	const EC_GROUP *group;
 
 	if (EVP_PKEY_id(pkey) != EVP_PKEY_EC)
 		return -EINVAL;
@@ -200,7 +201,18 @@ static int jwt_degree_for_key(EVP_PKEY *pkey, jwt_t *jwt)
 	if (ec_key == NULL)
 		return -ENOMEM;
 
-	degree = EC_GROUP_get_degree(EC_KEY_get0_group(ec_key));
+	if ((group = EC_KEY_get0_group(ec_key)) == NULL) {
+		EC_KEY_free(ec_key);
+		return -EINVAL;
+	}
+
+	if (jwt->alg == JWT_ALG_ES256K &&
+	    EC_GROUP_get_curve_name(group) != NID_secp256k1) {
+		EC_KEY_free(ec_key);
+		return -EINVAL;
+	}
+
+	degree = EC_GROUP_get_degree(group);
 
 	EC_KEY_free(ec_key);
 #endif
