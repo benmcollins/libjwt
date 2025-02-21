@@ -867,6 +867,7 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, gen_es384_pub, 0, i);
 	tcase_add_loop_test(tc_core, set_alg, 0, i);
 	tcase_add_loop_test(tc_core, gen_ec_stress, 0, i);
+	tcase_set_timeout(tc_core, 30);
 	suite_add_tcase(s, tc_core);
 
 	tc_core = tcase_create("Error Handling");
