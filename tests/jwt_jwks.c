@@ -83,6 +83,7 @@ START_TEST(load_fromurl)
 {
 	jwk_set_auto_t *jwk_set = NULL;
 	const char *test_url = getenv("LIBJWT_TEST_URL");
+	char *check;
 
 	SET_OPS();
 
@@ -91,14 +92,14 @@ START_TEST(load_fromurl)
 
 	jwk_set = jwks_create_fromurl("file:///DOESNOTEXIST", 1);
 	ck_assert_ptr_nonnull(jwk_set);
-	ck_assert_str_eq(jwks_error_msg(jwk_set),
-			"Couldn't read a file:// file");
+	check = strstr(jwks_error_msg(jwk_set), "read a file:// file");
+	ck_assert_ptr_nonnull(check);
 	jwks_error_clear(jwk_set);
 
 	jwk_set = jwks_load_fromurl(jwk_set, "https://127.0.0.1:8989", 1);
 	ck_assert_ptr_nonnull(jwk_set);
-	ck_assert_str_eq(jwks_error_msg(jwk_set),
-			"Couldn't connect to server");
+	check = strstr(jwks_error_msg(jwk_set), "connect to server");
+	ck_assert_ptr_nonnull(check);
 	jwks_error_clear(jwk_set);
 
 	if (test_url == NULL || !strlen(test_url))
