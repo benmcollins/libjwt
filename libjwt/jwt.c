@@ -417,8 +417,6 @@ jwt_t *jwt_verify_sig(jwt_t *jwt, const char *head, unsigned int head_len,
 	int sig_len;
 	unsigned char *sig = NULL;
 
-	sig = jwt_base64uri_decode(sig_b64, &sig_len);
-
 	switch (jwt->alg) {
 	/* HMAC */
 	case JWT_ALG_HS256:
