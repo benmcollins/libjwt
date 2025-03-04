@@ -263,6 +263,8 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_test(tc_core, oct_key_384);
 	tcase_add_test(tc_core, oct_key_512);
 
+	tcase_set_timeout(tc_core, 60);
+
 	suite_add_tcase(s, tc_core);
 
 	/* We run this here so we get some usage out of it */

@@ -256,7 +256,7 @@ END_TEST
 
 START_TEST(null_handling)
 {
-	jwt_checker_t *checker = NULL;
+	jwt_checker_auto_t *checker = NULL;
 	const char *out;
 	jwk_item_t *key = NULL;
 	int ret;
@@ -331,12 +331,14 @@ START_TEST(null_handling)
 	read_json("eddsa_key_ed25519_pub.json");
 	ret = jwt_checker_setkey(checker, JWT_ALG_NONE, g_item);
 	ck_assert_int_ne(ret, 0);
+	free_key();
 
 	jwt_checker_error_clear(checker);
 
 	read_json("oct_key_256.json");
 	ret = jwt_checker_setkey(checker, JWT_ALG_ES256, g_item);
 	ck_assert_int_ne(ret, 0);
+	free_key();
 
 	/* Callbacks */
 	ck_assert_int_ne(jwt_checker_setcb(NULL, NULL, NULL), 0);

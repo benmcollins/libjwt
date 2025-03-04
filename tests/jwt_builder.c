@@ -112,7 +112,7 @@ START_TEST(set_alg)
 	jwt_builder_auto_t *builder = NULL;
 	const char *exp = "eyJhbGciOiJIUzI1NiIsInR5cCI6Ik5PVEpXVCJ9.e30.GsBNaD"
 		"rcrck5dXU9za1MrrOxpz8KQXjq-JHmeCyFhAA";
-	char *out = NULL;
+	char_auto *out = NULL;
 	int ret;
 
 	SET_OPS();
@@ -190,7 +190,7 @@ END_TEST
 
 START_TEST(null_handling)
 {
-	jwt_builder_t *builder = NULL;
+	jwt_builder_auto_t *builder = NULL;
 	jwt_value_t jval;
 	const char *out;
 	jwk_item_t *key = NULL;
@@ -214,11 +214,13 @@ START_TEST(null_handling)
 	jwt_set_GET_BOOL(&jval, "");
 	ret = jwt_builder_claim_get(builder, &jval);
 	ck_assert_int_eq(ret, JWT_VALUE_ERR_INVALID);
-	
+
 	jwt_set_GET_JSON(&jval, "");
 	jval.pretty = 1;
 	ret = jwt_builder_claim_get(builder, &jval);
 	ck_assert_int_eq(ret, JWT_VALUE_ERR_NONE);
+	ck_assert_ptr_nonnull(jval.json_val);
+	free(jval.json_val);
 
 	jwt_set_SET_STR(&jval, "", "");
 	ret = jwt_builder_claim_set(builder, &jval);
@@ -281,10 +283,11 @@ START_TEST(null_handling)
 
 	/* Some alg mismatches */
 	read_json("eddsa_key_ed25519.json");
-        ret = jwt_builder_setkey(builder, JWT_ALG_NONE, g_item);
-        ck_assert_int_ne(ret, 0);
+	ret = jwt_builder_setkey(builder, JWT_ALG_NONE, g_item);
+	ck_assert_int_ne(ret, 0);
+	free_key();
 
-        jwt_builder_error_clear(builder);
+	jwt_builder_error_clear(builder);
 
 	read_json("oct_key_256.json");
 	ret = jwt_builder_setkey(builder, JWT_ALG_ES256, g_item);
@@ -336,13 +339,15 @@ START_TEST(null_handling)
 	ck_assert_int_eq(jwt_builder_time_offset(NULL, JWT_CLAIM_NBF, 0), 1);
 	ck_assert_int_eq(jwt_builder_time_offset(builder, JWT_CLAIM_SUB, 0), 1);
 	ck_assert_int_eq(jwt_builder_time_offset(builder, JWT_CLAIM_NBF, 0), 0);
+
+	free_key();
 }
 END_TEST
 
 START_TEST(gen_hs256)
 {
 	jwt_builder_auto_t *builder = NULL;
-	char *out = NULL;
+	char_auto *out = NULL;
 	const char exp[] = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.CM4dD95Nj"
 		"0vSfMGtDas432AUW1HAo7feCiAbt5Yjuds";
 	int ret;
