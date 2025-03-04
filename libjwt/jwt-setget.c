@@ -169,6 +169,9 @@ static jwt_value_error_t jwt_set_json(json_t *which, jwt_value_t *jval)
 		else
 			ret = json_object_update_missing(which, json_val);
 
+		/* Done with this. */
+		json_decrefp(&json_val);
+
 		if (ret)
 			jval->error = JWT_VALUE_ERR_INVALID; // LCOV_EXCL_LINE
 	} else {
@@ -177,10 +180,11 @@ static jwt_value_error_t jwt_set_json(json_t *which, jwt_value_t *jval)
 			if (json_object_set_new(which, jval->name, json_val))
 				jval->error = JWT_VALUE_ERR_INVALID; // LCOV_EXCL_LINE
 		}
-	}
 
-	if (jval->error != JWT_VALUE_ERR_NONE)
-		json_decref(json_val);
+		/* If things failed, it means we're responsible for this ref */
+		if (jval->error != JWT_VALUE_ERR_NONE)
+			json_decrefp(&json_val);
+	}
 
 	return jval->error;
 }
