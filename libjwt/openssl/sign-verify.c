@@ -277,6 +277,7 @@ static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 	EVP_PKEY *pkey = NULL;
 	const EVP_MD *alg;
 	int type;
+	unsigned char *old_sig = NULL;
 	BIO *bufkey = NULL;
 
 	pkey = jwt->key->provider_data;
@@ -371,6 +372,7 @@ static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 		slen = i2d_ECDSA_SIG(ec_sig, NULL);
 
 		/* Reset this with the new information */
+		old_sig = sig;
 		sig = jwt_malloc(slen);
 		if (sig == NULL)
 			VERIFY_ERROR("Out of memory"); // LCOV_EXCL_LINE
@@ -405,6 +407,9 @@ static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 		VERIFY_ERROR("Failed to verify signature");
 
 jwt_verify_sha_pem_done:
+	if (old_sig != NULL)
+		jwt_freemem(sig);
+
 	BIO_free(bufkey);
 	EVP_MD_CTX_destroy(mdctx);
 	ECDSA_SIG_free(ec_sig);
