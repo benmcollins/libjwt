@@ -274,9 +274,6 @@ static int gnutls_verify_sha_pem(jwt_t *jwt, const char *head,
 	if (jwt->alg == JWT_ALG_ES256K)
 		VERIFY_ERROR("ES256K not supported"); // LCOV_EXCL_LINE
 
-	if (gnutls_pubkey_init(&pubkey))
-		VERIFY_ERROR("Error initializing pubkey"); // LCOV_EXCL_LINE
-
 	ret = gnutls_pubkey_import(pubkey, &cert_dat, GNUTLS_X509_FMT_PEM);
 	if (ret) {
 		gnutls_privkey_t privkey;
