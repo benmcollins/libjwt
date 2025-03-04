@@ -304,7 +304,8 @@ if (CHECK_FOUND)
 	endforeach()
 
 	if (BATS_CMD)
-		add_test(NAME jwt_cli COMMAND /bin/bash -c "export SRCDIR=\"${CMAKE_SOURCE_DIR}\"; \"${CMAKE_SOURCE_DIR}\"/tests/jwt-cli.bats")
+		add_test(NAME jwt_cli COMMAND /bin/bash -c
+			"export SRCDIR=\"${CMAKE_SOURCE_DIR}\"; \"${CMAKE_SOURCE_DIR}\"/tests/jwt-cli.bats")
 	endif()
 
 	add_custom_target(check
