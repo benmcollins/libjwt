@@ -39,6 +39,7 @@ option(WITH_GNUTLS "Whether to use GnuTLS (default is auto detect)" ON)
 option(WITH_MBEDTLS "Whether to use mbedTLS (default is OFF)" OFF)
 option(WITH_LIBCURL "Whether to include CUrl for retrieving JWKS (default is OFF)" OFF)
 option(WITH_TESTS "Whether to build and run the testsuite (default is ON)" ON)
+option(WITH_KCAPI_MD "Whether to use the Linux Kernel Crypto API to offload hmac (default OFF)" OFF)
 
 # Optional
 if (WITH_GNUTLS)
@@ -57,6 +58,10 @@ if (WITH_LIBCURL)
 	pkg_check_modules(LIBCURL libcurl>=8.0.0 IMPORTED_TARGET REQUIRED)
 endif()
 
+if (WITH_KCAPI_MD)
+	find_library(HAVE_KCAPI kcapi REQUIRED)
+endif()
+
 # Required
 pkg_check_modules(OPENSSL openssl>=3.0.0 IMPORTED_TARGET
 		  REQUIRED)
@@ -66,6 +71,12 @@ add_library(jwt_static STATIC)
 set_target_properties(jwt_static PROPERTIES
 	OUTPUT_NAME jwt
 	COMPILE_FLAGS -DJWT_STATIC_DEFINE)
+
+if (HAVE_KCAPI)
+	target_link_libraries(jwt PRIVATE kcapi)
+	target_link_libraries(jwt_static PRIVATE kcapi)
+	add_definitions(-DUSE_KCAPI_MD)
+endif()
 
 add_custom_command(
 	OUTPUT jwt-builder.i

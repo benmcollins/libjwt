@@ -12,6 +12,11 @@
 
 #include <jwt.h>
 
+#ifdef USE_KCAPI_MD
+#include <kcapi.h>
+#define KCAPI_MAX_MD_SIZE 64
+#endif
+
 /* https://github.com/zhicheng/base64 */
 #include "base64.h"
 
@@ -333,6 +338,67 @@ static int __check_key_bits(jwt_t *jwt)
 	return 1; // LCOV_EXCL_LINE
 }
 
+static int sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
+			 const char *str, unsigned int str_len)
+{
+#ifdef USE_KCAPI_MD
+	static int skip_kcapi = 0;
+	size_t key_len;
+	void *key;
+	int ret;
+
+	/* If kcapi fails once, we don't try again. */
+	if (skip_kcapi)
+		goto fallback_ops; // LCOV_EXCL_LINE
+
+	key = jwt->key->oct.key;
+	key_len = jwt->key->oct.len;
+
+	*out = jwt_malloc(KCAPI_MAX_MD_SIZE);
+	if (*out == NULL)
+		return 1; // LCOV_EXCL_LINE
+
+	switch (jwt->alg) {
+	/* HMAC */
+	case JWT_ALG_HS256:
+		ret = kcapi_md_hmac_sha256(key, key_len, (uint8_t *)str,
+					   str_len, (uint8_t *)*out,
+					   KCAPI_MAX_MD_SIZE);
+		break;
+	case JWT_ALG_HS384:
+		ret = kcapi_md_hmac_sha384(key, key_len, (uint8_t *)str,
+					   str_len, (uint8_t *)*out,
+					   KCAPI_MAX_MD_SIZE);
+		break;
+	case JWT_ALG_HS512:
+		ret = kcapi_md_hmac_sha512(key, key_len, (uint8_t *)str,
+					   str_len, (uint8_t *)*out,
+					   KCAPI_MAX_MD_SIZE);
+		break;
+	// LCOV_EXCL_START
+	default:
+		/* This isn't a failure in kcapi, so just error out */
+		jwt_freemem(out);
+		return 1;
+	// LCOV_EXCL_STOP
+	}
+
+	if (ret > 0) {
+		*len = ret;
+		return 0;
+	}
+
+	/* Fallthrough to normal ops */
+	// LCOV_EXCL_START
+	jwt_freemem(*out);
+	skip_kcapi = 1;
+	// LCOV_EXCL_STOP
+
+fallback_ops:
+#endif
+	return jwt_ops->sign_sha_hmac(jwt, out, len, str, str_len);
+}
+
 int jwt_sign(jwt_t *jwt, char **out, unsigned int *len, const char *str,
 	     unsigned int str_len)
 {
@@ -343,7 +409,7 @@ int jwt_sign(jwt_t *jwt, char **out, unsigned int *len, const char *str,
 	case JWT_ALG_HS512:
 		if (__check_hmac(jwt))
 			return 1;
-		if (jwt_ops->sign_sha_hmac(jwt, out, len, str, str_len)) {
+		if (sign_sha_hmac(jwt, out, len, str, str_len)) {
 			/* There's not really a way to induce failure here,
 			 * and there's not really much of a chance this can fail
 			 * other than an internal fatal error in the crypto
@@ -415,7 +481,7 @@ jwt_t *jwt_verify_sig(jwt_t *jwt, const char *head, unsigned int head_len,
 		      const char *sig_b64)
 {
 	int sig_len;
-	unsigned char *sig = NULL;
+	char_auth *sig = NULL;
 
 	switch (jwt->alg) {
 	/* HMAC */
@@ -455,8 +521,6 @@ jwt_t *jwt_verify_sig(jwt_t *jwt, const char *head, unsigned int head_len,
 
 		if (jwt_ops->verify_sha_pem(jwt, head, head_len, sig, sig_len))
 			jwt_write_error(jwt, "Token failed verification");
-
-		jwt_freemem(sig);
 		break;
 
 	/* You wut, mate? */
