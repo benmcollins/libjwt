@@ -481,7 +481,7 @@ jwt_t *jwt_verify_sig(jwt_t *jwt, const char *head, unsigned int head_len,
 		      const char *sig_b64)
 {
 	int sig_len;
-	char_auth *sig = NULL;
+	char_auto *sig = NULL;
 
 	switch (jwt->alg) {
 	/* HMAC */
