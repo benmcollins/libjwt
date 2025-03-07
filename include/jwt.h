@@ -1192,8 +1192,7 @@ jwt_alg_t jwt_str_alg(const char *alg);
  * @param jwk_set Either NULL to create a new set, or an existing jwt_set
  *   to add new keys to it.
  * @param jwk_json_str JSON string representation of a single key
- *   or array of "keys". If NULL is passed, an empty jwk_set_t is
- *   created. Must be null terminated.
+ *   or array of "keys".
  * @return A valid jwt_set_t on success. On failure, either NULL
  *   or a jwt_set_t with error set. NULL generally means ENOMEM.
  */

@@ -454,14 +454,13 @@ static jwk_set_t *jwks_process(jwk_set_t *jwk_set, json_t *j_all, json_error_t *
         return jwk_set;
 }
 
-#define __FLAG_EMPTY	(void *)0xfffff00d
-jwk_set_t *jwks_load_strn(jwk_set_t *jwk_set, const char *jwk_json_str,
-			    const size_t len)
+static jwk_set_t *__jwks_load_strn(jwk_set_t *jwk_set, const char *jwk_json_str,
+				   const size_t len, int empty_allowed)
 {
 	json_auto_t *j_all = NULL;
 	json_error_t error;
 
-	if (jwk_json_str == NULL)
+	if (jwk_json_str == NULL && !empty_allowed)
 		return NULL;
 
 	if (jwk_set == NULL)
@@ -469,8 +468,8 @@ jwk_set_t *jwks_load_strn(jwk_set_t *jwk_set, const char *jwk_json_str,
 	if (jwk_set == NULL)
 		return NULL; // LCOV_EXCL_LINE
 
-	/* Just an empty set. */
-	if (jwk_json_str == __FLAG_EMPTY)
+	/* Just an empty set */
+	if (jwk_json_str == NULL)
 		return jwk_set;
 
 	/* Parse the JSON string. */
@@ -479,19 +478,22 @@ jwk_set_t *jwks_load_strn(jwk_set_t *jwk_set, const char *jwk_json_str,
 	return jwks_process(jwk_set, j_all, &error);
 }
 
+jwk_set_t *jwks_load_strn(jwk_set_t *jwk_set, const char *jwk_json_str,
+			  const size_t len)
+{
+	return __jwks_load_strn(jwk_set, jwk_json_str, len, 0);
+}
+
 jwk_set_t *jwks_load(jwk_set_t *jwk_set, const char *jwk_json_str)
 {
-	const char *real_str = jwk_json_str;
-	size_t len;
+	int len;
 
-	if (real_str == NULL) {
-		real_str = __FLAG_EMPTY;
-		len = 0;
-	} else {
-		len = strlen(real_str);
-	}
+	if (jwk_json_str == NULL)
+		return NULL;
 
-	return jwks_load_strn(jwk_set, real_str, len);
+	len = strlen(jwk_json_str);
+
+	return __jwks_load_strn(jwk_set, jwk_json_str, len, 0);
 }
 
 jwk_set_t *jwks_load_fromfile(jwk_set_t *jwk_set, const char *file_name)
@@ -534,7 +536,12 @@ jwk_set_t *jwks_load_fromfp(jwk_set_t *jwk_set, FILE *input)
 
 jwk_set_t *jwks_create(const char *jwk_json_str)
 {
-	return jwks_load(NULL, jwk_json_str);
+	int len = 0;
+
+	if (jwk_json_str != NULL)
+		len = strlen(jwk_json_str);
+
+	return __jwks_load_strn(NULL, jwk_json_str, len, 1);
 }
 
 jwk_set_t *jwks_create_strn(const char *jwk_json_str, const size_t len)
