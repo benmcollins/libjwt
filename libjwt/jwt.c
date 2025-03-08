@@ -519,7 +519,8 @@ jwt_t *jwt_verify_sig(jwt_t *jwt, const char *head, unsigned int head_len,
 			break;
 		}
 
-		if (jwt_ops->verify_sha_pem(jwt, head, head_len, sig, sig_len))
+		if (jwt_ops->verify_sha_pem(jwt, head, head_len,
+					    (unsigned char *)sig, sig_len))
 			jwt_write_error(jwt, "Token failed verification");
 		break;
 
