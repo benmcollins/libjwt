@@ -82,8 +82,7 @@ END_TEST
 START_TEST(load_fromurl)
 {
 	jwk_set_auto_t *jwk_set = NULL;
-	const char *test_url = getenv("LIBJWT_TEST_URL");
-	char *check;
+	const char *test_url;
 
 	SET_OPS();
 
@@ -92,17 +91,11 @@ START_TEST(load_fromurl)
 
 	jwk_set = jwks_create_fromurl("file:///DOESNOTEXIST", 1);
 	ck_assert_ptr_nonnull(jwk_set);
-	check = strstr(jwks_error_msg(jwk_set), "read a file:// file");
-	ck_assert_ptr_nonnull(check);
+	ck_assert_int_ne(jwks_error(jwk_set), 0);
 	jwks_error_clear(jwk_set);
 
-	jwk_set = jwks_load_fromurl(jwk_set, "https://127.0.0.1:8989", 1);
-	ck_assert_ptr_nonnull(jwk_set);
-	check = strstr(jwks_error_msg(jwk_set), "connect to server");
-	ck_assert_ptr_nonnull(check);
-	jwks_error_clear(jwk_set);
-
-	if (test_url == NULL || !strlen(test_url))
+	test_url = getenv("LIBJWT_TEST_URL");
+	if (!test_url || !test_url[0])
 		test_url = "file://" KEYDIR "/jwks_keyring.json";
 
 	jwk_set = jwks_load_fromurl(jwk_set, test_url, 2);

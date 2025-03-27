@@ -86,6 +86,8 @@ START_TEST(hs_too_small)
 	ck_assert_int_eq(ret, 0);
 	out = jwt_builder_generate(builder);
 	ck_assert_ptr_null(out);
+
+	free_key();
 }
 END_TEST
 
