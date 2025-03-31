@@ -205,7 +205,7 @@ const char *jwt_alg_str(jwt_alg_t alg)
 	case JWT_ALG_PS512:
 		return "PS512";
 	case JWT_ALG_EDDSA:
-		return "EDDSA";
+		return "EdDSA";
 	default:
 		return NULL;
 	}
@@ -244,7 +244,7 @@ jwt_alg_t jwt_str_alg(const char *alg)
 		return JWT_ALG_PS384;
 	else if (!strcmp(alg, "PS512"))
 		return JWT_ALG_PS512;
-	else if (!strcmp(alg, "EDDSA"))
+	else if (!strcmp(alg, "EdDSA"))
 		return JWT_ALG_EDDSA;
 
 	return JWT_ALG_INVAL;
