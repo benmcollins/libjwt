@@ -55,7 +55,7 @@ if (WITH_MBEDTLS)
 endif()
 
 if (WITH_LIBCURL)
-	pkg_check_modules(LIBCURL libcurl>=8.0.0 IMPORTED_TARGET REQUIRED)
+	pkg_check_modules(LIBCURL libcurl>=7.8.8 IMPORTED_TARGET REQUIRED)
 endif()
 
 if (WITH_KCAPI_MD)
