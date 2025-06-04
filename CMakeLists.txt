@@ -10,7 +10,6 @@ cmake_minimum_required (VERSION 3.7...3.15)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
 include(LibJWTVersions)
-include(GenerateExportHeader)
 
 project(${LIBJWT_PROJECT}
 	VERSION ${LIBJWT_VERSION}
@@ -114,6 +113,9 @@ option(EXCLUDE_DEPRECATED
 if (EXCLUDE_DEPRECATED)
 	set(NO_BUILD_DEPRECATED DEFINE_NO_DEPRECATED)
 endif()
+
+# Must come after the above so headers are available
+include(GenerateExportHeader)
 
 generate_export_header(jwt ${NO_BUILD_DEPRECATED})
 

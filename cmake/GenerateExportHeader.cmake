@@ -215,6 +215,16 @@ macro(_check_c_compiler_attribute _ATTRIBUTE _RESULT)
   )
 endmacro()
 
+macro(_check_jansson_long_long _RESULT)
+  list(APPEND CMAKE_REQUIRED_FLAGS ${JANSSON_CFLAGS})
+  check_source_compiles(C "#include <jansson.h>
+    #if JSON_INTEGER_IS_LONG_LONG != 1
+    #error No long long
+    #endif
+    int main(void) { exit(0);}" ${_RESULT}
+  )
+endmacro()
+
 macro(_test_compiler_hidden_visibility)
 
   if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.2")
@@ -387,6 +397,7 @@ macro(_DO_GENERATE_EXPORT_HEADER TARGET_LIBRARY)
   set(VERSION_MINOR_NAME "${_GEH_PREFIX_NAME}${BASE_NAME_UPPER}_VERSION_MINOR")
   set(VERSION_MICRO_NAME "${_GEH_PREFIX_NAME}${BASE_NAME_UPPER}_VERSION_MICRO")
   set(VERSION_STRING_NAME "${_GEH_PREFIX_NAME}${BASE_NAME_UPPER}_VERSION_STRING")
+  set(USE_LONG_LONG_NAME "${_GEH_PREFIX_NAME}${BASE_NAME_UPPER}_USES_LONG_LONG")
 
   if(_GEH_UNPARSED_ARGUMENTS)
     message(FATAL_ERROR "Unknown keywords given to GENERATE_EXPORT_HEADER(): \"${_GEH_UNPARSED_ARGUMENTS}\"")
@@ -469,6 +480,12 @@ function(GENERATE_EXPORT_HEADER TARGET_LIBRARY)
   _test_compiler_hidden_visibility()
   _test_compiler_has_deprecated()
   _test_compiler_has_constructor()
+  _check_jansson_long_long(HAS_LONG_LONG)
+  if(HAS_LONG_LONG)
+    set(DEFINE_LONG_LONG "1" CACHE INTERNAL "Use long long")
+  else()
+    set(DEFINE_LONG_LONG "0" CACHE INTERNAL "Do not use long long")
+  endif()
   _do_set_macro_values(${TARGET_LIBRARY})
   _do_generate_export_header(${TARGET_LIBRARY} ${ARGN})
 endfunction()

@@ -46,7 +46,7 @@ static jwt_value_error_t jwt_get_int(json_t *which, jwt_value_t *jval)
 	else if (!json_is_integer(val))
 		return jval->error = JWT_VALUE_ERR_TYPE;
 
-	jval->int_val = (long)json_integer_value(val);
+	jval->int_val = json_integer_value(val);
 
 	return jval->error;
 }

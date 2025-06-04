@@ -435,19 +435,19 @@ char *FUNC(generate)(jwt_common_t *__cmd)
 
 	/* Our internal work first */
 	if (__cmd->c.claims & JWT_CLAIM_IAT) {
-		jwt_set_SET_INT(&jval, "iat", (long)tm);
+		jwt_set_SET_INT(&jval, "iat", (jwt_long_t)tm);
 		jval.replace = 1;
 		jwt_claim_set(jwt, &jval);
 	}
 
 	if (__cmd->c.claims & JWT_CLAIM_NBF) {
-		jwt_set_SET_INT(&jval, "nbf", (long)(tm + __cmd->c.nbf));
+		jwt_set_SET_INT(&jval, "nbf", (jwt_long_t)(tm + __cmd->c.nbf));
 		jval.replace = 1;
 		jwt_claim_set(jwt, &jval);
 	}
 
 	if (__cmd->c.claims & JWT_CLAIM_EXP) {
-		jwt_set_SET_INT(&jval, "exp", (long)(tm + __cmd->c.exp));
+		jwt_set_SET_INT(&jval, "exp", (jwt_long_t)(tm + __cmd->c.exp));
 		jval.replace = 1;
 		jwt_claim_set(jwt, &jval);
 	}

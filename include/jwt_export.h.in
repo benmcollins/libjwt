@@ -16,6 +16,10 @@
 
 #define @VERSION_STRING_NAME@	@DEFINE_VERSION@
 
+/* Whether the system supports "long long". This is primarily to sync
+ * with jansson's json_int_t when working with JSON integers. */
+#define @USE_LONG_LONG_NAME@	@DEFINE_LONG_LONG@
+
 #ifdef @STATIC_DEFINE@
 #  define @EXPORT_MACRO_NAME@
 #  define @NO_EXPORT_MACRO_NAME@

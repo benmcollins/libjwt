@@ -24,6 +24,12 @@
 extern "C" {
 #endif
 
+#if JWT_USES_LONG_LONG
+typedef long long jwt_long_t;
+#else
+typedef long jwt_long_t;
+#endif /* JWT_USES_LONG_LONG */
+
 /** @ingroup jwt_object_grp
  * @brief Opaque JWT object
  *
@@ -182,7 +188,7 @@ typedef struct {
 	jwt_value_type_t type;
 	const char *name;
 	union {
-		long int_val;
+		jwt_long_t int_val;
 		const char *str_val;
 		int bool_val;
 		char *json_val;
