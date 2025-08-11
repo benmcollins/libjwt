@@ -80,4 +80,4 @@ page by Ben Collins <bcollins@libjwt.io>.
 
 # SEE ALSO
 
-**jwt-verify(1)**, **key2jwk(1)**, **jwk2key(1)**
+**jwt-generate(1)**, **key2jwk(1)**, **jwk2key(1)**

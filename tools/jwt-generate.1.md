@@ -69,9 +69,9 @@ exit status from the program will cause generating the token to fail.
 **\-c** _CLAIM_, **\-\-claim**=_CLAIM_
   ~ Add a claim to the JWT. The format of _CLAIM_ is **t**:**key**=**value**
   Where **t** is the type and is one of **i** for integer, **s** for string,
-  or **b** for boolean. The value for integer must be parseable my **strtol(3)**.
+  or **b** for boolean. The value for integer must be parseable by **strtol(3)**.
   For boolean, any value starting with **0**, **f**, or **F** will be interpreted
-  as **false*. Anything else will be considered **true**. They **key** is any
+  as **false**. Anything else will be considered **true**. They **key** is any
   *ASCII* string.
 
 **\-j** _JSON_, **\-\-json**=_JSON_
