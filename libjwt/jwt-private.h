@@ -214,10 +214,6 @@ int jwt_base64uri_encode(char **_dst, const char *plain, int plain_len);
 JWT_NO_EXPORT
 void *jwt_base64uri_decode(const char *src, int *ret_len);
 
-/* A time-safe strcmp function */
-JWT_NO_EXPORT
-int jwt_strcmp(const char *str1, const char *str2);
-
 JWT_NO_EXPORT
 jwt_t *jwt_verify_sig(jwt_t *jwt, const char *head, unsigned int head_len,
                    const char *sig);

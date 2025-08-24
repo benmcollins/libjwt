@@ -26,21 +26,21 @@ static jwk_key_op_t jwk_key_op_j(json_t *j_op)
 	if (op == NULL)
 		return JWK_KEY_OP_NONE; // LCOV_EXCL_LINE
 
-	if (!jwt_strcmp(op, "sign"))
+	if (!strcmp(op, "sign"))
 		return JWK_KEY_OP_SIGN;
-	else if (!jwt_strcmp(op, "verify"))
+	else if (!strcmp(op, "verify"))
 		return JWK_KEY_OP_VERIFY;
-	else if (!jwt_strcmp(op, "encrypt"))
+	else if (!strcmp(op, "encrypt"))
 		return JWK_KEY_OP_ENCRYPT;
-	else if (!jwt_strcmp(op, "decrypt"))
+	else if (!strcmp(op, "decrypt"))
 		return JWK_KEY_OP_DECRYPT;
-	else if (!jwt_strcmp(op, "wrapKey"))
+	else if (!strcmp(op, "wrapKey"))
 		return JWK_KEY_OP_WRAP;
-	else if (!jwt_strcmp(op, "unwrapKey"))
+	else if (!strcmp(op, "unwrapKey"))
 		return JWK_KEY_OP_UNWRAP;
-	else if (!jwt_strcmp(op, "deriveKey"))
+	else if (!strcmp(op, "deriveKey"))
 		return JWK_KEY_OP_DERIVE_KEY;
-	else if (!jwt_strcmp(op, "deriveBits"))
+	else if (!strcmp(op, "deriveBits"))
 		return JWK_KEY_OP_DERIVE_BITS;
 
 	/* Ignore all others as the spec says other values may be used. */
@@ -65,9 +65,9 @@ static void jwk_process_values(json_t *jwk, jwk_item_t *item)
 	j_use = json_object_get(jwk, "use");
 	if (j_use && json_is_string(j_use)) {
 		const char *use = json_string_value(j_use);
-		if (!jwt_strcmp(use, "sig"))
+		if (!strcmp(use, "sig"))
 			item->use = JWK_PUB_KEY_USE_SIG;
-		else if (!jwt_strcmp(use, "enc"))
+		else if (!strcmp(use, "enc"))
 			item->use = JWK_PUB_KEY_USE_ENC;
 	}
 
@@ -171,16 +171,16 @@ static jwk_item_t *jwk_process_one(jwk_set_t *jwk_set, json_t *jwk)
 
 	kty = json_string_value(val);
 
-	if (!jwt_strcmp(kty, "EC")) {
+	if (!strcmp(kty, "EC")) {
 		item->kty = JWK_KEY_TYPE_EC;
 		jwt_ops->process_ec(item->json, item);
-	} else if (!jwt_strcmp(kty, "RSA")) {
+	} else if (!strcmp(kty, "RSA")) {
 		item->kty = JWK_KEY_TYPE_RSA;
 		jwt_ops->process_rsa(item->json, item);
-	} else if (!jwt_strcmp(kty, "OKP")) {
+	} else if (!strcmp(kty, "OKP")) {
 		item->kty = JWK_KEY_TYPE_OKP;
 		jwt_ops->process_eddsa(item->json, item);
-	} else if (!jwt_strcmp(kty, "oct")) {
+	} else if (!strcmp(kty, "oct")) {
 		item->kty = JWK_KEY_TYPE_OCT;
 		process_octet(item->json, item);
 	} else {

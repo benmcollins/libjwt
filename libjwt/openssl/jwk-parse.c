@@ -234,9 +234,9 @@ int openssl_process_eddsa(json_t *jwk, jwk_item_t *item)
 		item->is_private_key = priv = 1;
 
 	crv_str = json_string_value(crv);
-	if (!jwt_strcmp(crv_str, "Ed25519"))
+	if (!strcmp(crv_str, "Ed25519"))
 		pctx = EVP_PKEY_CTX_new_from_name(NULL, "ED25519", NULL);
-	else if (!jwt_strcmp(crv_str, "Ed448"))
+	else if (!strcmp(crv_str, "Ed448"))
 		pctx = EVP_PKEY_CTX_new_from_name(NULL, "ED448", NULL);
 	else {
 		jwt_write_error(item,
@@ -435,11 +435,11 @@ static const char *ec_crv_to_ossl_name(const char *crv)
 {
 	const char *ret = crv;
 
-	if (!jwt_strcmp(crv, "P-256"))
+	if (!strcmp(crv, "P-256"))
 		ret = "prime256v1";
-	else if (!jwt_strcmp(crv, "P-384"))
+	else if (!strcmp(crv, "P-384"))
 		ret = "secp384r1";
-	else if (!jwt_strcmp(crv, "P-521"))
+	else if (!strcmp(crv, "P-521"))
 		ret = "secp521r1";
 
 	return ret;

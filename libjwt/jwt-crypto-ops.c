@@ -77,7 +77,7 @@ int jwt_set_crypto_ops(const char *opname)
 
 	/* The user asked for something, let's give it a try */
 	for (i = 0; jwt_ops_available[i] != NULL; i++) {
-		if (jwt_strcmp(jwt_ops_available[i]->name, opname))
+		if (strcmp(jwt_ops_available[i]->name, opname))
 			continue;
 
 		jwt_ops = jwt_ops_available[i];

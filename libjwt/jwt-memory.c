@@ -54,32 +54,3 @@ void __jwt_freemem(void *ptr)
 	else
 		free(ptr);
 }
-
-/* A time-safe strcmp function */
-int jwt_strcmp(const char *str1, const char *str2)
-{
-	/* Get the LONGEST length */
-	int len1 = strlen(str1);
-	int len2 = strlen(str2);
-	int len_max = len1 >= len2 ? len1 : len2;
-
-	int i, ret = 0;
-
-	/* Iterate the entire longest string no matter what. Only testing
-	 * the shortest string would still allow attacks for
-	 * "a" == "aKJSDHkjashaaHJASJ", adding a character each time one
-	 * is found. */
-	for (i = 0; i < len_max; i++) {
-		char c1, c2;
-
-		c1 = (i < len1) ? str1[i] : 0;
-		c2 = (i < len2) ? str2[i] : 0;
-
-		ret |= c1 ^ c2;
-	}
-
-	/* Don't forget to check length */
-	ret |= len1 ^ len2;
-
-	return ret;
-}

@@ -65,35 +65,35 @@ jwt_alg_t jwt_str_alg(const char *alg)
 	if (alg == NULL)
 		return JWT_ALG_INVAL;
 
-	if (!jwt_strcmp(alg, "none"))
+	if (!strcmp(alg, "none"))
 		return JWT_ALG_NONE;
-	else if (!jwt_strcmp(alg, "HS256"))
+	else if (!strcmp(alg, "HS256"))
 		return JWT_ALG_HS256;
-	else if (!jwt_strcmp(alg, "HS384"))
+	else if (!strcmp(alg, "HS384"))
 		return JWT_ALG_HS384;
-	else if (!jwt_strcmp(alg, "HS512"))
+	else if (!strcmp(alg, "HS512"))
 		return JWT_ALG_HS512;
-	else if (!jwt_strcmp(alg, "RS256"))
+	else if (!strcmp(alg, "RS256"))
 		return JWT_ALG_RS256;
-	else if (!jwt_strcmp(alg, "RS384"))
+	else if (!strcmp(alg, "RS384"))
 		return JWT_ALG_RS384;
-	else if (!jwt_strcmp(alg, "RS512"))
+	else if (!strcmp(alg, "RS512"))
 		return JWT_ALG_RS512;
-	else if (!jwt_strcmp(alg, "ES256"))
+	else if (!strcmp(alg, "ES256"))
 		return JWT_ALG_ES256;
-	else if (!jwt_strcmp(alg, "ES256K"))
+	else if (!strcmp(alg, "ES256K"))
 		return JWT_ALG_ES256K;
-	else if (!jwt_strcmp(alg, "ES384"))
+	else if (!strcmp(alg, "ES384"))
 		return JWT_ALG_ES384;
-	else if (!jwt_strcmp(alg, "ES512"))
+	else if (!strcmp(alg, "ES512"))
 		return JWT_ALG_ES512;
-	else if (!jwt_strcmp(alg, "PS256"))
+	else if (!strcmp(alg, "PS256"))
 		return JWT_ALG_PS256;
-	else if (!jwt_strcmp(alg, "PS384"))
+	else if (!strcmp(alg, "PS384"))
 		return JWT_ALG_PS384;
-	else if (!jwt_strcmp(alg, "PS512"))
+	else if (!strcmp(alg, "PS512"))
 		return JWT_ALG_PS512;
-	else if (!jwt_strcmp(alg, "EdDSA"))
+	else if (!strcmp(alg, "EdDSA"))
 		return JWT_ALG_EDDSA;
 
 	return JWT_ALG_INVAL;
@@ -458,6 +458,35 @@ int jwt_sign(jwt_t *jwt, char **out, unsigned int *len, const char *str,
 	}
 }
 
+/* A time-safe strcmp function */
+static int _crypto_strcmp(const char *str1, const char *str2)
+{
+	/* Get the LONGEST length */
+	int len1 = strlen(str1);
+	int len2 = strlen(str2);
+	int len_max = len1 >= len2 ? len1 : len2;
+
+	int i, ret = 0;
+
+	/* Iterate the entire longest string no matter what. Only testing
+	 * the shortest string would still allow attacks for
+	 * "a" == "aKJSDHkjashaaHJASJ", adding a character each time one
+	 * is found. */
+	for (i = 0; i < len_max; i++) {
+		char c1, c2;
+
+		c1 = (i < len1) ? str1[i] : 0;
+		c2 = (i < len2) ? str2[i] : 0;
+
+		ret |= c1 ^ c2;
+	}
+
+	/* Don't forget to check length */
+	ret |= len1 ^ len2;
+
+	return ret;
+}
+
 static int _verify_sha_hmac(jwt_t *jwt, const char *head,
 			    unsigned int head_len, const char *sig)
 {
@@ -474,7 +503,7 @@ static int _verify_sha_hmac(jwt_t *jwt, const char *head,
 	if (ret <= 0)
 		return 1; // LCOV_EXCL_LINE
 
-	return jwt_strcmp(buf, sig) ? 1 : 0;
+	return _crypto_strcmp(buf, sig) ? 1 : 0;
 }
 
 jwt_t *jwt_verify_sig(jwt_t *jwt, const char *head, unsigned int head_len,
