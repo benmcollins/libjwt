@@ -79,13 +79,13 @@ endif()
 
 add_custom_command(
 	OUTPUT jwt-builder.i
-	COMMAND ${CMAKE_C_COMPILER} -E ${CMAKE_SOURCE_DIR}/libjwt/jwt-common.c -DJWT_BUILDER
+	COMMAND bash -c "${CMAKE_C_COMPILER} -E -DJWT_BUILDER ${CMAKE_SOURCE_DIR}/libjwt/jwt-common.c -o jwt-builder.i ${CMAKE_C_FLAGS}"
 		-o jwt-builder.i
 	DEPENDS libjwt/jwt-common.c)
 
 add_custom_command(
 	OUTPUT jwt-checker.i
-	COMMAND ${CMAKE_C_COMPILER} -E ${CMAKE_SOURCE_DIR}/libjwt/jwt-common.c -DJWT_CHECKER
+	COMMAND bash -c "${CMAKE_C_COMPILER} -E -DJWT_CHECKER ${CMAKE_SOURCE_DIR}/libjwt/jwt-common.c -o jwt-checker.i ${CMAKE_C_FLAGS}"
 		-o jwt-checker.i
 	DEPENDS libjwt/jwt-common.c)
 
