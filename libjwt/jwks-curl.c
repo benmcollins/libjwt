@@ -26,7 +26,7 @@ static size_t header_cb(char *buf, size_t size, size_t nmemb, void *ctx)
 	size_t total_size = size * nmemb;
 	struct jwks_data *data = ctx;
 
-	if (strncmp(buf, "Content-Length:", 15))
+	if (strncasecmp(buf, "Content-Length:", 15))
 		return total_size;
 
 	data->alloc_size = (size_t)atol(buf + 15);
