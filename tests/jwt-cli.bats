@@ -44,9 +44,15 @@ CLAIM_RES="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZG1pbiI6ZmFsc2UsImV4cCI6MTgz
 }
 
 @test "Generate JWKS from PEM Files" {
+	if command -v jq > /dev/null; then
+		SORT="jq -S ."
+	else
+		SORT="cat"
+	fi
+
 	./tools/key2jwk --disable-kid -o - \
 		${SRCDIR}/tests/keys/pem-files/*.pem \
-		${SRCDIR}/tests/keys/pem-files/*.bin | grep -v  libjwt.io: > output.json
+		${SRCDIR}/tests/keys/pem-files/*.bin | grep -v  libjwt.io: | ${SORT} > output.json
 	cmp output.json ${SRCDIR}/tests/cli/all.json
 }
 
