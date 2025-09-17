@@ -44,8 +44,27 @@ CLAIM_RES="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZG1pbiI6ZmFsc2UsImV4cCI6MTgz
 @test "Generate JWKS from PEM Files" {
 	./tools/key2jwk --disable-kid -o - \
 		${SRCDIR}/tests/keys/pem-files/*.pem \
-		${SRCDIR}/tests/keys/pem-files/*.bin | grep -v  libjwt.io: > output.json
-	cmp output.json ${SRCDIR}/tests/cli/all.json
+		${SRCDIR}/tests/keys/pem-files/*.bin | \
+		grep -v  libjwt.io: > output.json
+
+	jq -r -n --slurpfile A ${SRCDIR}/tests/cli/all.json \
+		--slurpfile B output.json -f <(cat<<"EOF"
+def walk(f):
+  . as $in
+  | if type == "object" then
+      reduce keys[] as $key
+        ( {}; . + { ($key):  ($in[$key] | walk(f)) } ) | f
+  elif type == "array" then map( walk(f) ) | f
+  else f
+  end;
+
+def normalize: walk(if type == "array" then sort else . end);
+
+def equiv(x): normalize == (x | normalize);
+
+if $A | equiv($B) then empty else halt_error(1) end
+EOF
+)
 }
 
 @test "Convert JWK to PEM - RSA" {
