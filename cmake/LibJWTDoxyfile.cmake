@@ -1,7 +1,7 @@
 # Doxygen config. Only things that differ from the default
 
 set(DOXYGEN_MARKDOWN_ID_STYLE "GITHUB")
-set(DOXYGEN_PROJECT_LOGO "images/LibJWT.svg height=100")
+set(DOXYGEN_PROJECT_LOGO "images/LibJWT.svg")
 set(DOXYGEN_PROJECT_ICON "images/favicon.ico")
 set(DOXYGEN_INPUT_ENCODING "ISO-8859-1")
 set(DOXYGEN_STRIP_FROM_PATH ${CMAKE_SOURCE_DIR})
@@ -24,7 +24,7 @@ set(DOXYGEN_HTML_HEADER "doxygen/header.html")
 set(DOXYGEN_HTML_FOOTER "doxygen/footer.html")
 set(DOXYGEN_HTML_EXTRA_STYLESHEET "doxygen/doxygen-awesome.css \\\n\tdoxygen/libjwt.css")
 set(DOXYGEN_HTML_COLORSTYLE "LIGHT")
-set(DOXYGEN_HTML_COPY_CLIPBOARD "NO")
+set(DOXYGEN_COPY_CLIPBOARD "NO")
 set(DOXYGEN_GENERATE_DOCSET "YES")
 set(DOXYGEN_DOCSET_FEEDNAME "Docs provided by maClara, LLC")
 set(DOXYGEN_DOCSET_BUNDLE_ID "com.maclara-llc.LibJWT")
@@ -54,6 +54,7 @@ set(DOXYGEN_LAYOUT_FILE "doxygen/DoxygenLayout.xml")
 
 # List of extra files we need for a nice theme
 set(DOXYGEN_HTML_EXTRA_FILES "doxygen/doxygen-awesome-paragraph-link.js")
+string(APPEND DOXYGEN_HTML_EXTRA_FILES " \\\n\tdoxygen/doxygen-awesome-paragraph-icon.js")
 string(APPEND DOXYGEN_HTML_EXTRA_FILES " \\\n\tdoxygen/doxygen-awesome-fragment-copy-button.js")
 string(APPEND DOXYGEN_HTML_EXTRA_FILES " \\\n\tdoxygen/doxygen-awesome-interactive-toc.js")
 string(APPEND DOXYGEN_HTML_EXTRA_FILES " \\\n\tdoxygen/maclara-pill.svg")
