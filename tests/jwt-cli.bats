@@ -1,5 +1,7 @@
 #!/usr/bin/env bats
 
+export LC_COLLATE=C
+
 BASIC_RES="eyJhbGciOiJub25lIn0.e30."
 
 @test "Generate a JWT with alg none" {
