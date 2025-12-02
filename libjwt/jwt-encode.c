@@ -12,8 +12,6 @@
 
 #include <jwt.h>
 
-#include "base64.h"
-
 #include "jwt-private.h"
 
 static int write_js(const json_t *js, char **buf)

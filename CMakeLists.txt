@@ -95,8 +95,7 @@ add_custom_target(gen_jwt_checker ALL DEPENDS jwt-checker.i)
 add_dependencies(jwt        gen_jwt_builder gen_jwt_checker)
 add_dependencies(jwt_static gen_jwt_builder gen_jwt_checker)
 
-set(JWT_SOURCES libjwt/base64.c
-	libjwt/jwt-memory.c
+set(JWT_SOURCES libjwt/jwt-memory.c
 	libjwt/jwt.c
 	libjwt/jwks.c
 	libjwt/jwt-setget.c
