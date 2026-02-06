@@ -72,13 +72,6 @@ void jwt_json_release(jwt_json_t *json)
 		json_object_put(to_jc(json));
 }
 
-jwt_json_t *jwt_json_retain(jwt_json_t *json)
-{
-	if (json)
-		return from_jc(json_object_get(to_jc(json)));
-	return NULL;
-}
-
 /* ================================================================
  * Object creation
  * ================================================================ */
@@ -225,11 +218,6 @@ int jwt_json_arr_append(jwt_json_t *array, jwt_json_t *value)
 /* ================================================================
  * Type checking
  * ================================================================ */
-
-int jwt_json_is_object(const jwt_json_t *json)
-{
-	return json && json_object_is_type(to_jc(json), json_type_object);
-}
 
 int jwt_json_is_array(const jwt_json_t *json)
 {

@@ -67,7 +67,6 @@ void jwt_json_set_alloc(void *(*alloc_func)(size_t),
 void jwt_json_releasep(jwt_json_t **json);
 #define jwt_json_auto_t jwt_json_t __attribute__((cleanup(jwt_json_releasep)))
 
-jwt_json_t *jwt_json_retain(jwt_json_t *json);
 void jwt_json_release(jwt_json_t *json);
 
 /* ================================================================
@@ -109,7 +108,6 @@ int jwt_json_arr_append(jwt_json_t *array, jwt_json_t *value);
  * Type checking
  * ================================================================ */
 
-int jwt_json_is_object(const jwt_json_t *json);
 int jwt_json_is_array(const jwt_json_t *json);
 int jwt_json_is_string(const jwt_json_t *json);
 int jwt_json_is_int(const jwt_json_t *json);

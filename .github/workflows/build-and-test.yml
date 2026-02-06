@@ -67,3 +67,22 @@ jobs:
     - name: Memcheck
       working-directory: ${{github.workspace}}/build
       run: ctest -T memcheck
+
+  build-linux-json-c:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: ConorMacBride/install-package@v1
+      with:
+        apt: gnutls-dev libssl-dev libjson-c-dev pkg-config check libcurl4-openssl-dev bats jq
+
+    - name: Build and Test with json-c
+      uses: threeal/cmake-action@v2.1.0
+      with:
+        options: |
+          WITH_JSON_C=YES
+          WITH_LIBCURL=YES
+        build-args: |
+          --
+          all
+          check
