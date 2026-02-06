@@ -493,7 +493,7 @@ int main(int argc, char **argv)
 	jwk_str = jwt_json_serialize(jwk_set, JWT_JSON_INDENT(2));
 	fprintf(outfp, "%s\n", jwk_str);
 
-	free(jwk_str);
+	jwt_freemem(jwk_str);
 
 	exit(EXIT_SUCCESS);
 }
