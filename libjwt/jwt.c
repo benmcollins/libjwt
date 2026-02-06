@@ -106,8 +106,8 @@ jwt_t *jwt_new(void)
 
 	memset(jwt, 0, sizeof(*jwt));
 
-	jwt->claims = json_object();
-	jwt->headers = json_object();
+	jwt->claims = jwt_json_create();
+	jwt->headers = jwt_json_create();
 
 	if (!jwt->claims || !jwt->headers)
 		jwt_freep(&jwt); // LCOV_EXCL_LINE
@@ -128,8 +128,8 @@ void jwt_free(jwt_t *jwt)
 	if (!jwt)
 		return;
 
-	json_decref(jwt->claims);
-	json_decref(jwt->headers);
+	jwt_json_release(jwt->claims);
+	jwt_json_release(jwt->headers);
 
 	memset(jwt, 0, sizeof(*jwt));
 

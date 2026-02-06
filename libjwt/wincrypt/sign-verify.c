@@ -958,9 +958,9 @@ jwt_verify_sha_pem_done:
 	return ret;
 }
 
-int wincrypt_process_eddsa(json_t *jwk, jwk_item_t *item);
-int wincrypt_process_rsa(json_t *jwk, jwk_item_t *item);
-int wincrypt_process_ec(json_t *jwk, jwk_item_t *item);
+int wincrypt_process_eddsa(jwt_json_t *jwk, jwk_item_t *item);
+int wincrypt_process_rsa(jwt_json_t *jwk, jwk_item_t *item);
+int wincrypt_process_ec(jwt_json_t *jwk, jwk_item_t *item);
 void wincrypt_process_item_free(jwk_item_t *item);
 
 /* Export our ops */

@@ -10,14 +10,14 @@
 #define JWT_MBEDTLS_H
 
 /* Until we have our own routines, we rely on OpenSSL */
-int openssl_process_eddsa(json_t *jwk, jwk_item_t *item);
-int openssl_process_rsa(json_t *jwk, jwk_item_t *item);
-int openssl_process_ec(json_t *jwk, jwk_item_t *item);
+int openssl_process_eddsa(jwt_json_t *jwk, jwk_item_t *item);
+int openssl_process_rsa(jwt_json_t *jwk, jwk_item_t *item);
+int openssl_process_ec(jwt_json_t *jwk, jwk_item_t *item);
 void openssl_process_item_free(jwk_item_t *item);
 
-int mbedtls_process_eddsa(json_t *jwk, jwk_item_t *item);
-int gmbedls_process_rsa(json_t *jwk, jwk_item_t *item);
-int mbedtls_process_ec(json_t *jwk, jwk_item_t *item);
+int mbedtls_process_eddsa(jwt_json_t *jwk, jwk_item_t *item);
+int gmbedls_process_rsa(jwt_json_t *jwk, jwk_item_t *item);
+int mbedtls_process_ec(jwt_json_t *jwk, jwk_item_t *item);
 void mbedtls_process_item_free(jwk_item_t *item);
 
 #endif /* JWT_MBEDTLS_H */

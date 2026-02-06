@@ -24,8 +24,6 @@
 #include <openssl/err.h>
 #include <openssl/rand.h>
 
-#include <jansson.h>
-
 #include <jwt.h>
 
 #include "jwt-util.h"
@@ -123,7 +121,7 @@ static void ec_alg_type(EVP_PKEY *pkey, char crv[32], char alg[32])
 /* Retrieves and b64url-encodes a single OSSL BIGNUM param and adds it to
  * the JSON object as a string. */
 static void get_one_bn(EVP_PKEY *pkey, const char *ossl_param,
-		       json_t *jwk, const char *name)
+		       jwt_json_t *jwk, const char *name)
 {
 	/* Get param */
 	BIGNUM *bn = NULL;
@@ -139,33 +137,33 @@ static void get_one_bn(EVP_PKEY *pkey, const char *ossl_param,
 	char *b64;
 	jwt_base64uri_encode(&b64, (char *)bin, len);
 	OPENSSL_free(bin);
-	json_object_set_new(jwk, name, json_string(b64));
+	jwt_json_obj_set(jwk, name, jwt_json_create_str(b64));
 	jwt_freemem(b64);
 }
 
 /* Retrieves and b64url-encodes a single OSSL octet param and adds it to
  * the JSON object as a string. */
 static void get_one_octet(EVP_PKEY *pkey, const char *ossl_param,
-                          json_t *jwk, const char *name)
+                          jwt_json_t *jwk, const char *name)
 {
 	unsigned char buf[256];
 	size_t len;
 	EVP_PKEY_get_octet_string_param(pkey, ossl_param, buf, sizeof(buf), &len);
         char *b64;
 	jwt_base64uri_encode(&b64, (char *)buf, len);
-	json_object_set_new(jwk, name, json_string(b64));
+	jwt_json_obj_set(jwk, name, jwt_json_create_str(b64));
         jwt_freemem(b64);
 }
 
 /* For ECC Keys (ES256, ES384, ES512) */
-static void process_ec_key(EVP_PKEY *pkey, int priv, json_t *jwk)
+static void process_ec_key(EVP_PKEY *pkey, int priv, jwt_json_t *jwk)
 {
 	char alg_type[32], crv[32];
 
 	ec_alg_type(pkey, crv, alg_type);
 
-	json_object_set_new(jwk, "alg", json_string(alg_type));
-	json_object_set_new(jwk, "crv", json_string(crv));
+	jwt_json_obj_set(jwk, "alg", jwt_json_create_str(alg_type));
+	jwt_json_obj_set(jwk, "crv", jwt_json_create_str(crv));
 
 	get_one_bn(pkey, OSSL_PKEY_PARAM_EC_PUB_X, jwk, "x");
 	get_one_bn(pkey, OSSL_PKEY_PARAM_EC_PUB_Y, jwk, "y");
@@ -174,7 +172,7 @@ static void process_ec_key(EVP_PKEY *pkey, int priv, json_t *jwk)
 }
 
 /* For EdDSA keys */
-static void process_eddsa_key(EVP_PKEY *pkey, int priv, json_t *jwk)
+static void process_eddsa_key(EVP_PKEY *pkey, int priv, jwt_json_t *jwk)
 {
 	if (priv)
 		get_one_octet(pkey, OSSL_PKEY_PARAM_PRIV_KEY, jwk, "d");
@@ -184,7 +182,7 @@ static void process_eddsa_key(EVP_PKEY *pkey, int priv, json_t *jwk)
 
 /* For RSA keys (RS256, RS384, RS512). Also works for RSA-PSS
  * (PS256, PS384, PS512) */
-static void process_rsa_key(EVP_PKEY *pkey, int priv, json_t *jwk)
+static void process_rsa_key(EVP_PKEY *pkey, int priv, jwt_json_t *jwk)
 {
 	get_one_bn(pkey, OSSL_PKEY_PARAM_RSA_N, jwk, "n");
 	get_one_bn(pkey, OSSL_PKEY_PARAM_RSA_E, jwk, "e");
@@ -200,32 +198,32 @@ static void process_rsa_key(EVP_PKEY *pkey, int priv, json_t *jwk)
 	get_one_bn(pkey, OSSL_PKEY_PARAM_RSA_COEFFICIENT1, jwk, "qi");
 }
 
-static void process_hmac_key(json_t *jwk, const unsigned char *key, size_t len)
+static void process_hmac_key(jwt_json_t *jwk, const unsigned char *key, size_t len)
 {
 	char *b64;
 
-	json_object_set_new(jwk, "kty", json_string("oct"));
+	jwt_json_obj_set(jwk, "kty", jwt_json_create_str("oct"));
 
 	jwt_base64uri_encode(&b64, (char *)key, len);
-	json_object_set_new(jwk, "k", json_string(b64));
+	jwt_json_obj_set(jwk, "k", jwt_json_create_str(b64));
 	jwt_freemem(b64);
 
 	if (len >= 32 && len < 48)
-		json_object_set_new(jwk, "alg", json_string("HS256"));
+		jwt_json_obj_set(jwk, "alg", jwt_json_create_str("HS256"));
 	else if (len >= 48 && len < 64)
-		json_object_set_new(jwk, "alg", json_string("HS384"));
+		jwt_json_obj_set(jwk, "alg", jwt_json_create_str("HS384"));
 	else if (len >= 64)
-		json_object_set_new(jwk, "alg", json_string("HS512"));
+		jwt_json_obj_set(jwk, "alg", jwt_json_create_str("HS512"));
 
 	hmac_count++;
 }
 
-static json_t *parse_one_file(const char *file)
+static jwt_json_t *parse_one_file(const char *file)
 {
 	int priv = 0;
 	FILE *fp;
 	EVP_PKEY *pkey;
-	json_t *jwk, *ops;
+	jwt_json_t *jwk, *ops;
 	size_t len = 0;
 	unsigned char file_buf[BUFSIZ];
 
@@ -261,20 +259,20 @@ static json_t *parse_one_file(const char *file)
 	fclose(fp);
 
 	/* Setup json object */
-	jwk = json_object();
+	jwk = jwt_json_create();
 	if (!priv) {
 		/* Key use */
-		json_object_set_new(jwk, "use", json_string("sig"));
+		jwt_json_obj_set(jwk, "use", jwt_json_create_str("sig"));
 	} else {
 		/* Key ops */
-		ops = json_array();
-		json_array_append_new(ops, json_string("sign"));
-		json_object_set_new(jwk, "key_ops", ops);
+		ops = jwt_json_create_arr();
+		jwt_json_arr_append(ops, jwt_json_create_str("sign"));
+		jwt_json_obj_set(jwk, "key_ops", ops);
 	}
 
 	/* Use uuidv4 for "kid" */
 	if (with_kid)
-		json_object_set_new(jwk, "kid", json_string(uuidv4()));
+		jwt_json_obj_set(jwk, "kid", jwt_json_create_str(uuidv4()));
 
 	if (len) {
 		process_hmac_key(jwk, file_buf, len);
@@ -284,29 +282,29 @@ static json_t *parse_one_file(const char *file)
 	/* Process per key type params */
 	switch (EVP_PKEY_get_base_id(pkey)) {
 	case EVP_PKEY_RSA:
-		json_object_set_new(jwk, "kty", json_string("RSA"));
+		jwt_json_obj_set(jwk, "kty", jwt_json_create_str("RSA"));
 		process_rsa_key(pkey, priv, jwk);
 		rsa_count++;
 		break;
 
 	case EVP_PKEY_EC:
-		json_object_set_new(jwk, "kty", json_string("EC"));
+		jwt_json_obj_set(jwk, "kty", jwt_json_create_str("EC"));
 		process_ec_key(pkey, priv, jwk);
 		ec_count++;
 		break;
 
 	case EVP_PKEY_ED25519:
-		json_object_set_new(jwk, "kty", json_string("OKP"));
-		json_object_set_new(jwk, "crv", json_string("Ed25519"));
-		json_object_set_new(jwk, "alg", json_string("EdDSA"));
+		jwt_json_obj_set(jwk, "kty", jwt_json_create_str("OKP"));
+		jwt_json_obj_set(jwk, "crv", jwt_json_create_str("Ed25519"));
+		jwt_json_obj_set(jwk, "alg", jwt_json_create_str("EdDSA"));
 		process_eddsa_key(pkey, priv, jwk);
 		eddsa_count++;
 		break;
 
 	case EVP_PKEY_ED448:
-		json_object_set_new(jwk, "kty", json_string("OKP"));
-		json_object_set_new(jwk, "crv", json_string("Ed448"));
-		json_object_set_new(jwk, "alg", json_string("EdDSA"));
+		jwt_json_obj_set(jwk, "kty", jwt_json_create_str("OKP"));
+		jwt_json_obj_set(jwk, "crv", jwt_json_create_str("Ed448"));
+		jwt_json_obj_set(jwk, "alg", jwt_json_create_str("EdDSA"));
 		process_eddsa_key(pkey, priv, jwk);
 		eddsa_count++;
 		break;
@@ -314,8 +312,8 @@ static json_t *parse_one_file(const char *file)
 	case EVP_PKEY_RSA_PSS:
 		/* XXX We need a way to designate this for PS alg only ???
 		 * For now, default to PS256. */
-		json_object_set_new(jwk, "kty", json_string("RSA"));
-		json_object_set_new(jwk, "alg", json_string("PS256"));
+		jwt_json_obj_set(jwk, "kty", jwt_json_create_str("RSA"));
+		jwt_json_obj_set(jwk, "alg", jwt_json_create_str("PS256"));
 		process_rsa_key(pkey, priv, jwk);
 		rsa_pss_count++;
 		break;
@@ -367,7 +365,7 @@ use the -k option..\n", get_progname());
 
 int main(int argc, char **argv)
 {
-	json_t *jwk_set, *jwk_array, *jwk;
+	jwt_json_t *jwk_set, *jwk_array, *jwk;
 	time_t now;
 	char *time_str;
 	char comment[256];
@@ -442,11 +440,11 @@ int main(int argc, char **argv)
 	if (!quiet)
 		fprintf(msg, "Parsing %d files (", argc);
 
-	jwk_array = json_array();
+	jwk_array = jwt_json_create_arr();
 
 	for (i = 0; i < argc; i++) {
 		jwk = parse_one_file(argv[i]);
-		json_array_append_new(jwk_array, jwk);
+		jwt_json_arr_append(jwk_array, jwk);
 		if (!quiet)
 			fprintf(msg, ".");
 	}
@@ -469,16 +467,16 @@ int main(int argc, char **argv)
 		fprintf(msg, "Generating JWKS...\n");
 	}
 
-	jwk_set = json_object();
+	jwk_set = jwt_json_create();
 	snprintf(comment, sizeof(comment), "Generated by LibJWT %s",
 		 JWT_VERSION_STRING);
 	comment[sizeof(comment) - 1] = '\0';
-	json_object_set_new(jwk_set, "libjwt.io:comment", json_string(comment));
+	jwt_json_obj_set(jwk_set, "libjwt.io:comment", jwt_json_create_str(comment));
 
 	now = time(NULL);
 	time_str = ctime(&now);
 	time_str[strlen(time_str) - 1] = '\0';
-	json_object_set_new(jwk_set, "libjwt.io:date", json_string(time_str));
+	jwt_json_obj_set(jwk_set, "libjwt.io:date", jwt_json_create_str(time_str));
 
 #ifdef _WIN32
 	DWORD hostnamesize = sizeof(comment);
@@ -487,12 +485,12 @@ int main(int argc, char **argv)
 	gethostname(comment, sizeof(comment));
 #endif
 	comment[sizeof(comment) - 1] = '\0';
-	json_object_set_new(jwk_set, "libjwt.io:hostname",
-			    json_string(comment));
+	jwt_json_obj_set(jwk_set, "libjwt.io:hostname",
+			 jwt_json_create_str(comment));
 
-	json_object_set_new(jwk_set, "keys", jwk_array);
+	jwt_json_obj_set(jwk_set, "keys", jwk_array);
 
-	jwk_str = json_dumps(jwk_set, JSON_INDENT(2));
+	jwk_str = jwt_json_serialize(jwk_set, JWT_JSON_INDENT(2));
 	fprintf(outfp, "%s\n", jwk_str);
 
 	free(jwk_str);

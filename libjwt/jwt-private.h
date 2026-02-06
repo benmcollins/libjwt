@@ -13,7 +13,7 @@
 #include "config.h"
 #endif
 
-#include <jansson.h>
+#include "jwt-json-ops.h"
 #include <time.h>
 #include <stdarg.h>
 
@@ -57,8 +57,8 @@ extern struct jwt_crypto_ops *jwt_ops;
 struct jwt_common {
 	jwt_alg_t alg;
 	const jwk_item_t *key;
-	json_t *payload;
-	json_t *headers;
+	jwt_json_t *payload;
+	jwt_json_t *headers;
 	jwt_claims_t claims;
 	jwt_callback_t cb;
 	void *cb_ctx;
@@ -86,8 +86,8 @@ struct jwt_checker {
 
 struct jwt {
 	const jwk_item_t *key;
-	json_t *claims;
-	json_t *headers;
+	jwt_json_t *claims;
+	jwt_json_t *headers;
 	jwt_alg_t alg;
 	int error;
 	char error_msg[JWT_ERR_LEN];
@@ -135,7 +135,7 @@ struct jwk_item {
 	jwk_key_op_t key_ops;	/**< @rfc{7517,4.3} Key operations supported		*/
 	jwt_alg_t alg;		/**< @rfc{7517,4.4} JWA Algorithm supported		*/
 	char *kid;		/**< @rfc{7517,4.5} Key ID				*/
-	json_t *json;		/**< The json_t for this key				*/
+	jwt_json_t *json;	/**< The jwt_json_t for this key			*/
 };
 
 /* Crypto operations */
@@ -156,9 +156,9 @@ struct jwt_crypto_ops {
 
 	/* Parsing a JWK to prepare it for use */
 	int jwk_implemented;
-	int (*process_eddsa)(json_t *jwk, jwk_item_t *item);
-	int (*process_rsa)(json_t *jwk, jwk_item_t *item);
-	int (*process_ec)(json_t *jwk, jwk_item_t *item);
+	int (*process_eddsa)(jwt_json_t *jwk, jwk_item_t *item);
+	int (*process_rsa)(jwt_json_t *jwk, jwk_item_t *item);
+	int (*process_ec)(jwt_json_t *jwk, jwk_item_t *item);
 	void (*process_item_free)(jwk_item_t *item);
 };
 
@@ -222,11 +222,11 @@ int jwt_sign(jwt_t *jwt, char **out, unsigned int *len, const char *str,
 	     unsigned int str_len);
 
 JWT_NO_EXPORT
-jwt_value_error_t __deleter(json_t *which, const char *field);
+jwt_value_error_t __deleter(jwt_json_t *which, const char *field);
 JWT_NO_EXPORT
-jwt_value_error_t __setter(json_t *which, jwt_value_t *value);
+jwt_value_error_t __setter(jwt_json_t *which, jwt_value_t *value);
 JWT_NO_EXPORT
-jwt_value_error_t __getter(json_t *which, jwt_value_t *value);
+jwt_value_error_t __getter(jwt_json_t *which, jwt_value_t *value);
 
 JWT_NO_EXPORT
 int jwt_parse(jwt_t *jwt, const char *token, unsigned int *len);

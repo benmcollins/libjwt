@@ -13,21 +13,21 @@
 static const char not_implemented[] = "MBedTLS does not yet implement JWK";
 
 JWT_NO_EXPORT
-int mbedtls_process_eddsa(json_t *jwk, jwk_item_t *item)
+int mbedtls_process_eddsa(jwt_json_t *jwk, jwk_item_t *item)
 {
 	jwt_write_error(item, not_implemented);
 	return -1;
 }
 
 JWT_NO_EXPORT
-int mbedtls_process_rsa(json_t *jwk, jwk_item_t *item)
+int mbedtls_process_rsa(jwt_json_t *jwk, jwk_item_t *item)
 {
 	jwt_write_error(item, not_implemented);
 	return -1;
 }
 
 JWT_NO_EXPORT
-int mbedtls_process_ec(json_t *jwk, jwk_item_t *item)
+int mbedtls_process_ec(jwt_json_t *jwk, jwk_item_t *item)
 {
 	jwt_write_error(item, not_implemented);
 	return -1;

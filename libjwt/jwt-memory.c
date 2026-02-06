@@ -31,8 +31,8 @@ int jwt_set_alloc(jwt_malloc_t pmalloc, jwt_free_t pfree)
 	pfn_malloc = pmalloc;
 	pfn_free = pfree;
 
-	/* Set same allocator functions for Jansson. */
-	json_set_alloc_funcs(jwt_malloc, __jwt_freemem);
+	/* Set same allocator functions for JSON backend. */
+	jwt_json_set_alloc(jwt_malloc, __jwt_freemem);
 
 	return 0;
 }

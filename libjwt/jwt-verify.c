@@ -14,9 +14,9 @@
 
 #include "jwt-private.h"
 
-static json_t *jwt_base64uri_decode_to_json(char *src)
+static jwt_json_t *jwt_base64uri_decode_to_json(char *src)
 {
-	json_t *js;
+	jwt_json_t *js;
 	char *buf;
 	int len;
 
@@ -27,7 +27,7 @@ static json_t *jwt_base64uri_decode_to_json(char *src)
 
 	buf[len] = '\0';
 
-	js = json_loads(buf, 0, NULL);
+	js = jwt_json_parse(buf, 0, NULL);
 
 	jwt_freemem(buf);
 
@@ -37,7 +37,7 @@ static json_t *jwt_base64uri_decode_to_json(char *src)
 static int jwt_parse_payload(jwt_t *jwt, char *payload)
 {
 	if (jwt->claims)
-		json_decrefp(&(jwt->claims));
+		jwt_json_releasep(&(jwt->claims));
 
 	jwt->claims = jwt_base64uri_decode_to_json(payload);
 	if (!jwt->claims) {
@@ -50,10 +50,10 @@ static int jwt_parse_payload(jwt_t *jwt, char *payload)
 
 static int jwt_parse_head(jwt_t *jwt, char *head)
 {
-	json_t *jalg;
+	jwt_json_t *jalg;
 
 	if (jwt->headers)
-		json_decrefp(&(jwt->headers));
+		jwt_json_releasep(&(jwt->headers));
 
 	jwt->headers = jwt_base64uri_decode_to_json(head);
 	if (!jwt->headers) {
@@ -63,9 +63,9 @@ static int jwt_parse_head(jwt_t *jwt, char *head)
 
 	jwt->alg = JWT_ALG_NONE;
 
-	jalg = json_object_get(jwt->headers, "alg");
-	if (jalg && json_is_string(jalg)) {
-		const char *alg = json_string_value(jalg);
+	jalg = jwt_json_obj_get(jwt->headers, "alg");
+	if (jalg && jwt_json_is_string(jalg)) {
+		const char *alg = jwt_json_str_val(jalg);
 
 		jwt->alg = jwt_str_alg(alg);
 

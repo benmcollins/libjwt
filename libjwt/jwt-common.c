@@ -31,8 +31,8 @@ void FUNC(free)(jwt_common_t *__cmd)
 	if (__cmd == NULL)
 		return;
 
-	json_decref(__cmd->c.payload);
-	json_decref(__cmd->c.headers);
+	jwt_json_release(__cmd->c.payload);
+	jwt_json_release(__cmd->c.headers);
 
 	memset(__cmd, 0, sizeof(*__cmd));
 
@@ -48,8 +48,8 @@ jwt_common_t *FUNC(new)(void)
 
 	memset(__cmd, 0, sizeof(*__cmd));
 
-	__cmd->c.payload = json_object();
-	__cmd->c.headers = json_object();
+	__cmd->c.payload = jwt_json_create();
+	__cmd->c.headers = jwt_json_create();
 	__cmd->c.claims = CLAIMS_DEF;
 
 	if (!__cmd->c.payload || !__cmd->c.headers)
@@ -186,12 +186,12 @@ typedef enum {
 	__CLAIM,
 } _setget_type_t;
 
-typedef jwt_value_error_t (*__doer_t)(json_t *, jwt_value_t *);
+typedef jwt_value_error_t (*__doer_t)(jwt_json_t *, jwt_value_t *);
 
 static jwt_value_error_t __run_it(jwt_common_t *__cmd, _setget_type_t type,
 				  jwt_value_t *value, __doer_t doer)
 {
-	json_t *which = NULL;
+	jwt_json_t *which = NULL;
 #ifdef JWT_BUILDER
 	if (!__cmd || !value) {
 		if (value)
@@ -430,8 +430,8 @@ char *FUNC(generate)(jwt_common_t *__cmd)
 
 	memset(jwt, 0, sizeof(*jwt));
 
-	jwt->headers = json_deep_copy(__cmd->c.headers);
-	jwt->claims = json_deep_copy(__cmd->c.payload);
+	jwt->headers = jwt_json_clone(__cmd->c.headers);
+	jwt->claims = jwt_json_clone(__cmd->c.payload);
 
 	/* Our internal work first */
 	if (__cmd->c.claims & JWT_CLAIM_IAT) {

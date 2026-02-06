@@ -14,9 +14,9 @@
 
 #include "jwt-private.h"
 
-static int write_js(const json_t *js, char **buf)
+static int write_js(const jwt_json_t *js, char **buf)
 {
-	*buf = json_dumps(js, JSON_SORT_KEYS | JSON_COMPACT);
+	*buf = jwt_json_serialize(js, JWT_JSON_SORT_KEYS | JWT_JSON_COMPACT);
 
 	return *buf == NULL ? 1 : 0;
 }

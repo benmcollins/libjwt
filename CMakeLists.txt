@@ -28,7 +28,13 @@ include(GNUInstallDirs)
 # Find all the things we need for the library
 find_package(PkgConfig REQUIRED)
 
+option(WITH_JSON_C "Whether to use json-c instead of jansson (default is OFF)" OFF)
+
+if (WITH_JSON_C)
+	pkg_check_modules(JSONC json-c>=0.16 REQUIRED IMPORTED_TARGET)
+else()
 pkg_check_modules(JANSSON jansson>=2.0 REQUIRED IMPORTED_TARGET)
+endif()
 
 if (NOT DEFINED WITH_GNUTLS)
 	set(GNUTLS_AUTO TRUE)
@@ -121,8 +127,18 @@ generate_export_header(jwt ${NO_BUILD_DEPRECATED})
 include_directories(${CMAKE_SOURCE_DIR}/include ${CMAKE_BINARY_DIR}
 		    ${CMAKE_SOURCE_DIR}/libjwt)
 
-target_link_libraries(jwt PUBLIC PkgConfig::JANSSON)
-target_link_libraries(jwt_static PUBLIC PkgConfig::JANSSON)
+if (WITH_JSON_C)
+	add_definitions(-DHAVE_JSON_C)
+	target_link_libraries(jwt PUBLIC PkgConfig::JSONC)
+	target_link_libraries(jwt_static PUBLIC PkgConfig::JSONC)
+	list(APPEND JWT_SOURCES
+	     libjwt/json-c/jwt-json-c.c)
+else()
+	target_link_libraries(jwt PUBLIC PkgConfig::JANSSON)
+	target_link_libraries(jwt_static PUBLIC PkgConfig::JANSSON)
+	list(APPEND JWT_SOURCES
+	     libjwt/jansson/jwt-jansson.c)
+endif()
 
 # Process the detected packages
 set(HAVE_CRYPTO FALSE)
@@ -239,7 +255,12 @@ install(EXPORT ${LIBJWT_PROJECT}Targets
 
 # For pkg-config users
 unset(LIBJWT_LDFLAGS)
-foreach (FLAG ${JANSSON_LDFLAGS} ${OPENSSL_LDFLAGS} ${GNUTLS_LDFLAGS}
+if (WITH_JSON_C)
+	set(_JSON_LDFLAGS ${JSONC_LDFLAGS})
+else()
+	set(_JSON_LDFLAGS ${JANSSON_LDFLAGS})
+endif()
+foreach (FLAG ${_JSON_LDFLAGS} ${OPENSSL_LDFLAGS} ${GNUTLS_LDFLAGS}
 		${MBEDTLS_LDFLAGS} ${LIBCURL_LDFLAGS})
 	string(APPEND LIBJWT_LDFLAGS " " ${FLAG})
 endforeach()

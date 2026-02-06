@@ -25,7 +25,7 @@
 #include "openssl/jwt-openssl.h"
 
 /* Sets a param for the public EC key */
-static void *set_ec_pub_key(OSSL_PARAM_BLD *build, json_t *jx, json_t *jy,
+static void *set_ec_pub_key(OSSL_PARAM_BLD *build, jwt_json_t *jx, jwt_json_t *jy,
 			   const char *curve_name)
 {
 	EC_GROUP *group = NULL;
@@ -39,8 +39,8 @@ static void *set_ec_pub_key(OSSL_PARAM_BLD *build, json_t *jx, json_t *jy,
 	unsigned char *pub_key = NULL;
 
 	/* First, base64url decode */
-	str_x = json_string_value(jx);
-	str_y = json_string_value(jy);
+	str_x = jwt_json_str_val(jx);
+	str_y = jwt_json_str_val(jy);
 
 	bin_x = jwt_base64uri_decode(str_x, &len_x);
 	bin_y = jwt_base64uri_decode(str_y, &len_y);
@@ -90,7 +90,7 @@ ec_pub_key_cleanup:
 
 /* b64url-decodes a single OSSL BIGNUM and sets the OSSL param. */
 static BIGNUM *set_one_bn(OSSL_PARAM_BLD *build, const char *ossl_name,
-		       json_t *val)
+		       jwt_json_t *val)
 {
 	unsigned char *bin;
 	const char *str;
@@ -98,7 +98,7 @@ static BIGNUM *set_one_bn(OSSL_PARAM_BLD *build, const char *ossl_name,
 	BIGNUM *bn;
 
 	/* decode it */
-	str = json_string_value(val);
+	str = jwt_json_str_val(val);
 	if (str == NULL)
 		return NULL;
 	bin = jwt_base64uri_decode(str, &len);
@@ -126,14 +126,14 @@ static void set_one_string(OSSL_PARAM_BLD *build, const char *ossl_name,
 
 /* b64url-decodes a single octet and creates an OSSL param. */
 static unsigned char *set_one_octet(OSSL_PARAM_BLD *build,
-				    const char *ossl_name, json_t *val)
+				    const char *ossl_name, jwt_json_t *val)
 {
 	unsigned char *bin;
 	const char *str;
 	int len;
 
 	/* decode it */
-	str = json_string_value(val);
+	str = jwt_json_str_val(val);
 	bin = jwt_base64uri_decode(str, &len);
 
 	OSSL_PARAM_BLD_push_octet_string(build, ossl_name, bin, len);
@@ -203,28 +203,28 @@ cleanup_pem:
 
 /* For EdDSA keys */
 JWT_NO_EXPORT
-int openssl_process_eddsa(json_t *jwk, jwk_item_t *item)
+int openssl_process_eddsa(jwt_json_t *jwk, jwk_item_t *item)
 {
 	unsigned char *pub_bin = NULL, *priv_bin = NULL;
 	OSSL_PARAM *params = NULL;
 	OSSL_PARAM_BLD *build = NULL;
 	EVP_PKEY_CTX *pctx = NULL;
-	json_t *x, *d, *crv;
+	jwt_json_t *x, *d, *crv;
 	const char *crv_str;
 	int priv = 0;
 	int ret = -1;
 
 	/* EdDSA only need one or the other. */
-	x = json_object_get(jwk, "x");
-	d = json_object_get(jwk, "d");
-	crv = json_object_get(jwk, "crv");
+	x = jwt_json_obj_get(jwk, "x");
+	d = jwt_json_obj_get(jwk, "d");
+	crv = jwt_json_obj_get(jwk, "crv");
 
 	if (x == NULL && d == NULL) {
 		jwt_write_error(item,
 			"Need an 'x' or 'd' component and found neither");
 		goto cleanup_eddsa;
 	}
-	if (crv == NULL || !json_is_string(crv)) {
+	if (crv == NULL || !jwt_json_is_string(crv)) {
 		jwt_write_error(item,
                         "No curve component found for EdDSA key");
 		goto cleanup_eddsa;
@@ -233,7 +233,7 @@ int openssl_process_eddsa(json_t *jwk, jwk_item_t *item)
 	if (d != NULL)
 		item->is_private_key = priv = 1;
 
-	crv_str = json_string_value(crv);
+	crv_str = jwt_json_str_val(crv);
 	if (!strcmp(crv_str, "Ed25519"))
 		pctx = EVP_PKEY_CTX_new_from_name(NULL, "ED25519", NULL);
 	else if (!strcmp(crv_str, "Ed448"))
@@ -312,10 +312,10 @@ cleanup_eddsa:
 /* For RSA keys (RS256, RS384, RS512). Also works for RSA-PSS
  * (PS256, PS384, PS512) */
 JWT_NO_EXPORT
-int openssl_process_rsa(json_t *jwk, jwk_item_t *item)
+int openssl_process_rsa(jwt_json_t *jwk, jwk_item_t *item)
 {
 	OSSL_PARAM_BLD *build = NULL;
-	json_t *n, *e, *d, *p, *q, *dp, *dq, *qi, *alg;
+	jwt_json_t *n, *e, *d, *p, *q, *dp, *dq, *qi, *alg;
 	BIGNUM *bn_n = NULL, *bn_e = NULL, *bn_d = NULL, *bn_p = NULL,
 		*bn_q = NULL, *bn_dp = NULL, *bn_dq = NULL, *bn_qi = NULL;
 	int is_rsa_pss = 0, priv = 0, ret = -1;
@@ -323,15 +323,15 @@ int openssl_process_rsa(json_t *jwk, jwk_item_t *item)
 	EVP_PKEY_CTX *pctx = NULL;
 	const char *alg_str = NULL;
 
-	alg = json_object_get(jwk, "alg");
-	n = json_object_get(jwk, "n");
-	e = json_object_get(jwk, "e");
-	d = json_object_get(jwk, "d");
-	p = json_object_get(jwk, "p");
-	q = json_object_get(jwk, "q");
-	dp = json_object_get(jwk, "dp");
-	dq = json_object_get(jwk, "dq");
-	qi = json_object_get(jwk, "qi");
+	alg = jwt_json_obj_get(jwk, "alg");
+	n = jwt_json_obj_get(jwk, "n");
+	e = jwt_json_obj_get(jwk, "e");
+	d = jwt_json_obj_get(jwk, "d");
+	p = jwt_json_obj_get(jwk, "p");
+	q = jwt_json_obj_get(jwk, "q");
+	dp = jwt_json_obj_get(jwk, "dp");
+	dq = jwt_json_obj_get(jwk, "dq");
+	qi = jwt_json_obj_get(jwk, "qi");
 
 	if (n == NULL || e == NULL) {
 		jwt_write_error(item,
@@ -341,7 +341,7 @@ int openssl_process_rsa(json_t *jwk, jwk_item_t *item)
 
 	/* Check alg to see if we can sniff RSA vs RSA-PSS */
 	if (alg) {
-		alg_str = json_string_value(alg);
+		alg_str = jwt_json_str_val(alg);
 
 		if (alg_str[0] == 'P')
 			is_rsa_pss = 1;
@@ -447,11 +447,11 @@ static const char *ec_crv_to_ossl_name(const char *crv)
 
 /* For EC Keys (ES256, ES384, ES512) */
 JWT_NO_EXPORT
-int openssl_process_ec(json_t *jwk, jwk_item_t *item)
+int openssl_process_ec(jwt_json_t *jwk, jwk_item_t *item)
 {
 	OSSL_PARAM *params = NULL;
 	OSSL_PARAM_BLD *build = NULL;
-	json_t *crv, *x, *y, *d;
+	jwt_json_t *crv, *x, *y, *d;
 	EVP_PKEY_CTX *pctx = NULL;
 	const char *crv_str;
 	const char *ossl_crv;
@@ -459,19 +459,19 @@ int openssl_process_ec(json_t *jwk, jwk_item_t *item)
 	int priv = 0, ret = -1;
 	void *pub_key = NULL;
 
-	crv = json_object_get(jwk, "crv");
-	x = json_object_get(jwk, "x");
-	y = json_object_get(jwk, "y");
-	d = json_object_get(jwk, "d");
+	crv = jwt_json_obj_get(jwk, "crv");
+	x = jwt_json_obj_get(jwk, "x");
+	y = jwt_json_obj_get(jwk, "y");
+	d = jwt_json_obj_get(jwk, "d");
 
 	/* Check the minimal for pub key */
 	if (crv == NULL || x == NULL || y == NULL ||
-	    !json_is_string(crv) || !json_is_string(x) || !json_is_string(y)) {
+	    !jwt_json_is_string(crv) || !jwt_json_is_string(x) || !jwt_json_is_string(y)) {
 		jwt_write_error(item, "Missing or invalid type for one of crv, x, or y for pub key");
 		goto cleanup_ec;
 	}
 
-	crv_str = json_string_value(crv);
+	crv_str = jwt_json_str_val(crv);
 	strncpy(item->curve, crv_str, sizeof(item->curve) - 1);
 	item->curve[sizeof(item->curve) - 1] = '\0';
 

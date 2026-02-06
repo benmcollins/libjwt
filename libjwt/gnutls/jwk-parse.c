@@ -22,21 +22,21 @@
 static const char not_implemented[] = "GnuTLS does not yet implement JWK";
 
 JWT_NO_EXPORT
-int gnutls_process_eddsa(json_t *jwk, jwk_item_t *item)
+int gnutls_process_eddsa(jwt_json_t *jwk, jwk_item_t *item)
 {
 	jwt_write_error(item, not_implemented);
 	return -1;
 }
 
 JWT_NO_EXPORT
-int gnutls_process_rsa(json_t *jwk, jwk_item_t *item)
+int gnutls_process_rsa(jwt_json_t *jwk, jwk_item_t *item)
 {
 	jwt_write_error(item, not_implemented);
 	return -1;
 }
 
 JWT_NO_EXPORT
-int gnutls_process_ec(json_t *jwk, jwk_item_t *item)
+int gnutls_process_ec(jwt_json_t *jwk, jwk_item_t *item)
 {
 	jwt_write_error(item, not_implemented);
 	return -1;
