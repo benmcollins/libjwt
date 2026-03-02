@@ -30,6 +30,10 @@ ctest -T memcheck
 cmake -DENABLE_COVERAGE=YES ..
 make check-code-coverage
 
+All new code MUST be covered by tests cases. Do not commit ANY code
+changes without running coverage first, and ensure there are no new
+missing lines covered.
+
 # Build documentation (requires Doxygen >= 1.9.8)
 # Docs are built automatically if Doxygen is found
 ```
