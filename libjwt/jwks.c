@@ -198,6 +198,9 @@ const jwk_item_t *jwks_item_get(const jwk_set_t *jwk_set, size_t index)
 	jwk_item_t *item = NULL;
 	size_t i = 0;
 
+	if (jwk_set == NULL)
+		return NULL;
+
 	list_for_each_entry(item, &jwk_set->head, node) {
 		if (i == index)
 			return item;
@@ -210,7 +213,12 @@ const jwk_item_t *jwks_item_get(const jwk_set_t *jwk_set, size_t index)
 int jwks_error_any(const jwk_set_t *jwk_set)
 {
 	jwk_item_t *item = NULL;
-	int count = jwk_set->error;
+	int count;
+
+	if (jwk_set == NULL)
+		return 1;
+
+	count = jwk_set->error;
 
 	list_for_each_entry(item, &jwk_set->head, node) {
 		if (item->error)
@@ -289,16 +297,25 @@ int jwks_item_key_oct(const jwk_item_t *item, const unsigned char **buf,
 
 int jwks_error(const jwk_set_t *jwk_set)
 {
+	if (jwk_set == NULL)
+		return 1;
+
 	return jwk_set->error ? 1 : 0;
 }
 
 const char *jwks_error_msg(const jwk_set_t *jwk_set)
 {
+	if (jwk_set == NULL)
+		return NULL;
+
 	return jwk_set->error_msg;
 }
 
 void jwks_error_clear(jwk_set_t *jwk_set)
 {
+	if (jwk_set == NULL)
+		return;
+
 	jwk_set->error = 0;
 	memset(jwk_set->error_msg, 0, sizeof(jwk_set->error_msg));
 }
@@ -326,7 +343,7 @@ jwk_item_t *jwks_find_bykid(jwk_set_t *jwk_set, const char *kid)
 static void __item_free(jwk_item_t *todel)
 {
 	if (todel->provider == JWT_CRYPTO_OPS_ANY)
-		jwt_freemem(todel->oct.key);
+		jwt_scrub_and_free(todel->oct.key, todel->oct.len);
 	else
 		jwt_ops->process_item_free(todel);
 
@@ -442,12 +459,14 @@ static jwk_set_t *jwks_process(jwk_set_t *jwk_set, jwt_json_t *j_all, jwt_json_e
         if (j_array == NULL) {
                 /* Assume a single JSON Object for one JWK */
                 jwk_item = jwk_process_one(jwk_set, j_all);
-                jwks_item_add(jwk_set, jwk_item);
+                if (jwk_item != NULL)
+                        jwks_item_add(jwk_set, jwk_item);
         } else {
                 /* We have a list, so parse them all. */
                 jwt_json_arr_foreach(j_array, i, j_item) {
                         jwk_item = jwk_process_one(jwk_set, j_item);
-                        jwks_item_add(jwk_set, jwk_item);
+                        if (jwk_item != NULL)
+                                jwks_item_add(jwk_set, jwk_item);
                 }
         }
 
@@ -486,7 +505,7 @@ jwk_set_t *jwks_load_strn(jwk_set_t *jwk_set, const char *jwk_json_str,
 
 jwk_set_t *jwks_load(jwk_set_t *jwk_set, const char *jwk_json_str)
 {
-	int len;
+	size_t len;
 
 	if (jwk_json_str == NULL)
 		return NULL;

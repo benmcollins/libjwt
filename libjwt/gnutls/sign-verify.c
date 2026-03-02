@@ -78,7 +78,7 @@ static int gnutls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 	gnutls_datum_t sig_dat, r, s;
 	gnutls_digest_algorithm_t alg;
 	int pk_alg, flags = 0;
-	unsigned int adj;
+	unsigned int adj = 0;
 
 	if (gnutls_privkey_init(&privkey))
 		SIGN_ERROR("Error initializing privkey"); // LCOV_EXCL_LINE
@@ -191,10 +191,12 @@ static int gnutls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		/* Check r and s size */
 		if (jwt->alg == JWT_ALG_ES256 || jwt->alg == JWT_ALG_ES256K)
 			adj = 32;
-		if (jwt->alg == JWT_ALG_ES384)
+		else if (jwt->alg == JWT_ALG_ES384)
 			adj = 48;
-		if (jwt->alg == JWT_ALG_ES512)
+		else if (jwt->alg == JWT_ALG_ES512)
 			adj = 66;
+		else
+			SIGN_ERROR("Unknown EC algorithm");
 
 		if (r.size > adj)
 			r_padding = r.size - adj;

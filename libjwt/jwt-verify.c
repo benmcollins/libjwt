@@ -77,6 +77,8 @@ static int jwt_parse_head(jwt_t *jwt, char *head)
 		return 0;
 	}
 
+	jwt_write_error(jwt, "Missing or invalid \"alg\" header");
+
 	return 1;
 }
 

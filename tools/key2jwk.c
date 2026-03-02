@@ -125,11 +125,16 @@ static void get_one_bn(EVP_PKEY *pkey, const char *ossl_param,
 {
 	/* Get param */
 	BIGNUM *bn = NULL;
-	EVP_PKEY_get_bn_param(pkey, ossl_param, &bn);
+	if (!EVP_PKEY_get_bn_param(pkey, ossl_param, &bn) || bn == NULL)
+		return;
 
 	/* Extract data */
 	int len = BN_num_bytes(bn);
 	unsigned char *bin = OPENSSL_malloc(len);
+	if (bin == NULL) {
+		BN_free(bn);
+		return;
+	}
 	BN_bn2bin(bn, bin);
 	BN_free(bn);
 
@@ -147,10 +152,13 @@ static void get_one_octet(EVP_PKEY *pkey, const char *ossl_param,
                           jwt_json_t *jwk, const char *name)
 {
 	unsigned char buf[256];
-	size_t len;
-	EVP_PKEY_get_octet_string_param(pkey, ossl_param, buf, sizeof(buf), &len);
+	size_t len = 0;
+	if (!EVP_PKEY_get_octet_string_param(pkey, ossl_param, buf,
+					     sizeof(buf), &len) || len == 0)
+		return;
         char *b64;
 	jwt_base64uri_encode(&b64, (char *)buf, len);
+	OPENSSL_cleanse(buf, len);
 	jwt_json_obj_set(jwk, name, jwt_json_create_str(b64));
         jwt_freemem(b64);
 }
@@ -276,6 +284,7 @@ static jwt_json_t *parse_one_file(const char *file)
 
 	if (len) {
 		process_hmac_key(jwk, file_buf, len);
+		OPENSSL_cleanse(file_buf, len);
 		return jwk;
 	}
 

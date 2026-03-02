@@ -130,11 +130,16 @@ static unsigned char *set_one_octet(OSSL_PARAM_BLD *build,
 {
 	unsigned char *bin;
 	const char *str;
-	int len;
+	int len = 0;
 
 	/* decode it */
 	str = jwt_json_str_val(val);
+	if (str == NULL)
+		return NULL;
+
 	bin = jwt_base64uri_decode(str, &len);
+	if (bin == NULL || len <= 0)
+		return NULL;
 
 	OSSL_PARAM_BLD_push_octet_string(build, ossl_name, bin, len);
 
@@ -340,10 +345,10 @@ int openssl_process_rsa(jwt_json_t *jwk, jwk_item_t *item)
 	}
 
 	/* Check alg to see if we can sniff RSA vs RSA-PSS */
-	if (alg) {
+	if (alg && jwt_json_is_string(alg)) {
 		alg_str = jwt_json_str_val(alg);
 
-		if (alg_str[0] == 'P')
+		if (alg_str && alg_str[0] == 'P')
 			is_rsa_pss = 1;
 	}
 
@@ -549,7 +554,10 @@ void openssl_process_item_free(jwk_item_t *item)
 		return;
 
 	EVP_PKEY_free(item->provider_data);
-	OPENSSL_free(item->pem);
+	if (item->pem) {
+		OPENSSL_cleanse(item->pem, strlen(item->pem));
+		OPENSSL_free(item->pem);
+	}
 
 	item->pem = NULL;
 	item->provider_data = NULL;

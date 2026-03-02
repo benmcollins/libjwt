@@ -52,8 +52,13 @@ jwt_common_t *FUNC(new)(void)
 	__cmd->c.headers = jwt_json_create();
 	__cmd->c.claims = CLAIMS_DEF;
 
-	if (!__cmd->c.payload || !__cmd->c.headers)
-		jwt_freemem(__cmd); // LCOV_EXCL_LINE
+	if (!__cmd->c.payload || !__cmd->c.headers) {
+		// LCOV_EXCL_START
+		jwt_json_release(__cmd->c.payload);
+		jwt_json_release(__cmd->c.headers);
+		jwt_freemem(__cmd);
+		// LCOV_EXCL_STOP
+	}
 
 	return __cmd;
 }

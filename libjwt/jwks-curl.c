@@ -21,15 +21,25 @@ struct jwks_data {
 	size_t alloc_size;
 };
 
+/* Maximum size we will accept for a JWKS response (1 MiB). */
+#define JWKS_MAX_RESPONSE_SIZE	(1024 * 1024)
+
 static size_t header_cb(char *buf, size_t size, size_t nmemb, void *ctx)
 {
 	size_t total_size = size * nmemb;
 	struct jwks_data *data = ctx;
+	long content_length;
+	char *endptr;
 
 	if (strncasecmp(buf, "Content-Length:", 15))
 		return total_size;
 
-	data->alloc_size = (size_t)atol(buf + 15);
+	content_length = strtol(buf + 15, &endptr, 10);
+	if (endptr == buf + 15 || content_length <= 0 ||
+	    content_length > JWKS_MAX_RESPONSE_SIZE)
+		return 0;
+
+	data->alloc_size = (size_t)content_length;
 	data->buf = jwt_malloc(data->alloc_size + 1);
 	if (!data->buf)
 		return 0; // LCOV_EXCL_LINE

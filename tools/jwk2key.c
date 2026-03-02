@@ -21,6 +21,18 @@
 static char *out_dir;
 static int retry;
 
+/* Reject path components that could cause directory traversal */
+static int is_safe_filename_part(const char *s)
+{
+	if (s == NULL || s[0] == '\0')
+		return 0;
+	if (strstr(s, ".."))
+		return 0;
+	if (strchr(s, '/') || strchr(s, '\\'))
+		return 0;
+	return 1;
+}
+
 static void write_key_file(const jwk_item_t *item)
 {
 	const char *pre, *name;
@@ -67,9 +79,19 @@ static void write_key_file(const jwk_item_t *item)
 		return;
 	}
 
+	if (!is_safe_filename_part(name)) {
+		fprintf(stderr, "Skipping key with unsafe name: %s\n",
+			name ? name : "(null)");
+		return;
+	}
+
 	if (jwks_item_kid(item) == NULL) {
 		snprintf(file_name, sizeof(file_name), "%s/%s_%s%s%s",
 			 out_dir, pre, name, priv ? "" : "_pub", ext);
+	} else if (!is_safe_filename_part(jwks_item_kid(item))) {
+		fprintf(stderr, "Skipping key with unsafe kid: %s\n",
+			jwks_item_kid(item));
+		return;
 	} else {
 		snprintf(file_name, sizeof(file_name), "%s/%s_%s_%s%s%s",
 			 out_dir, pre, name, jwks_item_kid(item),

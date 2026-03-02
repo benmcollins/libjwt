@@ -95,7 +95,11 @@ int jwt_crypto_ops_supports_jwk(void)
 JWT_CONSTRUCTOR
 void jwt_init()
 {
+#if defined(__GLIBC__)
+	const char *opname = secure_getenv("JWT_CRYPTO");
+#else
 	const char *opname = getenv("JWT_CRYPTO");
+#endif
 
 	/* By default, we choose the top spot */
 	if (opname == NULL || opname[0] == '\0') {

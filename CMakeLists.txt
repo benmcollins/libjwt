@@ -331,6 +331,9 @@ if (CHECK_FOUND)
 	# Claims
 	list (APPEND UNIT_TESTS jwt_claims)
 
+	# Security
+	list (APPEND UNIT_TESTS jwt_security)
+
 	foreach (TEST ${UNIT_TESTS})
 		jwt_add_test(NAME ${TEST})
 	endforeach()

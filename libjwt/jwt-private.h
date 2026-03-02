@@ -16,6 +16,7 @@
 #include "jwt-json-ops.h"
 #include <time.h>
 #include <stdarg.h>
+#include <openssl/crypto.h>
 
 #include "ll.h"
 
@@ -46,10 +47,12 @@ extern struct jwt_crypto_ops *jwt_ops;
 	(__obj)->error = 1;				\
 })
 
-#define jwt_copy_error(__dst, __src)			\
-({							\
-	strcpy((__dst)->error_msg, (__src)->error_msg);	\
-	(__dst)->error = (__src)->error;		\
+#define jwt_copy_error(__dst, __src)				\
+({								\
+	strncpy((__dst)->error_msg, (__src)->error_msg,		\
+		sizeof((__dst)->error_msg) - 1);		\
+	(__dst)->error_msg[sizeof((__dst)->error_msg) - 1] = '\0';	\
+	(__dst)->error = (__src)->error;			\
 })
 
 /******************************/
@@ -189,6 +192,14 @@ jwt_t *jwt_new(void);
 		__jwt_freemem(__ptr);	\
 		__ptr = NULL;		\
 	}				\
+})
+
+/* Scrub and free sensitive key material. Uses OPENSSL_cleanse which is
+ * available on all platforms (OpenSSL >= 3.0 is always required). */
+#define jwt_scrub_and_free(__ptr, __len) ({	\
+	if (__ptr)				\
+		OPENSSL_cleanse(__ptr, __len);	\
+	jwt_freemem(__ptr);			\
 })
 
 static inline void jwt_freememp(char **mem) {
