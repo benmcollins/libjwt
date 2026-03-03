@@ -19,6 +19,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <jwt_export.h>
 
 /* ================================================================
  * Types
@@ -56,46 +57,57 @@ typedef struct {
 /* ================================================================
  * Memory allocator override
  * ================================================================ */
-
+JWT_NO_EXPORT
 void jwt_json_set_alloc(void *(*alloc_func)(size_t),
 			void (*free_func)(void *));
 
 /* ================================================================
  * Reference counting & auto cleanup
  * ================================================================ */
-
+JWT_NO_EXPORT
 void jwt_json_releasep(jwt_json_t **json);
 #define jwt_json_auto_t jwt_json_t __attribute__((cleanup(jwt_json_releasep)))
-
+JWT_NO_EXPORT
 void jwt_json_release(jwt_json_t *json);
 
 /* ================================================================
  * Object creation
  * ================================================================ */
-
+JWT_NO_EXPORT
 jwt_json_t *jwt_json_create(void);
+JWT_NO_EXPORT
 jwt_json_t *jwt_json_create_arr(void);
+JWT_NO_EXPORT
 jwt_json_t *jwt_json_create_str(const char *value);
+JWT_NO_EXPORT
 jwt_json_t *jwt_json_create_int(jwt_json_int_t value);
+JWT_NO_EXPORT
 jwt_json_t *jwt_json_create_bool(int value);
 
 /* ================================================================
  * Object operations
  * ================================================================ */
-
+JWT_NO_EXPORT
 jwt_json_t *jwt_json_obj_get(const jwt_json_t *object, const char *key);
+JWT_NO_EXPORT
 int jwt_json_obj_set(jwt_json_t *object, const char *key, jwt_json_t *value);
+JWT_NO_EXPORT
 int jwt_json_obj_del(jwt_json_t *object, const char *key);
+JWT_NO_EXPORT
 int jwt_json_obj_clear(jwt_json_t *object);
+JWT_NO_EXPORT
 int jwt_json_obj_merge(jwt_json_t *object, jwt_json_t *other);
+JWT_NO_EXPORT
 int jwt_json_obj_merge_new(jwt_json_t *object, jwt_json_t *other);
 
 /* ================================================================
  * Array operations
  * ================================================================ */
-
+JWT_NO_EXPORT
 size_t jwt_json_arr_size(const jwt_json_t *array);
+JWT_NO_EXPORT
 jwt_json_t *jwt_json_arr_get(const jwt_json_t *array, size_t index);
+JWT_NO_EXPORT
 int jwt_json_arr_append(jwt_json_t *array, jwt_json_t *value);
 
 #define jwt_json_arr_foreach(array, index, value)		\
@@ -107,38 +119,46 @@ int jwt_json_arr_append(jwt_json_t *array, jwt_json_t *value);
 /* ================================================================
  * Type checking
  * ================================================================ */
-
+JWT_NO_EXPORT
 int jwt_json_is_array(const jwt_json_t *json);
+JWT_NO_EXPORT
 int jwt_json_is_string(const jwt_json_t *json);
+JWT_NO_EXPORT
 int jwt_json_is_int(const jwt_json_t *json);
+JWT_NO_EXPORT
 int jwt_json_is_bool(const jwt_json_t *json);
+JWT_NO_EXPORT
 int jwt_json_is_true(const jwt_json_t *json);
 
 /* ================================================================
  * Value extraction
  * ================================================================ */
-
+JWT_NO_EXPORT
 const char *jwt_json_str_val(const jwt_json_t *json);
+JWT_NO_EXPORT
 jwt_json_int_t jwt_json_int_val(const jwt_json_t *json);
 
 /* ================================================================
  * Deep copy
  * ================================================================ */
-
+JWT_NO_EXPORT
 jwt_json_t *jwt_json_clone(const jwt_json_t *value);
 
 /* ================================================================
  * Serialization / Parsing
  * ================================================================ */
-
+JWT_NO_EXPORT
 char *jwt_json_serialize(const jwt_json_t *json, size_t flags);
-
+JWT_NO_EXPORT
 jwt_json_t *jwt_json_parse(const char *input, size_t flags,
 			   jwt_json_error_t *error);
+JWT_NO_EXPORT
 jwt_json_t *jwt_json_parse_buf(const char *buffer, size_t buflen,
 			       size_t flags, jwt_json_error_t *error);
+JWT_NO_EXPORT
 jwt_json_t *jwt_json_parse_file(const char *path, size_t flags,
 				jwt_json_error_t *error);
+JWT_NO_EXPORT
 jwt_json_t *jwt_json_parse_fp(FILE *input, size_t flags,
 			      jwt_json_error_t *error);
 
