@@ -19,6 +19,9 @@ on:
       - ".gitignore"
       - "*.md"
 
+permissions:
+  contents: read
+
 jobs:
   build-macos:
     runs-on: macos-latest
