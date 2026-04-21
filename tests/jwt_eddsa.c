@@ -8,11 +8,11 @@
 
 #include "jwt_tests.h"
 
-static const char jwt_eddsa[] = "eyJhbGciOiJFRERTQSIsInR5cCI6IkpXVCJ9.eyJpYX"
+static const char jwt_eddsa[] = "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJpYX"
 	"QiOjE0NzU5ODA1NDUsImlzcyI6ImZpbGVzLm1hY2xhcmEtbGxjLmNvbSIsInJlZiI6I"
-	"lhYWFgtWVlZWS1aWlpaLUFBQUEtQ0NDQyIsInN1YiI6InVzZXIwIn0.19ip2DFFjaZ_"
-	"UFVCo0OtdwuzSmOYModleJVeFcAjb_4hrAAf0pZSf8O78pivbXLJenEIsaZ9REFOauB"
-	"eDxbTBw";
+	"lhYWFgtWVlZWS1aWlpaLUFBQUEtQ0NDQyIsInN1YiI6InVzZXIwIn0.g1IAdZfIw9py"
+	"v2Ed81iBPixBMM0V9u-Tt6FFVQu44vGlLlslk1p4eEybWntaiDTOutxX7oznkmgx0ut"
+	"DKn_5DA";
 
 START_TEST(test_jwt_encode_eddsa)
 {
