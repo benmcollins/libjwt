@@ -834,6 +834,230 @@ START_TEST(test_jwks_rsa_pss_alg_string)
 END_TEST
 
 /*
+ * === Algorithm Confusion Regression (GHSA-q843-6q5f-w55g) ===
+ *
+ * An RSA JWK with no "alg" hint must not be usable for any HMAC
+ * algorithm. Without the fix, libjwt would accept the RSA JWK for
+ * HS256/384/512 and run HMAC against a zero-length key
+ * (oct.key/oct.len read from the union shared with provider_data).
+ * That allowed an attacker who only knows the public JWKS to forge
+ * tokens that verify successfully.
+ */
+
+/* The exact PoC from the advisory: RSA public JWK without "alg",
+ * verifying an HS256 token whose signature is HMAC-SHA256("", header.payload).
+ * Must be rejected before the HMAC ever runs. */
+START_TEST(test_alg_confusion_rsa_no_alg_hs256)
+{
+	jwt_checker_auto_t *checker = NULL;
+	int ret;
+
+	SET_OPS();
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+
+	read_json("rsa_key_2048_pub_no_alg.json");
+
+	/* The setkey call itself must reject the kty/alg mismatch. */
+	ret = jwt_checker_setkey(checker, JWT_ALG_HS256, g_item);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_str_eq(jwt_checker_error_msg(checker),
+			"Key type does not match algorithm");
+
+	free_key();
+}
+END_TEST
+
+/* Same defense for HS384 and HS512. */
+START_TEST(test_alg_confusion_rsa_no_alg_hs384)
+{
+	jwt_checker_auto_t *checker = NULL;
+	int ret;
+
+	SET_OPS();
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+
+	read_json("rsa_key_2048_pub_no_alg.json");
+
+	ret = jwt_checker_setkey(checker, JWT_ALG_HS384, g_item);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_str_eq(jwt_checker_error_msg(checker),
+			"Key type does not match algorithm");
+
+	free_key();
+}
+END_TEST
+
+START_TEST(test_alg_confusion_rsa_no_alg_hs512)
+{
+	jwt_checker_auto_t *checker = NULL;
+	int ret;
+
+	SET_OPS();
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+
+	read_json("rsa_key_2048_pub_no_alg.json");
+
+	ret = jwt_checker_setkey(checker, JWT_ALG_HS512, g_item);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_str_eq(jwt_checker_error_msg(checker),
+			"Key type does not match algorithm");
+
+	free_key();
+}
+END_TEST
+
+/* RSA JWK that DOES carry an "alg" hint of RS256 must still be rejected
+ * for HS256: the prior code allowed it whenever the JWK alg matched the
+ * caller alg, but here the kty would still be RSA. We assert the broader
+ * invariant: HS* requires kty=oct period. */
+START_TEST(test_alg_confusion_rsa_with_alg_hs256)
+{
+	jwt_checker_auto_t *checker = NULL;
+	int ret;
+
+	SET_OPS();
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+
+	read_json("rsa_key_2048_pub.json");
+
+	ret = jwt_checker_setkey(checker, JWT_ALG_HS256, g_item);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_str_eq(jwt_checker_error_msg(checker),
+			"Key type does not match algorithm");
+
+	free_key();
+}
+END_TEST
+
+/* EC JWK must not be usable for an HMAC algorithm either. */
+START_TEST(test_alg_confusion_ec_hs256)
+{
+	jwt_checker_auto_t *checker = NULL;
+	int ret;
+
+	SET_OPS();
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+
+	read_json("ec_key_prime256v1_pub.json");
+
+	ret = jwt_checker_setkey(checker, JWT_ALG_HS256, g_item);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_str_eq(jwt_checker_error_msg(checker),
+			"Key type does not match algorithm");
+
+	free_key();
+}
+END_TEST
+
+/* OKP/EdDSA JWK must not be usable for an HMAC algorithm either. */
+START_TEST(test_alg_confusion_okp_hs256)
+{
+	jwt_checker_auto_t *checker = NULL;
+	int ret;
+
+	SET_OPS();
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+
+	read_json("eddsa_key_ed25519_pub.json");
+
+	ret = jwt_checker_setkey(checker, JWT_ALG_HS256, g_item);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_str_eq(jwt_checker_error_msg(checker),
+			"Key type does not match algorithm");
+
+	free_key();
+}
+END_TEST
+
+/* The realistic application pattern: a JWKS callback that picks a key
+ * by "kid" and copies the JWT header alg into config->alg. The attacker
+ * controls the header alg. With the fix, the verify path's __setkey_check
+ * (run after the callback) rejects the kty/alg mismatch. */
+static int alg_confusion_cb(jwt_t *jwt, jwt_config_t *config)
+{
+	/* g_item is the RSA-no-alg JWK loaded by the test. */
+	config->key = g_item;
+	config->alg = jwt_get_alg(jwt);
+	return 0;
+}
+
+START_TEST(test_alg_confusion_callback_rsa_no_alg)
+{
+	jwt_checker_auto_t *checker = NULL;
+	const char token[] =
+		"eyJhbGciOiJIUzI1NiIsImtpZCI6InJzYS1uby1hbGcifQ"
+		".eyJzdWIiOiJhZG1pbiJ9"
+		".I2Ey63EMS9lOFEL93tQM8eB8cCnH6QJy0rIe1HVEI3I";
+	int ret;
+
+	SET_OPS();
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+
+	read_json("rsa_key_2048_pub_no_alg.json");
+
+	ret = jwt_checker_setcb(checker, alg_confusion_cb, NULL);
+	ck_assert_int_eq(ret, 0);
+
+	/* The forged token must NOT verify. */
+	ret = jwt_checker_verify(checker, token);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_str_eq(jwt_checker_error_msg(checker),
+			"Key type does not match algorithm");
+
+	free_key();
+}
+END_TEST
+
+/* Defense in depth: a malformed JWK whose "alg" hint disagrees with its
+ * "kty" (here kty=RSA, alg=HS256) must not be usable for HMAC. The caller
+ * sets alg=NONE so __setkey_check defers to the JWK's alg hint, but the
+ * verify path then double-checks kty against the bound algorithm. */
+START_TEST(test_alg_confusion_malformed_jwk_kty_alg)
+{
+	jwt_checker_auto_t *checker = NULL;
+	const char token[] =
+		"eyJhbGciOiJIUzI1NiIsImtpZCI6InJzYS1uby1hbGcifQ"
+		".eyJzdWIiOiJhZG1pbiJ9"
+		".I2Ey63EMS9lOFEL93tQM8eB8cCnH6QJy0rIe1HVEI3I";
+	int ret;
+
+	SET_OPS();
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+
+	read_json("rsa_key_2048_pub_alg_hs256.json");
+
+	/* alg=NONE: caller trusts whatever the JWK says. The JWK lies
+	 * (kty=RSA, alg=HS256). __setkey_check accepts because alg=NONE,
+	 * but the verify path's defensive kty switch must reject. */
+	ret = jwt_checker_setkey(checker, JWT_ALG_NONE, g_item);
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_checker_verify(checker, token);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_str_eq(jwt_checker_error_msg(checker),
+			"Key type does not match JWT alg");
+
+	free_key();
+}
+END_TEST
+
+/*
  * === Suite Setup ===
  */
 
@@ -843,6 +1067,7 @@ static Suite *libjwt_suite(const char *title)
 	TCase *tc_jwks_json;
 	TCase *tc_jwt_parse;
 	TCase *tc_null_safety;
+	TCase *tc_alg_confusion;
 	int i = ARRAY_SIZE(jwt_test_ops);
 
 	s = suite_create(title);
@@ -905,6 +1130,29 @@ static Suite *libjwt_suite(const char *title)
 
 	tcase_set_timeout(tc_null_safety, 30);
 	suite_add_tcase(s, tc_null_safety);
+
+	/* Algorithm confusion regression (GHSA-q843-6q5f-w55g) */
+	tc_alg_confusion = tcase_create("alg_confusion");
+
+	tcase_add_loop_test(tc_alg_confusion,
+			    test_alg_confusion_rsa_no_alg_hs256, 0, i);
+	tcase_add_loop_test(tc_alg_confusion,
+			    test_alg_confusion_rsa_no_alg_hs384, 0, i);
+	tcase_add_loop_test(tc_alg_confusion,
+			    test_alg_confusion_rsa_no_alg_hs512, 0, i);
+	tcase_add_loop_test(tc_alg_confusion,
+			    test_alg_confusion_rsa_with_alg_hs256, 0, i);
+	tcase_add_loop_test(tc_alg_confusion,
+			    test_alg_confusion_ec_hs256, 0, i);
+	tcase_add_loop_test(tc_alg_confusion,
+			    test_alg_confusion_okp_hs256, 0, i);
+	tcase_add_loop_test(tc_alg_confusion,
+			    test_alg_confusion_callback_rsa_no_alg, 0, i);
+	tcase_add_loop_test(tc_alg_confusion,
+			    test_alg_confusion_malformed_jwk_kty_alg, 0, i);
+
+	tcase_set_timeout(tc_alg_confusion, 30);
+	suite_add_tcase(s, tc_alg_confusion);
 
 	return s;
 }

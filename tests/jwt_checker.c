@@ -435,8 +435,6 @@ END_TEST
 START_TEST(hs256_token_failed)
 {
 	jwt_checker_auto_t *checker = NULL;
-	const char token[] = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.CM4dD95Nj"
-		"0vSfMGtDas432AUW1HAo7feCiAbt5Yjuds";
 	int ret;
 
 	SET_OPS();
@@ -445,14 +443,13 @@ START_TEST(hs256_token_failed)
 	ck_assert_ptr_nonnull(checker);
 	ck_assert_int_eq(jwt_checker_error(checker), 0);
 
+	/* Algorithm confusion: an OKP/EdDSA JWK must not be settable for
+	 * HS256 (GHSA-q843-6q5f-w55g). setkey rejects up front. */
 	read_json("eddsa_key_ed25519_pub.json");
 	ret = jwt_checker_setkey(checker, JWT_ALG_HS256, g_item);
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_checker_verify(checker, token);
 	ck_assert_int_ne(ret, 0);
 	ck_assert_str_eq(jwt_checker_error_msg(checker),
-			"Token failed verification");
+			"Key type does not match algorithm");
 
 	free_key();
 }
@@ -881,11 +878,6 @@ END_TEST
 START_TEST(verify_es256_bad_sig)
 {
 	jwt_checker_auto_t *checker = NULL;
-	const char token[] = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI"
-		"xMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlh"
-		"dCI6MTUxNjIzOTAyMn0.tyh-VfuzIxCyGYDlkBA7DfyjrqmSHu6pQ2hoZuFqU"
-		"SLPNY2N0mpHb3nk5K17HWP_3cYHBw7AhHale5wky6-sVA";
-	const char *err;
 	int ret;
 
 	SET_OPS();
@@ -894,18 +886,14 @@ START_TEST(verify_es256_bad_sig)
 	ck_assert_ptr_nonnull(checker);
 	ck_assert_int_eq(jwt_checker_error(checker), 0);
 
+	/* Algorithm confusion: an OKP/EdDSA JWK must not be settable for
+	 * an EC algorithm like ES256 (GHSA-q843-6q5f-w55g). setkey rejects
+	 * up front before the broken-signature path is ever reached. */
 	read_json("eddsa_key_ed25519_pub_fake_es256.json");
-
 	ret = jwt_checker_setkey(checker, JWT_ALG_ES256, g_item);
-	ck_assert_int_eq(ret, 0);
-
-	ret = jwt_checker_verify(checker, token);
 	ck_assert_int_ne(ret, 0);
-
-	err = jwt_checker_error_msg(checker);
-	ck_assert_ptr_nonnull(err);
-	/* Fails in different ways depending on the backend */
-	ck_assert_mem_eq(err, "JWT[", 4);
+	ck_assert_str_eq(jwt_checker_error_msg(checker),
+			"Key type does not match algorithm");
 
 	free_key();
 }

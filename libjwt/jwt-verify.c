@@ -260,6 +260,15 @@ static int __verify_config_post(jwt_t *jwt, const jwt_config_t *config,
 		// LCOV_EXCL_STOP
 	}
 
+	/* Algorithm is now bound (jwt->alg). Defensively confirm that the
+	 * JWK's actual key type can carry it. This blocks algorithm
+	 * confusion (GHSA-q843-6q5f-w55g) even if a malformed JWK has an
+	 * "alg" hint that disagrees with its "kty". */
+	if (jwt_alg_required_kty(jwt->alg) != config->key->kty) {
+		jwt_write_error(jwt, "Key type does not match JWT alg");
+		return 1;
+	}
+
 	return 0;
 }
 

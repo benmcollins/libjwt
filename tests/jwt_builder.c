@@ -825,8 +825,6 @@ END_TEST
 START_TEST(sign_es256_bad_sig)
 {
 	jwt_builder_auto_t *builder = NULL;
-	const char *err;
-	char *out;
 	int ret;
 
 	SET_OPS();
@@ -835,19 +833,14 @@ START_TEST(sign_es256_bad_sig)
 	ck_assert_ptr_nonnull(builder);
 	ck_assert_int_eq(jwt_builder_error(builder), 0);
 
+	/* Algorithm confusion: an OKP/EdDSA JWK must not be settable for
+	 * an EC algorithm like ES256 (GHSA-q843-6q5f-w55g). setkey rejects
+	 * up front before any signing is attempted. */
 	read_json("eddsa_key_ed25519_fake_es256.json");
-
 	ret = jwt_builder_setkey(builder, JWT_ALG_ES256, g_item);
-	fprintf(stderr, "%s\n", jwt_builder_error_msg(builder));
-	ck_assert_int_eq(ret, 0);
-
-	out = jwt_builder_generate(builder);
-	ck_assert_ptr_null(out);
-
-	err = jwt_builder_error_msg(builder);
-	ck_assert_ptr_nonnull(err);
-	/* Fails in different ways depending on the backend */
-	ck_assert_mem_eq(err, "JWT[", 4);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_str_eq(jwt_builder_error_msg(builder),
+			"Key type does not match algorithm");
 
 	free_key();
 }

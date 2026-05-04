@@ -82,7 +82,20 @@ static int __setkey_check(jwt_common_t *__cmd, const jwt_alg_t alg,
 			return 0;
 
 		jwt_write_error(__cmd, "Cannot set alg without a key");
-	} else if (key->alg == JWT_ALG_NONE) {
+		return 1;
+	}
+
+	/* Bind algorithm to the JWK's actual key type, not just the
+	 * optional "alg" hint. The "alg" parameter on a JWK is optional
+	 * (RFC 7517 4.4), so we must never let its absence widen what a
+	 * key can be used for. */
+	if (alg != JWT_ALG_NONE && jwt_alg_required_kty(alg) != key->kty) {
+		jwt_write_error(__cmd,
+			"Key type does not match algorithm");
+		return 1;
+	}
+
+	if (key->alg == JWT_ALG_NONE) {
 		if (alg != JWT_ALG_NONE)
 			return 0;
 

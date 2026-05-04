@@ -208,9 +208,8 @@ END_TEST
 
 START_TEST(rsa_ec_short)
 {
-        jwt_builder_auto_t *builder = NULL;
-        char *out = NULL;
-        int ret;
+	jwt_builder_auto_t *builder = NULL;
+	int ret;
 
 	SET_OPS();
 
@@ -218,38 +217,33 @@ START_TEST(rsa_ec_short)
 	ck_assert_ptr_nonnull(builder);
 	ck_assert_int_eq(jwt_builder_error(builder), 0);
 
+	/* Algorithm confusion: an RSA JWK must not be settable for EC or
+	 * EdDSA algorithms (GHSA-q843-6q5f-w55g). setkey rejects up front
+	 * regardless of which incompatible alg is requested. */
 	read_json("rsa_key_1024.json");
-	ret = jwt_builder_setkey(builder, JWT_ALG_ES256, g_item);
-        ck_assert_int_eq(ret, 0);
 
-	out = jwt_builder_generate(builder);
-	ck_assert_ptr_null(out);
+	ret = jwt_builder_setkey(builder, JWT_ALG_ES256, g_item);
+	ck_assert_int_ne(ret, 0);
 	ck_assert_str_eq(jwt_builder_error_msg(builder),
-			"Key needs to be 256 bits: 1024 bits");
+			"Key type does not match algorithm");
+	jwt_builder_error_clear(builder);
 
 	ret = jwt_builder_setkey(builder, JWT_ALG_EDDSA, g_item);
-	ck_assert_int_eq(ret, 0);
-
-	out = jwt_builder_generate(builder);
-	ck_assert_ptr_null(out);
+	ck_assert_int_ne(ret, 0);
 	ck_assert_str_eq(jwt_builder_error_msg(builder),
-			"Key needs to be 256 or 456 bits: 1024 bits");
+			"Key type does not match algorithm");
+	jwt_builder_error_clear(builder);
 
 	ret = jwt_builder_setkey(builder, JWT_ALG_ES384, g_item);
-	ck_assert_int_eq(ret, 0);
-
-	out = jwt_builder_generate(builder);
-	ck_assert_ptr_null(out);
+	ck_assert_int_ne(ret, 0);
 	ck_assert_str_eq(jwt_builder_error_msg(builder),
-			"Key needs to be 384 bits: 1024 bits");
+			"Key type does not match algorithm");
+	jwt_builder_error_clear(builder);
 
 	ret = jwt_builder_setkey(builder, JWT_ALG_ES512, g_item);
-	ck_assert_int_eq(ret, 0);
-
-	out = jwt_builder_generate(builder);
-	ck_assert_ptr_null(out);
+	ck_assert_int_ne(ret, 0);
 	ck_assert_str_eq(jwt_builder_error_msg(builder),
-			"Key needs to be 521 bits: 1024 bits");
+			"Key type does not match algorithm");
 
 	free_key();
 }
