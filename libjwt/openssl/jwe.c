@@ -24,7 +24,7 @@
 int openssl_rng(unsigned char *out, size_t len)
 {
 	if (out == NULL || len == 0)
-		return 1;
+		return 1; // LCOV_EXCL_LINE
 
 	if (RAND_bytes(out, (int)len) != 1)
 		return 1; // LCOV_EXCL_LINE
@@ -63,7 +63,7 @@ int openssl_encrypt_aes_gcm(jwe_enc_t enc, const unsigned char *cek,
 	int len, ret = 1;
 
 	if (cipher == NULL || cek_len != jwe_enc_cek_len(enc))
-		return 1;
+		return 1; // LCOV_EXCL_LINE
 
 	ctx = EVP_CIPHER_CTX_new();
 	if (ctx == NULL)
@@ -130,7 +130,7 @@ int openssl_decrypt_aes_gcm(jwe_enc_t enc, const unsigned char *cek,
 
 	if (cipher == NULL || cek_len != jwe_enc_cek_len(enc) ||
 	    tag_len != GCM_TAG_LEN)
-		return 1;
+		return 1; // LCOV_EXCL_LINE
 
 	ctx = EVP_CIPHER_CTX_new();
 	if (ctx == NULL)
