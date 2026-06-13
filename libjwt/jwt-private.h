@@ -66,6 +66,10 @@ struct jwt_common {
 	jwt_callback_t cb;
 	void *cb_ctx;
 
+	/* NULL-terminated list of "crit" header parameter names that the
+	 * application understands. Only used by the checker. */
+	char **understood;
+
 	/* For builder, this is offset into the future.
 	 * For checker, this is the leeway.
 	 * Both are in seconds. */
@@ -241,6 +245,10 @@ jwt_value_error_t __getter(jwt_json_t *which, jwt_value_t *value);
 
 JWT_NO_EXPORT
 int jwt_parse(jwt_t *jwt, const char *token, unsigned int *len);
+JWT_NO_EXPORT
+int jwt_check_crit(jwt_t *jwt, char * const *understood);
+JWT_NO_EXPORT
+int jwt_write_crit(jwt_t *jwt, char * const *crit);
 JWT_NO_EXPORT
 jwt_t *jwt_verify_complete(jwt_t *jwt, const jwt_config_t *config,
 			   const char *token, unsigned int payload_len);

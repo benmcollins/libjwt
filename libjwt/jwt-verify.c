@@ -82,6 +82,77 @@ static int jwt_parse_head(jwt_t *jwt, char *head)
 	return 1;
 }
 
+/* @rfc{7515,4.1.11} Process the "crit" (Critical) header parameter.
+ *
+ * If present, "crit" must be a non-empty array of strings. Each string
+ * names a header parameter that must (a) actually be present in the header
+ * and (b) be understood by the recipient. LibJWT understands no extension
+ * header parameters on its own, so the application must declare the ones it
+ * handles via jwt_checker_understands() (passed in as @understood, a
+ * NULL-terminated list which may itself be NULL). Any listed parameter not
+ * in that list makes the JWS invalid.
+ */
+int jwt_check_crit(jwt_t *jwt, char * const *understood)
+{
+	jwt_json_t *crit, *ent;
+	size_t i;
+
+	crit = jwt_json_obj_get(jwt->headers, "crit");
+	if (crit == NULL)
+		return 0;
+
+	if (!jwt_json_is_array(crit)) {
+		jwt_write_error(jwt, "\"crit\" header must be an array");
+		return 1;
+	}
+
+	if (jwt_json_arr_size(crit) == 0) {
+		jwt_write_error(jwt, "\"crit\" header must not be empty");
+		return 1;
+	}
+
+	jwt_json_arr_foreach(crit, i, ent) {
+		const char *name;
+		int found = 0;
+
+		if (!jwt_json_is_string(ent)) {
+			jwt_write_error(jwt,
+				"\"crit\" header entries must be strings");
+			return 1;
+		}
+
+		name = jwt_json_str_val(ent);
+
+		/* Must actually appear in the header. */
+		if (jwt_json_obj_get(jwt->headers, name) == NULL) {
+			jwt_write_error(jwt,
+				"\"crit\" lists \"%s\" which is not in the header",
+				name);
+			return 1;
+		}
+
+		/* Must be understood by the application. */
+		if (understood) {
+			size_t j;
+
+			for (j = 0; understood[j] != NULL; j++) {
+				if (!strcmp(understood[j], name)) {
+					found = 1;
+					break;
+				}
+			}
+		}
+
+		if (!found) {
+			jwt_write_error(jwt,
+				"Unsupported critical header: \"%s\"", name);
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
 int jwt_parse(jwt_t *jwt, const char *token, unsigned int *len)
 {
 	char_auto *head = NULL;
