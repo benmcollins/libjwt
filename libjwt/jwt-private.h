@@ -66,6 +66,13 @@ struct jwt_common {
 	jwt_callback_t cb;
 	void *cb_ctx;
 
+	/* @rfc{7519,4.1.7} jti (JWT ID) callbacks. jti_gen is used by the
+	 * builder to produce an id; jti_check is used by the checker to
+	 * validate/consume one. jti_ctx is passed to whichever is set. */
+	jwt_jti_gen_cb_t jti_gen;
+	jwt_jti_check_cb_t jti_check;
+	void *jti_ctx;
+
 	/* NULL-terminated list of "crit" header parameter names that the
 	 * application understands. Only used by the checker. */
 	char **understood;

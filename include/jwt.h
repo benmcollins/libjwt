@@ -242,6 +242,28 @@ typedef struct {
  */
 typedef int (*jwt_callback_t)(jwt_t *, jwt_config_t *);
 
+/** @ingroup jwt_object_grp
+ * @brief Callback to generate a ``jti`` (JWT ID) when building a token
+ *
+ * @rfc_t{7519,4.1.7} The returned string is set as the ``"jti"`` claim and
+ * then freed by LibJWT, so it must be allocated with whatever allocator
+ * LibJWT is currently using: plain malloc() if jwt_set_alloc() was never
+ * called, otherwise the allocator passed to jwt_set_alloc(). Returning NULL
+ * aborts token generation. The application is responsible for ensuring the
+ * id is unique.
+ */
+typedef char *(*jwt_jti_gen_cb_t)(const jwt_t *, jwt_config_t *);
+
+/** @ingroup jwt_object_grp
+ * @brief Callback to verify a ``jti`` (JWT ID) when checking a token
+ *
+ * @rfc_t{7519,4.1.7} Receives the ``"jti"`` claim from the token. Return 0 to
+ * accept the token or non-zero to reject it (e.g. an unknown or
+ * already-consumed id). This is where an application implements replay
+ * protection against its own id pool.
+ */
+typedef int (*jwt_jti_check_cb_t)(const jwt_t *, jwt_config_t *, const char *);
+
 /** @ingroup jwt_claims_helpers_grp
  * @brief WFC defined claims
  */
@@ -400,6 +422,28 @@ int jwt_builder_enable_iat(jwt_builder_t *builder, int enable);
  */
 JWT_EXPORT
 int jwt_builder_setcb(jwt_builder_t *builder, jwt_callback_t cb, void *ctx);
+
+/**
+ * @brief Set a callback to generate the ``jti`` (JWT ID) claim (@rfc{7519,4.1.7})
+ *
+ * When set, the callback is run during generation to produce a unique ``jti``
+ * for each token. The string it returns is set as the ``"jti"`` claim and then
+ * freed by LibJWT; returning NULL aborts generation. The application is
+ * responsible for guaranteeing uniqueness (the RFC requires a negligible
+ * collision probability, even across issuers).
+ *
+ * The ctx is passed to the callback via the @ref jwt_config_t structure.
+ *
+ * @note Calling this with a NULL cb and a new ctx updates the ctx. Calling with
+ * both NULL disables the callback.
+ *
+ * @param builder Pointer to a builder object
+ * @param cb Pointer to a jti generation callback
+ * @param ctx Pointer to data to pass to the callback
+ * @return 0 on success, non-zero otherwise with error set in the builder
+ */
+JWT_EXPORT
+int jwt_builder_setjti(jwt_builder_t *builder, jwt_jti_gen_cb_t cb, void *ctx);
 
 /**
  * @brief Retrieve the callback context that was previously set
@@ -632,6 +676,28 @@ int jwt_checker_setkey(jwt_checker_t *checker, const jwt_alg_t alg, const
  */
 JWT_EXPORT
 int jwt_checker_setcb(jwt_checker_t *checker, jwt_callback_t cb, void *ctx);
+
+/**
+ * @brief Set a callback to verify the ``jti`` (JWT ID) claim (@rfc{7519,4.1.7})
+ *
+ * When set, verification reads the token's ``"jti"`` claim and passes it to the
+ * callback, which returns 0 to accept or non-zero to reject the token. This is
+ * where an application implements replay protection against its own id pool
+ * (look the id up and consume it). When this callback is set, a token that has
+ * no ``"jti"`` claim is rejected.
+ *
+ * The ctx is passed to the callback via the @ref jwt_config_t structure.
+ *
+ * @note Calling this with a NULL cb and a new ctx updates the ctx. Calling with
+ * both NULL disables the callback.
+ *
+ * @param checker Pointer to a checker object
+ * @param cb Pointer to a jti verification callback
+ * @param ctx Pointer to data to pass to the callback
+ * @return 0 on success, non-zero otherwise with error set in the checker
+ */
+JWT_EXPORT
+int jwt_checker_setjti(jwt_checker_t *checker, jwt_jti_check_cb_t cb, void *ctx);
 
 /**
  * @brief Retrieve the callback context that was previously set

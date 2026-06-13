@@ -207,6 +207,53 @@ void *FUNC(getctx)(jwt_common_t *__cmd)
 	return __cmd->c.cb_ctx;
 }
 
+/* @rfc{7519,4.1.7} Register the jti (JWT ID) callback. The builder variant
+ * takes a generator (produces an id); the checker variant takes a verifier
+ * (validates/consumes one). jti is driven entirely by the callback pointer
+ * (jti_gen/jti_check), not by the JWT_CLAIM_JTI bit. Semantics mirror
+ * FUNC(setcb): a NULL cb with a non-NULL ctx just updates the ctx; both NULL
+ * disables the callback. */
+#ifdef JWT_BUILDER
+int FUNC(setjti)(jwt_common_t *__cmd, jwt_jti_gen_cb_t cb, void *ctx)
+#endif
+#ifdef JWT_CHECKER
+int FUNC(setjti)(jwt_common_t *__cmd, jwt_jti_check_cb_t cb, void *ctx)
+#endif
+{
+#ifdef JWT_BUILDER
+	jwt_jti_gen_cb_t *slot;
+#endif
+#ifdef JWT_CHECKER
+	jwt_jti_check_cb_t *slot;
+#endif
+
+	if (__cmd == NULL)
+		return 1;
+
+#ifdef JWT_BUILDER
+	slot = &__cmd->c.jti_gen;
+#endif
+#ifdef JWT_CHECKER
+	slot = &__cmd->c.jti_check;
+#endif
+
+	/* This just updates the CTX */
+	if (cb == NULL && *slot != NULL && ctx != NULL) {
+		__cmd->c.jti_ctx = ctx;
+		return 0;
+	}
+
+	if (cb == NULL && ctx != NULL) {
+		jwt_write_error(__cmd, "Setting ctx without a cb won't work");
+		return 1;
+	}
+
+	*slot = cb;
+	__cmd->c.jti_ctx = ctx;
+
+	return 0;
+}
+
 /* @rfc{7515,4.1.11} Register a "crit" (Critical) header parameter name.
  *
  * For the builder, this is a header the producer wants to mark as critical
@@ -551,6 +598,26 @@ char *FUNC(generate)(jwt_common_t *__cmd)
 		jwt_set_SET_INT(&jval, "exp", (jwt_long_t)(tm + __cmd->c.exp));
 		jval.replace = 1;
 		jwt_claim_set(jwt, &jval);
+	}
+
+	/* @rfc{7519,4.1.7} Let the application generate the jti. Done before
+	 * the generic callback so the callback can still inspect or override
+	 * it. The returned string is set as "jti" and then freed. */
+	if (__cmd->c.jti_gen) {
+		JWT_CONFIG_DECLARE(jti_config);
+		char *jti;
+
+		jti_config.ctx = __cmd->c.jti_ctx;
+		jti = __cmd->c.jti_gen(jwt, &jti_config);
+		if (jti == NULL) {
+			jwt_write_error(__cmd, "jti callback returned no id");
+			return NULL;
+		}
+
+		jwt_set_SET_STR(&jval, "jti", jti);
+		jval.replace = 1;
+		jwt_claim_set(jwt, &jval);
+		jwt_freemem(jti);
 	}
 
 	/* Alg and key checks */

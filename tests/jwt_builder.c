@@ -1227,6 +1227,112 @@ START_TEST(crit_setcrit_null)
 }
 END_TEST
 
+/* @rfc{7519,4.1.7} jti generation callback. */
+
+static char *__jti_gen(const jwt_t *jwt, jwt_config_t *config)
+{
+	ck_assert_ptr_nonnull(jwt);
+	ck_assert_ptr_nonnull(config);
+	ck_assert_str_eq(config->ctx, "pool");
+
+	return strdup("abc-123");
+}
+
+START_TEST(jti_gen)
+{
+	/* {"alg":"none"} . {"jti":"abc-123"} . */
+	const char exp[] = "eyJhbGciOiJub25lIn0.eyJqdGkiOiJhYmMtMTIzIn0.";
+	jwt_builder_auto_t *builder = NULL;
+	char_auto *out = NULL;
+	int ret;
+
+	SET_OPS();
+
+	builder = jwt_builder_new();
+	ck_assert_ptr_nonnull(builder);
+	ck_assert_int_eq(jwt_builder_error(builder), 0);
+
+	ret = jwt_builder_enable_iat(builder, 0);
+	ck_assert_int_eq(ret, 1);
+
+	ret = jwt_builder_setjti(builder, __jti_gen, "pool");
+	ck_assert_int_eq(ret, 0);
+
+	out = jwt_builder_generate(builder);
+	ck_assert_ptr_nonnull(out);
+	ck_assert_str_eq(out, exp);
+}
+END_TEST
+
+static char *__jti_gen_null(const jwt_t *jwt, jwt_config_t *config)
+{
+	(void)jwt;
+	(void)config;
+	return NULL;
+}
+
+START_TEST(jti_gen_fail)
+{
+	jwt_builder_auto_t *builder = NULL;
+	char_auto *out = NULL;
+	int ret;
+
+	SET_OPS();
+
+	builder = jwt_builder_new();
+	ck_assert_ptr_nonnull(builder);
+	ck_assert_int_eq(jwt_builder_error(builder), 0);
+
+	ret = jwt_builder_setjti(builder, __jti_gen_null, NULL);
+	ck_assert_int_eq(ret, 0);
+
+	out = jwt_builder_generate(builder);
+	ck_assert_ptr_null(out);
+	ck_assert_str_eq(jwt_builder_error_msg(builder),
+			"jti callback returned no id");
+}
+END_TEST
+
+START_TEST(jti_setjti_null)
+{
+	/* {"alg":"none"} . {} . — cleared cb means no jti is generated. */
+	const char exp[] = "eyJhbGciOiJub25lIn0.e30.";
+	jwt_builder_auto_t *builder = NULL;
+	char_auto *out = NULL;
+	int ret;
+
+	SET_OPS();
+
+	builder = jwt_builder_new();
+	ck_assert_ptr_nonnull(builder);
+
+	ret = jwt_builder_setjti(NULL, __jti_gen, "pool");
+	ck_assert_int_ne(ret, 0);
+
+	/* Setting ctx without a cb is an error. */
+	ret = jwt_builder_setjti(builder, NULL, "pool");
+	ck_assert_int_ne(ret, 0);
+	ck_assert_str_eq(jwt_builder_error_msg(builder),
+			"Setting ctx without a cb won't work");
+	jwt_builder_error_clear(builder);
+
+	/* Set then update ctx (NULL cb, non-NULL ctx) then clear (both NULL). */
+	ret = jwt_builder_setjti(builder, __jti_gen, "old");
+	ck_assert_int_eq(ret, 0);
+	ret = jwt_builder_setjti(builder, NULL, "pool");
+	ck_assert_int_eq(ret, 0);
+	ret = jwt_builder_setjti(builder, NULL, NULL);
+	ck_assert_int_eq(ret, 0);
+
+	/* Cleared: no jti is generated. */
+	ret = jwt_builder_enable_iat(builder, 0);
+	ck_assert_int_eq(ret, 1);
+	out = jwt_builder_generate(builder);
+	ck_assert_ptr_nonnull(out);
+	ck_assert_str_eq(out, exp);
+}
+END_TEST
+
 static Suite *libjwt_suite(const char *title)
 {
 	Suite *s;
@@ -1293,6 +1399,13 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, crit_appset_non_string, 0, i);
 	tcase_add_loop_test(tc_core, crit_merge, 0, i);
 	tcase_add_loop_test(tc_core, crit_setcrit_null, 0, i);
+	tcase_set_timeout(tc_core, 60);
+	suite_add_tcase(s, tc_core);
+
+	tc_core = tcase_create("JTI");
+	tcase_add_loop_test(tc_core, jti_gen, 0, i);
+	tcase_add_loop_test(tc_core, jti_gen_fail, 0, i);
+	tcase_add_loop_test(tc_core, jti_setjti_null, 0, i);
 	tcase_set_timeout(tc_core, 60);
 	suite_add_tcase(s, tc_core);
 
