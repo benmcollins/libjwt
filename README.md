@@ -54,6 +54,28 @@ JWS Algorithm ``alg``         | OpenSSL            | GnuTLS             | MbedTL
 
 ``*`` RSASSA-PSS support in MbedTLS depends on Mbed-TLS/TF-PSA-Crypto#154
 
+#### JWE
+
+LibJWT supports JWE (RFC 7516) Compact Serialization with a single recipient.
+A JWE uses two algorithms: a key management algorithm (``alg``) and a content
+encryption algorithm (``enc``).
+
+JWE key management ``alg``    | OpenSSL            | GnuTLS             | MbedTLS
+:---------------------------- | :----------------- | :----------------- | :--------
+``dir`` (Direct Encryption)   | :white_check_mark: | :white_check_mark: | :x:
+``A128KW`` ``A192KW`` ``A256KW`` | :white_check_mark: | :white_check_mark: | :x:
+``RSA-OAEP`` ``RSA-OAEP-256`` | :white_check_mark: | :white_check_mark: | :x:
+
+JWE content encryption ``enc`` | OpenSSL            | GnuTLS             | MbedTLS
+:----------------------------- | :----------------- | :----------------- | :--------
+``A128GCM`` ``A192GCM`` ``A256GCM`` | :white_check_mark: | :white_check_mark: | :x:
+``A128CBC-HS256`` ``A192CBC-HS384`` ``A256CBC-HS512`` | :white_check_mark: | :white_check_mark: | :x:
+
+> [!NOTE]
+> ``RSA1_5`` and ``zip`` (compression) are intentionally not supported.
+> ``ECDH-ES`` is planned for a later release. RSA key operations always use
+> OpenSSL (which is required for JWK parsing).
+
 ### Optional
 
 - [Check Library](https://github.com/libcheck/check/issues) (>= 0.9.10) for unit
