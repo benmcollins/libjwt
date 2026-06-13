@@ -96,6 +96,46 @@ struct jwt_checker {
 	char error_msg[JWT_ERR_LEN];
 };
 
+/******************************/
+
+/* JWE is kept deliberately separate from JWS/JWT. A JWE is structurally and
+ * cryptographically different (5 parts, "alg"+"enc", a CEK), so it gets its
+ * own common struct rather than overloading struct jwt_common. */
+struct jwe_common {
+	jwe_key_alg_t key_alg;	/* @rfc{7516,4.1.1} "alg" key management	*/
+	jwe_enc_t enc;		/* @rfc{7516,4.1.2} "enc" content encryption	*/
+	const jwk_item_t *key;	/* Recipient key used for key management		*/
+	jwt_json_t *payload;	/* Claims/plaintext to encrypt (builder)	*/
+	jwt_json_t *headers;	/* Protected header				*/
+	jwt_callback_t cb;
+	void *cb_ctx;
+
+	/* The five JWE Compact Serialization components, populated during
+	 * encrypt (builder) or decrypt (checker). Owned by this struct. */
+	unsigned char *cek;	/* Content Encryption Key			*/
+	size_t cek_len;
+	unsigned char *enckey;	/* JWE Encrypted Key (wrapped CEK)		*/
+	size_t enckey_len;
+	unsigned char *iv;	/* JWE Initialization Vector			*/
+	size_t iv_len;
+	unsigned char *ct;	/* JWE Ciphertext				*/
+	size_t ct_len;
+	unsigned char *tag;	/* JWE Authentication Tag			*/
+	size_t tag_len;
+};
+
+struct jwe_builder {
+	struct jwe_common c;
+	int error;
+	char error_msg[JWT_ERR_LEN];
+};
+
+struct jwe_checker {
+	struct jwe_common c;
+	int error;
+	char error_msg[JWT_ERR_LEN];
+};
+
 /*****************************/
 
 struct jwt {
@@ -174,6 +214,65 @@ struct jwt_crypto_ops {
 	int (*process_rsa)(jwt_json_t *jwk, jwk_item_t *item);
 	int (*process_ec)(jwt_json_t *jwk, jwk_item_t *item);
 	void (*process_item_free)(jwk_item_t *item);
+
+	/* JWE (RFC 7516/7518). A backend may implement JWE crypto ops even if
+	 * it does not parse JWKs (JWK parsing always falls back to OpenSSL).
+	 * jwe_implemented is set once a backend provides the ops below; until
+	 * then, JWE operations on that backend fail cleanly. The ops are
+	 * declared here for all stages; each is filled in by its own stage and
+	 * left NULL otherwise. */
+	int jwe_implemented;
+
+	/* CSPRNG: fill out[0..len) with cryptographically random bytes.
+	 * Returns 0 on success. Backed by each backend's native RNG. */
+	int (*rng)(unsigned char *out, size_t len);
+
+	/* Content encryption (the "enc" algorithms). AAD is the ASCII bytes of
+	 * the encoded protected header. */
+	int (*encrypt_aes_gcm)(jwe_enc_t enc, const unsigned char *cek,
+		size_t cek_len, const unsigned char *iv, size_t iv_len,
+		const unsigned char *aad, size_t aad_len,
+		const unsigned char *pt, size_t pt_len,
+		unsigned char **ct, size_t *ct_len,
+		unsigned char **tag, size_t *tag_len);
+	int (*decrypt_aes_gcm)(jwe_enc_t enc, const unsigned char *cek,
+		size_t cek_len, const unsigned char *iv, size_t iv_len,
+		const unsigned char *aad, size_t aad_len,
+		const unsigned char *ct, size_t ct_len,
+		const unsigned char *tag, size_t tag_len,
+		unsigned char **pt, size_t *pt_len);
+	int (*encrypt_aes_cbc_hmac)(jwe_enc_t enc, const unsigned char *cek,
+		size_t cek_len, const unsigned char *iv, size_t iv_len,
+		const unsigned char *aad, size_t aad_len,
+		const unsigned char *pt, size_t pt_len,
+		unsigned char **ct, size_t *ct_len,
+		unsigned char **tag, size_t *tag_len);
+	int (*decrypt_aes_cbc_hmac)(jwe_enc_t enc, const unsigned char *cek,
+		size_t cek_len, const unsigned char *iv, size_t iv_len,
+		const unsigned char *aad, size_t aad_len,
+		const unsigned char *ct, size_t ct_len,
+		const unsigned char *tag, size_t tag_len,
+		unsigned char **pt, size_t *pt_len);
+
+	/* Key management: AES Key Wrap (RFC 3394). Key-mgmt shaped: a CEK goes
+	 * in, the wrapped key comes out (and the inverse). */
+	int (*wrap_aes_kw)(const jwk_item_t *key, const unsigned char *cek,
+		size_t cek_len, unsigned char **out, size_t *out_len);
+	int (*unwrap_aes_kw)(const jwk_item_t *key, const unsigned char *in,
+		size_t in_len, unsigned char **cek, size_t *cek_len);
+
+	/* Key management: RSAES-OAEP (and OAEP-256). */
+	int (*encrypt_cek_rsa)(jwe_key_alg_t alg, const jwk_item_t *key,
+		const unsigned char *cek, size_t cek_len,
+		unsigned char **out, size_t *out_len);
+	int (*decrypt_cek_rsa)(jwe_key_alg_t alg, const jwk_item_t *key,
+		const unsigned char *in, size_t in_len,
+		unsigned char **cek, size_t *cek_len);
+
+	/* ECDH-ES (reserved for the ECDH-ES stage). Ephemeral public key
+	 * generation/parsing for the "epk" header. */
+	int (*gen_epk)(const jwk_item_t *key, jwk_item_t **epk);
+	int (*parse_epk)(jwt_json_t *epk_json, jwk_item_t **epk);
 };
 
 #ifdef HAVE_OPENSSL
@@ -265,6 +364,9 @@ char *jwt_encode_str(jwt_t *jwt);
 
 JWT_NO_EXPORT
 int jwt_head_setup(jwt_t *jwt);
+
+/* JWE alg/enc <-> string maps (jwe-setget.c). These are exported as part of
+ * the public API (jwe_alg_str etc.), declared in jwt.h. */
 
 #define __trace() fprintf(stderr, "%s:%d\n", __func__, __LINE__)
 
