@@ -168,7 +168,8 @@ if (GNUTLS_FOUND)
 	target_link_libraries(jwt PUBLIC PkgConfig::GNUTLS)
 	target_link_libraries(jwt_static PUBLIC PkgConfig::GNUTLS)
 	list(APPEND JWT_SOURCES
-	     libjwt/gnutls/sign-verify.c)
+	     libjwt/gnutls/sign-verify.c
+	     libjwt/gnutls/jwe.c)
 endif()
 
 if (MBEDTLS_FOUND)
@@ -186,7 +187,8 @@ target_link_libraries(jwt PUBLIC PkgConfig::OPENSSL)
 target_link_libraries(jwt_static PUBLIC PkgConfig::OPENSSL)
 list(APPEND JWT_SOURCES
      libjwt/openssl/jwk-parse.c
-     libjwt/openssl/sign-verify.c)
+     libjwt/openssl/sign-verify.c
+     libjwt/openssl/jwe.c)
 
 if (LIBCURL_FOUND)
 	add_definitions(-DHAVE_LIBCURL)
@@ -349,7 +351,7 @@ if (CHECK_FOUND)
 	list (APPEND UNIT_TESTS jwt_builder jwt_checker jwt_flipflop)
 
 	# JWE
-	list (APPEND UNIT_TESTS jwe_foundation jwe_keys)
+	list (APPEND UNIT_TESTS jwe_foundation jwe_keys jwe_gcm)
 
 	# Claims
 	list (APPEND UNIT_TESTS jwt_claims)
