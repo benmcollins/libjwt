@@ -141,10 +141,11 @@ char *FUNC(generate)(jwe_common_t *__cmd, const unsigned char *plaintext,
 		     size_t plaintext_len)
 {
 	jwt_json_auto_t *hdr = NULL;
-	char_auto *hdr_json = NULL, *hdr_b64 = NULL;
+	char_auto *hdr_json = NULL, *hdr_b64 = NULL, *ek_b64 = NULL;
 	char_auto *iv_b64 = NULL, *ct_b64 = NULL, *tag_b64 = NULL;
 	unsigned char *cek = NULL, *iv = NULL, *ct = NULL, *tag = NULL;
-	size_t cek_len = 0, iv_len, ct_len = 0, tag_len = 0;
+	unsigned char *enckey = NULL;
+	size_t cek_len = 0, iv_len, ct_len = 0, tag_len = 0, enckey_len = 0;
 	const unsigned char *k;
 	char *out = NULL;
 	int hdr_len, ret;
@@ -182,8 +183,11 @@ char *FUNC(generate)(jwe_common_t *__cmd, const unsigned char *plaintext,
 	if (hdr_len <= 0)
 		goto oom; // LCOV_EXCL_LINE
 
-	/* @rfc{7516,5.1} CEK: for dir the CEK is the shared symmetric key. */
+	/* @rfc{7516,5.1} Produce the CEK and the JWE Encrypted Key per the key
+	 * management algorithm. */
 	if (__cmd->c.key_alg == JWE_ALG_DIR) {
+		/* dir: the CEK is the shared symmetric key; Encrypted Key is
+		 * empty. */
 		size_t need = jwe_enc_cek_len(__cmd->c.enc);
 
 		ret = jwks_item_key_oct(__cmd->c.key, &k, &cek_len);
@@ -197,10 +201,24 @@ char *FUNC(generate)(jwe_common_t *__cmd, const unsigned char *plaintext,
 			goto oom; // LCOV_EXCL_LINE
 		memcpy(cek, k, cek_len);
 	} else {
-		/* Key wrapping / encryption land in later stages. */
-		jwt_write_error(__cmd, "Key management alg not yet supported");
-		return NULL;
+		/* A*KW: generate a random CEK and wrap it to the recipient. */
+		if (jwe_generate_cek(__cmd->c.enc, &cek, &cek_len)) {
+			// LCOV_EXCL_START
+			jwt_write_error(__cmd, "Could not generate CEK");
+			return NULL;
+			// LCOV_EXCL_STOP
+		}
+		if (jwe_wrap_cek(__cmd->c.key_alg, __cmd->c.key, cek, cek_len,
+				 &enckey, &enckey_len)) {
+			jwt_write_error(__cmd, "Key wrap key length mismatch");
+			goto fail;
+		}
 	}
+
+	/* Encode the Encrypted Key (empty for dir). */
+	if (enckey_len &&
+	    jwt_base64uri_encode(&ek_b64, (char *)enckey, (int)enckey_len) <= 0)
+		goto oom; // LCOV_EXCL_LINE
 
 	/* @rfc{7516,5.1} step 9: generate the IV. */
 	iv_len = jwe_enc_iv_len(__cmd->c.enc);
@@ -233,25 +251,31 @@ char *FUNC(generate)(jwe_common_t *__cmd, const unsigned char *plaintext,
 	    jwt_base64uri_encode(&tag_b64, (char *)tag, (int)tag_len) <= 0)
 		goto oom; // LCOV_EXCL_LINE
 
-	/* @rfc{7516,7.1} Assemble: header.encrypted_key.iv.ct.tag. For dir
-	 * the Encrypted Key is the empty octet sequence (empty segment). The
-	 * length is the five parts plus 4 dots and a nil. */
-	out = jwt_malloc(strlen(hdr_b64) + strlen(iv_b64) + strlen(ct_b64) +
-			 strlen(tag_b64) + 5);
-	if (out == NULL)
-		goto oom; // LCOV_EXCL_LINE
-	sprintf(out, "%s..%s.%s.%s", hdr_b64, iv_b64, ct_b64, tag_b64);
+	/* @rfc{7516,7.1} Assemble: header.encrypted_key.iv.ct.tag. The
+	 * Encrypted Key segment is empty for dir and the wrapped key for A*KW.
+	 * Length is the five parts plus 4 dots and a nil. */
+	{
+		const char *ek = ek_b64 ? ek_b64 : "";
+
+		out = jwt_malloc(strlen(hdr_b64) + strlen(ek) + strlen(iv_b64) +
+				 strlen(ct_b64) + strlen(tag_b64) + 5);
+		if (out == NULL)
+			goto oom; // LCOV_EXCL_LINE
+		sprintf(out, "%s.%s.%s.%s.%s", hdr_b64, ek, iv_b64, ct_b64,
+			tag_b64);
+	}
 
 	goto done;
 
 	// LCOV_EXCL_START
 oom:
 	jwt_write_error(__cmd, "Error allocating memory");
+	// LCOV_EXCL_STOP
 fail:
 	out = NULL;
-	// LCOV_EXCL_STOP
 done:
 	jwt_scrub_and_free(cek, cek_len);
+	jwt_freemem(enckey);
 	jwt_freemem(iv);
 	jwt_freemem(ct);
 	jwt_freemem(tag);
@@ -284,8 +308,8 @@ unsigned char *FUNC(decrypt)(jwe_common_t *__cmd, const char *token,
 	jwt_json_auto_t *hdr = NULL;
 	char_auto *hdr_json = NULL;
 	unsigned char *cek = NULL, *iv = NULL, *ct = NULL, *tag = NULL;
-	unsigned char *pt = NULL, *out = NULL;
-	int iv_len = 0, ct_len = 0, tag_len = 0, hdr_dlen = 0;
+	unsigned char *pt = NULL, *out = NULL, *enckey = NULL;
+	int iv_len = 0, ct_len = 0, tag_len = 0, hdr_dlen = 0, ek_len = 0;
 	size_t cek_len = 0, pt_len = 0;
 	const unsigned char *k;
 	jwt_json_t *jalg, *jenc;
@@ -382,8 +406,28 @@ unsigned char *FUNC(decrypt)(jwe_common_t *__cmd, const char *token,
 			goto oom; // LCOV_EXCL_LINE
 		memcpy(cek, k, cek_len);
 	} else {
-		jwt_write_error(__cmd, "Key management alg not yet supported");
-		return NULL;
+		/* A*KW: the Encrypted Key is the wrapped CEK; unwrap it. */
+		if (*p_ek == '\0') {
+			jwt_write_error(__cmd,
+				"Key wrapping requires an Encrypted Key");
+			return NULL;
+		}
+		enckey = jwt_base64uri_decode(p_ek, &ek_len);
+		if (enckey == NULL || ek_len <= 0) {
+			jwt_write_error(__cmd, "Error decoding Encrypted Key");
+			goto fail;
+		}
+		if (jwe_unwrap_cek(alg, __cmd->c.key, enckey, ek_len,
+				   &cek, &cek_len)) {
+			jwt_write_error(__cmd, "JWE key unwrap failed");
+			goto fail;
+		}
+		if (cek_len != jwe_enc_cek_len(enc)) {
+			// LCOV_EXCL_START
+			jwt_write_error(__cmd, "Unwrapped CEK length wrong");
+			goto fail;
+			// LCOV_EXCL_STOP
+		}
 	}
 
 	/* Decode IV, ciphertext, tag. */
@@ -425,6 +469,7 @@ fail:
 	out = NULL;
 done:
 	jwt_scrub_and_free(cek, cek_len);
+	jwt_freemem(enckey);
 	jwt_freemem(iv);
 	jwt_freemem(ct);
 	jwt_freemem(tag);

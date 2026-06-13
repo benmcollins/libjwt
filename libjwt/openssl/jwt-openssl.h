@@ -40,5 +40,9 @@ int openssl_decrypt_aes_cbc_hmac(jwe_enc_t enc, const unsigned char *cek,
 	const unsigned char *ct, size_t ct_len,
 	const unsigned char *tag, size_t tag_len,
 	unsigned char **pt, size_t *pt_len);
+int openssl_wrap_aes_kw(const jwk_item_t *key, const unsigned char *cek,
+	size_t cek_len, unsigned char **out, size_t *out_len);
+int openssl_unwrap_aes_kw(const jwk_item_t *key, const unsigned char *in,
+	size_t in_len, unsigned char **cek, size_t *cek_len);
 
 #endif /* JWT_OPENSSL_H */

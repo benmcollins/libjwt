@@ -409,3 +409,174 @@ int gnutls_decrypt_aes_cbc_hmac(jwe_enc_t enc, const unsigned char *cek,
 
 	return 0;
 }
+
+/* RFC 3394 AES Key Wrap. GnuTLS exposes no AES-ECB or key-wrap primitive, so
+ * we build the single-block AES operation each step needs from AES-CBC with a
+ * zero IV: CBC of one 16-byte block with IV=0 is identical to ECB of that
+ * block. A fresh context (hence a fresh zero IV) is used per block. */
+static gnutls_cipher_algorithm_t kw_cbc(size_t kek_len)
+{
+	switch (kek_len) {
+	case 16:
+		return GNUTLS_CIPHER_AES_128_CBC;
+	case 24:
+		return GNUTLS_CIPHER_AES_192_CBC;
+	case 32:
+		return GNUTLS_CIPHER_AES_256_CBC;
+	// LCOV_EXCL_START
+	default:
+		return GNUTLS_CIPHER_NULL;
+	// LCOV_EXCL_STOP
+	}
+}
+
+static const unsigned char KW_IV[8] =
+	{ 0xA6, 0xA6, 0xA6, 0xA6, 0xA6, 0xA6, 0xA6, 0xA6 };
+
+/* One AES block (16 bytes) in place, via AES-CBC with a zero IV. */
+static int kw_aes_block(gnutls_cipher_algorithm_t alg, const gnutls_datum_t *key,
+			int encrypt, unsigned char *block)
+{
+	gnutls_cipher_hd_t hd = NULL;
+	unsigned char zero_iv[16] = { 0 };
+	gnutls_datum_t ivd = { zero_iv, sizeof(zero_iv) };
+	int ret;
+
+	if (gnutls_cipher_init(&hd, alg, key, &ivd) != 0)
+		return 1; // LCOV_EXCL_LINE
+
+	if (encrypt)
+		ret = gnutls_cipher_encrypt(hd, block, 16);
+	else
+		ret = gnutls_cipher_decrypt(hd, block, 16);
+
+	gnutls_cipher_deinit(hd);
+
+	return ret ? 1 : 0;
+}
+
+/* @rfc{7518,4.4} AES Key Wrap (RFC 3394 section 2.2.1). */
+int gnutls_wrap_aes_kw(const jwk_item_t *key, const unsigned char *cek,
+		       size_t cek_len, unsigned char **out, size_t *out_len)
+{
+	const unsigned char *kek;
+	size_t kek_len = 0, n, i, j;
+	gnutls_cipher_algorithm_t alg;
+	gnutls_datum_t keyd;
+	unsigned char *r = NULL, a[8], block[16];
+	uint64_t t;
+	int ret = 1;
+
+	if (jwks_item_key_oct(key, &kek, &kek_len))
+		return 1; // LCOV_EXCL_LINE
+
+	alg = kw_cbc(kek_len);
+	if (alg == GNUTLS_CIPHER_NULL || cek_len < 16 || (cek_len % 8) != 0)
+		return 1; // LCOV_EXCL_LINE
+
+	n = cek_len / 8;
+	keyd.data = (unsigned char *)kek;
+	keyd.size = (unsigned int)kek_len;
+
+	/* Set A = IV, R = plaintext. */
+	memcpy(a, KW_IV, 8);
+	r = jwt_malloc(cek_len);
+	if (r == NULL)
+		goto out; // LCOV_EXCL_LINE
+	memcpy(r, cek, cek_len);
+
+	for (j = 0; j < 6; j++) {
+		for (i = 0; i < n; i++) {
+			memcpy(block, a, 8);
+			memcpy(block + 8, r + i * 8, 8);
+			if (kw_aes_block(alg, &keyd, 1, block))
+				goto out; // LCOV_EXCL_LINE
+			/* A = MSB(64, B) ^ t, where t = (n*j)+i+1 */
+			t = (uint64_t)(n * j) + i + 1;
+			memcpy(a, block, 8);
+			a[7] ^= (unsigned char)(t & 0xff);
+			a[6] ^= (unsigned char)((t >> 8) & 0xff);
+			a[5] ^= (unsigned char)((t >> 16) & 0xff);
+			a[4] ^= (unsigned char)((t >> 24) & 0xff);
+			memcpy(r + i * 8, block + 8, 8);
+		}
+	}
+
+	*out = jwt_malloc(cek_len + 8);
+	if (*out == NULL)
+		goto out; // LCOV_EXCL_LINE
+	memcpy(*out, a, 8);
+	memcpy(*out + 8, r, cek_len);
+	*out_len = cek_len + 8;
+	ret = 0;
+
+out:
+	jwt_scrub_and_free(r, cek_len);
+
+	return ret;
+}
+
+/* @rfc{7518,4.4} AES Key Unwrap (RFC 3394 section 2.2.2), with the integrity
+ * check on the recovered A6 IV. */
+int gnutls_unwrap_aes_kw(const jwk_item_t *key, const unsigned char *in,
+			 size_t in_len, unsigned char **cek, size_t *cek_len)
+{
+	const unsigned char *kek;
+	size_t kek_len = 0, n, i, plen;
+	long j;
+	gnutls_cipher_algorithm_t alg;
+	gnutls_datum_t keyd;
+	unsigned char *r = NULL, a[8], block[16];
+	uint64_t t;
+	int ret = 1;
+
+	if (jwks_item_key_oct(key, &kek, &kek_len))
+		return 1; // LCOV_EXCL_LINE
+
+	alg = kw_cbc(kek_len);
+	if (alg == GNUTLS_CIPHER_NULL || in_len < 24 || (in_len % 8) != 0)
+		return 1;
+
+	plen = in_len - 8;
+	n = plen / 8;
+	keyd.data = (unsigned char *)kek;
+	keyd.size = (unsigned int)kek_len;
+
+	memcpy(a, in, 8);
+	r = jwt_malloc(plen);
+	if (r == NULL)
+		goto out; // LCOV_EXCL_LINE
+	memcpy(r, in + 8, plen);
+
+	for (j = 5; j >= 0; j--) {
+		for (i = n; i >= 1; i--) {
+			t = (uint64_t)(n * (size_t)j) + i;
+			memcpy(block, a, 8);
+			block[7] ^= (unsigned char)(t & 0xff);
+			block[6] ^= (unsigned char)((t >> 8) & 0xff);
+			block[5] ^= (unsigned char)((t >> 16) & 0xff);
+			block[4] ^= (unsigned char)((t >> 24) & 0xff);
+			memcpy(block + 8, r + (i - 1) * 8, 8);
+			if (kw_aes_block(alg, &keyd, 0, block))
+				goto out; // LCOV_EXCL_LINE
+			memcpy(a, block, 8);
+			memcpy(r + (i - 1) * 8, block + 8, 8);
+		}
+	}
+
+	/* Integrity: the recovered A must equal the RFC 3394 default IV. */
+	if (gnutls_memcmp(a, KW_IV, 8) != 0)
+		goto out;
+
+	*cek = jwt_malloc(plen);
+	if (*cek == NULL)
+		goto out; // LCOV_EXCL_LINE
+	memcpy(*cek, r, plen);
+	*cek_len = plen;
+	ret = 0;
+
+out:
+	jwt_scrub_and_free(r, plen);
+
+	return ret;
+}

@@ -380,3 +380,113 @@ out:
 
 	return ret;
 }
+
+/* Map an oct key length to the AES Key Wrap cipher (RFC 3394). */
+static const EVP_CIPHER *kw_cipher(size_t key_len)
+{
+	switch (key_len) {
+	case 16:
+		return EVP_aes_128_wrap();
+	case 24:
+		return EVP_aes_192_wrap();
+	case 32:
+		return EVP_aes_256_wrap();
+	// LCOV_EXCL_START
+	default:
+		return NULL;
+	// LCOV_EXCL_STOP
+	}
+}
+
+/* @rfc{7518,4.4} AES Key Wrap (RFC 3394) of the CEK. The wrapped output is
+ * cek_len + 8 octets. */
+int openssl_wrap_aes_kw(const jwk_item_t *key, const unsigned char *cek,
+			size_t cek_len, unsigned char **out, size_t *out_len)
+{
+	const unsigned char *kek;
+	size_t kek_len = 0;
+	const EVP_CIPHER *cipher;
+	EVP_CIPHER_CTX *ctx = NULL;
+	unsigned char *buf = NULL;
+	int len, ret = 1;
+
+	if (jwks_item_key_oct(key, &kek, &kek_len))
+		return 1; // LCOV_EXCL_LINE
+
+	cipher = kw_cipher(kek_len);
+	/* AES-KW requires the CEK to be a multiple of 8 and at least 16. */
+	if (cipher == NULL || cek_len < 16 || (cek_len % 8) != 0)
+		return 1; // LCOV_EXCL_LINE
+
+	ctx = EVP_CIPHER_CTX_new();
+	if (ctx == NULL)
+		return 1; // LCOV_EXCL_LINE
+	/* OpenSSL refuses wrap ciphers unless this flag is set. */
+	EVP_CIPHER_CTX_set_flags(ctx, EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
+
+	buf = jwt_malloc(cek_len + 8);
+	if (buf == NULL)
+		goto out; // LCOV_EXCL_LINE
+
+	if (EVP_EncryptInit_ex(ctx, cipher, NULL, kek, NULL) != 1)
+		goto out; // LCOV_EXCL_LINE
+	if (EVP_EncryptUpdate(ctx, buf, &len, cek, (int)cek_len) != 1)
+		goto out; // LCOV_EXCL_LINE
+
+	*out = buf;
+	*out_len = len;
+	buf = NULL;
+	ret = 0;
+
+out:
+	jwt_freemem(buf);
+	EVP_CIPHER_CTX_free(ctx);
+
+	return ret;
+}
+
+/* @rfc{7518,4.4} AES Key Unwrap (RFC 3394). A failure here includes the
+ * built-in integrity check failing (wrong KEK or tampered wrapped key). */
+int openssl_unwrap_aes_kw(const jwk_item_t *key, const unsigned char *in,
+			  size_t in_len, unsigned char **cek, size_t *cek_len)
+{
+	const unsigned char *kek;
+	size_t kek_len = 0;
+	const EVP_CIPHER *cipher;
+	EVP_CIPHER_CTX *ctx = NULL;
+	unsigned char *buf = NULL;
+	int len, ret = 1;
+
+	if (jwks_item_key_oct(key, &kek, &kek_len))
+		return 1; // LCOV_EXCL_LINE
+
+	cipher = kw_cipher(kek_len);
+	if (cipher == NULL || in_len < 24 || (in_len % 8) != 0)
+		return 1;
+
+	ctx = EVP_CIPHER_CTX_new();
+	if (ctx == NULL)
+		return 1; // LCOV_EXCL_LINE
+	EVP_CIPHER_CTX_set_flags(ctx, EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
+
+	buf = jwt_malloc(in_len);
+	if (buf == NULL)
+		goto out; // LCOV_EXCL_LINE
+
+	if (EVP_DecryptInit_ex(ctx, cipher, NULL, kek, NULL) != 1)
+		goto out; // LCOV_EXCL_LINE
+	/* Returns <= 0 if the RFC 3394 integrity check (the A6 IV) fails. */
+	if (EVP_DecryptUpdate(ctx, buf, &len, in, (int)in_len) != 1)
+		goto out;
+
+	*cek = buf;
+	*cek_len = len;
+	buf = NULL;
+	ret = 0;
+
+out:
+	jwt_scrub_and_free(buf, in_len);
+	EVP_CIPHER_CTX_free(ctx);
+
+	return ret;
+}
