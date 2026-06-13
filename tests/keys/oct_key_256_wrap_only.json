@@ -1,0 +1,12 @@
+{
+  "keys": [
+    {
+      "kty": "oct",
+      "use": "enc",
+      "key_ops": [
+        "wrapKey"
+      ],
+      "k": "0gmNspkRljssLSrldySnYUS-zhtCo5sqeqo_yl7n2XA"
+    }
+  ]
+}

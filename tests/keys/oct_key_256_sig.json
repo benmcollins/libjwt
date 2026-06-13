@@ -1,0 +1,9 @@
+{
+  "keys": [
+    {
+      "kty": "oct",
+      "use": "sig",
+      "k": "0gmNspkRljssLSrldySnYUS-zhtCo5sqeqo_yl7n2XA"
+    }
+  ]
+}

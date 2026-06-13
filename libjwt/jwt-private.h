@@ -407,4 +407,79 @@ static inline jwk_key_type_t jwt_alg_required_kty(jwt_alg_t alg)
 	}
 }
 
+/* @rfc{7518,5.1} The CEK length (in bytes) required by a content encryption
+ * ("enc") algorithm. The AES-CBC-HMAC algorithms use a double-length key
+ * (MAC_KEY || ENC_KEY), hence 32/48/64 bytes. Returns 0 for invalid enc. */
+static inline size_t jwe_enc_cek_len(jwe_enc_t enc)
+{
+	switch (enc) {
+	case JWE_ENC_A128GCM:
+		return 16;
+	case JWE_ENC_A192GCM:
+		return 24;
+	case JWE_ENC_A256GCM:
+		return 32;
+	case JWE_ENC_A128CBC_HS256:
+		return 32;
+	case JWE_ENC_A192CBC_HS384:
+		return 48;
+	case JWE_ENC_A256CBC_HS512:
+		return 64;
+	default:
+		return 0;
+	}
+}
+
+/* @rfc{7518,4.1} The IV length (in bytes) for a content encryption algorithm:
+ * 96-bit nonce for GCM, 128-bit IV for CBC. Returns 0 for invalid enc. */
+static inline size_t jwe_enc_iv_len(jwe_enc_t enc)
+{
+	switch (enc) {
+	case JWE_ENC_A128GCM:
+	case JWE_ENC_A192GCM:
+	case JWE_ENC_A256GCM:
+		return 12;
+	case JWE_ENC_A128CBC_HS256:
+	case JWE_ENC_A192CBC_HS384:
+	case JWE_ENC_A256CBC_HS512:
+		return 16;
+	default:
+		return 0;
+	}
+}
+
+/* The jwk_key_type_t that a JWE key management ("alg") algorithm requires of
+ * the recipient key. Mirrors jwt_alg_required_kty() for JWE and is the
+ * authoritative kty<->alg gate that prevents using, e.g., an RSA key for an
+ * AES Key Wrap operation. JWE_KEY_TYPE_NONE for invalid/unknown. */
+static inline jwk_key_type_t jwe_alg_required_kty(jwe_key_alg_t alg)
+{
+	switch (alg) {
+	case JWE_ALG_DIR:
+	case JWE_ALG_A128KW:
+	case JWE_ALG_A192KW:
+	case JWE_ALG_A256KW:
+		return JWK_KEY_TYPE_OCT;
+
+	case JWE_ALG_RSA_OAEP:
+	case JWE_ALG_RSA_OAEP_256:
+		return JWK_KEY_TYPE_RSA;
+
+	// LCOV_EXCL_START
+	default:
+		return JWK_KEY_TYPE_NONE;
+	// LCOV_EXCL_STOP
+	}
+}
+
+/* Validate that a JWK may be used for a JWE operation with the given key
+ * management alg. Checks key type vs alg, the "use" attribute (must not be
+ * "sig"), and "key_ops" (if present, must permit the needed operation).
+ * @for_encrypt selects the producer (encrypt/wrap) vs consumer (decrypt/
+ * unwrap) direction. Returns NULL if the key is acceptable, or a static
+ * human-readable reason string if not. */
+JWT_NO_EXPORT
+const char *jwe_key_usage_check(const jwk_item_t *key, jwe_key_alg_t alg,
+				int for_encrypt);
+
 #endif /* JWT_PRIVATE_H */
