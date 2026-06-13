@@ -436,4 +436,6 @@ struct jwt_crypto_ops jwt_openssl_ops = {
 	.rng			= openssl_rng,
 	.encrypt_aes_gcm	= openssl_encrypt_aes_gcm,
 	.decrypt_aes_gcm	= openssl_decrypt_aes_gcm,
+	.encrypt_aes_cbc_hmac	= openssl_encrypt_aes_cbc_hmac,
+	.decrypt_aes_cbc_hmac	= openssl_decrypt_aes_cbc_hmac,
 };

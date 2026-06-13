@@ -11,6 +11,8 @@
 
 #include <openssl/evp.h>
 #include <openssl/rand.h>
+#include <openssl/hmac.h>
+#include <openssl/crypto.h>
 
 #include <jwt.h>
 
@@ -168,6 +170,204 @@ int openssl_decrypt_aes_gcm(jwe_enc_t enc, const unsigned char *cek,
 	 * AAD, IV, or tag was tampered with (or the CEK is wrong). */
 	if (EVP_DecryptFinal_ex(ctx, out + len, &len) <= 0)
 		goto out;
+	*pt_len += len;
+
+	*pt = out;
+	out = NULL;
+	ret = 0;
+
+out:
+	jwt_scrub_and_free(out, ct_len ? ct_len : 1);
+	EVP_CIPHER_CTX_free(ctx);
+
+	return ret;
+}
+
+/* @rfc{7518,5.2} Map a CBC-HMAC enc to its AES-CBC cipher, HMAC digest, and
+ * the (equal) MAC/ENC key half-length, which is also the truncated tag length
+ * T_LEN. Returns 0 on success. */
+static int cbc_params(jwe_enc_t enc, const EVP_CIPHER **cipher,
+		      const EVP_MD **md, size_t *half)
+{
+	switch (enc) {
+	case JWE_ENC_A128CBC_HS256:
+		*cipher = EVP_aes_128_cbc();
+		*md = EVP_sha256();
+		*half = 16;
+		return 0;
+	case JWE_ENC_A192CBC_HS384:
+		*cipher = EVP_aes_192_cbc();
+		*md = EVP_sha384();
+		*half = 24;
+		return 0;
+	case JWE_ENC_A256CBC_HS512:
+		*cipher = EVP_aes_256_cbc();
+		*md = EVP_sha512();
+		*half = 32;
+		return 0;
+	// LCOV_EXCL_START
+	default:
+		return 1;
+	// LCOV_EXCL_STOP
+	}
+}
+
+/* @rfc{7518,5.2.2.1} Compute the authentication tag: HMAC over
+ * AAD || IV || CT || AL, where AL is the 64-bit big-endian bit-length of the
+ * AAD, truncated to the leftmost T_LEN (= half) octets. @out must hold at
+ * least EVP_MAX_MD_SIZE bytes. */
+static int cbc_hmac_tag(const EVP_MD *md, const unsigned char *mac_key,
+			size_t half, const unsigned char *aad, size_t aad_len,
+			const unsigned char *iv, size_t iv_len,
+			const unsigned char *ct, size_t ct_len,
+			unsigned char *out)
+{
+	unsigned char al[8];
+	uint64_t aad_bits = (uint64_t)aad_len * 8;
+	unsigned char *buf;
+	size_t buf_len, off = 0;
+	unsigned int mdlen = 0;
+	int i, ret = 1;
+
+	for (i = 7; i >= 0; i--) {
+		al[i] = (unsigned char)(aad_bits & 0xff);
+		aad_bits >>= 8;
+	}
+
+	buf_len = aad_len + iv_len + ct_len + sizeof(al);
+	buf = jwt_malloc(buf_len ? buf_len : 1);
+	if (buf == NULL)
+		return 1; // LCOV_EXCL_LINE
+
+	if (aad_len) { memcpy(buf + off, aad, aad_len); off += aad_len; }
+	memcpy(buf + off, iv, iv_len); off += iv_len;
+	if (ct_len) { memcpy(buf + off, ct, ct_len); off += ct_len; }
+	memcpy(buf + off, al, sizeof(al));
+
+	if (HMAC(md, mac_key, (int)half, buf, buf_len, out, &mdlen) != NULL &&
+	    mdlen >= half)
+		ret = 0;
+
+	jwt_freemem(buf);
+
+	return ret;
+}
+
+/* @rfc{7518,5.2} AES-CBC + HMAC content encryption (encrypt-then-MAC). */
+int openssl_encrypt_aes_cbc_hmac(jwe_enc_t enc, const unsigned char *cek,
+	size_t cek_len, const unsigned char *iv, size_t iv_len,
+	const unsigned char *aad, size_t aad_len,
+	const unsigned char *pt, size_t pt_len,
+	unsigned char **ct, size_t *ct_len,
+	unsigned char **tag, size_t *tag_len)
+{
+	const EVP_CIPHER *cipher = NULL;
+	const EVP_MD *md = NULL;
+	EVP_CIPHER_CTX *ctx = NULL;
+	unsigned char hmac[EVP_MAX_MD_SIZE];
+	unsigned char *out = NULL, *t = NULL;
+	const unsigned char *mac_key, *enc_key;
+	size_t half;
+	int len, ret = 1;
+
+	if (cbc_params(enc, &cipher, &md, &half) ||
+	    cek_len != jwe_enc_cek_len(enc) || iv_len != 16)
+		return 1; // LCOV_EXCL_LINE
+
+	/* @rfc{7518,5.2.2.1} MAC_KEY is the first half, ENC_KEY the second. */
+	mac_key = cek;
+	enc_key = cek + half;
+
+	ctx = EVP_CIPHER_CTX_new();
+	if (ctx == NULL)
+		return 1; // LCOV_EXCL_LINE
+
+	/* CBC pads, so ciphertext can be up to pt_len + one block. */
+	out = jwt_malloc(pt_len + EVP_CIPHER_block_size(cipher));
+	t = jwt_malloc(half);
+	if (out == NULL || t == NULL)
+		goto out; // LCOV_EXCL_LINE
+
+	if (EVP_EncryptInit_ex(ctx, cipher, NULL, enc_key, iv) != 1)
+		goto out; // LCOV_EXCL_LINE
+	if (EVP_EncryptUpdate(ctx, out, &len, pt, (int)pt_len) != 1)
+		goto out; // LCOV_EXCL_LINE
+	*ct_len = len;
+	if (EVP_EncryptFinal_ex(ctx, out + len, &len) != 1)
+		goto out; // LCOV_EXCL_LINE
+	*ct_len += len;
+
+	if (cbc_hmac_tag(md, mac_key, half, aad, aad_len, iv, iv_len,
+			 out, *ct_len, hmac))
+		goto out; // LCOV_EXCL_LINE
+	memcpy(t, hmac, half);
+
+	*ct = out;
+	*tag = t;
+	*tag_len = half;
+	out = NULL;
+	t = NULL;
+	ret = 0;
+
+out:
+	jwt_freemem(out);
+	jwt_freemem(t);
+	EVP_CIPHER_CTX_free(ctx);
+
+	return ret;
+}
+
+/* @rfc{7518,5.2} AES-CBC + HMAC content decryption. Verifies the tag in
+ * constant time BEFORE decrypting. */
+int openssl_decrypt_aes_cbc_hmac(jwe_enc_t enc, const unsigned char *cek,
+	size_t cek_len, const unsigned char *iv, size_t iv_len,
+	const unsigned char *aad, size_t aad_len,
+	const unsigned char *ct, size_t ct_len,
+	const unsigned char *tag, size_t tag_len,
+	unsigned char **pt, size_t *pt_len)
+{
+	const EVP_CIPHER *cipher = NULL;
+	const EVP_MD *md = NULL;
+	EVP_CIPHER_CTX *ctx = NULL;
+	unsigned char hmac[EVP_MAX_MD_SIZE];
+	unsigned char *out = NULL;
+	const unsigned char *mac_key, *enc_key;
+	size_t half;
+	int len, ret = 1;
+
+	if (cbc_params(enc, &cipher, &md, &half) ||
+	    cek_len != jwe_enc_cek_len(enc) || iv_len != 16 ||
+	    tag_len != half)
+		return 1; // LCOV_EXCL_LINE
+
+	mac_key = cek;
+	enc_key = cek + half;
+
+	/* @rfc{7518,5.2.2.2} Recompute and compare the tag in constant time
+	 * before doing anything with the ciphertext. */
+	if (cbc_hmac_tag(md, mac_key, half, aad, aad_len, iv, iv_len,
+			 ct, ct_len, hmac))
+		return 1; // LCOV_EXCL_LINE
+	if (CRYPTO_memcmp(hmac, tag, half) != 0)
+		return 1;
+
+	ctx = EVP_CIPHER_CTX_new();
+	if (ctx == NULL)
+		return 1; // LCOV_EXCL_LINE
+
+	out = jwt_malloc(ct_len ? ct_len : 1);
+	if (out == NULL)
+		goto out; // LCOV_EXCL_LINE
+
+	if (EVP_DecryptInit_ex(ctx, cipher, NULL, enc_key, iv) != 1)
+		goto out; // LCOV_EXCL_LINE
+	if (EVP_DecryptUpdate(ctx, out, &len, ct, (int)ct_len) != 1)
+		goto out; // LCOV_EXCL_LINE
+	*pt_len = len;
+	/* A bad final block (padding) fails here; the tag already authenticated
+	 * the ciphertext, so this is an integrity failure too. */
+	if (EVP_DecryptFinal_ex(ctx, out + len, &len) <= 0)
+		goto out; // LCOV_EXCL_LINE
 	*pt_len += len;
 
 	*pt = out;

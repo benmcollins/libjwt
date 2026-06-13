@@ -161,3 +161,251 @@ out:
 
 	return ret;
 }
+
+/* @rfc{7518,5.2} Map a CBC-HMAC enc to the GnuTLS AES-CBC cipher, HMAC
+ * algorithm, and the (equal) key half-length / truncated tag length. */
+static int cbc_params(jwe_enc_t enc, gnutls_cipher_algorithm_t *cipher,
+		      gnutls_mac_algorithm_t *mac, size_t *half)
+{
+	switch (enc) {
+	case JWE_ENC_A128CBC_HS256:
+		*cipher = GNUTLS_CIPHER_AES_128_CBC;
+		*mac = GNUTLS_MAC_SHA256;
+		*half = 16;
+		return 0;
+	case JWE_ENC_A192CBC_HS384:
+		*cipher = GNUTLS_CIPHER_AES_192_CBC;
+		*mac = GNUTLS_MAC_SHA384;
+		*half = 24;
+		return 0;
+	case JWE_ENC_A256CBC_HS512:
+		*cipher = GNUTLS_CIPHER_AES_256_CBC;
+		*mac = GNUTLS_MAC_SHA512;
+		*half = 32;
+		return 0;
+	// LCOV_EXCL_START
+	default:
+		return 1;
+	// LCOV_EXCL_STOP
+	}
+}
+
+/* @rfc{7518,5.2.2.1} HMAC over AAD || IV || CT || AL, truncated to @half. */
+static int cbc_hmac_tag(gnutls_mac_algorithm_t mac,
+			const unsigned char *mac_key, size_t half,
+			const unsigned char *aad, size_t aad_len,
+			const unsigned char *iv, size_t iv_len,
+			const unsigned char *ct, size_t ct_len,
+			unsigned char *out)
+{
+	unsigned char full[64]; /* max SHA-512 */
+	unsigned char al[8];
+	uint64_t aad_bits = (uint64_t)aad_len * 8;
+	unsigned char *buf;
+	size_t buf_len, off = 0;
+	int i, ret = 1;
+
+	for (i = 7; i >= 0; i--) {
+		al[i] = (unsigned char)(aad_bits & 0xff);
+		aad_bits >>= 8;
+	}
+
+	buf_len = aad_len + iv_len + ct_len + sizeof(al);
+	buf = jwt_malloc(buf_len ? buf_len : 1);
+	if (buf == NULL)
+		return 1; // LCOV_EXCL_LINE
+
+	if (aad_len) { memcpy(buf + off, aad, aad_len); off += aad_len; }
+	memcpy(buf + off, iv, iv_len); off += iv_len;
+	if (ct_len) { memcpy(buf + off, ct, ct_len); off += ct_len; }
+	memcpy(buf + off, al, sizeof(al));
+
+	if (gnutls_hmac_fast(mac, mac_key, half, buf, buf_len, full) == 0) {
+		memcpy(out, full, half);
+		ret = 0;
+	}
+
+	jwt_freemem(buf);
+
+	return ret;
+}
+
+/* AES-CBC encrypt (PKCS#7 padding) via the GnuTLS one-shot cipher API. */
+static int cbc_encrypt(gnutls_cipher_algorithm_t cipher,
+		       const unsigned char *enc_key, size_t key_len,
+		       const unsigned char *iv, size_t iv_len,
+		       const unsigned char *pt, size_t pt_len,
+		       unsigned char **ct, size_t *ct_len)
+{
+	gnutls_cipher_hd_t hd = NULL;
+	gnutls_datum_t key, ivd;
+	unsigned char *buf;
+	size_t bs = 16, padded, pad;
+	int ret = 1;
+
+	key.data = (unsigned char *)enc_key;
+	key.size = (unsigned int)key_len;
+	ivd.data = (unsigned char *)iv;
+	ivd.size = (unsigned int)iv_len;
+
+	/* PKCS#7: always add 1..bs padding bytes. */
+	pad = bs - (pt_len % bs);
+	padded = pt_len + pad;
+
+	buf = jwt_malloc(padded);
+	if (buf == NULL)
+		return 1; // LCOV_EXCL_LINE
+	if (pt_len)
+		memcpy(buf, pt, pt_len);
+	memset(buf + pt_len, (int)pad, pad);
+
+	if (gnutls_cipher_init(&hd, cipher, &key, &ivd) != 0)
+		goto out; // LCOV_EXCL_LINE
+	if (gnutls_cipher_encrypt(hd, buf, padded) != 0)
+		goto out; // LCOV_EXCL_LINE
+
+	*ct = buf;
+	*ct_len = padded;
+	buf = NULL;
+	ret = 0;
+
+out:
+	jwt_freemem(buf);
+	gnutls_cipher_deinit(hd);
+
+	return ret;
+}
+
+/* AES-CBC decrypt + PKCS#7 unpad. */
+static int cbc_decrypt(gnutls_cipher_algorithm_t cipher,
+		       const unsigned char *enc_key, size_t key_len,
+		       const unsigned char *iv, size_t iv_len,
+		       const unsigned char *ct, size_t ct_len,
+		       unsigned char **pt, size_t *pt_len)
+{
+	gnutls_cipher_hd_t hd = NULL;
+	gnutls_datum_t key, ivd;
+	unsigned char *buf;
+	size_t bs = 16, pad;
+	int ret = 1;
+
+	if (ct_len == 0 || (ct_len % bs) != 0)
+		return 1; // LCOV_EXCL_LINE
+
+	key.data = (unsigned char *)enc_key;
+	key.size = (unsigned int)key_len;
+	ivd.data = (unsigned char *)iv;
+	ivd.size = (unsigned int)iv_len;
+
+	buf = jwt_malloc(ct_len);
+	if (buf == NULL)
+		return 1; // LCOV_EXCL_LINE
+	memcpy(buf, ct, ct_len);
+
+	if (gnutls_cipher_init(&hd, cipher, &key, &ivd) != 0)
+		goto out; // LCOV_EXCL_LINE
+	if (gnutls_cipher_decrypt(hd, buf, ct_len) != 0)
+		goto out; // LCOV_EXCL_LINE
+
+	/* Strip and validate PKCS#7 padding. The HMAC tag is verified before
+	 * this is reached, so a corrupt-padding path is not reachable with a
+	 * valid tag; the check stays as defense in depth. */
+	pad = buf[ct_len - 1];
+	if (pad == 0 || pad > bs || pad > ct_len)
+		goto out; // LCOV_EXCL_LINE
+
+	*pt = buf;
+	*pt_len = ct_len - pad;
+	buf = NULL;
+	ret = 0;
+
+out:
+	jwt_scrub_and_free(buf, ct_len);
+	gnutls_cipher_deinit(hd);
+
+	return ret;
+}
+
+/* @rfc{7518,5.2} AES-CBC + HMAC content encryption (encrypt-then-MAC). */
+int gnutls_encrypt_aes_cbc_hmac(jwe_enc_t enc, const unsigned char *cek,
+	size_t cek_len, const unsigned char *iv, size_t iv_len,
+	const unsigned char *aad, size_t aad_len,
+	const unsigned char *pt, size_t pt_len,
+	unsigned char **ct, size_t *ct_len,
+	unsigned char **tag, size_t *tag_len)
+{
+	gnutls_cipher_algorithm_t cipher;
+	gnutls_mac_algorithm_t mac;
+	unsigned char hmac[64], *t = NULL;
+	const unsigned char *mac_key, *enc_key;
+	size_t half;
+
+	if (cbc_params(enc, &cipher, &mac, &half) ||
+	    cek_len != jwe_enc_cek_len(enc) || iv_len != 16)
+		return 1; // LCOV_EXCL_LINE
+
+	mac_key = cek;
+	enc_key = cek + half;
+
+	if (cbc_encrypt(cipher, enc_key, half, iv, iv_len, pt, pt_len,
+			ct, ct_len))
+		return 1; // LCOV_EXCL_LINE
+
+	if (cbc_hmac_tag(mac, mac_key, half, aad, aad_len, iv, iv_len,
+			 *ct, *ct_len, hmac)) {
+		// LCOV_EXCL_START
+		jwt_freemem(*ct);
+		return 1;
+		// LCOV_EXCL_STOP
+	}
+
+	t = jwt_malloc(half);
+	if (t == NULL) {
+		// LCOV_EXCL_START
+		jwt_freemem(*ct);
+		return 1;
+		// LCOV_EXCL_STOP
+	}
+	memcpy(t, hmac, half);
+
+	*tag = t;
+	*tag_len = half;
+
+	return 0;
+}
+
+/* @rfc{7518,5.2} AES-CBC + HMAC content decryption with constant-time tag
+ * verification before decryption. */
+int gnutls_decrypt_aes_cbc_hmac(jwe_enc_t enc, const unsigned char *cek,
+	size_t cek_len, const unsigned char *iv, size_t iv_len,
+	const unsigned char *aad, size_t aad_len,
+	const unsigned char *ct, size_t ct_len,
+	const unsigned char *tag, size_t tag_len,
+	unsigned char **pt, size_t *pt_len)
+{
+	gnutls_cipher_algorithm_t cipher;
+	gnutls_mac_algorithm_t mac;
+	unsigned char hmac[64];
+	const unsigned char *mac_key, *enc_key;
+	size_t half;
+
+	if (cbc_params(enc, &cipher, &mac, &half) ||
+	    cek_len != jwe_enc_cek_len(enc) || iv_len != 16 || tag_len != half)
+		return 1; // LCOV_EXCL_LINE
+
+	mac_key = cek;
+	enc_key = cek + half;
+
+	/* @rfc{7518,5.2.2.2} Verify the tag in constant time first. */
+	if (cbc_hmac_tag(mac, mac_key, half, aad, aad_len, iv, iv_len,
+			 ct, ct_len, hmac))
+		return 1; // LCOV_EXCL_LINE
+	if (gnutls_memcmp(hmac, tag, half) != 0)
+		return 1;
+
+	if (cbc_decrypt(cipher, enc_key, half, iv, iv_len, ct, ct_len,
+			pt, pt_len))
+		return 1; // LCOV_EXCL_LINE
+
+	return 0;
+}
