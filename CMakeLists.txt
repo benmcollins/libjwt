@@ -95,11 +95,27 @@ add_custom_command(
 		-o jwt-checker.i
 	DEPENDS libjwt/jwt-common.c)
 
+add_custom_command(
+	OUTPUT jwe-builder.i
+	COMMAND bash -c "${CMAKE_C_COMPILER} -E -DJWE_BUILDER ${CMAKE_SOURCE_DIR}/libjwt/jwe-common.c -o jwe-builder.i ${CMAKE_C_FLAGS}"
+		-o jwe-builder.i
+	DEPENDS libjwt/jwe-common.c)
+
+add_custom_command(
+	OUTPUT jwe-checker.i
+	COMMAND bash -c "${CMAKE_C_COMPILER} -E -DJWE_CHECKER ${CMAKE_SOURCE_DIR}/libjwt/jwe-common.c -o jwe-checker.i ${CMAKE_C_FLAGS}"
+		-o jwe-checker.i
+	DEPENDS libjwt/jwe-common.c)
+
 add_custom_target(gen_jwt_builder ALL DEPENDS jwt-builder.i)
 add_custom_target(gen_jwt_checker ALL DEPENDS jwt-checker.i)
+add_custom_target(gen_jwe_builder ALL DEPENDS jwe-builder.i)
+add_custom_target(gen_jwe_checker ALL DEPENDS jwe-checker.i)
 
-add_dependencies(jwt        gen_jwt_builder gen_jwt_checker)
-add_dependencies(jwt_static gen_jwt_builder gen_jwt_checker)
+add_dependencies(jwt        gen_jwt_builder gen_jwt_checker
+                            gen_jwe_builder gen_jwe_checker)
+add_dependencies(jwt_static gen_jwt_builder gen_jwt_checker
+                            gen_jwe_builder gen_jwe_checker)
 
 set(JWT_SOURCES libjwt/jwt-memory.c
 	libjwt/jwt.c
@@ -110,6 +126,9 @@ set(JWT_SOURCES libjwt/jwt-memory.c
 	libjwt/jwt-verify.c
 	libjwt/jwt-builder.c
 	libjwt/jwt-checker.c
+	libjwt/jwe-setget.c
+	libjwt/jwe-builder.c
+	libjwt/jwe-checker.c
 	libjwt/jwks-curl.c)
 
 # Allow building without deprecated functions (suggested)
@@ -327,6 +346,9 @@ if (CHECK_FOUND)
 
 	# Checker and Builder
 	list (APPEND UNIT_TESTS jwt_builder jwt_checker jwt_flipflop)
+
+	# JWE
+	list (APPEND UNIT_TESTS jwe_foundation)
 
 	# Claims
 	list (APPEND UNIT_TESTS jwt_claims)

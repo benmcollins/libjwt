@@ -74,6 +74,48 @@ typedef enum {
 	JWT_ALG_INVAL,		/**< An invalid algorithm from the caller or the token */
 } jwt_alg_t;
 
+/** @ingroup jwt_alg_grp
+ * @brief JWE key management algorithm types
+ *
+ * These are the supported JWE ``"alg"`` (key management) algorithm types for
+ * LibJWT. They determine how the Content Encryption Key (CEK) is produced for
+ * or recovered from a recipient. They are intentionally a separate type from
+ * @ref jwt_alg_t (which is JWS/signing only); the ``"alg"`` values used in JWE
+ * and JWS are not the same.
+ *
+ * @rfc{7518,4.1}
+ */
+typedef enum {
+	JWE_ALG_NONE = 0,	/**< No/unset key management algorithm */
+	JWE_ALG_DIR,		/**< Direct use of a shared symmetric key as the CEK */
+	JWE_ALG_A128KW,		/**< AES Key Wrap with 128-bit key */
+	JWE_ALG_A192KW,		/**< AES Key Wrap with 192-bit key */
+	JWE_ALG_A256KW,		/**< AES Key Wrap with 256-bit key */
+	JWE_ALG_RSA_OAEP,	/**< RSAES-OAEP using default (SHA-1) parameters */
+	JWE_ALG_RSA_OAEP_256,	/**< RSAES-OAEP using SHA-256 and MGF1 with SHA-256 */
+	JWE_ALG_INVAL,		/**< An invalid algorithm from the caller or the token */
+} jwe_key_alg_t;
+
+/** @ingroup jwt_alg_grp
+ * @brief JWE content encryption algorithm types
+ *
+ * These are the supported JWE ``"enc"`` (content encryption) algorithm types
+ * for LibJWT. They determine the authenticated encryption applied to the
+ * plaintext using the CEK.
+ *
+ * @rfc{7518,5.1}
+ */
+typedef enum {
+	JWE_ENC_NONE = 0,	/**< No/unset content encryption algorithm */
+	JWE_ENC_A128GCM,	/**< AES GCM using 128-bit key */
+	JWE_ENC_A192GCM,	/**< AES GCM using 192-bit key */
+	JWE_ENC_A256GCM,	/**< AES GCM using 256-bit key */
+	JWE_ENC_A128CBC_HS256,	/**< AES 128 CBC + HMAC SHA-256 (truncated) */
+	JWE_ENC_A192CBC_HS384,	/**< AES 192 CBC + HMAC SHA-384 (truncated) */
+	JWE_ENC_A256CBC_HS512,	/**< AES 256 CBC + HMAC SHA-512 (truncated) */
+	JWE_ENC_INVAL,		/**< An invalid algorithm from the caller or the token */
+} jwe_enc_t;
+
 /** @ingroup jwt_crypto_grp
  * @brief  Different providers for crypto operations
  *
@@ -1261,6 +1303,51 @@ JWT_EXPORT
 jwt_alg_t jwt_str_alg(const char *alg);
 
 /**
+ * Convert a JWE key management alg type to its string representation.
+ *
+ * @param alg A valid jwe_key_alg_t specifier.
+ * @returns Returns a string (e.g. "RSA-OAEP") matching the alg or NULL for
+ *     an invalid alg.
+ */
+JWT_EXPORT
+const char *jwe_alg_str(jwe_key_alg_t alg);
+
+/**
+ * Convert a JWE key management alg string to type.
+ *
+ * @rfc{7518,4.1}
+ *
+ * @param alg A valid string for a JWE key management algorithm (e.g. "A128KW").
+ * @returns Returns a @ref jwe_key_alg_t matching the string or
+ *  @ref JWE_ALG_INVAL if no matches were found.
+ */
+JWT_EXPORT
+jwe_key_alg_t jwe_str_alg(const char *alg);
+
+/**
+ * Convert a JWE content encryption enc type to its string representation.
+ *
+ * @param enc A valid jwe_enc_t specifier.
+ * @returns Returns a string (e.g. "A256GCM") matching the enc or NULL for
+ *     an invalid enc.
+ */
+JWT_EXPORT
+const char *jwe_enc_str(jwe_enc_t enc);
+
+/**
+ * Convert a JWE content encryption enc string to type.
+ *
+ * @rfc{7518,5.1}
+ *
+ * @param enc A valid string for a JWE content encryption algorithm
+ *  (e.g. "A256GCM").
+ * @returns Returns a @ref jwe_enc_t matching the string or
+ *  @ref JWE_ENC_INVAL if no matches were found.
+ */
+JWT_EXPORT
+jwe_enc_t jwe_str_enc(const char *enc);
+
+/**
  * @}
  * @noop jwt_alg_grp
  */
@@ -1268,6 +1355,204 @@ jwt_alg_t jwt_str_alg(const char *alg);
 /**
  * @}
  * @noop jwt_grp
+ */
+
+/**
+ * @defgroup jwe_grp JSON Web Encryption
+ *
+ * @brief Create and consume JSON Web Encryption (JWE) tokens
+ *
+ * JWE support is built around two objects that parallel the JWS
+ * @ref jwt_builder_t / @ref jwt_checker_t pair but are intentionally
+ * distinct types: a JWE is structurally and cryptographically different from
+ * a JWS, and keeping the types separate prevents accidentally treating one as
+ * the other.
+ *
+ * Unlike JWS, JWE requires two algorithms: a key management algorithm
+ * (@ref jwe_key_alg_t, the ``"alg"`` header) that produces or recovers the
+ * Content Encryption Key (CEK), and a content encryption algorithm
+ * (@ref jwe_enc_t, the ``"enc"`` header) that authenticates and encrypts the
+ * payload with that CEK.
+ *
+ * @rfc{7516}
+ * @{
+ */
+
+/**
+ * @defgroup jwe_builder_grp Builder
+ *
+ * Creating a JWE token mirrors the JWS builder: create a jwe_builder_t,
+ * configure it with a recipient key plus a key management (``"alg"``) and
+ * content encryption (``"enc"``) algorithm, then generate encrypted tokens.
+ * @{
+ */
+
+/**
+ * @brief Opaque JWE Builder (encryption) object
+ */
+typedef struct jwe_builder jwe_builder_t;
+
+/**
+ * @brief Create a new JWE builder instance
+ *
+ * @return Pointer to a JWE builder object on success, NULL on failure
+ */
+JWT_EXPORT
+jwe_builder_t *jwe_builder_new(void);
+
+/**
+ * @brief Free a previously created JWE builder object
+ *
+ * @param builder Pointer to a JWE builder object
+ */
+JWT_EXPORT
+void jwe_builder_free(jwe_builder_t *builder);
+
+#if defined(__GNUC__) || defined(__clang__)
+/**
+ * @brief Helper to free a JWE builder and set the pointer to NULL
+ * @param builder Pointer to a pointer for a jwe_builder_t object
+ */
+static inline void jwe_builder_freep(jwe_builder_t **builder) {
+	if (builder) {
+		jwe_builder_free(*builder);
+		*builder = NULL;
+	}
+}
+#define jwe_builder_auto_t jwe_builder_t \
+	__attribute__((cleanup(jwe_builder_freep)))
+#endif
+
+/**
+ * @brief Check error state of a JWE builder object
+ * @param builder Pointer to a JWE builder object
+ * @return 0 if no errors exist, non-zero otherwise
+ */
+JWT_EXPORT
+int jwe_builder_error(const jwe_builder_t *builder);
+
+/**
+ * @brief Get the error message contained in a JWE builder object
+ * @param builder Pointer to a JWE builder object
+ * @return Pointer to the error message string (empty if none). Never NULL.
+ */
+JWT_EXPORT
+const char *jwe_builder_error_msg(const jwe_builder_t *builder);
+
+/**
+ * @brief Clear error state in a JWE builder object
+ * @param builder Pointer to a JWE builder object
+ */
+JWT_EXPORT
+void jwe_builder_error_clear(jwe_builder_t *builder);
+
+/**
+ * @brief Set the key and algorithms for a JWE builder
+ *
+ * @param builder Pointer to a JWE builder object
+ * @param alg The JWE key management algorithm (``"alg"`` header)
+ * @param enc The JWE content encryption algorithm (``"enc"`` header)
+ * @param key The recipient key (a JWK) used for key management
+ * @return 0 on success, non-zero otherwise with error set in the builder
+ */
+JWT_EXPORT
+int jwe_builder_setkey(jwe_builder_t *builder, jwe_key_alg_t alg,
+		       jwe_enc_t enc, const jwk_item_t *key);
+
+/**
+ * @}
+ * @noop jwe_builder_grp
+ */
+
+/**
+ * @defgroup jwe_checker_grp Checker
+ *
+ * Consuming a JWE token mirrors the JWS checker: create a jwe_checker_t,
+ * configure it with the key and the expected algorithms, then decrypt and
+ * authenticate tokens.
+ * @{
+ */
+
+/**
+ * @brief Opaque JWE Checker (decryption) object
+ */
+typedef struct jwe_checker jwe_checker_t;
+
+/**
+ * @brief Create a new JWE checker instance
+ *
+ * @return Pointer to a JWE checker object on success, NULL on failure
+ */
+JWT_EXPORT
+jwe_checker_t *jwe_checker_new(void);
+
+/**
+ * @brief Free a previously created JWE checker object
+ *
+ * @param checker Pointer to a JWE checker object
+ */
+JWT_EXPORT
+void jwe_checker_free(jwe_checker_t *checker);
+
+#if defined(__GNUC__) || defined(__clang__)
+/**
+ * @brief Helper to free a JWE checker and set the pointer to NULL
+ * @param checker Pointer to a pointer for a jwe_checker_t object
+ */
+static inline void jwe_checker_freep(jwe_checker_t **checker) {
+	if (checker) {
+		jwe_checker_free(*checker);
+		*checker = NULL;
+	}
+}
+#define jwe_checker_auto_t jwe_checker_t \
+	__attribute__((cleanup(jwe_checker_freep)))
+#endif
+
+/**
+ * @brief Check error state of a JWE checker object
+ * @param checker Pointer to a JWE checker object
+ * @return 0 if no errors exist, non-zero otherwise
+ */
+JWT_EXPORT
+int jwe_checker_error(const jwe_checker_t *checker);
+
+/**
+ * @brief Get the error message contained in a JWE checker object
+ * @param checker Pointer to a JWE checker object
+ * @return Pointer to the error message string (empty if none). Never NULL.
+ */
+JWT_EXPORT
+const char *jwe_checker_error_msg(const jwe_checker_t *checker);
+
+/**
+ * @brief Clear error state in a JWE checker object
+ * @param checker Pointer to a JWE checker object
+ */
+JWT_EXPORT
+void jwe_checker_error_clear(jwe_checker_t *checker);
+
+/**
+ * @brief Set the key and algorithms for a JWE checker
+ *
+ * @param checker Pointer to a JWE checker object
+ * @param alg The expected JWE key management algorithm (``"alg"`` header)
+ * @param enc The expected JWE content encryption algorithm (``"enc"`` header)
+ * @param key The key (a JWK) used to recover the CEK
+ * @return 0 on success, non-zero otherwise with error set in the checker
+ */
+JWT_EXPORT
+int jwe_checker_setkey(jwe_checker_t *checker, jwe_key_alg_t alg,
+		       jwe_enc_t enc, const jwk_item_t *key);
+
+/**
+ * @}
+ * @noop jwe_checker_grp
+ */
+
+/**
+ * @}
+ * @noop jwe_grp
  */
 
 /**
