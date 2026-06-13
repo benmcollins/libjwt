@@ -351,7 +351,8 @@ if (CHECK_FOUND)
 	list (APPEND UNIT_TESTS jwt_builder jwt_checker jwt_flipflop)
 
 	# JWE
-	list (APPEND UNIT_TESTS jwe_foundation jwe_keys jwe_gcm jwe_cbc)
+	list (APPEND UNIT_TESTS jwe_foundation jwe_keys jwe_gcm jwe_cbc
+		jwe_aeskw)
 
 	# Claims
 	list (APPEND UNIT_TESTS jwt_claims)

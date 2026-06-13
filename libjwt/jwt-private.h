@@ -475,6 +475,23 @@ static inline jwk_key_type_t jwe_alg_required_kty(jwe_key_alg_t alg)
 /* JWE shared helpers (jwe.c). Generate a fresh CEK for the given enc via the
  * active backend's rng. Returns 0 on success and allocates *cek (the caller
  * scrubs and frees it). */
+/* Generate a fresh CEK for the given enc via the active backend's rng.
+ * Returns 0 on success and allocates *cek (caller scrubs+frees). */
+JWT_NO_EXPORT
+int jwe_generate_cek(jwe_enc_t enc, unsigned char **cek, size_t *cek_len);
+
+/* AES Key Wrap (RFC 3394) of / unwrap to the CEK for an A*KW alg. The KEK is
+ * the recipient oct key; its length must match the alg. Return 0 on success.
+ * Unwrap failure (wrong KEK or tampered key) returns non-zero. */
+JWT_NO_EXPORT
+int jwe_wrap_cek(jwe_key_alg_t alg, const jwk_item_t *key,
+		 const unsigned char *cek, size_t cek_len,
+		 unsigned char **out, size_t *out_len);
+JWT_NO_EXPORT
+int jwe_unwrap_cek(jwe_key_alg_t alg, const jwk_item_t *key,
+		   const unsigned char *in, size_t in_len,
+		   unsigned char **cek, size_t *cek_len);
+
 /* Dispatch JWE content encryption/decryption to the active backend for the
  * given enc. Return 0 on success. Decrypt verifies the AEAD tag. */
 JWT_NO_EXPORT

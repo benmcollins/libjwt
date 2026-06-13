@@ -265,27 +265,6 @@ START_TEST(generate_errors)
 }
 END_TEST
 
-START_TEST(generate_alg_not_supported)
-{
-	jwe_builder_auto_t *builder = NULL;
-	char *tok;
-
-	SET_OPS();
-
-	/* A256KW passes setkey but key wrapping is not implemented in this
-	 * stage, so generate must report it cleanly. */
-	read_json("oct_key_256_enc.json");
-	builder = jwe_builder_new();
-	ck_assert_int_eq(jwe_builder_setkey(builder, JWE_ALG_A256KW,
-					    JWE_ENC_A256GCM, g_item), 0);
-	tok = jwe_builder_generate(builder, (const unsigned char *)PT,
-				   strlen(PT));
-	ck_assert_ptr_null(tok);
-	ck_assert_int_eq(jwe_builder_error(builder), 1);
-	free_key();
-}
-END_TEST
-
 START_TEST(decrypt_errors)
 {
 	jwe_checker_auto_t *checker = NULL;
@@ -390,30 +369,6 @@ START_TEST(decrypt_cek_cases)
 }
 END_TEST
 
-START_TEST(decrypt_alg_not_supported)
-{
-	jwe_checker_auto_t *checker = NULL;
-	unsigned char *pt;
-	size_t pt_len = 0;
-
-	SET_OPS();
-
-	/* A256KW token + A256KW checker: key wrapping is not implemented in
-	 * this stage, so decrypt reports it cleanly. Header is
-	 * base64url({"alg":"A256KW","enc":"A256GCM"}). */
-	read_json("oct_key_256_enc.json");
-	checker = jwe_checker_new();
-	ck_assert_int_eq(jwe_checker_setkey(checker, JWE_ALG_A256KW,
-					    JWE_ENC_A256GCM, g_item), 0);
-	pt = jwe_checker_decrypt(checker,
-		"eyJhbGciOiJBMjU2S1ciLCJlbmMiOiJBMjU2R0NNIn0.QUJD.aa.bb.cc",
-		&pt_len);
-	ck_assert_ptr_null(pt);
-	ck_assert_int_eq(jwe_checker_error(checker), 1);
-	free_key();
-}
-END_TEST
-
 START_TEST(decrypt_bad_components)
 {
 	jwe_checker_auto_t *checker = NULL;
@@ -457,11 +412,9 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, reject_non_jwe, 0, i);
 	tcase_add_loop_test(tc_core, alg_enc_mismatch, 0, i);
 	tcase_add_loop_test(tc_core, generate_errors, 0, i);
-	tcase_add_loop_test(tc_core, generate_alg_not_supported, 0, i);
 	tcase_add_loop_test(tc_core, decrypt_errors, 0, i);
 	tcase_add_loop_test(tc_core, decrypt_header_cases, 0, i);
 	tcase_add_loop_test(tc_core, decrypt_cek_cases, 0, i);
-	tcase_add_loop_test(tc_core, decrypt_alg_not_supported, 0, i);
 	tcase_add_loop_test(tc_core, decrypt_bad_components, 0, i);
 
 	tcase_set_timeout(tc_core, 30);
