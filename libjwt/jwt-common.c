@@ -34,6 +34,14 @@ void FUNC(free)(jwt_common_t *__cmd)
 	jwt_json_release(__cmd->c.payload);
 	jwt_json_release(__cmd->c.headers);
 
+	if (__cmd->c.understood) {
+		int i;
+
+		for (i = 0; __cmd->c.understood[i] != NULL; i++)
+			jwt_freemem(__cmd->c.understood[i]);
+		jwt_freemem(__cmd->c.understood);
+	}
+
 	memset(__cmd, 0, sizeof(*__cmd));
 
 	jwt_freemem(__cmd);
@@ -197,6 +205,73 @@ void *FUNC(getctx)(jwt_common_t *__cmd)
 		return NULL;
 
 	return __cmd->c.cb_ctx;
+}
+
+/* @rfc{7515,4.1.11} Register a "crit" (Critical) header parameter name.
+ *
+ * For the builder, this is a header the producer wants to mark as critical
+ * (emitted in the "crit" array at generation). For the checker, this is a
+ * critical header the application understands and is prepared to process.
+ *
+ * The names are kept in a NULL-terminated, dynamically grown list on the
+ * common object. Duplicate registrations are a no-op success.
+ */
+#ifdef JWT_BUILDER
+int FUNC(setcrit)(jwt_common_t *__cmd, const char *header)
+#endif
+#ifdef JWT_CHECKER
+int FUNC(understands)(jwt_common_t *__cmd, const char *header)
+#endif
+{
+	char **grown, *dup;
+	size_t count = 0, len;
+
+	if (__cmd == NULL)
+		return 1;
+
+	if (header == NULL || !strlen(header)) {
+		jwt_write_error(__cmd, "Must pass a header name");
+		return 1;
+	}
+
+	/* Count existing entries and skip duplicates. */
+	if (__cmd->c.understood) {
+		for (count = 0; __cmd->c.understood[count] != NULL; count++) {
+			if (!strcmp(__cmd->c.understood[count], header))
+				return 0;
+		}
+	}
+
+	/* Grow the list by one (plus the NULL terminator). */
+	grown = jwt_malloc((count + 2) * sizeof(char *));
+	if (grown == NULL) {
+		// LCOV_EXCL_START
+		jwt_write_error(__cmd, "Error allocating memory");
+		return 1;
+		// LCOV_EXCL_STOP
+	}
+
+	len = strlen(header) + 1;
+	dup = jwt_malloc(len);
+	if (dup == NULL) {
+		// LCOV_EXCL_START
+		jwt_freemem(grown);
+		jwt_write_error(__cmd, "Error allocating memory");
+		return 1;
+		// LCOV_EXCL_STOP
+	}
+	memcpy(dup, header, len);
+
+	if (__cmd->c.understood) {
+		memcpy(grown, __cmd->c.understood, count * sizeof(char *));
+		jwt_freemem(__cmd->c.understood);
+	}
+
+	grown[count] = dup;
+	grown[count + 1] = NULL;
+	__cmd->c.understood = grown;
+
+	return 0;
 }
 
 typedef enum {
@@ -413,6 +488,14 @@ int FUNC(verify)(jwt_common_t *__cmd, const char *token)
 		return 1;
 	}
 
+	/* @rfc{7515,4.1.11} Enforce the "crit" header. Done after the
+	 * callback so the application has a chance to inspect the header,
+	 * but before any signature work. */
+	if (jwt_check_crit(jwt, __cmd->c.understood)) {
+		jwt_copy_error(__cmd, jwt);
+		return 1;
+	}
+
 	/* Callback may have changed this */
         if (__setkey_check(__cmd, config.alg, config.key))
 		return 1;
@@ -491,6 +574,13 @@ char *FUNC(generate)(jwt_common_t *__cmd)
 
 	jwt->alg = config.alg;
 	jwt->key = config.key;
+
+	/* @rfc{7515,4.1.11} Emit the "crit" header if any were registered.
+	 * Done after the callback so it can add the headers being marked. */
+	if (jwt_write_crit(jwt, __cmd->c.understood)) {
+		jwt_copy_error(__cmd, jwt);
+		return NULL;
+	}
 
 	if (jwt_head_setup(jwt))
 		return NULL; // LCOV_EXCL_LINE

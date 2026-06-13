@@ -414,6 +414,28 @@ JWT_EXPORT
 void *jwt_builder_getctx(jwt_builder_t *builder);
 
 /**
+ * @brief Mark a header parameter as critical (@rfc{7515,4.1.11})
+ *
+ * Registers a header parameter name to be listed in the ``crit`` (Critical)
+ * header parameter of generated tokens. Use this when your application adds a
+ * custom (extension) header that a recipient MUST understand and process; per
+ * RFC 7515, a recipient that does not understand a listed parameter MUST reject
+ * the token.
+ *
+ * Call this once for each name. The named header parameter must be present in
+ * the header when the token is generated (typically set in your callback), and
+ * it must not be a Header Parameter name defined by RFC 7515 or JWA (such as
+ * ``alg`` or ``typ``); otherwise generation will fail. If no names are
+ * registered, no ``crit`` header is emitted.
+ *
+ * @param builder Pointer to a builder object
+ * @param header Name of the header parameter to mark as critical
+ * @return 0 on success, non-zero otherwise with error set in the builder
+ */
+JWT_EXPORT
+int jwt_builder_setcrit(jwt_builder_t *builder, const char *header);
+
+/**
  * @brief Generate a token
  *
  * The result of this function is to generate a string containing a JWT. A
@@ -622,6 +644,28 @@ int jwt_checker_setcb(jwt_checker_t *checker, jwt_callback_t cb, void *ctx);
  */
 JWT_EXPORT
 void *jwt_checker_getctx(jwt_checker_t *checker);
+
+/**
+ * @brief Declare a critical header parameter as understood (@rfc{7515,4.1.11})
+ *
+ * Per RFC 7515, if a token's ``crit`` (Critical) header parameter lists a
+ * header name, the recipient MUST understand and process that header or else
+ * reject the token. LibJWT understands no extension header parameters on its
+ * own, so by default any token carrying a ``crit`` header will fail
+ * verification.
+ *
+ * Use this function to declare each extension header parameter that your
+ * application is prepared to handle (typically inspected in your verify
+ * callback). During verification, every name listed in ``crit`` must both be
+ * present in the header and have been declared here; otherwise the token is
+ * rejected.
+ *
+ * @param checker Pointer to a checker object
+ * @param header Name of the critical header parameter the application understands
+ * @return 0 on success, non-zero otherwise with error set in the checker
+ */
+JWT_EXPORT
+int jwt_checker_understands(jwt_checker_t *checker, const char *header);
 
 /**
  * @brief Verify a token

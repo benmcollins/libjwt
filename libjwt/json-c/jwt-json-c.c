@@ -116,9 +116,22 @@ jwt_json_t *jwt_json_obj_get(const jwt_json_t *object, const char *key)
 
 int jwt_json_obj_set(jwt_json_t *object, const char *key, jwt_json_t *value)
 {
+	int ret;
+
 	if (!object || !key || !value)
 		return -1;
-	return json_object_object_add(to_jc(object), key, to_jc(value));
+
+	ret = json_object_object_add(to_jc(object), key, to_jc(value));
+
+	/* json_object_object_add only absorbs the reference on success.
+	 * Steal it on failure too so callers have a single ownership
+	 * contract (matching Jansson's json_object_set_new): obj_set always
+	 * consumes value. The failure path is an internal json-c allocation
+	 * failure, not reachable from input. */
+	if (ret)
+		json_object_put(to_jc(value)); // LCOV_EXCL_LINE
+
+	return ret;
 }
 
 int jwt_json_obj_del(jwt_json_t *object, const char *key)
@@ -196,15 +209,21 @@ int jwt_json_obj_merge_new(jwt_json_t *object, jwt_json_t *other)
 
 size_t jwt_json_arr_size(const jwt_json_t *array)
 {
-	if (!array)
+	/* json_object_array_length() asserts if not an array; guard it so
+	 * this matches Jansson's json_array_size() (returns 0 otherwise). */
+	if (!array || !json_object_is_type(to_jc(array), json_type_array))
 		return 0;
 	return json_object_array_length(to_jc(array));
 }
 
 jwt_json_t *jwt_json_arr_get(const jwt_json_t *array, size_t index)
 {
-	if (!array)
-		return NULL;
+	/* Guard the type as json_object_array_get_idx() also asserts on a
+	 * non-array. Callers reach this only via jwt_json_arr_foreach, which
+	 * first checks jwt_json_arr_size (0 for non-arrays), so this guard is
+	 * defensive and not hit by current callers. */
+	if (!array || !json_object_is_type(to_jc(array), json_type_array))
+		return NULL; // LCOV_EXCL_LINE
 	return from_jc(json_object_array_get_idx(to_jc(array), index));
 }
 

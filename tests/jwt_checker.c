@@ -899,6 +899,314 @@ START_TEST(verify_es256_bad_sig)
 }
 END_TEST
 
+/* @rfc{7515,4.1.11} "crit" header handling on the checker side. */
+
+/* {"alg":"none","crit":["exp1"],"exp1":true} . {} . */
+#define CRIT_TOKEN_PRESENT \
+	"eyJhbGciOiJub25lIiwiY3JpdCI6WyJleHAxIl0sImV4cDEiOnRydWV9.e30."
+
+START_TEST(crit_unsupported)
+{
+	const char token[] = CRIT_TOKEN_PRESENT;
+	jwt_checker_auto_t *checker = NULL;
+	int ret;
+
+	SET_OPS();
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+	ck_assert_int_eq(jwt_checker_error(checker), 0);
+
+	/* "exp1" is present in the header but not declared understood. */
+	ret = jwt_checker_verify(checker, token);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_str_eq(jwt_checker_error_msg(checker),
+			"Unsupported critical header: \"exp1\"");
+}
+END_TEST
+
+START_TEST(crit_not_in_header)
+{
+	/* {"alg":"none","crit":["exp1"]} . {"iss":"disk.swissdisk.com"} . */
+	const char token[] = "eyJhbGciOiJub25lIiwiY3JpdCI6WyJleHAxIl19."
+		"eyJpc3MiOiJkaXNrLnN3aXNzZGlzay5jb20ifQ.";
+	jwt_checker_auto_t *checker = NULL;
+	int ret;
+
+	SET_OPS();
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+	ck_assert_int_eq(jwt_checker_error(checker), 0);
+
+	/* We understand "exp1", but it's listed without being in the header.
+	 * The "present in header" check fires before the "understood" check. */
+	ret = jwt_checker_understands(checker, "exp1");
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_checker_verify(checker, token);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_str_eq(jwt_checker_error_msg(checker),
+			"\"crit\" lists \"exp1\" which is not in the header");
+}
+END_TEST
+
+START_TEST(crit_understood)
+{
+	/* {"alg":"none","crit":["exp1"],"exp1":true} . {} . */
+	const char token[] =
+		"eyJhbGciOiJub25lIiwiY3JpdCI6WyJleHAxIl0sImV4cDEiOnRydWV9.e30.";
+	jwt_checker_auto_t *checker = NULL;
+	int ret;
+
+	SET_OPS();
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+	ck_assert_int_eq(jwt_checker_error(checker), 0);
+
+	/* Declaring it understood and present in the header -> passes. */
+	ret = jwt_checker_understands(checker, "exp1");
+	ck_assert_int_eq(ret, 0);
+	/* Duplicate registration is a no-op success. */
+	ret = jwt_checker_understands(checker, "exp1");
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_checker_verify(checker, token);
+	ck_assert_int_eq(ret, 0);
+}
+END_TEST
+
+START_TEST(crit_empty)
+{
+	/* {"alg":"none","crit":[]} . {} . */
+	const char token[] = "eyJhbGciOiJub25lIiwiY3JpdCI6W119.e30.";
+	jwt_checker_auto_t *checker = NULL;
+	int ret;
+
+	SET_OPS();
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+	ck_assert_int_eq(jwt_checker_error(checker), 0);
+
+	ret = jwt_checker_verify(checker, token);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_str_eq(jwt_checker_error_msg(checker),
+			"\"crit\" header must not be empty");
+}
+END_TEST
+
+START_TEST(crit_not_array)
+{
+	/* {"alg":"none","crit":"exp1"} . {} . */
+	const char token[] = "eyJhbGciOiJub25lIiwiY3JpdCI6ImV4cDEifQ.e30.";
+	jwt_checker_auto_t *checker = NULL;
+	int ret;
+
+	SET_OPS();
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+	ck_assert_int_eq(jwt_checker_error(checker), 0);
+
+	ret = jwt_checker_verify(checker, token);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_str_eq(jwt_checker_error_msg(checker),
+			"\"crit\" header must be an array");
+}
+END_TEST
+
+START_TEST(crit_non_string_entry)
+{
+	/* {"alg":"none","crit":[123]} . {} . */
+	const char token[] = "eyJhbGciOiJub25lIiwiY3JpdCI6WzEyM119.e30.";
+	jwt_checker_auto_t *checker = NULL;
+	int ret;
+
+	SET_OPS();
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+	ck_assert_int_eq(jwt_checker_error(checker), 0);
+
+	ret = jwt_checker_verify(checker, token);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_str_eq(jwt_checker_error_msg(checker),
+			"\"crit\" header entries must be strings");
+}
+END_TEST
+
+START_TEST(crit_absent)
+{
+	/* No "crit" header is the baseline and must still verify. */
+	const char token[] = "eyJhbGciOiJub25lIn0.eyJpc3MiOiJka"
+		"XNrLnN3aXNzZGlzay5jb20ifQ.";
+	jwt_checker_auto_t *checker = NULL;
+	int ret;
+
+	SET_OPS();
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+	ck_assert_int_eq(jwt_checker_error(checker), 0);
+
+	/* Declaring understood names is harmless when no "crit" is present. */
+	ret = jwt_checker_understands(checker, "exp1");
+	ck_assert_int_eq(ret, 0);
+	ret = jwt_checker_understands(checker, "exp2");
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_checker_verify(checker, token);
+	ck_assert_int_eq(ret, 0);
+}
+END_TEST
+
+START_TEST(crit_understands_null)
+{
+	jwt_checker_auto_t *checker = NULL;
+	int ret;
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+
+	ret = jwt_checker_understands(NULL, "exp1");
+	ck_assert_int_ne(ret, 0);
+
+	ret = jwt_checker_understands(checker, NULL);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_str_eq(jwt_checker_error_msg(checker),
+			"Must pass a header name");
+
+	jwt_checker_error_clear(checker);
+
+	ret = jwt_checker_understands(checker, "");
+	ck_assert_int_ne(ret, 0);
+	ck_assert_str_eq(jwt_checker_error_msg(checker),
+			"Must pass a header name");
+}
+END_TEST
+
+START_TEST(crit_roundtrip)
+{
+	jwt_builder_auto_t *builder = NULL;
+	jwt_checker_auto_t *checker = NULL;
+	char_auto *out = NULL;
+	jwt_value_t jval;
+	int ret;
+
+	SET_OPS();
+
+	/* Build a token that marks a custom header "exp1" as critical. */
+	builder = jwt_builder_new();
+	ck_assert_ptr_nonnull(builder);
+
+	ret = jwt_builder_enable_iat(builder, 0);
+	ck_assert_int_eq(ret, 1);
+
+	jwt_set_SET_BOOL(&jval, "exp1", 1);
+	ret = jwt_builder_header_set(builder, &jval);
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_builder_setcrit(builder, "exp1");
+	ck_assert_int_eq(ret, 0);
+
+	out = jwt_builder_generate(builder);
+	ck_assert_ptr_nonnull(out);
+
+	/* A checker that does NOT understand "exp1" must reject it. */
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+	ret = jwt_checker_verify(checker, out);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_str_eq(jwt_checker_error_msg(checker),
+			"Unsupported critical header: \"exp1\"");
+
+	/* Once it declares "exp1" understood, the same token verifies. */
+	jwt_checker_error_clear(checker);
+	ret = jwt_checker_understands(checker, "exp1");
+	ck_assert_int_eq(ret, 0);
+	ret = jwt_checker_verify(checker, out);
+	ck_assert_int_eq(ret, 0);
+}
+END_TEST
+
+/* {"alg":"none","crit":["exp1","exp2"],"exp1":true,"exp2":true} . {} . */
+#define CRIT_TOKEN_TWO \
+	"eyJhbGciOiJub25lIiwiY3JpdCI6WyJleHAxIiwiZXhwMiJdLCJleHAxIjp0cnVlLCJ" \
+	"leHAyIjp0cnVlfQ.e30."
+
+START_TEST(crit_second_unsupported)
+{
+	const char token[] = CRIT_TOKEN_TWO;
+	jwt_checker_auto_t *checker = NULL;
+	int ret;
+
+	SET_OPS();
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+	ck_assert_int_eq(jwt_checker_error(checker), 0);
+
+	/* First entry understood, second is not: the loop must advance to
+	 * the second entry and reject it. */
+	ret = jwt_checker_understands(checker, "exp1");
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_checker_verify(checker, token);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_str_eq(jwt_checker_error_msg(checker),
+			"Unsupported critical header: \"exp2\"");
+}
+END_TEST
+
+START_TEST(crit_both_understood)
+{
+	const char token[] = CRIT_TOKEN_TWO;
+	jwt_checker_auto_t *checker = NULL;
+	int ret;
+
+	SET_OPS();
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+	ck_assert_int_eq(jwt_checker_error(checker), 0);
+
+	/* Both entries understood and present: full iteration succeeds. */
+	ret = jwt_checker_understands(checker, "exp1");
+	ck_assert_int_eq(ret, 0);
+	ret = jwt_checker_understands(checker, "exp2");
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_checker_verify(checker, token);
+	ck_assert_int_eq(ret, 0);
+}
+END_TEST
+
+START_TEST(crit_understood_no_match)
+{
+	const char token[] = CRIT_TOKEN_PRESENT;
+	jwt_checker_auto_t *checker = NULL;
+	int ret;
+
+	SET_OPS();
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+	ck_assert_int_eq(jwt_checker_error(checker), 0);
+
+	/* A populated understood list that does NOT contain the listed crit
+	 * name: the inner match loop must run to completion and reject. */
+	ret = jwt_checker_understands(checker, "other");
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_checker_verify(checker, token);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_str_eq(jwt_checker_error_msg(checker),
+			"Unsupported critical header: \"exp1\"");
+}
+END_TEST
+
 static Suite *libjwt_suite(const char *title)
 {
 	Suite *s;
@@ -953,6 +1261,21 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, verify_ps256_bad_b64_sig_255, 0, i);
 	tcase_add_loop_test(tc_core, verify_ps256_bad_sig, 0, i);
 	tcase_add_loop_test(tc_core, verify_es256_bad_sig, 0, i);
+	suite_add_tcase(s, tc_core);
+
+	tc_core = tcase_create("Crit Header");
+	tcase_add_loop_test(tc_core, crit_unsupported, 0, i);
+	tcase_add_loop_test(tc_core, crit_not_in_header, 0, i);
+	tcase_add_loop_test(tc_core, crit_understood, 0, i);
+	tcase_add_loop_test(tc_core, crit_empty, 0, i);
+	tcase_add_loop_test(tc_core, crit_not_array, 0, i);
+	tcase_add_loop_test(tc_core, crit_non_string_entry, 0, i);
+	tcase_add_loop_test(tc_core, crit_absent, 0, i);
+	tcase_add_loop_test(tc_core, crit_understands_null, 0, i);
+	tcase_add_loop_test(tc_core, crit_roundtrip, 0, i);
+	tcase_add_loop_test(tc_core, crit_second_unsupported, 0, i);
+	tcase_add_loop_test(tc_core, crit_both_understood, 0, i);
+	tcase_add_loop_test(tc_core, crit_understood_no_match, 0, i);
 	suite_add_tcase(s, tc_core);
 
 	return s;

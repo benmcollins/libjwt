@@ -846,6 +846,387 @@ START_TEST(sign_es256_bad_sig)
 }
 END_TEST
 
+/* @rfc{7515,4.1.11} "crit" header emission on the builder side. */
+
+START_TEST(crit_gen)
+{
+	/* {"alg":"none","crit":["foo"],"foo":"bar"} . {} . */
+	const char exp[] =
+		"eyJhbGciOiJub25lIiwiY3JpdCI6WyJmb28iXSwiZm9vIjoiYmFyIn0.e30.";
+	jwt_builder_auto_t *builder = NULL;
+	char_auto *out = NULL;
+	jwt_value_t jval;
+	int ret;
+
+	SET_OPS();
+
+	builder = jwt_builder_new();
+	ck_assert_ptr_nonnull(builder);
+	ck_assert_int_eq(jwt_builder_error(builder), 0);
+
+	ret = jwt_builder_enable_iat(builder, 0);
+	ck_assert_int_eq(ret, 1);
+
+	jwt_set_SET_STR(&jval, "foo", "bar");
+	ret = jwt_builder_header_set(builder, &jval);
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_builder_setcrit(builder, "foo");
+	ck_assert_int_eq(ret, 0);
+	/* Duplicate registration is a no-op success. */
+	ret = jwt_builder_setcrit(builder, "foo");
+	ck_assert_int_eq(ret, 0);
+
+	out = jwt_builder_generate(builder);
+	ck_assert_ptr_nonnull(out);
+	ck_assert_str_eq(out, exp);
+}
+END_TEST
+
+START_TEST(crit_gen_two)
+{
+	/* {"alg":"none","baz":2,"crit":["foo","baz"],"foo":"bar"} . {} . */
+	const char exp[] = "eyJhbGciOiJub25lIiwiYmF6IjoyLCJjcml0IjpbImZvbyIsImJh"
+		"eiJdLCJmb28iOiJiYXIifQ.e30.";
+	jwt_builder_auto_t *builder = NULL;
+	char_auto *out = NULL;
+	jwt_value_t jval;
+	int ret;
+
+	SET_OPS();
+
+	builder = jwt_builder_new();
+	ck_assert_ptr_nonnull(builder);
+	ck_assert_int_eq(jwt_builder_error(builder), 0);
+
+	ret = jwt_builder_enable_iat(builder, 0);
+	ck_assert_int_eq(ret, 1);
+
+	jwt_set_SET_STR(&jval, "foo", "bar");
+	ret = jwt_builder_header_set(builder, &jval);
+	ck_assert_int_eq(ret, 0);
+	jwt_set_SET_INT(&jval, "baz", 2);
+	ret = jwt_builder_header_set(builder, &jval);
+	ck_assert_int_eq(ret, 0);
+
+	/* Array preserves registration order; object keys are sorted. */
+	ret = jwt_builder_setcrit(builder, "foo");
+	ck_assert_int_eq(ret, 0);
+	ret = jwt_builder_setcrit(builder, "baz");
+	ck_assert_int_eq(ret, 0);
+
+	out = jwt_builder_generate(builder);
+	ck_assert_ptr_nonnull(out);
+	ck_assert_str_eq(out, exp);
+}
+END_TEST
+
+START_TEST(crit_gen_not_in_header)
+{
+	jwt_builder_auto_t *builder = NULL;
+	char_auto *out = NULL;
+	int ret;
+
+	SET_OPS();
+
+	builder = jwt_builder_new();
+	ck_assert_ptr_nonnull(builder);
+	ck_assert_int_eq(jwt_builder_error(builder), 0);
+
+	/* Mark "foo" critical but never add it to the header. */
+	ret = jwt_builder_setcrit(builder, "foo");
+	ck_assert_int_eq(ret, 0);
+
+	out = jwt_builder_generate(builder);
+	ck_assert_ptr_null(out);
+	ck_assert_str_eq(jwt_builder_error_msg(builder),
+			"\"crit\" lists \"foo\" which is not in the header");
+}
+END_TEST
+
+START_TEST(crit_gen_registered)
+{
+	/* Every RFC 7515 and JWA (RFC 7518) header name must be rejected. */
+	static const char * const names[] = {
+		"alg", "jku", "jwk", "kid", "x5u", "x5c", "x5t", "x5t#S256",
+		"typ", "cty", "crit",
+		"enc", "zip", "epk", "apu", "apv", "iv", "tag", "p2s", "p2c",
+	};
+	size_t n;
+
+	SET_OPS();
+
+	for (n = 0; n < sizeof(names) / sizeof(names[0]); n++) {
+		jwt_builder_auto_t *builder = NULL;
+		char_auto *out = NULL;
+		char expmsg[128];
+		int ret;
+
+		builder = jwt_builder_new();
+		ck_assert_ptr_nonnull(builder);
+		ck_assert_int_eq(jwt_builder_error(builder), 0);
+
+		ret = jwt_builder_setcrit(builder, names[n]);
+		ck_assert_int_eq(ret, 0);
+
+		out = jwt_builder_generate(builder);
+		ck_assert_ptr_null(out);
+
+		snprintf(expmsg, sizeof(expmsg),
+			"\"crit\" cannot list registered header \"%s\"",
+			names[n]);
+		ck_assert_str_eq(jwt_builder_error_msg(builder), expmsg);
+	}
+}
+END_TEST
+
+START_TEST(crit_gen_none)
+{
+	/* No crit registered -> no "crit" header, baseline output. */
+	const char exp[] = "eyJhbGciOiJub25lIn0.";
+	jwt_builder_auto_t *builder = NULL;
+	char_auto *out = NULL;
+
+	SET_OPS();
+
+	builder = jwt_builder_new();
+	ck_assert_ptr_nonnull(builder);
+	ck_assert_int_eq(jwt_builder_error(builder), 0);
+
+	out = jwt_builder_generate(builder);
+	ck_assert_ptr_nonnull(out);
+	ck_assert_mem_eq(out, exp, strlen(exp));
+}
+END_TEST
+
+START_TEST(crit_gen_dup)
+{
+	jwt_builder_auto_t *builder = NULL;
+	char_auto *out = NULL;
+	jwt_value_t jval;
+	int ret;
+
+	SET_OPS();
+
+	builder = jwt_builder_new();
+	ck_assert_ptr_nonnull(builder);
+	ck_assert_int_eq(jwt_builder_error(builder), 0);
+
+	/* App sets a "crit" array with a duplicate name directly. */
+	jwt_set_SET_JSON(&jval, "crit", "[\"foo\",\"foo\"]");
+	ret = jwt_builder_header_set(builder, &jval);
+	ck_assert_int_eq(ret, 0);
+	jwt_set_SET_STR(&jval, "foo", "bar");
+	ret = jwt_builder_header_set(builder, &jval);
+	ck_assert_int_eq(ret, 0);
+
+	out = jwt_builder_generate(builder);
+	ck_assert_ptr_null(out);
+	ck_assert_str_eq(jwt_builder_error_msg(builder),
+			"\"crit\" lists \"foo\" more than once");
+}
+END_TEST
+
+/* An application can set "crit" directly in the header (bypassing
+ * jwt_builder_setcrit). It must still be validated, never emitted as-is. */
+
+START_TEST(crit_appset_valid)
+{
+	/* {"alg":"none","crit":["foo"],"foo":"bar"} . {} . */
+	const char exp[] =
+		"eyJhbGciOiJub25lIiwiY3JpdCI6WyJmb28iXSwiZm9vIjoiYmFyIn0.e30.";
+	jwt_builder_auto_t *builder = NULL;
+	char_auto *out = NULL;
+	jwt_value_t jval;
+	int ret;
+
+	SET_OPS();
+
+	builder = jwt_builder_new();
+	ck_assert_ptr_nonnull(builder);
+	ck_assert_int_eq(jwt_builder_error(builder), 0);
+
+	ret = jwt_builder_enable_iat(builder, 0);
+	ck_assert_int_eq(ret, 1);
+
+	jwt_set_SET_JSON(&jval, "crit", "[\"foo\"]");
+	ret = jwt_builder_header_set(builder, &jval);
+	ck_assert_int_eq(ret, 0);
+	jwt_set_SET_STR(&jval, "foo", "bar");
+	ret = jwt_builder_header_set(builder, &jval);
+	ck_assert_int_eq(ret, 0);
+
+	out = jwt_builder_generate(builder);
+	ck_assert_ptr_nonnull(out);
+	ck_assert_str_eq(out, exp);
+}
+END_TEST
+
+START_TEST(crit_appset_not_array)
+{
+	jwt_builder_auto_t *builder = NULL;
+	char_auto *out = NULL;
+	jwt_value_t jval;
+	int ret;
+
+	SET_OPS();
+
+	builder = jwt_builder_new();
+	ck_assert_ptr_nonnull(builder);
+	ck_assert_int_eq(jwt_builder_error(builder), 0);
+
+	jwt_set_SET_STR(&jval, "crit", "foo");
+	ret = jwt_builder_header_set(builder, &jval);
+	ck_assert_int_eq(ret, 0);
+
+	out = jwt_builder_generate(builder);
+	ck_assert_ptr_null(out);
+	ck_assert_str_eq(jwt_builder_error_msg(builder),
+			"\"crit\" header must be an array");
+}
+END_TEST
+
+START_TEST(crit_appset_not_array_setcrit)
+{
+	jwt_builder_auto_t *builder = NULL;
+	char_auto *out = NULL;
+	jwt_value_t jval;
+	int ret;
+
+	SET_OPS();
+
+	builder = jwt_builder_new();
+	ck_assert_ptr_nonnull(builder);
+	ck_assert_int_eq(jwt_builder_error(builder), 0);
+
+	/* App sets a non-array "crit" AND also registers a name; the
+	 * non-array value cannot be appended to and is reported. */
+	jwt_set_SET_STR(&jval, "crit", "foo");
+	ret = jwt_builder_header_set(builder, &jval);
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_builder_setcrit(builder, "foo");
+	ck_assert_int_eq(ret, 0);
+
+	out = jwt_builder_generate(builder);
+	ck_assert_ptr_null(out);
+	ck_assert_str_eq(jwt_builder_error_msg(builder),
+			"\"crit\" header must be an array");
+}
+END_TEST
+
+START_TEST(crit_appset_empty)
+{
+	jwt_builder_auto_t *builder = NULL;
+	char_auto *out = NULL;
+	jwt_value_t jval;
+	int ret;
+
+	SET_OPS();
+
+	builder = jwt_builder_new();
+	ck_assert_ptr_nonnull(builder);
+	ck_assert_int_eq(jwt_builder_error(builder), 0);
+
+	jwt_set_SET_JSON(&jval, "crit", "[]");
+	ret = jwt_builder_header_set(builder, &jval);
+	ck_assert_int_eq(ret, 0);
+
+	out = jwt_builder_generate(builder);
+	ck_assert_ptr_null(out);
+	ck_assert_str_eq(jwt_builder_error_msg(builder),
+			"\"crit\" header must not be empty");
+}
+END_TEST
+
+START_TEST(crit_appset_non_string)
+{
+	jwt_builder_auto_t *builder = NULL;
+	char_auto *out = NULL;
+	jwt_value_t jval;
+	int ret;
+
+	SET_OPS();
+
+	builder = jwt_builder_new();
+	ck_assert_ptr_nonnull(builder);
+	ck_assert_int_eq(jwt_builder_error(builder), 0);
+
+	jwt_set_SET_JSON(&jval, "crit", "[123]");
+	ret = jwt_builder_header_set(builder, &jval);
+	ck_assert_int_eq(ret, 0);
+
+	out = jwt_builder_generate(builder);
+	ck_assert_ptr_null(out);
+	ck_assert_str_eq(jwt_builder_error_msg(builder),
+			"\"crit\" header entries must be strings");
+}
+END_TEST
+
+START_TEST(crit_merge)
+{
+	/* App-set "crit":["foo"] merges with setcrit("baz"). Array keeps the
+	 * app entry first then the registered one: ["foo","baz"]. */
+	const char exp[] = "eyJhbGciOiJub25lIiwiYmF6IjoyLCJjcml0IjpbImZvbyIsImJh"
+		"eiJdLCJmb28iOiJiYXIifQ.e30.";
+	jwt_builder_auto_t *builder = NULL;
+	char_auto *out = NULL;
+	jwt_value_t jval;
+	int ret;
+
+	SET_OPS();
+
+	builder = jwt_builder_new();
+	ck_assert_ptr_nonnull(builder);
+	ck_assert_int_eq(jwt_builder_error(builder), 0);
+
+	ret = jwt_builder_enable_iat(builder, 0);
+	ck_assert_int_eq(ret, 1);
+
+	jwt_set_SET_JSON(&jval, "crit", "[\"foo\"]");
+	ret = jwt_builder_header_set(builder, &jval);
+	ck_assert_int_eq(ret, 0);
+	jwt_set_SET_STR(&jval, "foo", "bar");
+	ret = jwt_builder_header_set(builder, &jval);
+	ck_assert_int_eq(ret, 0);
+	jwt_set_SET_INT(&jval, "baz", 2);
+	ret = jwt_builder_header_set(builder, &jval);
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_builder_setcrit(builder, "baz");
+	ck_assert_int_eq(ret, 0);
+
+	out = jwt_builder_generate(builder);
+	ck_assert_ptr_nonnull(out);
+	ck_assert_str_eq(out, exp);
+}
+END_TEST
+
+START_TEST(crit_setcrit_null)
+{
+	jwt_builder_auto_t *builder = NULL;
+	int ret;
+
+	builder = jwt_builder_new();
+	ck_assert_ptr_nonnull(builder);
+
+	ret = jwt_builder_setcrit(NULL, "foo");
+	ck_assert_int_ne(ret, 0);
+
+	ret = jwt_builder_setcrit(builder, NULL);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_str_eq(jwt_builder_error_msg(builder),
+			"Must pass a header name");
+
+	jwt_builder_error_clear(builder);
+
+	ret = jwt_builder_setcrit(builder, "");
+	ck_assert_int_ne(ret, 0);
+	ck_assert_str_eq(jwt_builder_error_msg(builder),
+			"Must pass a header name");
+}
+END_TEST
+
 static Suite *libjwt_suite(const char *title)
 {
 	Suite *s;
@@ -895,6 +1276,23 @@ static Suite *libjwt_suite(const char *title)
 	/* All of the code paths for str/int/bool/json have been covered. We
 	 * just run this to ensure set/get/del works on headers */
 	tcase_add_loop_test(tc_core, header_str_setgetdel, 0, i);
+	tcase_set_timeout(tc_core, 60);
+	suite_add_tcase(s, tc_core);
+
+	tc_core = tcase_create("Crit Header");
+	tcase_add_loop_test(tc_core, crit_gen, 0, i);
+	tcase_add_loop_test(tc_core, crit_gen_two, 0, i);
+	tcase_add_loop_test(tc_core, crit_gen_not_in_header, 0, i);
+	tcase_add_loop_test(tc_core, crit_gen_registered, 0, i);
+	tcase_add_loop_test(tc_core, crit_gen_none, 0, i);
+	tcase_add_loop_test(tc_core, crit_gen_dup, 0, i);
+	tcase_add_loop_test(tc_core, crit_appset_valid, 0, i);
+	tcase_add_loop_test(tc_core, crit_appset_not_array, 0, i);
+	tcase_add_loop_test(tc_core, crit_appset_not_array_setcrit, 0, i);
+	tcase_add_loop_test(tc_core, crit_appset_empty, 0, i);
+	tcase_add_loop_test(tc_core, crit_appset_non_string, 0, i);
+	tcase_add_loop_test(tc_core, crit_merge, 0, i);
+	tcase_add_loop_test(tc_core, crit_setcrit_null, 0, i);
 	tcase_set_timeout(tc_core, 60);
 	suite_add_tcase(s, tc_core);
 
