@@ -1460,6 +1460,23 @@ int jwe_builder_setkey(jwe_builder_t *builder, jwe_key_alg_t alg,
 		       jwe_enc_t enc, const jwk_item_t *key);
 
 /**
+ * @brief Encrypt a plaintext into a Compact Serialization JWE
+ *
+ * Produces a five-part JWE using the key and algorithms configured with
+ * @ref jwe_builder_setkey.
+ *
+ * @param builder Pointer to a JWE builder object
+ * @param plaintext The bytes to encrypt
+ * @param plaintext_len Length of @p plaintext in bytes
+ * @return A newly allocated, nil-terminated compact JWE string the caller
+ *  must free, or NULL on error (with the error set in the builder)
+ */
+JWT_EXPORT
+char *jwe_builder_generate(jwe_builder_t *builder,
+			   const unsigned char *plaintext,
+			   size_t plaintext_len);
+
+/**
  * @}
  * @noop jwe_builder_grp
  */
@@ -1544,6 +1561,24 @@ void jwe_checker_error_clear(jwe_checker_t *checker);
 JWT_EXPORT
 int jwe_checker_setkey(jwe_checker_t *checker, jwe_key_alg_t alg,
 		       jwe_enc_t enc, const jwk_item_t *key);
+
+/**
+ * @brief Decrypt and authenticate a Compact Serialization JWE
+ *
+ * Parses the five-part token, recovers the CEK using the configured key and
+ * algorithms (@ref jwe_checker_setkey), and verifies the authentication tag.
+ *
+ * @param checker Pointer to a JWE checker object
+ * @param token A nil-terminated compact JWE string
+ * @param plaintext_len If non-NULL, set to the length of the returned
+ *  plaintext on success
+ * @return A newly allocated buffer of decrypted plaintext the caller must
+ *  free, or NULL on error (with the error set in the checker). The buffer is
+ *  nil-terminated for convenience, but @p plaintext_len gives the true length.
+ */
+JWT_EXPORT
+unsigned char *jwe_checker_decrypt(jwe_checker_t *checker, const char *token,
+				   size_t *plaintext_len);
 
 /**
  * @}

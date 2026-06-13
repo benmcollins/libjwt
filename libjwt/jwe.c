@@ -13,6 +13,51 @@
 
 #include "jwt-private.h"
 
+/* Is this a GCM content encryption algorithm? */
+static int enc_is_gcm(jwe_enc_t enc)
+{
+	return enc == JWE_ENC_A128GCM || enc == JWE_ENC_A192GCM ||
+	       enc == JWE_ENC_A256GCM;
+}
+
+/* Dispatch content encryption to the active backend for the given enc.
+ * Returns 0 on success. Only AES-GCM is wired so far; CBC-HMAC dispatch is
+ * added with that algorithm's stage. */
+int jwe_encrypt_content(jwe_enc_t enc, const unsigned char *cek,
+	size_t cek_len, const unsigned char *iv, size_t iv_len,
+	const unsigned char *aad, size_t aad_len,
+	const unsigned char *pt, size_t pt_len,
+	unsigned char **ct, size_t *ct_len,
+	unsigned char **tag, size_t *tag_len)
+{
+	if (enc_is_gcm(enc)) {
+		if (jwt_ops->encrypt_aes_gcm == NULL)
+			return 1; // LCOV_EXCL_LINE
+		return jwt_ops->encrypt_aes_gcm(enc, cek, cek_len, iv, iv_len,
+			aad, aad_len, pt, pt_len, ct, ct_len, tag, tag_len);
+	}
+
+	return 1; // LCOV_EXCL_LINE
+}
+
+/* Dispatch content decryption (with tag verification) to the active backend. */
+int jwe_decrypt_content(jwe_enc_t enc, const unsigned char *cek,
+	size_t cek_len, const unsigned char *iv, size_t iv_len,
+	const unsigned char *aad, size_t aad_len,
+	const unsigned char *ct, size_t ct_len,
+	const unsigned char *tag, size_t tag_len,
+	unsigned char **pt, size_t *pt_len)
+{
+	if (enc_is_gcm(enc)) {
+		if (jwt_ops->decrypt_aes_gcm == NULL)
+			return 1; // LCOV_EXCL_LINE
+		return jwt_ops->decrypt_aes_gcm(enc, cek, cek_len, iv, iv_len,
+			aad, aad_len, ct, ct_len, tag, tag_len, pt, pt_len);
+	}
+
+	return 1; // LCOV_EXCL_LINE
+}
+
 /* @rfc{7516,11.4} @rfc{7517,4.2,4.3} Gate a JWK against a JWE key management
  * algorithm. */
 const char *jwe_key_usage_check(const jwk_item_t *key, jwe_key_alg_t alg,

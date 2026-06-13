@@ -14,4 +14,19 @@ int openssl_process_rsa(jwt_json_t *jwk, jwk_item_t *item);
 int openssl_process_ec(jwt_json_t *jwk, jwk_item_t *item);
 void openssl_process_item_free(jwk_item_t *item);
 
+/* JWE (RFC 7516/7518) */
+int openssl_rng(unsigned char *out, size_t len);
+int openssl_encrypt_aes_gcm(jwe_enc_t enc, const unsigned char *cek,
+	size_t cek_len, const unsigned char *iv, size_t iv_len,
+	const unsigned char *aad, size_t aad_len,
+	const unsigned char *pt, size_t pt_len,
+	unsigned char **ct, size_t *ct_len,
+	unsigned char **tag, size_t *tag_len);
+int openssl_decrypt_aes_gcm(jwe_enc_t enc, const unsigned char *cek,
+	size_t cek_len, const unsigned char *iv, size_t iv_len,
+	const unsigned char *aad, size_t aad_len,
+	const unsigned char *ct, size_t ct_len,
+	const unsigned char *tag, size_t tag_len,
+	unsigned char **pt, size_t *pt_len);
+
 #endif /* JWT_OPENSSL_H */

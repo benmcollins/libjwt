@@ -472,6 +472,26 @@ static inline jwk_key_type_t jwe_alg_required_kty(jwe_key_alg_t alg)
 	}
 }
 
+/* JWE shared helpers (jwe.c). Generate a fresh CEK for the given enc via the
+ * active backend's rng. Returns 0 on success and allocates *cek (the caller
+ * scrubs and frees it). */
+/* Dispatch JWE content encryption/decryption to the active backend for the
+ * given enc. Return 0 on success. Decrypt verifies the AEAD tag. */
+JWT_NO_EXPORT
+int jwe_encrypt_content(jwe_enc_t enc, const unsigned char *cek,
+	size_t cek_len, const unsigned char *iv, size_t iv_len,
+	const unsigned char *aad, size_t aad_len,
+	const unsigned char *pt, size_t pt_len,
+	unsigned char **ct, size_t *ct_len,
+	unsigned char **tag, size_t *tag_len);
+JWT_NO_EXPORT
+int jwe_decrypt_content(jwe_enc_t enc, const unsigned char *cek,
+	size_t cek_len, const unsigned char *iv, size_t iv_len,
+	const unsigned char *aad, size_t aad_len,
+	const unsigned char *ct, size_t ct_len,
+	const unsigned char *tag, size_t tag_len,
+	unsigned char **pt, size_t *pt_len);
+
 /* Validate that a JWK may be used for a JWE operation with the given key
  * management alg. Checks key type vs alg, the "use" attribute (must not be
  * "sig"), and "key_ops" (if present, must permit the needed operation).
