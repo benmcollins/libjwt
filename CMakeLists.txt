@@ -127,6 +127,7 @@ set(JWT_SOURCES libjwt/jwt-memory.c
 	libjwt/jwt-builder.c
 	libjwt/jwt-checker.c
 	libjwt/jwe-setget.c
+	libjwt/jwe.c
 	libjwt/jwe-builder.c
 	libjwt/jwe-checker.c
 	libjwt/jwks-curl.c)
@@ -348,7 +349,7 @@ if (CHECK_FOUND)
 	list (APPEND UNIT_TESTS jwt_builder jwt_checker jwt_flipflop)
 
 	# JWE
-	list (APPEND UNIT_TESTS jwe_foundation)
+	list (APPEND UNIT_TESTS jwe_foundation jwe_keys)
 
 	# Claims
 	list (APPEND UNIT_TESTS jwt_claims)

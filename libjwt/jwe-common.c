@@ -95,6 +95,8 @@ void FUNC(error_clear)(jwe_common_t *__cmd)
 int FUNC(setkey)(jwe_common_t *__cmd, jwe_key_alg_t alg, jwe_enc_t enc,
 		 const jwk_item_t *key)
 {
+	const char *reason;
+
 	if (__cmd == NULL)
 		return 1;
 
@@ -113,8 +115,17 @@ int FUNC(setkey)(jwe_common_t *__cmd, jwe_key_alg_t alg, jwe_enc_t enc,
 		return 1;
 	}
 
-	/* TODO (#222): enforce key "use"/"key_ops"/"alg" gating and that the
-	 * key type matches the key management alg. */
+	/* @rfc{7516,11.4} Enforce key-usage gating. The builder is the producer
+	 * (encrypt/wrap); the checker is the consumer (decrypt/unwrap). */
+#ifdef JWE_BUILDER
+	reason = jwe_key_usage_check(key, alg, 1);
+#else
+	reason = jwe_key_usage_check(key, alg, 0);
+#endif
+	if (reason != NULL) {
+		jwt_write_error(__cmd, "%s", reason);
+		return 1;
+	}
 
 	__cmd->c.key_alg = alg;
 	__cmd->c.enc = enc;
