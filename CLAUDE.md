@@ -6,6 +6,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 LibJWT is a C library implementing RFC 7515-7519 for JSON Web Tokens (JWT), JSON Web Keys (JWK), and JWK Sets (JWKS). It supports multiple cryptographic backends (OpenSSL, GnuTLS, MBedTLS) and JSON backends (Jansson, json-c).
 
+## Issue Workflow
+
+Follow this pipeline for every piece of work:
+
+1. **Issue** — Work must map to a GitHub issue. If none exists, create one first describing the task.
+2. **Branch** — `git checkout -b <issue#>-<short-summary>` (e.g. `157-crit-header`). Never work on `master`.
+3. **Plan** — Plan the implementation, then post the plan as a comment on the issue.
+4. **Implement** — Do the work, including tests for all new code (see Testing) and coverage (no new uncovered lines). Verify under both JSON backends when JSON handling is touched.
+5. **PR** — Open a PR (`closes #<issue>`), then watch CI to completion (`gh pr checks <#> --watch` or the GitHub check-runs API) and fix any failures.
+
+Commit messages: `git commit -s` (Signed-off-by). Don't commit/push unless asked.
+
 ## Build Commands
 
 ```bash
