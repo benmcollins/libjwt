@@ -275,6 +275,24 @@ static jwt_claims_t __verify_claims(jwt_t *jwt)
 	if (__check_str_claim(jwt, JWT_CLAIM_AUD, "aud"))
 		failed |= JWT_CLAIM_AUD;
 
+	/* @rfc{7519,4.1.7} jti: hand the id to the application callback,
+	 * which validates/consumes it (e.g. replay protection). A registered
+	 * callback means a token with no jti is rejected. */
+	if (checker->c.jti_check) {
+		JWT_CONFIG_DECLARE(jti_config);
+
+		jwt_set_GET_STR(&jval, "jti");
+		err = jwt_claim_get(jwt, &jval);
+
+		if (err != JWT_VALUE_ERR_NONE) {
+			failed |= JWT_CLAIM_JTI;
+		} else {
+			jti_config.ctx = checker->c.jti_ctx;
+			if (checker->c.jti_check(jwt, &jti_config, jval.str_val))
+				failed |= JWT_CLAIM_JTI;
+		}
+	}
+
 	return failed;
 }
 

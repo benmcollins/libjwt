@@ -1207,6 +1207,205 @@ START_TEST(crit_understood_no_match)
 }
 END_TEST
 
+/* @rfc{7519,4.1.7} jti verification callback. */
+
+/* {"alg":"none"} . {"jti":"abc-123"} . */
+#define JTI_TOKEN "eyJhbGciOiJub25lIn0.eyJqdGkiOiJhYmMtMTIzIn0."
+
+static int __jti_check(const jwt_t *jwt, jwt_config_t *config, const char *jti)
+{
+	ck_assert_ptr_nonnull(jwt);
+	ck_assert_ptr_nonnull(config);
+	ck_assert_str_eq(config->ctx, "pool");
+	ck_assert_str_eq(jti, "abc-123");
+
+	return 0;
+}
+
+START_TEST(jti_verify)
+{
+	const char token[] = JTI_TOKEN;
+	jwt_checker_auto_t *checker = NULL;
+	int ret;
+
+	SET_OPS();
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+	ck_assert_int_eq(jwt_checker_error(checker), 0);
+
+	ret = jwt_checker_setjti(checker, __jti_check, "pool");
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_checker_verify(checker, token);
+	ck_assert_int_eq(ret, 0);
+}
+END_TEST
+
+static int __jti_reject(const jwt_t *jwt, jwt_config_t *config, const char *jti)
+{
+	(void)jwt;
+	(void)config;
+	(void)jti;
+	return 1;
+}
+
+START_TEST(jti_verify_reject)
+{
+	const char token[] = JTI_TOKEN;
+	jwt_checker_auto_t *checker = NULL;
+	int ret;
+
+	SET_OPS();
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+	ck_assert_int_eq(jwt_checker_error(checker), 0);
+
+	ret = jwt_checker_setjti(checker, __jti_reject, NULL);
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_checker_verify(checker, token);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_str_eq(jwt_checker_error_msg(checker),
+			"Failed one or more claims");
+}
+END_TEST
+
+START_TEST(jti_verify_missing)
+{
+	/* {"alg":"none"} . {"iss":"x"} . — no jti, but a jti cb is set. */
+	const char token[] = "eyJhbGciOiJub25lIn0.eyJpc3MiOiJ4In0.";
+	jwt_checker_auto_t *checker = NULL;
+	int ret;
+
+	SET_OPS();
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+	ck_assert_int_eq(jwt_checker_error(checker), 0);
+
+	ret = jwt_checker_setjti(checker, __jti_reject, NULL);
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_checker_verify(checker, token);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_str_eq(jwt_checker_error_msg(checker),
+			"Failed one or more claims");
+}
+END_TEST
+
+START_TEST(jti_verify_not_string)
+{
+	/* {"alg":"none"} . {"jti":123} . — jti present but not a string. */
+	const char token[] = "eyJhbGciOiJub25lIn0.eyJqdGkiOjEyM30.";
+	jwt_checker_auto_t *checker = NULL;
+	int ret;
+
+	SET_OPS();
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+	ck_assert_int_eq(jwt_checker_error(checker), 0);
+
+	/* The cb must never be reached for a non-string jti. */
+	ret = jwt_checker_setjti(checker, __jti_reject, NULL);
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_checker_verify(checker, token);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_str_eq(jwt_checker_error_msg(checker),
+			"Failed one or more claims");
+}
+END_TEST
+
+START_TEST(jti_setjti_null)
+{
+	jwt_checker_auto_t *checker = NULL;
+	int ret;
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+
+	ret = jwt_checker_setjti(NULL, __jti_check, "pool");
+	ck_assert_int_ne(ret, 0);
+
+	ret = jwt_checker_setjti(checker, NULL, "pool");
+	ck_assert_int_ne(ret, 0);
+	ck_assert_str_eq(jwt_checker_error_msg(checker),
+			"Setting ctx without a cb won't work");
+	jwt_checker_error_clear(checker);
+
+	ret = jwt_checker_setjti(checker, __jti_check, "old");
+	ck_assert_int_eq(ret, 0);
+	ret = jwt_checker_setjti(checker, NULL, "pool");
+	ck_assert_int_eq(ret, 0);
+	ret = jwt_checker_setjti(checker, NULL, NULL);
+	ck_assert_int_eq(ret, 0);
+}
+END_TEST
+
+/* End-to-end: build a token with a generated jti, then verify it twice
+ * against a one-shot "pool". The first verify consumes the id; the second
+ * is rejected as a replay. */
+static char *__jti_pool_gen(const jwt_t *jwt, jwt_config_t *config)
+{
+	(void)jwt;
+	(void)config;
+	return strdup("pool-id-1");
+}
+
+static int __jti_pool_check(const jwt_t *jwt, jwt_config_t *config,
+			    const char *jti)
+{
+	int *seen = config->ctx;
+
+	(void)jwt;
+	ck_assert_str_eq(jti, "pool-id-1");
+
+	if (*seen)
+		return 1;	/* already consumed -> replay */
+
+	*seen = 1;
+	return 0;
+}
+
+START_TEST(jti_pool_roundtrip)
+{
+	jwt_builder_auto_t *builder = NULL;
+	jwt_checker_auto_t *checker = NULL;
+	char_auto *out = NULL;
+	int seen = 0;
+	int ret;
+
+	SET_OPS();
+
+	builder = jwt_builder_new();
+	ck_assert_ptr_nonnull(builder);
+	ret = jwt_builder_setjti(builder, __jti_pool_gen, NULL);
+	ck_assert_int_eq(ret, 0);
+
+	out = jwt_builder_generate(builder);
+	ck_assert_ptr_nonnull(out);
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+	ret = jwt_checker_setjti(checker, __jti_pool_check, &seen);
+	ck_assert_int_eq(ret, 0);
+
+	/* First use: accepted and consumed. */
+	ret = jwt_checker_verify(checker, out);
+	ck_assert_int_eq(ret, 0);
+
+	/* Replay: same id, now rejected. */
+	jwt_checker_error_clear(checker);
+	ret = jwt_checker_verify(checker, out);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_str_eq(jwt_checker_error_msg(checker),
+			"Failed one or more claims");
+}
+END_TEST
+
 static Suite *libjwt_suite(const char *title)
 {
 	Suite *s;
@@ -1276,6 +1475,15 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, crit_second_unsupported, 0, i);
 	tcase_add_loop_test(tc_core, crit_both_understood, 0, i);
 	tcase_add_loop_test(tc_core, crit_understood_no_match, 0, i);
+	suite_add_tcase(s, tc_core);
+
+	tc_core = tcase_create("JTI");
+	tcase_add_loop_test(tc_core, jti_verify, 0, i);
+	tcase_add_loop_test(tc_core, jti_verify_reject, 0, i);
+	tcase_add_loop_test(tc_core, jti_verify_missing, 0, i);
+	tcase_add_loop_test(tc_core, jti_verify_not_string, 0, i);
+	tcase_add_loop_test(tc_core, jti_setjti_null, 0, i);
+	tcase_add_loop_test(tc_core, jti_pool_roundtrip, 0, i);
 	suite_add_tcase(s, tc_core);
 
 	return s;
