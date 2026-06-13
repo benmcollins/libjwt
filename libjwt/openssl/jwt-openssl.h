@@ -44,5 +44,11 @@ int openssl_wrap_aes_kw(const jwk_item_t *key, const unsigned char *cek,
 	size_t cek_len, unsigned char **out, size_t *out_len);
 int openssl_unwrap_aes_kw(const jwk_item_t *key, const unsigned char *in,
 	size_t in_len, unsigned char **cek, size_t *cek_len);
+int openssl_encrypt_cek_rsa(jwe_key_alg_t alg, const jwk_item_t *key,
+	const unsigned char *cek, size_t cek_len,
+	unsigned char **out, size_t *out_len);
+int openssl_decrypt_cek_rsa(jwe_key_alg_t alg, const jwk_item_t *key,
+	const unsigned char *in, size_t in_len,
+	unsigned char **cek, size_t *cek_len);
 
 #endif /* JWT_OPENSSL_H */

@@ -13,6 +13,7 @@
 #include <openssl/rand.h>
 #include <openssl/hmac.h>
 #include <openssl/crypto.h>
+#include <openssl/rsa.h>
 
 #include <jwt.h>
 
@@ -487,6 +488,119 @@ int openssl_unwrap_aes_kw(const jwk_item_t *key, const unsigned char *in,
 out:
 	jwt_scrub_and_free(buf, in_len);
 	EVP_CIPHER_CTX_free(ctx);
+
+	return ret;
+}
+
+/* Configure an RSA-OAEP EVP_PKEY_CTX for the given JWE alg. RSA-OAEP uses
+ * SHA-1 + MGF1-SHA-1; RSA-OAEP-256 uses SHA-256 + MGF1-SHA-256. */
+static int oaep_set_md(EVP_PKEY_CTX *pctx, jwe_key_alg_t alg)
+{
+	const EVP_MD *md;
+
+	if (alg == JWE_ALG_RSA_OAEP)
+		md = EVP_sha1();
+	else if (alg == JWE_ALG_RSA_OAEP_256)
+		md = EVP_sha256();
+	else
+		return 1; // LCOV_EXCL_LINE
+
+	if (EVP_PKEY_CTX_set_rsa_padding(pctx, RSA_PKCS1_OAEP_PADDING) <= 0)
+		return 1; // LCOV_EXCL_LINE
+	if (EVP_PKEY_CTX_set_rsa_oaep_md(pctx, md) <= 0)
+		return 1; // LCOV_EXCL_LINE
+	if (EVP_PKEY_CTX_set_rsa_mgf1_md(pctx, md) <= 0)
+		return 1; // LCOV_EXCL_LINE
+
+	return 0;
+}
+
+/* @rfc{7518,4.3} RSAES-OAEP encryption of the CEK to the recipient public
+ * key. The recipient's EVP_PKEY is the OpenSSL key parsed from the JWK. */
+int openssl_encrypt_cek_rsa(jwe_key_alg_t alg, const jwk_item_t *key,
+			    const unsigned char *cek, size_t cek_len,
+			    unsigned char **out, size_t *out_len)
+{
+	EVP_PKEY *pkey = (EVP_PKEY *)key->provider_data;
+	EVP_PKEY_CTX *pctx = NULL;
+	unsigned char *buf = NULL;
+	size_t buflen = 0;
+	int ret = 1;
+
+	if (pkey == NULL)
+		return 1; // LCOV_EXCL_LINE
+
+	pctx = EVP_PKEY_CTX_new(pkey, NULL);
+	if (pctx == NULL)
+		return 1; // LCOV_EXCL_LINE
+
+	if (EVP_PKEY_encrypt_init(pctx) <= 0 || oaep_set_md(pctx, alg))
+		goto out; // LCOV_EXCL_LINE
+
+	if (EVP_PKEY_encrypt(pctx, NULL, &buflen, cek, cek_len) <= 0)
+		goto out; // LCOV_EXCL_LINE
+
+	buf = jwt_malloc(buflen);
+	if (buf == NULL)
+		goto out; // LCOV_EXCL_LINE
+
+	if (EVP_PKEY_encrypt(pctx, buf, &buflen, cek, cek_len) <= 0)
+		goto out; // LCOV_EXCL_LINE
+
+	*out = buf;
+	*out_len = buflen;
+	buf = NULL;
+	ret = 0;
+
+out:
+	jwt_freemem(buf);
+	EVP_PKEY_CTX_free(pctx);
+
+	return ret;
+}
+
+/* @rfc{7518,4.3} RSAES-OAEP decryption of the JWE Encrypted Key. A failure
+ * here (wrong key, bad padding) is funnelled by the caller into the uniform
+ * random-CEK path (RFC 7516 11.5). */
+int openssl_decrypt_cek_rsa(jwe_key_alg_t alg, const jwk_item_t *key,
+			    const unsigned char *in, size_t in_len,
+			    unsigned char **cek, size_t *cek_len)
+{
+	EVP_PKEY *pkey = (EVP_PKEY *)key->provider_data;
+	EVP_PKEY_CTX *pctx = NULL;
+	unsigned char *buf = NULL;
+	size_t buflen = 0;
+	int ret = 1;
+
+	if (pkey == NULL)
+		return 1; // LCOV_EXCL_LINE
+
+	pctx = EVP_PKEY_CTX_new(pkey, NULL);
+	if (pctx == NULL)
+		return 1; // LCOV_EXCL_LINE
+
+	if (EVP_PKEY_decrypt_init(pctx) <= 0 || oaep_set_md(pctx, alg))
+		goto out; // LCOV_EXCL_LINE
+
+	if (EVP_PKEY_decrypt(pctx, NULL, &buflen, in, in_len) <= 0)
+		goto out; // LCOV_EXCL_LINE
+
+	buf = jwt_malloc(buflen ? buflen : 1);
+	if (buf == NULL)
+		goto out; // LCOV_EXCL_LINE
+
+	/* A decryption/padding failure returns <= 0 here. */
+	if (EVP_PKEY_decrypt(pctx, buf, &buflen, in, in_len) <= 0)
+		goto out;
+
+	*cek = buf;
+	*cek_len = buflen;
+	buf = NULL;
+	ret = 0;
+
+out:
+	jwt_scrub_and_free(buf, buflen ? buflen : 1);
+	EVP_PKEY_CTX_free(pctx);
 
 	return ret;
 }

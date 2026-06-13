@@ -115,6 +115,51 @@ int jwe_unwrap_cek(jwe_key_alg_t alg, const jwk_item_t *key,
 	return jwt_ops->unwrap_aes_kw(key, in, in_len, cek, cek_len);
 }
 
+/* @rfc{7518,4.3} Is this an RSAES-OAEP key management algorithm? */
+static int alg_is_rsa(jwe_key_alg_t alg)
+{
+	return alg == JWE_ALG_RSA_OAEP || alg == JWE_ALG_RSA_OAEP_256;
+}
+
+/* Encrypt the CEK to the recipient for a key management alg that wraps or
+ * encrypts a generated CEK (A*KW or RSA-OAEP). Returns 0 on success. */
+int jwe_encrypt_cek(jwe_key_alg_t alg, const jwk_item_t *key,
+		    const unsigned char *cek, size_t cek_len,
+		    unsigned char **out, size_t *out_len)
+{
+	if (alg_is_aeskw(alg))
+		return jwe_wrap_cek(alg, key, cek, cek_len, out, out_len);
+
+	if (alg_is_rsa(alg)) {
+		if (jwt_ops->encrypt_cek_rsa == NULL)
+			return 1; // LCOV_EXCL_LINE
+		return jwt_ops->encrypt_cek_rsa(alg, key, cek, cek_len,
+						out, out_len);
+	}
+
+	return 1; // LCOV_EXCL_LINE
+}
+
+/* Recover the CEK from the JWE Encrypted Key. Returns 0 on success. On any
+ * failure the caller substitutes a random CEK (RFC 7516 11.5) rather than
+ * surfacing the specific error. */
+int jwe_decrypt_cek(jwe_key_alg_t alg, const jwk_item_t *key,
+		    const unsigned char *in, size_t in_len,
+		    unsigned char **cek, size_t *cek_len)
+{
+	if (alg_is_aeskw(alg))
+		return jwe_unwrap_cek(alg, key, in, in_len, cek, cek_len);
+
+	if (alg_is_rsa(alg)) {
+		if (jwt_ops->decrypt_cek_rsa == NULL)
+			return 1; // LCOV_EXCL_LINE
+		return jwt_ops->decrypt_cek_rsa(alg, key, in, in_len,
+						cek, cek_len);
+	}
+
+	return 1; // LCOV_EXCL_LINE
+}
+
 /* Is this a GCM content encryption algorithm? */
 static int enc_is_gcm(jwe_enc_t enc)
 {
