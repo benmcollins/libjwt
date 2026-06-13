@@ -492,6 +492,18 @@ int jwe_unwrap_cek(jwe_key_alg_t alg, const jwk_item_t *key,
 		   const unsigned char *in, size_t in_len,
 		   unsigned char **cek, size_t *cek_len);
 
+/* Encrypt/recover the CEK for any non-dir key management alg (A*KW or
+ * RSA-OAEP). jwe_decrypt_cek failure is handled by the caller via the
+ * RFC 7516 11.5 random-CEK substitution. */
+JWT_NO_EXPORT
+int jwe_encrypt_cek(jwe_key_alg_t alg, const jwk_item_t *key,
+		    const unsigned char *cek, size_t cek_len,
+		    unsigned char **out, size_t *out_len);
+JWT_NO_EXPORT
+int jwe_decrypt_cek(jwe_key_alg_t alg, const jwk_item_t *key,
+		    const unsigned char *in, size_t in_len,
+		    unsigned char **cek, size_t *cek_len);
+
 /* Dispatch JWE content encryption/decryption to the active backend for the
  * given enc. Return 0 on success. Decrypt verifies the AEAD tag. */
 JWT_NO_EXPORT

@@ -15,6 +15,15 @@ int openssl_process_rsa(jwt_json_t *jwk, jwk_item_t *item);
 int openssl_process_ec(jwt_json_t *jwk, jwk_item_t *item);
 void openssl_process_item_free(jwk_item_t *item);
 
+/* RSA key operations use the OpenSSL EVP_PKEY stored on the JWK regardless
+ * of the active backend (JWK parsing always falls back to OpenSSL). */
+int openssl_encrypt_cek_rsa(jwe_key_alg_t alg, const jwk_item_t *key,
+	const unsigned char *cek, size_t cek_len,
+	unsigned char **out, size_t *out_len);
+int openssl_decrypt_cek_rsa(jwe_key_alg_t alg, const jwk_item_t *key,
+	const unsigned char *in, size_t in_len,
+	unsigned char **cek, size_t *cek_len);
+
 int gnutls_process_eddsa(jwt_json_t *jwk, jwk_item_t *item);
 int gnutls_process_rsa(jwt_json_t *jwk, jwk_item_t *item);
 int gnutls_process_ec(jwt_json_t *jwk, jwk_item_t *item);

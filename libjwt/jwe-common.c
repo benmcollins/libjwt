@@ -201,16 +201,17 @@ char *FUNC(generate)(jwe_common_t *__cmd, const unsigned char *plaintext,
 			goto oom; // LCOV_EXCL_LINE
 		memcpy(cek, k, cek_len);
 	} else {
-		/* A*KW: generate a random CEK and wrap it to the recipient. */
+		/* A*KW / RSA-OAEP: generate a random CEK and wrap or encrypt it
+		 * to the recipient. */
 		if (jwe_generate_cek(__cmd->c.enc, &cek, &cek_len)) {
 			// LCOV_EXCL_START
 			jwt_write_error(__cmd, "Could not generate CEK");
 			return NULL;
 			// LCOV_EXCL_STOP
 		}
-		if (jwe_wrap_cek(__cmd->c.key_alg, __cmd->c.key, cek, cek_len,
-				 &enckey, &enckey_len)) {
-			jwt_write_error(__cmd, "Key wrap key length mismatch");
+		if (jwe_encrypt_cek(__cmd->c.key_alg, __cmd->c.key, cek, cek_len,
+				    &enckey, &enckey_len)) {
+			jwt_write_error(__cmd, "Could not encrypt the CEK");
 			goto fail;
 		}
 	}
@@ -406,27 +407,37 @@ unsigned char *FUNC(decrypt)(jwe_common_t *__cmd, const char *token,
 			goto oom; // LCOV_EXCL_LINE
 		memcpy(cek, k, cek_len);
 	} else {
-		/* A*KW: the Encrypted Key is the wrapped CEK; unwrap it. */
+		/* A*KW / RSA-OAEP: the Encrypted Key carries the CEK. */
+		size_t need = jwe_enc_cek_len(enc);
+		int bad = 0;
+
 		if (*p_ek == '\0') {
 			jwt_write_error(__cmd,
-				"Key wrapping requires an Encrypted Key");
+				"Key management requires an Encrypted Key");
 			return NULL;
 		}
+
 		enckey = jwt_base64uri_decode(p_ek, &ek_len);
-		if (enckey == NULL || ek_len <= 0) {
-			jwt_write_error(__cmd, "Error decoding Encrypted Key");
-			goto fail;
-		}
-		if (jwe_unwrap_cek(alg, __cmd->c.key, enckey, ek_len,
-				   &cek, &cek_len)) {
-			jwt_write_error(__cmd, "JWE key unwrap failed");
-			goto fail;
-		}
-		if (cek_len != jwe_enc_cek_len(enc)) {
-			// LCOV_EXCL_START
-			jwt_write_error(__cmd, "Unwrapped CEK length wrong");
-			goto fail;
-			// LCOV_EXCL_STOP
+		if (enckey == NULL || ek_len <= 0)
+			bad = 1;
+		else if (jwe_decrypt_cek(alg, __cmd->c.key, enckey, ek_len,
+					 &cek, &cek_len))
+			bad = 1;
+		else if (cek_len != need)
+			bad = 1; // LCOV_EXCL_LINE
+
+		/* @rfc{7516,11.5} Do not reveal why CEK recovery failed: a
+		 * padding/format/length error would otherwise be an oracle
+		 * (e.g. Bleichenbacher against RSA). On any failure, substitute
+		 * a random CEK of the correct length and proceed; the AEAD tag
+		 * check below then fails uniformly, indistinguishable from a
+		 * merely-wrong key. */
+		if (bad) {
+			jwt_scrub_and_free(cek, cek_len);
+			cek = NULL;
+			cek_len = 0;
+			if (jwe_generate_cek(enc, &cek, &cek_len))
+				goto oom; // LCOV_EXCL_LINE
 		}
 	}
 

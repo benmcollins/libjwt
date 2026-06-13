@@ -440,4 +440,6 @@ struct jwt_crypto_ops jwt_openssl_ops = {
 	.decrypt_aes_cbc_hmac	= openssl_decrypt_aes_cbc_hmac,
 	.wrap_aes_kw		= openssl_wrap_aes_kw,
 	.unwrap_aes_kw		= openssl_unwrap_aes_kw,
+	.encrypt_cek_rsa	= openssl_encrypt_cek_rsa,
+	.decrypt_cek_rsa	= openssl_decrypt_cek_rsa,
 };
