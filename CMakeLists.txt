@@ -222,6 +222,10 @@ jwt_add_tool(NAME jwk2key
 	     SRC tools/jwk2key.c)
 jwt_add_tool(NAME key2jwk
 	     SRC tools/key2jwk.c)
+jwt_add_tool(NAME jwe-encrypt
+	     SRC tools/jwe-encrypt.c)
+jwt_add_tool(NAME jwe-decrypt
+	     SRC tools/jwe-decrypt.c)
 install(DIRECTORY ${CMAKE_SOURCE_DIR}/tools/
 	DESTINATION ${CMAKE_INSTALL_MANDIR}/man1
 	FILES_MATCHING PATTERN "*.1")
