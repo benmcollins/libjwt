@@ -78,3 +78,38 @@ EOF
 	./tools/jwk2key -d . ${SRCDIR}/tests/keys/oct_key_384.json
 	cmp oct_384.bin ${SRCDIR}/tests/cli/oct_384.bin
 }
+
+# JWE tools
+
+OCT256="../tests/keys/oct_dir_256.json"
+OCT256B="../tests/keys/oct_key_256_enc.json"
+RSAENC="../tests/keys/rsa_key_2048_enc.json"
+
+@test "JWE dir + A256GCM round-trip" {
+	tok="$(./tools/jwe-encrypt -k ${OCT256} -a dir -e A256GCM -j '{"a":1}')"
+	result="$(echo "${tok}" | ./tools/jwe-decrypt -k ${OCT256} -a dir -e A256GCM)"
+	[ "${result}" = '{"a":1}' ]
+}
+
+@test "JWE A256KW + A256CBC-HS512 round-trip" {
+	tok="$(./tools/jwe-encrypt -k ${OCT256} -a A256KW -e A256CBC-HS512 -j '{"b":2}')"
+	result="$(echo "${tok}" | ./tools/jwe-decrypt -k ${OCT256} -a A256KW -e A256CBC-HS512)"
+	[ "${result}" = '{"b":2}' ]
+}
+
+@test "JWE RSA-OAEP-256 + A256GCM round-trip" {
+	tok="$(./tools/jwe-encrypt -k ${RSAENC} -a RSA-OAEP-256 -e A256GCM -j '{"c":3}')"
+	result="$(echo "${tok}" | ./tools/jwe-decrypt -k ${RSAENC} -a RSA-OAEP-256 -e A256GCM)"
+	[ "${result}" = '{"c":3}' ]
+}
+
+@test "JWE decrypt with wrong key fails" {
+	tok="$(./tools/jwe-encrypt -k ${OCT256} -a dir -e A256GCM -j '{}')"
+	run bash -c "echo '${tok}' | ./tools/jwe-decrypt -k ${OCT256B} -a dir -e A256GCM"
+	[ "${status}" -ne 0 ]
+}
+
+@test "JWE encrypt rejects unknown algorithm" {
+	run ./tools/jwe-encrypt -k ${OCT256} -a BOGUS -e A256GCM -j '{}'
+	[ "${status}" -ne 0 ]
+}
