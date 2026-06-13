@@ -425,4 +425,6 @@ struct jwt_crypto_ops jwt_gnutls_ops = {
 	.rng			= gnutls_rng,
 	.encrypt_aes_gcm	= gnutls_encrypt_aes_gcm,
 	.decrypt_aes_gcm	= gnutls_decrypt_aes_gcm,
+	.encrypt_aes_cbc_hmac	= gnutls_encrypt_aes_cbc_hmac,
+	.decrypt_aes_cbc_hmac	= gnutls_decrypt_aes_cbc_hmac,
 };

@@ -21,8 +21,7 @@ static int enc_is_gcm(jwe_enc_t enc)
 }
 
 /* Dispatch content encryption to the active backend for the given enc.
- * Returns 0 on success. Only AES-GCM is wired so far; CBC-HMAC dispatch is
- * added with that algorithm's stage. */
+ * Returns 0 on success. */
 int jwe_encrypt_content(jwe_enc_t enc, const unsigned char *cek,
 	size_t cek_len, const unsigned char *iv, size_t iv_len,
 	const unsigned char *aad, size_t aad_len,
@@ -37,7 +36,10 @@ int jwe_encrypt_content(jwe_enc_t enc, const unsigned char *cek,
 			aad, aad_len, pt, pt_len, ct, ct_len, tag, tag_len);
 	}
 
-	return 1; // LCOV_EXCL_LINE
+	if (jwt_ops->encrypt_aes_cbc_hmac == NULL)
+		return 1; // LCOV_EXCL_LINE
+	return jwt_ops->encrypt_aes_cbc_hmac(enc, cek, cek_len, iv, iv_len,
+		aad, aad_len, pt, pt_len, ct, ct_len, tag, tag_len);
 }
 
 /* Dispatch content decryption (with tag verification) to the active backend. */
@@ -55,7 +57,10 @@ int jwe_decrypt_content(jwe_enc_t enc, const unsigned char *cek,
 			aad, aad_len, ct, ct_len, tag, tag_len, pt, pt_len);
 	}
 
-	return 1; // LCOV_EXCL_LINE
+	if (jwt_ops->decrypt_aes_cbc_hmac == NULL)
+		return 1; // LCOV_EXCL_LINE
+	return jwt_ops->decrypt_aes_cbc_hmac(enc, cek, cek_len, iv, iv_len,
+		aad, aad_len, ct, ct_len, tag, tag_len, pt, pt_len);
 }
 
 /* @rfc{7516,11.4} @rfc{7517,4.2,4.3} Gate a JWK against a JWE key management
