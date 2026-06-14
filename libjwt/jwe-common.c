@@ -24,21 +24,30 @@
 
 void FUNC(free)(jwe_common_t *__cmd)
 {
+	struct jwe_recipient *r, *tmp;
+
 	if (__cmd == NULL)
 		return;
 
 	jwt_json_release(__cmd->c.payload);
 	jwt_json_release(__cmd->c.headers);
+	jwt_json_release(__cmd->c.unprotected);
+
+	/* @rfc{7516,7.2.1} Free every recipient (and its owned key material). */
+	list_for_each_entry_safe(r, tmp, &__cmd->c.recipients, node) {
+		list_del(&r->node);
+		jwe_recipient_free(r);
+	}
 
 	/* Scrub sensitive key material. The CEK is secret; the other
 	 * components are not, but free them all here. */
 	jwt_scrub_and_free(__cmd->c.cek, __cmd->c.cek_len);
-	jwt_freemem(__cmd->c.enckey);
 	jwt_freemem(__cmd->c.iv);
 	jwt_freemem(__cmd->c.ct);
 	jwt_freemem(__cmd->c.tag);
-	jwt_freemem(__cmd->c.apu);
-	jwt_freemem(__cmd->c.apv);
+	jwt_scrub_and_free(__cmd->c.aad, __cmd->c.aad_len);
+	jwt_freemem(__cmd->c.aad_b64);
+	jwt_scrub_and_free(__cmd->c.recovered_aad, __cmd->c.recovered_aad_len);
 
 	memset(__cmd, 0, sizeof(*__cmd));
 
@@ -53,6 +62,9 @@ jwe_common_t *FUNC(new)(void)
 		return NULL; // LCOV_EXCL_LINE
 
 	memset(__cmd, 0, sizeof(*__cmd));
+
+	INIT_LIST_HEAD(&__cmd->c.recipients);
+	__cmd->c.format = JWE_FORMAT_COMPACT;
 
 	__cmd->c.payload = jwt_json_create();
 	__cmd->c.headers = jwt_json_create();
@@ -97,6 +109,7 @@ void FUNC(error_clear)(jwe_common_t *__cmd)
 int FUNC(setkey)(jwe_common_t *__cmd, jwe_key_alg_t alg, jwe_enc_t enc,
 		 const jwk_item_t *key)
 {
+	struct jwe_recipient *r;
 	const char *reason;
 
 	if (__cmd == NULL)
@@ -129,9 +142,17 @@ int FUNC(setkey)(jwe_common_t *__cmd, jwe_key_alg_t alg, jwe_enc_t enc,
 		return 1;
 	}
 
-	__cmd->c.key_alg = alg;
+	/* @rfc{7516,7.2.1} setkey configures the first (and, for Compact, only)
+	 * recipient. Calling it again replaces that recipient's alg/key. */
+	r = jwe_recipient_first_or_add(&__cmd->c);
+	if (r == NULL) {
+		jwt_write_error(__cmd, "Error allocating memory"); // LCOV_EXCL_LINE
+		return 1; // LCOV_EXCL_LINE
+	}
+
+	r->key_alg = alg;
+	r->key = key;
 	__cmd->c.enc = enc;
-	__cmd->c.key = key;
 
 	return 0;
 }
@@ -144,10 +165,19 @@ int FUNC(set_partyinfo)(jwe_common_t *__cmd,
 			const unsigned char *apu, size_t apu_len,
 			const unsigned char *apv, size_t apv_len)
 {
+	struct jwe_recipient *r;
 	char *apu_b64 = NULL, *apv_b64 = NULL;
 
 	if (__cmd == NULL)
 		return 1;
+
+	/* @rfc{7518,4.6.2} Party info targets the first recipient (the one set
+	 * by setkey). Create it if setkey has not run yet. */
+	r = jwe_recipient_first_or_add(&__cmd->c);
+	if (r == NULL) {
+		jwt_write_error(__cmd, "Error allocating memory"); // LCOV_EXCL_LINE
+		return 1; // LCOV_EXCL_LINE
+	}
 
 	if (apu && apu_len &&
 	    jwt_base64uri_encode(&apu_b64, (const char *)apu, (int)apu_len) <= 0)
@@ -156,10 +186,10 @@ int FUNC(set_partyinfo)(jwe_common_t *__cmd,
 	    jwt_base64uri_encode(&apv_b64, (const char *)apv, (int)apv_len) <= 0)
 		goto oom; // LCOV_EXCL_LINE
 
-	jwt_freemem(__cmd->c.apu);
-	jwt_freemem(__cmd->c.apv);
-	__cmd->c.apu = apu_b64;
-	__cmd->c.apv = apv_b64;
+	jwt_freemem(r->apu);
+	jwt_freemem(r->apv);
+	r->apu = apu_b64;
+	r->apv = apv_b64;
 
 	return 0;
 
@@ -179,6 +209,7 @@ oom:
 char *FUNC(generate)(jwe_common_t *__cmd, const unsigned char *plaintext,
 		     size_t plaintext_len)
 {
+	struct jwe_recipient *recip;
 	jwt_json_auto_t *hdr = NULL;
 	char_auto *hdr_json = NULL, *hdr_b64 = NULL, *ek_b64 = NULL;
 	char_auto *iv_b64 = NULL, *ct_b64 = NULL, *tag_b64 = NULL;
@@ -192,7 +223,11 @@ char *FUNC(generate)(jwe_common_t *__cmd, const unsigned char *plaintext,
 	if (__cmd == NULL)
 		return NULL;
 
-	if (__cmd->c.key == NULL || __cmd->c.key_alg == JWE_ALG_NONE) {
+	/* @rfc{7516,7.2.1} The Compact Serialization has exactly one recipient,
+	 * configured via setkey. */
+	recip = jwe_recipient_first(&__cmd->c);
+	if (recip == NULL || recip->key == NULL ||
+	    recip->key_alg == JWE_ALG_NONE) {
 		jwt_write_error(__cmd, "No key/algorithm set");
 		return NULL;
 	}
@@ -207,7 +242,7 @@ char *FUNC(generate)(jwe_common_t *__cmd, const unsigned char *plaintext,
 	if (hdr == NULL)
 		goto oom; // LCOV_EXCL_LINE
 	if (jwt_json_obj_set(hdr, "alg",
-			     jwt_json_create_str(jwe_alg_str(__cmd->c.key_alg))) ||
+			     jwt_json_create_str(jwe_alg_str(recip->key_alg))) ||
 	    jwt_json_obj_set(hdr, "enc",
 			     jwt_json_create_str(jwe_enc_str(__cmd->c.enc)))) {
 		jwt_write_error(__cmd, "Error building JWE header"); // LCOV_EXCL_LINE
@@ -217,34 +252,34 @@ char *FUNC(generate)(jwe_common_t *__cmd, const unsigned char *plaintext,
 	/* @rfc{7518,4.6.2} For ECDH-ES, emit any apu/apv into the header before
 	 * the key agreement runs, so they are bound into the Concat KDF (and,
 	 * being part of the protected header, into the AAD). */
-	if (jwe_alg_is_ecdh(__cmd->c.key_alg)) {
-		if (__cmd->c.apu &&
+	if (jwe_alg_is_ecdh(recip->key_alg)) {
+		if (recip->apu &&
 		    jwt_json_obj_set(hdr, "apu",
-				     jwt_json_create_str(__cmd->c.apu)))
+				     jwt_json_create_str(recip->apu)))
 			goto oom; // LCOV_EXCL_LINE
-		if (__cmd->c.apv &&
+		if (recip->apv &&
 		    jwt_json_obj_set(hdr, "apv",
-				     jwt_json_create_str(__cmd->c.apv)))
+				     jwt_json_create_str(recip->apv)))
 			goto oom; // LCOV_EXCL_LINE
 	}
 
 	/* @rfc{7518,4.6} ECDH-ES (Direct): derive the CEK and add the "epk"
 	 * to the header BEFORE it is serialized, since the header bytes are
 	 * the AAD. The Encrypted Key stays empty (like dir). */
-	if (jwe_alg_is_ecdh(__cmd->c.key_alg)) {
+	if (jwe_alg_is_ecdh(recip->key_alg)) {
 		/* @rfc{7518,4.6} Derive the agreed key and emit "epk" while the
 		 * header object can still be modified. For Direct mode the
 		 * agreed key is the CEK; for +A*KW it is the KEK. */
 		unsigned char *agreed = NULL;
 		size_t agreed_len = 0;
 
-		if (jwe_ecdh_derive(__cmd->c.key_alg, __cmd->c.enc,
-				    __cmd->c.key, 1, hdr, &agreed, &agreed_len)) {
+		if (jwe_ecdh_derive(recip->key_alg, __cmd->c.enc,
+				    recip->key, 1, hdr, &agreed, &agreed_len)) {
 			jwt_write_error(__cmd, "ECDH-ES key agreement failed");
 			return NULL;
 		}
 
-		if (jwe_alg_is_ecdh_direct(__cmd->c.key_alg)) {
+		if (jwe_alg_is_ecdh_direct(recip->key_alg)) {
 			cek = agreed;
 			cek_len = agreed_len;
 		} else {
@@ -278,15 +313,15 @@ char *FUNC(generate)(jwe_common_t *__cmd, const unsigned char *plaintext,
 
 	/* @rfc{7516,5.1} Produce the CEK and the JWE Encrypted Key per the key
 	 * management algorithm. */
-	if (jwe_alg_is_ecdh(__cmd->c.key_alg)) {
+	if (jwe_alg_is_ecdh(recip->key_alg)) {
 		/* ECDH-ES: the CEK (Direct) or CEK+Encrypted Key (+A*KW) was
 		 * already produced above, before the header was serialized. */
-	} else if (__cmd->c.key_alg == JWE_ALG_DIR) {
+	} else if (recip->key_alg == JWE_ALG_DIR) {
 		/* dir: the CEK is the shared symmetric key; Encrypted Key is
 		 * empty. */
 		size_t need = jwe_enc_cek_len(__cmd->c.enc);
 
-		ret = jwks_item_key_oct(__cmd->c.key, &k, &cek_len);
+		ret = jwks_item_key_oct(recip->key, &k, &cek_len);
 		if (ret || k == NULL || cek_len != need) {
 			jwt_write_error(__cmd,
 				"dir key length does not match enc");
@@ -305,7 +340,7 @@ char *FUNC(generate)(jwe_common_t *__cmd, const unsigned char *plaintext,
 			return NULL;
 			// LCOV_EXCL_STOP
 		}
-		if (jwe_encrypt_cek(__cmd->c.key_alg, __cmd->c.key, cek, cek_len,
+		if (jwe_encrypt_cek(recip->key_alg, recip->key, cek, cek_len,
 				    &enckey, &enckey_len)) {
 			jwt_write_error(__cmd, "Could not encrypt the CEK");
 			goto fail;
@@ -400,6 +435,7 @@ static char *split_dot(char *p)
 unsigned char *FUNC(decrypt)(jwe_common_t *__cmd, const char *token,
 			     size_t *plaintext_len)
 {
+	struct jwe_recipient *recip;
 	char_auto *dup = NULL;
 	char *p_hdr, *p_ek, *p_iv, *p_ct, *p_tag, *rest;
 	jwt_json_auto_t *hdr = NULL;
@@ -422,7 +458,11 @@ unsigned char *FUNC(decrypt)(jwe_common_t *__cmd, const char *token,
 		return NULL;
 	}
 
-	if (__cmd->c.key == NULL || __cmd->c.key_alg == JWE_ALG_NONE) {
+	/* @rfc{7516,7.1} The checker is configured with one (alg, enc, key) via
+	 * setkey, which populates the first recipient. */
+	recip = jwe_recipient_first(&__cmd->c);
+	if (recip == NULL || recip->key == NULL ||
+	    recip->key_alg == JWE_ALG_NONE) {
 		jwt_write_error(__cmd, "No key/algorithm set");
 		return NULL;
 	}
@@ -478,7 +518,7 @@ unsigned char *FUNC(decrypt)(jwe_common_t *__cmd, const char *token,
 
 	alg = jwe_str_alg(jwt_json_str_val(jalg));
 	enc = jwe_str_enc(jwt_json_str_val(jenc));
-	if (alg != __cmd->c.key_alg || enc != __cmd->c.enc) {
+	if (alg != recip->key_alg || enc != __cmd->c.enc) {
 		jwt_write_error(__cmd, "JWE alg/enc does not match expected");
 		return NULL;
 	}
@@ -503,7 +543,7 @@ unsigned char *FUNC(decrypt)(jwe_common_t *__cmd, const char *token,
 
 		/* A failed agreement (bad/missing epk, curve mismatch) is a
 		 * structural error, not a key-recovery oracle. */
-		if (jwe_ecdh_derive(alg, enc, __cmd->c.key, 0, hdr,
+		if (jwe_ecdh_derive(alg, enc, recip->key, 0, hdr,
 				    &agreed, &agreed_len)) {
 			jwt_write_error(__cmd, "ECDH-ES key agreement failed");
 			goto fail;
@@ -549,7 +589,7 @@ unsigned char *FUNC(decrypt)(jwe_common_t *__cmd, const char *token,
 				"dir must have an empty Encrypted Key");
 			return NULL;
 		}
-		if (jwks_item_key_oct(__cmd->c.key, &k, &cek_len) ||
+		if (jwks_item_key_oct(recip->key, &k, &cek_len) ||
 		    k == NULL || cek_len != need) {
 			jwt_write_error(__cmd,
 				"dir key length does not match enc");
@@ -573,7 +613,7 @@ unsigned char *FUNC(decrypt)(jwe_common_t *__cmd, const char *token,
 		enckey = jwt_base64uri_decode(p_ek, &ek_len);
 		if (enckey == NULL || ek_len <= 0)
 			bad = 1;
-		else if (jwe_decrypt_cek(alg, __cmd->c.key, enckey, ek_len,
+		else if (jwe_decrypt_cek(alg, recip->key, enckey, ek_len,
 					 &cek, &cek_len))
 			bad = 1;
 		else if (cek_len != need)

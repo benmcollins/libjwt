@@ -98,35 +98,72 @@ struct jwt_checker {
 
 /******************************/
 
-/* JWE is kept deliberately separate from JWS/JWT. A JWE is structurally and
- * cryptographically different (5 parts, "alg"+"enc", a CEK), so it gets its
- * own common struct rather than overloading struct jwt_common. */
-struct jwe_common {
+/* @rfc{7516,7.2.1} A single JWE recipient: its own key management alg, key,
+ * optional ECDH-ES partyinfo, optional per-recipient (unprotected) header, and
+ * the JWE Encrypted Key produced for it. Linked via ll.h (like jwk_set), so a
+ * Compact / Flattened JWE is just a one-element list and the General JSON
+ * Serialization is a list of N. Owned by the enclosing struct jwe_common. */
+struct jwe_recipient {
+	ll_t node;
 	jwe_key_alg_t key_alg;	/* @rfc{7516,4.1.1} "alg" key management	*/
-	jwe_enc_t enc;		/* @rfc{7516,4.1.2} "enc" content encryption	*/
 	const jwk_item_t *key;	/* Recipient key used for key management		*/
-	jwt_json_t *payload;	/* Claims/plaintext to encrypt (builder)	*/
-	jwt_json_t *headers;	/* Protected header				*/
-	jwt_callback_t cb;
-	void *cb_ctx;
 
 	/* @rfc{7518,4.6.2} Optional ECDH-ES PartyUInfo/PartyVInfo, stored as
 	 * the base64url strings emitted in the "apu"/"apv" headers. */
 	char *apu;
 	char *apv;
 
-	/* The five JWE Compact Serialization components, populated during
-	 * encrypt (builder) or decrypt (checker). Owned by this struct. */
-	unsigned char *cek;	/* Content Encryption Key			*/
-	size_t cek_len;
+	/* @rfc{7516,7.2.1} Optional per-recipient unprotected header. For the
+	 * JSON serializations this also carries ECDH-ES "epk"/"apu"/"apv". */
+	jwt_json_t *header;
+
 	unsigned char *enckey;	/* JWE Encrypted Key (wrapped CEK)		*/
 	size_t enckey_len;
+};
+
+/* JWE is kept deliberately separate from JWS/JWT. A JWE is structurally and
+ * cryptographically different (5 parts, "alg"+"enc", a CEK), so it gets its
+ * own common struct rather than overloading struct jwt_common. */
+struct jwe_common {
+	jwe_enc_t enc;		/* @rfc{7516,4.1.2} "enc" content encryption	*/
+	jwt_json_t *payload;	/* Claims/plaintext to encrypt (builder)	*/
+	jwt_json_t *headers;	/* @rfc{7516,7.2.1} Protected header		*/
+	jwt_json_t *unprotected;/* @rfc{7516,7.2.1} Shared unprotected header	*/
+	jwt_callback_t cb;
+	void *cb_ctx;
+
+	/* @rfc{7516,7.2.1} Recipients. setkey()/set_partyinfo() manage the
+	 * first element; add_recipient() appends further ones. A Compact or
+	 * Flattened JWE has exactly one. */
+	ll_t recipients;
+	int n_recipients;
+
+	/* @rfc{7516,4.1.4} Serialization to emit (builder). */
+	jwe_serialization_t format;
+
+	/* @rfc{7516,5.1} step 14 The application-supplied JWE AAD (the "aad"
+	 * member of the JSON serializations). @aad_b64 is its base64url form,
+	 * which is also what is concatenated into the AEAD AAD. */
+	unsigned char *aad;	/* Raw AAD provided by the builder caller	*/
+	size_t aad_len;
+	char *aad_b64;
+
+	/* The shared JWE components (one CEK / IV / ciphertext / tag per token,
+	 * regardless of recipient count). Populated during encrypt (builder) or
+	 * decrypt (checker). Owned by this struct. */
+	unsigned char *cek;	/* Content Encryption Key			*/
+	size_t cek_len;
 	unsigned char *iv;	/* JWE Initialization Vector			*/
 	size_t iv_len;
 	unsigned char *ct;	/* JWE Ciphertext				*/
 	size_t ct_len;
 	unsigned char *tag;	/* JWE Authentication Tag			*/
 	size_t tag_len;
+
+	/* @rfc{7516,7.2.1} The application AAD recovered by the checker from a
+	 * JSON serialization's "aad" member, handed back via get_aad(). */
+	unsigned char *recovered_aad;
+	size_t recovered_aad_len;
 };
 
 struct jwe_builder {
@@ -574,5 +611,20 @@ int jwe_decrypt_content(jwe_enc_t enc, const unsigned char *cek,
 JWT_NO_EXPORT
 const char *jwe_key_usage_check(const jwk_item_t *key, jwe_key_alg_t alg,
 				int for_encrypt);
+
+/* Recipient list helpers (jwe.c). A recipient is heap-allocated and linked
+ * into jwe_common.recipients. jwe_recipient_first() returns the first recipient
+ * or NULL; jwe_recipient_first_or_add() returns it, creating an empty one if
+ * the list is empty (used by the legacy single-key setkey path).
+ * jwe_recipient_append() always adds a new recipient. jwe_recipient_free()
+ * frees one recipient and its owned members. */
+JWT_NO_EXPORT
+struct jwe_recipient *jwe_recipient_first(struct jwe_common *cmd);
+JWT_NO_EXPORT
+struct jwe_recipient *jwe_recipient_first_or_add(struct jwe_common *cmd);
+JWT_NO_EXPORT
+struct jwe_recipient *jwe_recipient_append(struct jwe_common *cmd);
+JWT_NO_EXPORT
+void jwe_recipient_free(struct jwe_recipient *r);
 
 #endif /* JWT_PRIVATE_H */

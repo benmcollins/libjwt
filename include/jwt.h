@@ -120,6 +120,23 @@ typedef enum {
 	JWE_ENC_INVAL,		/**< An invalid algorithm from the caller or the token */
 } jwe_enc_t;
 
+/** @ingroup jwt_alg_grp
+ * @brief JWE serialization formats
+ *
+ * RFC 7516 defines two serializations. The Compact Serialization is the
+ * five-part ``header.encrypted_key.iv.ciphertext.tag`` string and supports a
+ * single recipient. The JSON Serialization is a JSON object; its Flattened
+ * form is the single-recipient special case, and its General form carries a
+ * ``recipients`` array for one or more recipients.
+ *
+ * @rfc{7516,7}
+ */
+typedef enum {
+	JWE_FORMAT_COMPACT = 0,	/**< @rfc{7516,7.1} Compact Serialization (default) */
+	JWE_FORMAT_JSON_FLAT,	/**< @rfc{7516,7.2.2} Flattened JSON Serialization */
+	JWE_FORMAT_JSON_GENERAL,/**< @rfc{7516,7.2.1} General JSON Serialization */
+} jwe_serialization_t;
+
 /** @ingroup jwt_crypto_grp
  * @brief  Different providers for crypto operations
  *
