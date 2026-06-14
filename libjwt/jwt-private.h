@@ -269,10 +269,13 @@ struct jwt_crypto_ops {
 		const unsigned char *in, size_t in_len,
 		unsigned char **cek, size_t *cek_len);
 
-	/* ECDH-ES (reserved for the ECDH-ES stage). Ephemeral public key
-	 * generation/parsing for the "epk" header. */
-	int (*gen_epk)(const jwk_item_t *key, jwk_item_t **epk);
-	int (*parse_epk)(jwt_json_t *epk_json, jwk_item_t **epk);
+	/* ECDH-ES (RFC 7518 4.6). On encrypt, generates an ephemeral keypair,
+	 * writes the "epk" into the header, and derives the agreed key via the
+	 * Concat KDF. On decrypt, reads "epk" from the header and derives the
+	 * same key. The derived key is the CEK (ECDH-ES) or a KEK (ECDH-ES+KW). */
+	int (*ecdh_derive)(jwe_key_alg_t alg, jwe_enc_t enc,
+		const jwk_item_t *key, int for_encrypt, jwt_json_t *hdr,
+		unsigned char **dk, size_t *dk_len);
 };
 
 #ifdef HAVE_OPENSSL
@@ -465,6 +468,14 @@ static inline jwk_key_type_t jwe_alg_required_kty(jwe_key_alg_t alg)
 	case JWE_ALG_RSA_OAEP_256:
 		return JWK_KEY_TYPE_RSA;
 
+	case JWE_ALG_ECDH_ES:
+	case JWE_ALG_ECDH_ES_A128KW:
+	case JWE_ALG_ECDH_ES_A192KW:
+	case JWE_ALG_ECDH_ES_A256KW:
+		/* ECDH-ES uses an EC (or, in a later release, OKP X25519/X448)
+		 * key. EC is the required type for the supported curves. */
+		return JWK_KEY_TYPE_EC;
+
 	// LCOV_EXCL_START
 	default:
 		return JWK_KEY_TYPE_NONE;
@@ -503,6 +514,16 @@ JWT_NO_EXPORT
 int jwe_decrypt_cek(jwe_key_alg_t alg, const jwk_item_t *key,
 		    const unsigned char *in, size_t in_len,
 		    unsigned char **cek, size_t *cek_len);
+
+/* ECDH-ES (RFC 7518 4.6). Direct mode derives the CEK directly. */
+JWT_NO_EXPORT
+int jwe_alg_is_ecdh(jwe_key_alg_t alg);
+JWT_NO_EXPORT
+int jwe_alg_is_ecdh_direct(jwe_key_alg_t alg);
+JWT_NO_EXPORT
+int jwe_ecdh_derive(jwe_key_alg_t alg, jwe_enc_t enc, const jwk_item_t *key,
+		    int for_encrypt, jwt_json_t *hdr,
+		    unsigned char **dk, size_t *dk_len);
 
 /* Dispatch JWE content encryption/decryption to the active backend for the
  * given enc. Return 0 on success. Decrypt verifies the AEAD tag. */

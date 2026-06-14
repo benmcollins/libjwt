@@ -121,6 +121,31 @@ static int alg_is_rsa(jwe_key_alg_t alg)
 	return alg == JWE_ALG_RSA_OAEP || alg == JWE_ALG_RSA_OAEP_256;
 }
 
+/* @rfc{7518,4.6} Is this an ECDH-ES key management algorithm? */
+int jwe_alg_is_ecdh(jwe_key_alg_t alg)
+{
+	return alg == JWE_ALG_ECDH_ES || alg == JWE_ALG_ECDH_ES_A128KW ||
+	       alg == JWE_ALG_ECDH_ES_A192KW || alg == JWE_ALG_ECDH_ES_A256KW;
+}
+
+/* Is this ECDH-ES in Direct Key Agreement mode (the agreed key IS the CEK,
+ * no wrapping, empty Encrypted Key)? */
+int jwe_alg_is_ecdh_direct(jwe_key_alg_t alg)
+{
+	return alg == JWE_ALG_ECDH_ES;
+}
+
+/* @rfc{7518,4.6} Run ECDH-ES agreement to derive the agreed key (the CEK in
+ * Direct mode). On encrypt this also writes "epk" into @hdr. */
+int jwe_ecdh_derive(jwe_key_alg_t alg, jwe_enc_t enc, const jwk_item_t *key,
+		    int for_encrypt, jwt_json_t *hdr,
+		    unsigned char **dk, size_t *dk_len)
+{
+	if (jwt_ops->ecdh_derive == NULL)
+		return 1; // LCOV_EXCL_LINE
+	return jwt_ops->ecdh_derive(alg, enc, key, for_encrypt, hdr, dk, dk_len);
+}
+
 /* Encrypt the CEK to the recipient for a key management alg that wraps or
  * encrypts a generated CEK (A*KW or RSA-OAEP). Returns 0 on success. */
 int jwe_encrypt_cek(jwe_key_alg_t alg, const jwk_item_t *key,
@@ -252,6 +277,13 @@ const char *jwe_key_usage_check(const jwk_item_t *key, jwe_key_alg_t alg,
 		case JWE_ALG_RSA_OAEP_256:
 			want = for_encrypt ? JWK_KEY_OP_ENCRYPT
 					   : JWK_KEY_OP_DECRYPT;
+			break;
+		case JWE_ALG_ECDH_ES:
+		case JWE_ALG_ECDH_ES_A128KW:
+		case JWE_ALG_ECDH_ES_A192KW:
+		case JWE_ALG_ECDH_ES_A256KW:
+			/* Key agreement derives a key from the static key. */
+			want = JWK_KEY_OP_DERIVE_KEY;
 			break;
 		// LCOV_EXCL_START
 		default:

@@ -17,6 +17,10 @@ static const struct {
 	{ JWE_ALG_A256KW,	"A256KW" },
 	{ JWE_ALG_RSA_OAEP,	"RSA-OAEP" },
 	{ JWE_ALG_RSA_OAEP_256,	"RSA-OAEP-256" },
+	{ JWE_ALG_ECDH_ES,	"ECDH-ES" },
+	{ JWE_ALG_ECDH_ES_A128KW, "ECDH-ES+A128KW" },
+	{ JWE_ALG_ECDH_ES_A192KW, "ECDH-ES+A192KW" },
+	{ JWE_ALG_ECDH_ES_A256KW, "ECDH-ES+A256KW" },
 };
 
 /* Every defined jwe_enc_t value (excluding NONE/INVAL) with its string. */

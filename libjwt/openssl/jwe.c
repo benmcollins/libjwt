@@ -14,6 +14,9 @@
 #include <openssl/hmac.h>
 #include <openssl/crypto.h>
 #include <openssl/rsa.h>
+#include <openssl/core_names.h>
+#include <openssl/param_build.h>
+#include <openssl/sha.h>
 
 #include <jwt.h>
 
@@ -601,6 +604,375 @@ int openssl_decrypt_cek_rsa(jwe_key_alg_t alg, const jwk_item_t *key,
 out:
 	jwt_scrub_and_free(buf, buflen ? buflen : 1);
 	EVP_PKEY_CTX_free(pctx);
+
+	return ret;
+}
+
+/* ======================== ECDH-ES (RFC 7518 4.6) ======================== */
+
+/* The derived-key length (octets) and the ASCII AlgorithmID for the Concat
+ * KDF. For ECDH-ES (Direct), the AlgorithmID is the "enc" value and the
+ * length is the enc CEK length. For ECDH-ES+A*KW, the AlgorithmID is the
+ * "alg" value and the length is the AES-KW key size. */
+static int ecdh_keydatalen(jwe_key_alg_t alg, jwe_enc_t enc,
+			   size_t *len, const char **algid)
+{
+	switch (alg) {
+	case JWE_ALG_ECDH_ES:
+		*len = jwe_enc_cek_len(enc);
+		*algid = jwe_enc_str(enc);
+		return (*len && *algid) ? 0 : 1;
+	// LCOV_EXCL_START
+	/* ECDH-ES+A*KW reach here only once key wrapping is wired up. */
+	case JWE_ALG_ECDH_ES_A128KW:
+		*len = 16; *algid = jwe_alg_str(alg); return 0;
+	case JWE_ALG_ECDH_ES_A192KW:
+		*len = 24; *algid = jwe_alg_str(alg); return 0;
+	case JWE_ALG_ECDH_ES_A256KW:
+		*len = 32; *algid = jwe_alg_str(alg); return 0;
+	default:
+		return 1;
+	// LCOV_EXCL_STOP
+	}
+}
+
+/* Append a length-prefixed (32-bit big-endian) datum to a buffer. */
+static void concat_put_data(unsigned char *buf, size_t *off,
+			    const unsigned char *data, size_t len)
+{
+	buf[(*off)++] = (unsigned char)((len >> 24) & 0xff);
+	buf[(*off)++] = (unsigned char)((len >> 16) & 0xff);
+	buf[(*off)++] = (unsigned char)((len >> 8) & 0xff);
+	buf[(*off)++] = (unsigned char)(len & 0xff);
+	if (len) {
+		memcpy(buf + *off, data, len);
+		*off += len;
+	}
+}
+
+/* @rfc{7518,4.6.2} Concat KDF (NIST SP 800-56A 5.8.1) with SHA-256. JWE only
+ * ever needs <= 32 octets (one SHA-256 block), so a single round suffices.
+ * OtherInfo = AlgorithmID || PartyUInfo || PartyVInfo || SuppPubInfo, each
+ * length-prefixed; SuppPubInfo is the keydatalen in bits (32-bit BE). */
+static int concat_kdf(const unsigned char *z, size_t z_len,
+		      const char *algid, const unsigned char *apu, size_t apu_len,
+		      const unsigned char *apv, size_t apv_len,
+		      size_t keydatalen, unsigned char *out)
+{
+	unsigned char hash[SHA256_DIGEST_LENGTH];
+	unsigned char *buf;
+	size_t algid_len = strlen(algid);
+	size_t buf_len, off = 0;
+	uint32_t bits = (uint32_t)(keydatalen * 8);
+	EVP_MD_CTX *mdctx = NULL;
+	unsigned char counter[4] = { 0, 0, 0, 1 };
+	unsigned char supppub[4];
+	unsigned int hlen = 0;
+	int ret = 1;
+
+	if (keydatalen > SHA256_DIGEST_LENGTH)
+		return 1; // LCOV_EXCL_LINE
+
+	supppub[0] = (unsigned char)((bits >> 24) & 0xff);
+	supppub[1] = (unsigned char)((bits >> 16) & 0xff);
+	supppub[2] = (unsigned char)((bits >> 8) & 0xff);
+	supppub[3] = (unsigned char)(bits & 0xff);
+
+	/* counter || Z || OtherInfo */
+	buf_len = 4 + z_len + (4 + algid_len) + (4 + apu_len) + (4 + apv_len) + 4;
+	buf = jwt_malloc(buf_len);
+	if (buf == NULL)
+		return 1; // LCOV_EXCL_LINE
+
+	memcpy(buf + off, counter, 4); off += 4;
+	memcpy(buf + off, z, z_len); off += z_len;
+	concat_put_data(buf, &off, (const unsigned char *)algid, algid_len);
+	concat_put_data(buf, &off, apu, apu_len);
+	concat_put_data(buf, &off, apv, apv_len);
+	memcpy(buf + off, supppub, 4); off += 4;
+
+	mdctx = EVP_MD_CTX_new();
+	if (mdctx != NULL &&
+	    EVP_DigestInit_ex(mdctx, EVP_sha256(), NULL) == 1 &&
+	    EVP_DigestUpdate(mdctx, buf, off) == 1 &&
+	    EVP_DigestFinal_ex(mdctx, hash, &hlen) == 1) {
+		memcpy(out, hash, keydatalen);
+		ret = 0;
+	}
+
+	EVP_MD_CTX_free(mdctx);
+	jwt_scrub_and_free(buf, buf_len);
+
+	return ret;
+}
+
+/* Build an "epk" JWK object {kty,crv,x,y} from an EC public EVP_PKEY. */
+static jwt_json_t *epk_to_json(EVP_PKEY *pkey, const char *crv)
+{
+	jwt_json_t *epk = NULL;
+	char_auto *x_b64 = NULL, *y_b64 = NULL;
+	unsigned char *xb = NULL, *yb = NULL;
+	BIGNUM *x = NULL, *y = NULL;
+	size_t fieldlen;
+	int xlen, ylen;
+
+	/* Coordinate size in octets from the curve. */
+	if (!strcmp(crv, "P-256"))
+		fieldlen = 32;
+	else if (!strcmp(crv, "P-384"))
+		fieldlen = 48;
+	else if (!strcmp(crv, "P-521"))
+		fieldlen = 66;
+	else
+		return NULL; // LCOV_EXCL_LINE
+
+	if (EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_EC_PUB_X, &x) != 1 ||
+	    EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_EC_PUB_Y, &y) != 1)
+		goto out; // LCOV_EXCL_LINE
+
+	xb = jwt_malloc(fieldlen);
+	yb = jwt_malloc(fieldlen);
+	if (xb == NULL || yb == NULL)
+		goto out; // LCOV_EXCL_LINE
+
+	/* Left-pad to the fixed field length (BN_bn2binpad). */
+	if (BN_bn2binpad(x, xb, (int)fieldlen) < 0 ||
+	    BN_bn2binpad(y, yb, (int)fieldlen) < 0)
+		goto out; // LCOV_EXCL_LINE
+
+	xlen = jwt_base64uri_encode(&x_b64, (char *)xb, (int)fieldlen);
+	ylen = jwt_base64uri_encode(&y_b64, (char *)yb, (int)fieldlen);
+	if (xlen <= 0 || ylen <= 0)
+		goto out; // LCOV_EXCL_LINE
+
+	epk = jwt_json_create();
+	if (epk == NULL)
+		goto out; // LCOV_EXCL_LINE
+	jwt_json_obj_set(epk, "kty", jwt_json_create_str("EC"));
+	jwt_json_obj_set(epk, "crv", jwt_json_create_str(crv));
+	jwt_json_obj_set(epk, "x", jwt_json_create_str(x_b64));
+	jwt_json_obj_set(epk, "y", jwt_json_create_str(y_b64));
+
+out:
+	BN_free(x);
+	BN_free(y);
+	jwt_freemem(xb);
+	jwt_freemem(yb);
+
+	return epk;
+}
+
+/* Build a public-key EVP_PKEY from an "epk" JWK object. The crv must match
+ * the recipient's. */
+static EVP_PKEY *epk_from_json(jwt_json_t *epk, const char *want_crv)
+{
+	jwt_json_t *jkty, *jcrv, *jx, *jy;
+	const char *kty, *crv, *ossl_crv;
+	unsigned char *xb = NULL, *yb = NULL, *point = NULL;
+	int xlen = 0, ylen = 0;
+	size_t fieldlen, ptlen;
+	EVP_PKEY_CTX *pctx = NULL;
+	OSSL_PARAM_BLD *bld = NULL;
+	OSSL_PARAM *params = NULL;
+	EVP_PKEY *pkey = NULL;
+
+	jkty = jwt_json_obj_get(epk, "kty");
+	jcrv = jwt_json_obj_get(epk, "crv");
+	jx = jwt_json_obj_get(epk, "x");
+	jy = jwt_json_obj_get(epk, "y");
+	if (!jkty || !jcrv || !jx || !jy || !jwt_json_is_string(jkty) ||
+	    !jwt_json_is_string(jcrv) || !jwt_json_is_string(jx) ||
+	    !jwt_json_is_string(jy))
+		return NULL; // LCOV_EXCL_LINE
+
+	kty = jwt_json_str_val(jkty);
+	crv = jwt_json_str_val(jcrv);
+	if (strcmp(kty, "EC") || strcmp(crv, want_crv))
+		return NULL;
+
+	if (!strcmp(crv, "P-256"))
+		{ fieldlen = 32; ossl_crv = "prime256v1"; }
+	else if (!strcmp(crv, "P-384"))
+		{ fieldlen = 48; ossl_crv = "secp384r1"; }
+	else if (!strcmp(crv, "P-521"))
+		{ fieldlen = 66; ossl_crv = "secp521r1"; }
+	else
+		return NULL; // LCOV_EXCL_LINE
+
+	xb = jwt_base64uri_decode(jwt_json_str_val(jx), &xlen);
+	yb = jwt_base64uri_decode(jwt_json_str_val(jy), &ylen);
+	if (xb == NULL || yb == NULL || (size_t)xlen != fieldlen ||
+	    (size_t)ylen != fieldlen)
+		goto out; // LCOV_EXCL_LINE
+
+	/* Uncompressed point: 0x04 || X || Y */
+	ptlen = 1 + fieldlen * 2;
+	point = jwt_malloc(ptlen);
+	if (point == NULL)
+		goto out; // LCOV_EXCL_LINE
+	point[0] = 0x04;
+	memcpy(point + 1, xb, fieldlen);
+	memcpy(point + 1 + fieldlen, yb, fieldlen);
+
+	bld = OSSL_PARAM_BLD_new();
+	if (bld == NULL)
+		goto out; // LCOV_EXCL_LINE
+	OSSL_PARAM_BLD_push_utf8_string(bld, OSSL_PKEY_PARAM_GROUP_NAME,
+					ossl_crv, 0);
+	OSSL_PARAM_BLD_push_octet_string(bld, OSSL_PKEY_PARAM_PUB_KEY,
+					 point, ptlen);
+	params = OSSL_PARAM_BLD_to_param(bld);
+	if (params == NULL)
+		goto out; // LCOV_EXCL_LINE
+
+	pctx = EVP_PKEY_CTX_new_from_name(NULL, "EC", NULL);
+	if (pctx == NULL || EVP_PKEY_fromdata_init(pctx) <= 0 ||
+	    EVP_PKEY_fromdata(pctx, &pkey, EVP_PKEY_PUBLIC_KEY, params) <= 0)
+		pkey = NULL; // LCOV_EXCL_LINE
+
+out:
+	jwt_freemem(xb);
+	jwt_freemem(yb);
+	jwt_freemem(point);
+	OSSL_PARAM_free(params);
+	OSSL_PARAM_BLD_free(bld);
+	EVP_PKEY_CTX_free(pctx);
+
+	return pkey;
+}
+
+/* Raw ECDH shared secret Z between a private and a peer public EVP_PKEY. */
+static int ecdh_z(EVP_PKEY *priv, EVP_PKEY *peer, unsigned char **z,
+		  size_t *z_len)
+{
+	EVP_PKEY_CTX *dctx = EVP_PKEY_CTX_new(priv, NULL);
+	unsigned char *buf = NULL;
+	size_t len = 0;
+	int ret = 1;
+
+	if (dctx == NULL)
+		return 1; // LCOV_EXCL_LINE
+
+	if (EVP_PKEY_derive_init(dctx) <= 0 ||
+	    EVP_PKEY_derive_set_peer(dctx, peer) <= 0 ||
+	    EVP_PKEY_derive(dctx, NULL, &len) <= 0)
+		goto out; // LCOV_EXCL_LINE
+
+	buf = jwt_malloc(len);
+	if (buf == NULL)
+		goto out; // LCOV_EXCL_LINE
+
+	if (EVP_PKEY_derive(dctx, buf, &len) <= 0)
+		goto out; // LCOV_EXCL_LINE
+
+	*z = buf;
+	*z_len = len;
+	buf = NULL;
+	ret = 0;
+
+out:
+	jwt_scrub_and_free(buf, len);
+	EVP_PKEY_CTX_free(dctx);
+
+	return ret;
+}
+
+/* @rfc{7518,4.6} ECDH-ES key agreement. On encrypt (for_encrypt=1) an
+ * ephemeral keypair is generated on the recipient's curve, the "epk" public
+ * half is written to @hdr, and the agreed key is derived. On decrypt the
+ * "epk" is read from @hdr. @apu/@apv (base64url) are read from @hdr if
+ * present. The derived key (CEK for ECDH-ES, KEK for ECDH-ES+A*KW) is
+ * returned in @dk. */
+int openssl_ecdh_derive(jwe_key_alg_t alg, jwe_enc_t enc,
+			const jwk_item_t *key, int for_encrypt, jwt_json_t *hdr,
+			unsigned char **dk, size_t *dk_len)
+{
+	EVP_PKEY *stat = (EVP_PKEY *)key->provider_data;
+	EVP_PKEY *eph = NULL, *peer = NULL;
+	EVP_PKEY_CTX *gctx = NULL;
+	unsigned char *z = NULL, *apu = NULL, *apv = NULL, *out = NULL;
+	int apu_len = 0, apv_len = 0;
+	size_t z_len = 0, keydatalen = 0;
+	const char *algid = NULL;
+	const char *crv = key->curve;
+	jwt_json_t *japu, *japv, *jepk;
+	int ret = 1;
+
+	if (stat == NULL || crv[0] == '\0')
+		return 1; // LCOV_EXCL_LINE
+
+	if (ecdh_keydatalen(alg, enc, &keydatalen, &algid))
+		return 1; // LCOV_EXCL_LINE
+
+	out = jwt_malloc(keydatalen);
+	if (out == NULL)
+		goto out; // LCOV_EXCL_LINE
+
+	if (for_encrypt) {
+		const char *ossl_crv = crv;
+
+		if (!strcmp(crv, "P-256")) ossl_crv = "prime256v1";
+		else if (!strcmp(crv, "P-384")) ossl_crv = "secp384r1";
+		else if (!strcmp(crv, "P-521")) ossl_crv = "secp521r1";
+		else goto out;
+
+		/* Ephemeral keypair on the recipient's curve. */
+		gctx = EVP_PKEY_CTX_new_from_name(NULL, "EC", NULL);
+		if (gctx == NULL || EVP_PKEY_keygen_init(gctx) <= 0)
+			goto out; // LCOV_EXCL_LINE
+		if (EVP_PKEY_CTX_set_group_name(gctx, ossl_crv) <= 0)
+			goto out; // LCOV_EXCL_LINE
+		if (EVP_PKEY_keygen(gctx, &eph) <= 0)
+			goto out; // LCOV_EXCL_LINE
+
+		/* Z = ECDH(eph_priv, recipient_pub). */
+		if (ecdh_z(eph, stat, &z, &z_len))
+			goto out; // LCOV_EXCL_LINE
+
+		/* Emit the epk public half in the header. */
+		jepk = epk_to_json(eph, crv);
+		if (jepk == NULL)
+			goto out; // LCOV_EXCL_LINE
+		jwt_json_obj_set(hdr, "epk", jepk);
+	} else {
+		jepk = jwt_json_obj_get(hdr, "epk");
+		if (jepk == NULL)
+			goto out;
+		peer = epk_from_json(jepk, crv);
+		if (peer == NULL)
+			goto out;
+		/* Z = ECDH(recipient_priv, eph_pub). */
+		if (ecdh_z(stat, peer, &z, &z_len))
+			goto out; // LCOV_EXCL_LINE
+	}
+
+	/* apu/apv (optional PartyU/PartyV info) — fed to the Concat KDF as-is.
+	 * The builder does not emit them yet, so the decode bodies are only
+	 * reachable once apu/apv emission is added. */
+	japu = jwt_json_obj_get(hdr, "apu");
+	if (japu && jwt_json_is_string(japu)) // LCOV_EXCL_LINE
+		apu = jwt_base64uri_decode(jwt_json_str_val(japu), &apu_len); // LCOV_EXCL_LINE
+	japv = jwt_json_obj_get(hdr, "apv");
+	if (japv && jwt_json_is_string(japv)) // LCOV_EXCL_LINE
+		apv = jwt_base64uri_decode(jwt_json_str_val(japv), &apv_len); // LCOV_EXCL_LINE
+
+	if (concat_kdf(z, z_len, algid, apu, apu_len < 0 ? 0 : (size_t)apu_len,
+		       apv, apv_len < 0 ? 0 : (size_t)apv_len, keydatalen, out))
+		goto out; // LCOV_EXCL_LINE
+
+	*dk = out;
+	*dk_len = keydatalen;
+	out = NULL;
+	ret = 0;
+
+out:
+	jwt_scrub_and_free(z, z_len);
+	jwt_freemem(apu);
+	jwt_freemem(apv);
+	jwt_scrub_and_free(out, keydatalen);
+	EVP_PKEY_free(eph);
+	EVP_PKEY_free(peer);
+	EVP_PKEY_CTX_free(gctx);
 
 	return ret;
 }
