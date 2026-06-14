@@ -335,3 +335,64 @@ const char *jwe_key_usage_check(const jwk_item_t *key, jwe_key_alg_t alg,
 
 	return NULL;
 }
+
+/* @rfc{7516,7.2.1} Return the first recipient, or NULL if the list is empty.
+ * The Compact and Flattened serializations only ever have this one; the
+ * General serialization iterates the list directly. */
+struct jwe_recipient *jwe_recipient_first(struct jwe_common *cmd)
+{
+	if (cmd == NULL || cmd->recipients.next == &cmd->recipients)
+		return NULL;
+
+	return list_first_entry(&cmd->recipients, struct jwe_recipient, node);
+}
+
+/* Allocate and tail-append an empty recipient. Returns NULL on OOM. */
+struct jwe_recipient *jwe_recipient_append(struct jwe_common *cmd)
+{
+	struct jwe_recipient *r;
+
+	if (cmd == NULL)
+		return NULL; // LCOV_EXCL_LINE
+
+	r = jwt_malloc(sizeof(*r));
+	if (r == NULL)
+		return NULL; // LCOV_EXCL_LINE
+
+	memset(r, 0, sizeof(*r));
+	list_add_tail(&r->node, &cmd->recipients);
+	cmd->n_recipients++;
+
+	return r;
+}
+
+/* Return the first recipient, creating an empty one if the list is empty. Used
+ * by the legacy single-key setkey path so repeated setkey() calls update one
+ * recipient rather than appending. */
+struct jwe_recipient *jwe_recipient_first_or_add(struct jwe_common *cmd)
+{
+	struct jwe_recipient *r;
+
+	if (cmd == NULL)
+		return NULL; // LCOV_EXCL_LINE
+
+	r = jwe_recipient_first(cmd);
+	if (r != NULL)
+		return r;
+
+	return jwe_recipient_append(cmd);
+}
+
+/* Free a single recipient and the members it owns. Does not unlink it; the
+ * caller (FUNC(free)) drains the whole list. */
+void jwe_recipient_free(struct jwe_recipient *r)
+{
+	if (r == NULL)
+		return; // LCOV_EXCL_LINE
+
+	jwt_scrub_and_free(r->enckey, r->enckey_len);
+	jwt_freemem(r->apu);
+	jwt_freemem(r->apv);
+	jwt_json_release(r->header);
+	jwt_freemem(r);
+}
