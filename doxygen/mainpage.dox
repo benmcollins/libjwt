@@ -59,16 +59,17 @@ JWE key management ``alg``    | OpenSSL                   | GnuTLS              
 ``dir``                       | \emoji :white_check_mark: | \emoji :white_check_mark: | \emoji :x:
 ``A128KW`` ``A192KW`` ``A256KW`` | \emoji :white_check_mark: | \emoji :white_check_mark: | \emoji :x:
 ``RSA-OAEP`` ``RSA-OAEP-256`` | \emoji :white_check_mark: | \emoji :white_check_mark: | \emoji :x:
-``ECDH-ES`` (Direct, P-256/384/521) | \emoji :white_check_mark: | \emoji :white_check_mark: | \emoji :x:
+``ECDH-ES`` (+ ``+A128KW``/``+A192KW``/``+A256KW``) | \emoji :white_check_mark: | \emoji :white_check_mark: | \emoji :x:
 
 JWE content encryption ``enc`` | OpenSSL                   | GnuTLS                    | MbedTLS
 :----------------------------- | :------------------------ | :------------------------ | :--------------
 ``A128GCM`` ``A192GCM`` ``A256GCM`` | \emoji :white_check_mark: | \emoji :white_check_mark: | \emoji :x:
 ``A128CBC-HS256`` ``A192CBC-HS384`` ``A256CBC-HS512`` | \emoji :white_check_mark: | \emoji :white_check_mark: | \emoji :x:
 
-@note ``RSA1_5`` and ``zip`` are intentionally not supported. ``ECDH-ES`` is
-supported in Direct Key Agreement mode; the ``+A*KW`` variants and the
-X25519/X448 curves are planned for a later release.
+@note ``ECDH-ES`` supports both Direct Key Agreement and ``+A*KW`` key
+wrapping, on the EC curves P-256/384/521 and the OKP curves X25519/X448, with
+optional ``apu``/``apv`` PartyInfo. ``RSA1_5`` and ``zip`` are intentionally
+not supported.
 
 @subsection optional Optional
 

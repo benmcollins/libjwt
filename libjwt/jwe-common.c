@@ -37,6 +37,8 @@ void FUNC(free)(jwe_common_t *__cmd)
 	jwt_freemem(__cmd->c.iv);
 	jwt_freemem(__cmd->c.ct);
 	jwt_freemem(__cmd->c.tag);
+	jwt_freemem(__cmd->c.apu);
+	jwt_freemem(__cmd->c.apv);
 
 	memset(__cmd, 0, sizeof(*__cmd));
 
@@ -135,6 +137,43 @@ int FUNC(setkey)(jwe_common_t *__cmd, jwe_key_alg_t alg, jwe_enc_t enc,
 }
 
 #ifdef JWE_BUILDER
+/* @rfc{7518,4.6.2} Store apu/apv as base64url for emission in the header and
+ * binding into the Concat KDF. NULL/0 leaves a field unset; calling again
+ * replaces previous values. */
+int FUNC(set_partyinfo)(jwe_common_t *__cmd,
+			const unsigned char *apu, size_t apu_len,
+			const unsigned char *apv, size_t apv_len)
+{
+	char *apu_b64 = NULL, *apv_b64 = NULL;
+
+	if (__cmd == NULL)
+		return 1;
+
+	if (apu && apu_len &&
+	    jwt_base64uri_encode(&apu_b64, (const char *)apu, (int)apu_len) <= 0)
+		goto oom; // LCOV_EXCL_LINE
+	if (apv && apv_len &&
+	    jwt_base64uri_encode(&apv_b64, (const char *)apv, (int)apv_len) <= 0)
+		goto oom; // LCOV_EXCL_LINE
+
+	jwt_freemem(__cmd->c.apu);
+	jwt_freemem(__cmd->c.apv);
+	__cmd->c.apu = apu_b64;
+	__cmd->c.apv = apv_b64;
+
+	return 0;
+
+	// LCOV_EXCL_START
+oom:
+	jwt_freemem(apu_b64);
+	jwt_freemem(apv_b64);
+	jwt_write_error(__cmd, "Error encoding apu/apv");
+	return 1;
+	// LCOV_EXCL_STOP
+}
+#endif
+
+#ifdef JWE_BUILDER
 /* @rfc{7516,5.1} Encrypt @plaintext into a Compact Serialization JWE. This
  * stage implements the dir + AES-GCM path. */
 char *FUNC(generate)(jwe_common_t *__cmd, const unsigned char *plaintext,
@@ -173,6 +212,20 @@ char *FUNC(generate)(jwe_common_t *__cmd, const unsigned char *plaintext,
 			     jwt_json_create_str(jwe_enc_str(__cmd->c.enc)))) {
 		jwt_write_error(__cmd, "Error building JWE header"); // LCOV_EXCL_LINE
 		return NULL; // LCOV_EXCL_LINE
+	}
+
+	/* @rfc{7518,4.6.2} For ECDH-ES, emit any apu/apv into the header before
+	 * the key agreement runs, so they are bound into the Concat KDF (and,
+	 * being part of the protected header, into the AAD). */
+	if (jwe_alg_is_ecdh(__cmd->c.key_alg)) {
+		if (__cmd->c.apu &&
+		    jwt_json_obj_set(hdr, "apu",
+				     jwt_json_create_str(__cmd->c.apu)))
+			goto oom; // LCOV_EXCL_LINE
+		if (__cmd->c.apv &&
+		    jwt_json_obj_set(hdr, "apv",
+				     jwt_json_create_str(__cmd->c.apv)))
+			goto oom; // LCOV_EXCL_LINE
 	}
 
 	/* @rfc{7518,4.6} ECDH-ES (Direct): derive the CEK and add the "epk"

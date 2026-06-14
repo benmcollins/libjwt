@@ -110,6 +110,11 @@ struct jwe_common {
 	jwt_callback_t cb;
 	void *cb_ctx;
 
+	/* @rfc{7518,4.6.2} Optional ECDH-ES PartyUInfo/PartyVInfo, stored as
+	 * the base64url strings emitted in the "apu"/"apv" headers. */
+	char *apu;
+	char *apv;
+
 	/* The five JWE Compact Serialization components, populated during
 	 * encrypt (builder) or decrypt (checker). Owned by this struct. */
 	unsigned char *cek;	/* Content Encryption Key			*/
