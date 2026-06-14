@@ -402,24 +402,19 @@ static const EVP_CIPHER *kw_cipher(size_t key_len)
 	}
 }
 
-/* @rfc{7518,4.4} AES Key Wrap (RFC 3394) of the CEK. The wrapped output is
- * cek_len + 8 octets. */
-int openssl_wrap_aes_kw(const jwk_item_t *key, const unsigned char *cek,
-			size_t cek_len, unsigned char **out, size_t *out_len)
+/* @rfc{7518,4.4} AES Key Wrap (RFC 3394) with a raw KEK. The wrapped output
+ * is in_len + 8 octets. */
+static int kw_wrap_raw(const unsigned char *kek, size_t kek_len,
+		       const unsigned char *in, size_t in_len,
+		       unsigned char **out, size_t *out_len)
 {
-	const unsigned char *kek;
-	size_t kek_len = 0;
-	const EVP_CIPHER *cipher;
+	const EVP_CIPHER *cipher = kw_cipher(kek_len);
 	EVP_CIPHER_CTX *ctx = NULL;
 	unsigned char *buf = NULL;
 	int len, ret = 1;
 
-	if (jwks_item_key_oct(key, &kek, &kek_len))
-		return 1; // LCOV_EXCL_LINE
-
-	cipher = kw_cipher(kek_len);
-	/* AES-KW requires the CEK to be a multiple of 8 and at least 16. */
-	if (cipher == NULL || cek_len < 16 || (cek_len % 8) != 0)
+	/* AES-KW requires the wrapped data to be a multiple of 8 and >= 16. */
+	if (cipher == NULL || in_len < 16 || (in_len % 8) != 0)
 		return 1; // LCOV_EXCL_LINE
 
 	ctx = EVP_CIPHER_CTX_new();
@@ -428,13 +423,13 @@ int openssl_wrap_aes_kw(const jwk_item_t *key, const unsigned char *cek,
 	/* OpenSSL refuses wrap ciphers unless this flag is set. */
 	EVP_CIPHER_CTX_set_flags(ctx, EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
 
-	buf = jwt_malloc(cek_len + 8);
+	buf = jwt_malloc(in_len + 8);
 	if (buf == NULL)
 		goto out; // LCOV_EXCL_LINE
 
 	if (EVP_EncryptInit_ex(ctx, cipher, NULL, kek, NULL) != 1)
 		goto out; // LCOV_EXCL_LINE
-	if (EVP_EncryptUpdate(ctx, buf, &len, cek, (int)cek_len) != 1)
+	if (EVP_EncryptUpdate(ctx, buf, &len, in, (int)in_len) != 1)
 		goto out; // LCOV_EXCL_LINE
 
 	*out = buf;
@@ -449,22 +444,16 @@ out:
 	return ret;
 }
 
-/* @rfc{7518,4.4} AES Key Unwrap (RFC 3394). A failure here includes the
- * built-in integrity check failing (wrong KEK or tampered wrapped key). */
-int openssl_unwrap_aes_kw(const jwk_item_t *key, const unsigned char *in,
-			  size_t in_len, unsigned char **cek, size_t *cek_len)
+/* @rfc{7518,4.4} AES Key Unwrap (RFC 3394) with a raw KEK. */
+static int kw_unwrap_raw(const unsigned char *kek, size_t kek_len,
+			 const unsigned char *in, size_t in_len,
+			 unsigned char **out, size_t *out_len)
 {
-	const unsigned char *kek;
-	size_t kek_len = 0;
-	const EVP_CIPHER *cipher;
+	const EVP_CIPHER *cipher = kw_cipher(kek_len);
 	EVP_CIPHER_CTX *ctx = NULL;
 	unsigned char *buf = NULL;
 	int len, ret = 1;
 
-	if (jwks_item_key_oct(key, &kek, &kek_len))
-		return 1; // LCOV_EXCL_LINE
-
-	cipher = kw_cipher(kek_len);
 	if (cipher == NULL || in_len < 24 || (in_len % 8) != 0)
 		return 1;
 
@@ -483,16 +472,58 @@ int openssl_unwrap_aes_kw(const jwk_item_t *key, const unsigned char *in,
 	if (EVP_DecryptUpdate(ctx, buf, &len, in, (int)in_len) != 1)
 		goto out;
 
-	*cek = buf;
-	*cek_len = len;
+	*out = buf;
+	*out_len = len;
 	buf = NULL;
 	ret = 0;
 
 out:
-	jwt_scrub_and_free(buf, in_len);
+	jwt_freemem(buf);
 	EVP_CIPHER_CTX_free(ctx);
 
 	return ret;
+}
+
+/* @rfc{7518,4.4} AES Key Wrap of the CEK with the recipient's oct key. */
+int openssl_wrap_aes_kw(const jwk_item_t *key, const unsigned char *cek,
+			size_t cek_len, unsigned char **out, size_t *out_len)
+{
+	const unsigned char *kek;
+	size_t kek_len = 0;
+
+	if (jwks_item_key_oct(key, &kek, &kek_len))
+		return 1; // LCOV_EXCL_LINE
+
+	return kw_wrap_raw(kek, kek_len, cek, cek_len, out, out_len);
+}
+
+/* @rfc{7518,4.4} AES Key Unwrap with the recipient's oct key. */
+int openssl_unwrap_aes_kw(const jwk_item_t *key, const unsigned char *in,
+			  size_t in_len, unsigned char **cek, size_t *cek_len)
+{
+	const unsigned char *kek;
+	size_t kek_len = 0;
+
+	if (jwks_item_key_oct(key, &kek, &kek_len))
+		return 1; // LCOV_EXCL_LINE
+
+	return kw_unwrap_raw(kek, kek_len, in, in_len, cek, cek_len);
+}
+
+/* @rfc{7518,4.4} AES Key Wrap / Unwrap with a raw KEK (used by ECDH-ES+A*KW,
+ * where the KEK is the agreed key rather than a JWK). */
+int openssl_wrap_aes_kw_raw(const unsigned char *kek, size_t kek_len,
+			    const unsigned char *cek, size_t cek_len,
+			    unsigned char **out, size_t *out_len)
+{
+	return kw_wrap_raw(kek, kek_len, cek, cek_len, out, out_len);
+}
+
+int openssl_unwrap_aes_kw_raw(const unsigned char *kek, size_t kek_len,
+			      const unsigned char *in, size_t in_len,
+			      unsigned char **cek, size_t *cek_len)
+{
+	return kw_unwrap_raw(kek, kek_len, in, in_len, cek, cek_len);
 }
 
 /* Configure an RSA-OAEP EVP_PKEY_CTX for the given JWE alg. RSA-OAEP uses
@@ -619,17 +650,20 @@ static int ecdh_keydatalen(jwe_key_alg_t alg, jwe_enc_t enc,
 {
 	switch (alg) {
 	case JWE_ALG_ECDH_ES:
+		/* Direct: the AlgorithmID is "enc" and the agreed key is the
+		 * CEK of the content algorithm's length. */
 		*len = jwe_enc_cek_len(enc);
 		*algid = jwe_enc_str(enc);
 		return (*len && *algid) ? 0 : 1;
-	// LCOV_EXCL_START
-	/* ECDH-ES+A*KW reach here only once key wrapping is wired up. */
+	/* +A*KW: the AlgorithmID is "alg" and the agreed key is the KEK that
+	 * wraps the CEK (the AES key size of the named wrap). */
 	case JWE_ALG_ECDH_ES_A128KW:
 		*len = 16; *algid = jwe_alg_str(alg); return 0;
 	case JWE_ALG_ECDH_ES_A192KW:
 		*len = 24; *algid = jwe_alg_str(alg); return 0;
 	case JWE_ALG_ECDH_ES_A256KW:
 		*len = 32; *algid = jwe_alg_str(alg); return 0;
+	// LCOV_EXCL_START
 	default:
 		return 1;
 	// LCOV_EXCL_STOP

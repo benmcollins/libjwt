@@ -179,17 +179,39 @@ char *FUNC(generate)(jwe_common_t *__cmd, const unsigned char *plaintext,
 	 * to the header BEFORE it is serialized, since the header bytes are
 	 * the AAD. The Encrypted Key stays empty (like dir). */
 	if (jwe_alg_is_ecdh(__cmd->c.key_alg)) {
-		if (!jwe_alg_is_ecdh_direct(__cmd->c.key_alg)) {
-			jwt_write_error(__cmd,
-				"ECDH-ES key wrapping not yet supported");
-			return NULL;
-		}
+		/* @rfc{7518,4.6} Derive the agreed key and emit "epk" while the
+		 * header object can still be modified. For Direct mode the
+		 * agreed key is the CEK; for +A*KW it is the KEK. */
+		unsigned char *agreed = NULL;
+		size_t agreed_len = 0;
+
 		if (jwe_ecdh_derive(__cmd->c.key_alg, __cmd->c.enc,
-				    __cmd->c.key, 1, hdr, &cek, &cek_len)) {
-			// LCOV_EXCL_START
+				    __cmd->c.key, 1, hdr, &agreed, &agreed_len)) {
 			jwt_write_error(__cmd, "ECDH-ES key agreement failed");
 			return NULL;
-			// LCOV_EXCL_STOP
+		}
+
+		if (jwe_alg_is_ecdh_direct(__cmd->c.key_alg)) {
+			cek = agreed;
+			cek_len = agreed_len;
+		} else {
+			/* +A*KW: wrap a fresh CEK with the agreed KEK. */
+			int werr;
+
+			if (jwe_generate_cek(__cmd->c.enc, &cek, &cek_len)) {
+				// LCOV_EXCL_START
+				jwt_scrub_and_free(agreed, agreed_len);
+				jwt_write_error(__cmd, "Could not generate CEK");
+				return NULL;
+				// LCOV_EXCL_STOP
+			}
+			werr = jwe_aeskw_wrap_raw(agreed, agreed_len, cek,
+						 cek_len, &enckey, &enckey_len);
+			jwt_scrub_and_free(agreed, agreed_len);
+			if (werr) {
+				jwt_write_error(__cmd, "ECDH-ES key wrap failed"); // LCOV_EXCL_LINE
+				goto fail; // LCOV_EXCL_LINE
+			}
 		}
 	}
 
@@ -204,8 +226,8 @@ char *FUNC(generate)(jwe_common_t *__cmd, const unsigned char *plaintext,
 	/* @rfc{7516,5.1} Produce the CEK and the JWE Encrypted Key per the key
 	 * management algorithm. */
 	if (jwe_alg_is_ecdh(__cmd->c.key_alg)) {
-		/* ECDH-ES (Direct): CEK already derived above; Encrypted Key
-		 * is empty. */
+		/* ECDH-ES: the CEK (Direct) or CEK+Encrypted Key (+A*KW) was
+		 * already produced above, before the header was serialized. */
 	} else if (__cmd->c.key_alg == JWE_ALG_DIR) {
 		/* dir: the CEK is the shared symmetric key; Encrypted Key is
 		 * empty. */
@@ -410,27 +432,61 @@ unsigned char *FUNC(decrypt)(jwe_common_t *__cmd, const char *token,
 
 	/* @rfc{7516,5.2} CEK per the key management algorithm. */
 	if (jwe_alg_is_ecdh(alg)) {
-		/* @rfc{7518,4.6} ECDH-ES (Direct): derive the CEK from the
-		 * recipient private key and the header's "epk". Encrypted Key
-		 * is empty. */
-		if (!jwe_alg_is_ecdh_direct(alg)) {
-			jwt_write_error(__cmd,
-				"ECDH-ES key wrapping not yet supported");
-			return NULL;
-		}
-		if (*p_ek != '\0') {
+		/* @rfc{7518,4.6} Derive the agreed key from the recipient
+		 * private key and the header's "epk". */
+		unsigned char *agreed = NULL;
+		size_t agreed_len = 0, need = jwe_enc_cek_len(enc);
+
+		if (jwe_alg_is_ecdh_direct(alg) && *p_ek != '\0') {
 			jwt_write_error(__cmd,
 				"ECDH-ES (Direct) must have an empty Encrypted Key");
 			return NULL;
 		}
+		if (!jwe_alg_is_ecdh_direct(alg) && *p_ek == '\0') {
+			jwt_write_error(__cmd,
+				"ECDH-ES+A*KW requires an Encrypted Key");
+			return NULL;
+		}
+
+		/* A failed agreement (bad/missing epk, curve mismatch) is a
+		 * structural error, not a key-recovery oracle. */
 		if (jwe_ecdh_derive(alg, enc, __cmd->c.key, 0, hdr,
-				    &cek, &cek_len)) {
+				    &agreed, &agreed_len)) {
 			jwt_write_error(__cmd, "ECDH-ES key agreement failed");
 			goto fail;
 		}
-		if (cek_len != jwe_enc_cek_len(enc)) {
-			jwt_write_error(__cmd, "Derived CEK length wrong"); // LCOV_EXCL_LINE
-			goto fail; // LCOV_EXCL_LINE
+
+		if (jwe_alg_is_ecdh_direct(alg)) {
+			cek = agreed;
+			cek_len = agreed_len;
+			if (cek_len != need) {
+				jwt_write_error(__cmd, "Derived CEK length wrong"); // LCOV_EXCL_LINE
+				goto fail; // LCOV_EXCL_LINE
+			}
+		} else {
+			/* +A*KW: unwrap the CEK with the agreed KEK. @rfc{7516,11.5}
+			 * On any unwrap failure, substitute a random CEK and let
+			 * the AEAD tag fail uniformly. */
+			int bad = 0;
+
+			enckey = jwt_base64uri_decode(p_ek, &ek_len);
+			if (enckey == NULL || ek_len <= 0)
+				bad = 1;
+			else if (jwe_aeskw_unwrap_raw(agreed, agreed_len, enckey,
+						      ek_len, &cek, &cek_len))
+				bad = 1;
+			else if (cek_len != need)
+				bad = 1; // LCOV_EXCL_LINE
+
+			jwt_scrub_and_free(agreed, agreed_len);
+
+			if (bad) {
+				jwt_scrub_and_free(cek, cek_len);
+				cek = NULL;
+				cek_len = 0;
+				if (jwe_generate_cek(enc, &cek, &cek_len))
+					goto oom; // LCOV_EXCL_LINE
+			}
 		}
 	} else if (alg == JWE_ALG_DIR) {
 		size_t need = jwe_enc_cek_len(enc);
