@@ -8,6 +8,25 @@
 
 #include "jwt_tests.h"
 
+#ifdef HAVE_GNUTLS
+#include <gnutls/gnutls.h>
+#endif
+
+/* GnuTLS parses JWKs natively only from 3.8.4; older GnuTLS delegates parsing
+ * to OpenSSL. secp256k1 (ES256K) is rejected only by the native GnuTLS parser
+ * (GnuTLS has no such curve) — under the OpenSSL fallback it parses fine. So a
+ * test that expects ES256K rejection must check for native GnuTLS, not just the
+ * GnuTLS backend. */
+static int gnutls_native_jwk(jwt_crypto_provider_t type)
+{
+#if defined(HAVE_GNUTLS) && GNUTLS_VERSION_NUMBER >= 0x030804
+	return type == JWT_CRYPTO_OPS_GNUTLS;
+#else
+	(void)type;
+	return 0;
+#endif
+}
+
 START_TEST(test_jwks_keyring_load)
 {
 	const jwk_item_t *item;
@@ -26,10 +45,11 @@ START_TEST(test_jwks_keyring_load)
 		alg = jwks_item_alg(item);
 
 		/* GnuTLS has no secp256k1 (ES256K) curve, so its native JWK
-		 * parser rejects such keys; every other backend parses them.
-		 * Skip the ES256K keys when running under GnuTLS. */
+		 * parser rejects such keys; every other backend (and older
+		 * GnuTLS, which delegates parsing to OpenSSL) parses them. Skip
+		 * the ES256K keys only under native GnuTLS parsing. */
 		if (alg == JWT_ALG_ES256K &&
-		    jwt_test_ops[_i].type == JWT_CRYPTO_OPS_GNUTLS)
+		    gnutls_native_jwk(jwt_test_ops[_i].type))
 			continue;
 
 		if (jwks_item_error(item)) {
@@ -88,11 +108,12 @@ START_TEST(test_jwks_keyring_load)
 	i = jwks_item_count(g_jwk_set);
 	ck_assert_int_eq(i, 26);
 
-	/* GnuTLS has no secp256k1 curve, so the remaining secp256k1 key (index
-	 * 2) was rejected at parse and is freed here; every other backend parses
-	 * it, leaving no bad keys. */
+	/* Native GnuTLS has no secp256k1 curve, so the remaining secp256k1 key
+	 * (index 2) was rejected at parse and is freed here; every other backend
+	 * (and older GnuTLS via the OpenSSL fallback) parses it, leaving no bad
+	 * keys. */
 	i = jwks_item_free_bad(g_jwk_set);
-	if (jwt_test_ops[_i].type == JWT_CRYPTO_OPS_GNUTLS) {
+	if (gnutls_native_jwk(jwt_test_ops[_i].type)) {
 		ck_assert_int_eq(i, 1);
 		ck_assert_int_eq(jwks_item_count(g_jwk_set), 25);
 	} else {
