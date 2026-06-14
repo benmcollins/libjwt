@@ -1066,14 +1066,13 @@ int openssl_ecdh_derive(jwe_key_alg_t alg, jwe_enc_t enc,
 	}
 
 	/* apu/apv (optional PartyU/PartyV info) — fed to the Concat KDF as-is.
-	 * The builder does not emit them yet, so the decode bodies are only
-	 * reachable once apu/apv emission is added. */
+	 * (the builder emits them via jwe_builder_set_partyinfo). */
 	japu = jwt_json_obj_get(hdr, "apu");
-	if (japu && jwt_json_is_string(japu)) // LCOV_EXCL_LINE
-		apu = jwt_base64uri_decode(jwt_json_str_val(japu), &apu_len); // LCOV_EXCL_LINE
+	if (japu && jwt_json_is_string(japu))
+		apu = jwt_base64uri_decode(jwt_json_str_val(japu), &apu_len);
 	japv = jwt_json_obj_get(hdr, "apv");
-	if (japv && jwt_json_is_string(japv)) // LCOV_EXCL_LINE
-		apv = jwt_base64uri_decode(jwt_json_str_val(japv), &apv_len); // LCOV_EXCL_LINE
+	if (japv && jwt_json_is_string(japv))
+		apv = jwt_base64uri_decode(jwt_json_str_val(japv), &apv_len);
 
 	if (concat_kdf(z, z_len, algid, apu, apu_len < 0 ? 0 : (size_t)apu_len,
 		       apv, apv_len < 0 ? 0 : (size_t)apv_len, keydatalen, out))

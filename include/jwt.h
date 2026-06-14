@@ -1464,6 +1464,27 @@ int jwe_builder_setkey(jwe_builder_t *builder, jwe_key_alg_t alg,
 		       jwe_enc_t enc, const jwk_item_t *key);
 
 /**
+ * @brief Set the ECDH-ES PartyUInfo / PartyVInfo
+ *
+ * For ECDH-ES key agreement (@ref JWE_ALG_ECDH_ES and the ``+A*KW``
+ * variants), these optional octet strings are bound into the Concat KDF and
+ * emitted as the ``"apu"`` and ``"apv"`` header parameters. They have no
+ * effect for non-ECDH-ES algorithms. Pass NULL (with length 0) to leave one
+ * unset. Calling this again replaces any previous values.
+ *
+ * @param builder Pointer to a JWE builder object
+ * @param apu PartyUInfo octets, or NULL
+ * @param apu_len Length of @p apu in bytes
+ * @param apv PartyVInfo octets, or NULL
+ * @param apv_len Length of @p apv in bytes
+ * @return 0 on success, non-zero otherwise with error set in the builder
+ */
+JWT_EXPORT
+int jwe_builder_set_partyinfo(jwe_builder_t *builder,
+			      const unsigned char *apu, size_t apu_len,
+			      const unsigned char *apv, size_t apv_len);
+
+/**
  * @brief Encrypt a plaintext into a Compact Serialization JWE
  *
  * Produces a five-part JWE using the key and algorithms configured with

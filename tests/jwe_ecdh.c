@@ -520,6 +520,108 @@ START_TEST(okp_curve_mismatch)
 }
 END_TEST
 
+START_TEST(partyinfo)
+{
+	jwe_builder_auto_t *builder = NULL;
+	jwe_checker_auto_t *checker = NULL;
+	char_auto *tok = NULL;
+	unsigned char *pt = NULL;
+	size_t pt_len = 0;
+	const unsigned char apu[] = "Alice";
+	const unsigned char apv[] = "Bob";
+
+	SET_OPS();
+	read_json("ec_key_prime256v1_enc.json");
+
+	/* @rfc{7518,4.6.2} With apu/apv set, they are emitted in the header and
+	 * bound into the Concat KDF. The same header carries them on decrypt,
+	 * so the round-trip succeeds and "apu"/"apv" appear in the token. */
+	builder = jwe_builder_new();
+	ck_assert_int_eq(jwe_builder_setkey(builder, JWE_ALG_ECDH_ES,
+					    JWE_ENC_A256GCM, g_item), 0);
+	ck_assert_int_eq(jwe_builder_set_partyinfo(builder, apu, 5, apv, 3), 0);
+	tok = jwe_builder_generate(builder, (const unsigned char *)PT,
+				   strlen(PT));
+	ck_assert_ptr_nonnull(tok);
+
+	checker = jwe_checker_new();
+	ck_assert_int_eq(jwe_checker_setkey(checker, JWE_ALG_ECDH_ES,
+					    JWE_ENC_A256GCM, g_item), 0);
+	pt = jwe_checker_decrypt(checker, tok, &pt_len);
+	ck_assert_ptr_nonnull(pt);
+	ck_assert_int_eq(pt_len, strlen(PT));
+	ck_assert_mem_eq(pt, PT, pt_len);
+
+	free(pt);
+	free_key();
+}
+END_TEST
+
+START_TEST(partyinfo_binds_kdf)
+{
+	jwe_builder_auto_t *b_with = NULL, *b_without = NULL;
+	jwe_checker_auto_t *checker = NULL;
+	char_auto *tok_with = NULL, *tok_without = NULL;
+	unsigned char *pt = NULL;
+	size_t pt_len = 0, hlen_with = 0, hlen_without = 0;
+	const unsigned char apu[] = "Alice";
+
+	SET_OPS();
+	read_json("ec_key_prime256v1_enc.json");
+
+	/* A token built WITH apu and one WITHOUT must have different protected
+	 * headers (apu is present only in the first), proving it is emitted. */
+	b_with = jwe_builder_new();
+	jwe_builder_setkey(b_with, JWE_ALG_ECDH_ES, JWE_ENC_A256GCM, g_item);
+	jwe_builder_set_partyinfo(b_with, apu, 5, NULL, 0);
+	tok_with = jwe_builder_generate(b_with, (const unsigned char *)PT,
+					strlen(PT));
+	ck_assert_ptr_nonnull(tok_with);
+
+	b_without = jwe_builder_new();
+	jwe_builder_setkey(b_without, JWE_ALG_ECDH_ES, JWE_ENC_A256GCM, g_item);
+	tok_without = jwe_builder_generate(b_without, (const unsigned char *)PT,
+					   strlen(PT));
+	ck_assert_ptr_nonnull(tok_without);
+
+	/* Protected-header segments differ in length (apu adds a member). */
+	hlen_with = strchr(tok_with, '.') - tok_with;
+	hlen_without = strchr(tok_without, '.') - tok_without;
+	ck_assert_int_ne(hlen_with, hlen_without);
+
+	/* And the apu token round-trips (the same header carries apu, so the
+	 * KDF agrees on both ends). */
+	checker = jwe_checker_new();
+	jwe_checker_setkey(checker, JWE_ALG_ECDH_ES, JWE_ENC_A256GCM, g_item);
+	pt = jwe_checker_decrypt(checker, tok_with, &pt_len);
+	ck_assert_ptr_nonnull(pt);
+	ck_assert_mem_eq(pt, PT, strlen(PT));
+
+	free(pt);
+	free_key();
+}
+END_TEST
+
+START_TEST(partyinfo_replace)
+{
+	jwe_builder_auto_t *builder = NULL;
+	const unsigned char apu[] = "Alice";
+
+	SET_OPS();
+	read_json("ec_key_prime256v1_enc.json");
+
+	builder = jwe_builder_new();
+	/* Setting partyinfo (incl. replacing and NULL-clearing) and the
+	 * NULL-object guard. */
+	ck_assert_int_eq(jwe_builder_set_partyinfo(builder, apu, 5, NULL, 0), 0);
+	ck_assert_int_eq(jwe_builder_set_partyinfo(builder, NULL, 0, apu, 5), 0);
+	ck_assert_int_eq(jwe_builder_set_partyinfo(builder, NULL, 0, NULL, 0), 0);
+	ck_assert_int_ne(jwe_builder_set_partyinfo(NULL, apu, 5, NULL, 0), 0);
+
+	free_key();
+}
+END_TEST
+
 /* Both backends route ECDH-ES to the OpenSSL EVP_PKEY, so a token from one
  * provider must decrypt under all. */
 START_TEST(interop)
@@ -593,6 +695,9 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, x448_direct, 0, i);
 	tcase_add_loop_test(tc_core, ed25519_rejected, 0, i);
 	tcase_add_loop_test(tc_core, okp_curve_mismatch, 0, i);
+	tcase_add_loop_test(tc_core, partyinfo, 0, i);
+	tcase_add_loop_test(tc_core, partyinfo_binds_kdf, 0, i);
+	tcase_add_loop_test(tc_core, partyinfo_replace, 0, i);
 	tcase_add_test(tc_core, interop);
 
 	tcase_set_timeout(tc_core, 30);
