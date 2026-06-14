@@ -114,6 +114,67 @@ RSAENC="../tests/keys/rsa_key_2048_enc.json"
 	[ "${status}" -ne 0 ]
 }
 
+ECENC="../tests/keys/ec_key_prime256v1_enc.json"
+
+@test "JWE Flattened JSON round-trip (auto-detect on decrypt)" {
+	tok="$(./tools/jwe-encrypt -k ${OCT256B} -a A256KW -e A256GCM \
+		-f json-flat -j '{"d":4}')"
+	# The JSON serialization is a JSON object.
+	[ "${tok:0:1}" = '{' ]
+	result="$(echo "${tok}" | ./tools/jwe-decrypt -k ${OCT256B} -a A256KW \
+		-e A256GCM)"
+	[ "${result}" = '{"d":4}' ]
+}
+
+@test "JWE General JSON round-trip" {
+	tok="$(./tools/jwe-encrypt -k ${OCT256B} -a A256KW -e A256GCM \
+		-f json-general -j '{"e":5}')"
+	echo "${tok}" | grep -q '"recipients"'
+	result="$(echo "${tok}" | ./tools/jwe-decrypt -k ${OCT256B} -a A256KW \
+		-e A256GCM)"
+	[ "${result}" = '{"e":5}' ]
+}
+
+@test "JWE --aad round-trips and is authenticated" {
+	aadf="${BATS_TMPDIR:-/tmp}/jwe_aad_$$"
+	printf 'extra authenticated data' > "${aadf}"
+	tok="$(./tools/jwe-encrypt -k ${OCT256B} -a A256KW -e A256GCM \
+		-f json-flat -A "${aadf}" -j '{"f":6}')"
+	rm -f "${aadf}"
+	echo "${tok}" | grep -q '"aad"'
+	result="$(echo "${tok}" | ./tools/jwe-decrypt -k ${OCT256B} -a A256KW \
+		-e A256GCM)"
+	[ "${result}" = '{"f":6}' ]
+}
+
+@test "JWE multi-recipient: each recipient's key decrypts" {
+	tok="$(./tools/jwe-encrypt -k ${OCT256B} -a A256KW -e A256GCM \
+		-r RSA-OAEP-256:${RSAENC} -r ECDH-ES+A128KW:${ECENC} \
+		-j '{"g":7}')"
+	echo "${tok}" | grep -q '"recipients"'
+
+	r1="$(echo "${tok}" | ./tools/jwe-decrypt -k ${OCT256B} -a A256KW \
+		-e A256GCM)"
+	[ "${r1}" = '{"g":7}' ]
+	r2="$(echo "${tok}" | ./tools/jwe-decrypt -k ${RSAENC} -a RSA-OAEP-256 \
+		-e A256GCM)"
+	[ "${r2}" = '{"g":7}' ]
+	r3="$(echo "${tok}" | ./tools/jwe-decrypt -k ${ECENC} \
+		-a ECDH-ES+A128KW -e A256GCM)"
+	[ "${r3}" = '{"g":7}' ]
+}
+
+@test "JWE encrypt rejects unknown format" {
+	run ./tools/jwe-encrypt -k ${OCT256} -a dir -e A256GCM -f bogus -j '{}'
+	[ "${status}" -ne 0 ]
+}
+
+@test "JWE encrypt rejects malformed --recipient" {
+	run ./tools/jwe-encrypt -k ${OCT256B} -a A256KW -e A256GCM \
+		-r noColonHere -j '{}'
+	[ "${status}" -ne 0 ]
+}
+
 # Regression for #264: an oct JWK with a very large `k` makes the key
 # bit-length (len_k * 8) an 8+ digit number. jwk2key formatted it into a
 # fixed 8-byte buffer (char bits[8]) with an unbounded sprintf, overflowing

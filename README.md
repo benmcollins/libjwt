@@ -54,9 +54,21 @@ JWS Algorithm ``alg``         | OpenSSL            | GnuTLS             | MbedTL
 
 #### JWE
 
-LibJWT supports JWE (RFC 7516) Compact Serialization with a single recipient.
-A JWE uses two algorithms: a key management algorithm (``alg``) and a content
-encryption algorithm (``enc``).
+LibJWT supports JWE (RFC 7516) in both the Compact Serialization and the JSON
+Serialization (the Flattened form and the General form with one or more
+recipients). A JWE uses two algorithms: a key management algorithm (``alg``)
+and a content encryption algorithm (``enc``).
+
+| JWE serialization | Recipients | Supported |
+| :---------------- | :--------- | :-------- |
+| Compact (RFC 7516 §7.1)        | one  | :white_check_mark: |
+| JSON Flattened (RFC 7516 §7.2.2) | one  | :white_check_mark: |
+| JSON General (RFC 7516 §7.2.1)   | one or more | :white_check_mark: |
+
+With the JSON serializations the plaintext is encrypted once with a single CEK;
+each recipient wraps that CEK independently, so any recipient's key can decrypt
+the token. They also carry an optional shared unprotected header, per-recipient
+headers, and an application AAD member.
 
 Legend: :white_check_mark: native implementation &nbsp;·&nbsp;
 :large_blue_circle: supported, using OpenSSL as a fallback &nbsp;·&nbsp; :x: not supported

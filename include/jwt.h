@@ -1395,6 +1395,12 @@ jwe_enc_t jwe_str_enc(const char *enc);
  * (@ref jwe_enc_t, the ``"enc"`` header) that authenticates and encrypts the
  * payload with that CEK.
  *
+ * Both the Compact Serialization and the JSON Serialization are supported
+ * (@ref jwe_serialization_t). The General JSON Serialization carries one or
+ * more recipients (@ref jwe_builder_add_recipient): the plaintext is encrypted
+ * once with a single CEK and each recipient wraps that CEK independently, so
+ * any recipient's key can decrypt the token.
+ *
  * @rfc{7516}
  * @{
  */
