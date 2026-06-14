@@ -455,20 +455,17 @@ static int kw_aes_block(gnutls_cipher_algorithm_t alg, const gnutls_datum_t *key
 	return ret ? 1 : 0;
 }
 
-/* @rfc{7518,4.4} AES Key Wrap (RFC 3394 section 2.2.1). */
-int gnutls_wrap_aes_kw(const jwk_item_t *key, const unsigned char *cek,
-		       size_t cek_len, unsigned char **out, size_t *out_len)
+/* @rfc{7518,4.4} AES Key Wrap (RFC 3394 section 2.2.1) with a raw KEK. */
+static int kw_wrap_raw(const unsigned char *kek, size_t kek_len,
+		       const unsigned char *cek, size_t cek_len,
+		       unsigned char **out, size_t *out_len)
 {
-	const unsigned char *kek;
-	size_t kek_len = 0, n, i, j;
+	size_t n, i, j;
 	gnutls_cipher_algorithm_t alg;
 	gnutls_datum_t keyd;
 	unsigned char *r = NULL, a[8], block[16];
 	uint64_t t;
 	int ret = 1;
-
-	if (jwks_item_key_oct(key, &kek, &kek_len))
-		return 1; // LCOV_EXCL_LINE
 
 	alg = kw_cbc(kek_len);
 	if (alg == GNUTLS_CIPHER_NULL || cek_len < 16 || (cek_len % 8) != 0)
@@ -516,22 +513,19 @@ out:
 	return ret;
 }
 
-/* @rfc{7518,4.4} AES Key Unwrap (RFC 3394 section 2.2.2), with the integrity
- * check on the recovered A6 IV. */
-int gnutls_unwrap_aes_kw(const jwk_item_t *key, const unsigned char *in,
-			 size_t in_len, unsigned char **cek, size_t *cek_len)
+/* @rfc{7518,4.4} AES Key Unwrap (RFC 3394 section 2.2.2) with a raw KEK,
+ * including the integrity check on the recovered A6 IV. */
+static int kw_unwrap_raw(const unsigned char *kek, size_t kek_len,
+			 const unsigned char *in, size_t in_len,
+			 unsigned char **cek, size_t *cek_len)
 {
-	const unsigned char *kek;
-	size_t kek_len = 0, n, i, plen;
+	size_t n, i, plen;
 	long j;
 	gnutls_cipher_algorithm_t alg;
 	gnutls_datum_t keyd;
 	unsigned char *r = NULL, a[8], block[16];
 	uint64_t t;
 	int ret = 1;
-
-	if (jwks_item_key_oct(key, &kek, &kek_len))
-		return 1; // LCOV_EXCL_LINE
 
 	alg = kw_cbc(kek_len);
 	if (alg == GNUTLS_CIPHER_NULL || in_len < 24 || (in_len % 8) != 0)
@@ -579,4 +573,44 @@ out:
 	jwt_scrub_and_free(r, plen);
 
 	return ret;
+}
+
+/* AES Key Wrap / Unwrap with the recipient's oct key (JWK). */
+int gnutls_wrap_aes_kw(const jwk_item_t *key, const unsigned char *cek,
+		       size_t cek_len, unsigned char **out, size_t *out_len)
+{
+	const unsigned char *kek;
+	size_t kek_len = 0;
+
+	if (jwks_item_key_oct(key, &kek, &kek_len))
+		return 1; // LCOV_EXCL_LINE
+
+	return kw_wrap_raw(kek, kek_len, cek, cek_len, out, out_len);
+}
+
+int gnutls_unwrap_aes_kw(const jwk_item_t *key, const unsigned char *in,
+			 size_t in_len, unsigned char **cek, size_t *cek_len)
+{
+	const unsigned char *kek;
+	size_t kek_len = 0;
+
+	if (jwks_item_key_oct(key, &kek, &kek_len))
+		return 1; // LCOV_EXCL_LINE
+
+	return kw_unwrap_raw(kek, kek_len, in, in_len, cek, cek_len);
+}
+
+/* AES Key Wrap / Unwrap with a raw KEK (ECDH-ES+A*KW agreed key). */
+int gnutls_wrap_aes_kw_raw(const unsigned char *kek, size_t kek_len,
+			   const unsigned char *cek, size_t cek_len,
+			   unsigned char **out, size_t *out_len)
+{
+	return kw_wrap_raw(kek, kek_len, cek, cek_len, out, out_len);
+}
+
+int gnutls_unwrap_aes_kw_raw(const unsigned char *kek, size_t kek_len,
+			     const unsigned char *in, size_t in_len,
+			     unsigned char **cek, size_t *cek_len)
+{
+	return kw_unwrap_raw(kek, kek_len, in, in_len, cek, cek_len);
 }

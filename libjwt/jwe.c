@@ -135,8 +135,9 @@ int jwe_alg_is_ecdh_direct(jwe_key_alg_t alg)
 	return alg == JWE_ALG_ECDH_ES;
 }
 
-/* @rfc{7518,4.6} Run ECDH-ES agreement to derive the agreed key (the CEK in
- * Direct mode). On encrypt this also writes "epk" into @hdr. */
+/* @rfc{7518,4.6} Run ECDH-ES agreement to derive the agreed key: the CEK in
+ * Direct mode, or the KEK that wraps the CEK in +A*KW mode. On encrypt this
+ * also writes "epk" into @hdr. */
 int jwe_ecdh_derive(jwe_key_alg_t alg, jwe_enc_t enc, const jwk_item_t *key,
 		    int for_encrypt, jwt_json_t *hdr,
 		    unsigned char **dk, size_t *dk_len)
@@ -144,6 +145,26 @@ int jwe_ecdh_derive(jwe_key_alg_t alg, jwe_enc_t enc, const jwk_item_t *key,
 	if (jwt_ops->ecdh_derive == NULL)
 		return 1; // LCOV_EXCL_LINE
 	return jwt_ops->ecdh_derive(alg, enc, key, for_encrypt, hdr, dk, dk_len);
+}
+
+/* @rfc{7518,4.4} AES Key Wrap / Unwrap with a raw KEK (the ECDH-ES agreed
+ * key in +A*KW mode). Returns 0 on success. */
+int jwe_aeskw_wrap_raw(const unsigned char *kek, size_t kek_len,
+		       const unsigned char *cek, size_t cek_len,
+		       unsigned char **out, size_t *out_len)
+{
+	if (jwt_ops->wrap_aes_kw_raw == NULL)
+		return 1; // LCOV_EXCL_LINE
+	return jwt_ops->wrap_aes_kw_raw(kek, kek_len, cek, cek_len, out, out_len);
+}
+
+int jwe_aeskw_unwrap_raw(const unsigned char *kek, size_t kek_len,
+			 const unsigned char *in, size_t in_len,
+			 unsigned char **cek, size_t *cek_len)
+{
+	if (jwt_ops->unwrap_aes_kw_raw == NULL)
+		return 1; // LCOV_EXCL_LINE
+	return jwt_ops->unwrap_aes_kw_raw(kek, kek_len, in, in_len, cek, cek_len);
 }
 
 /* Encrypt the CEK to the recipient for a key management alg that wraps or

@@ -261,6 +261,14 @@ struct jwt_crypto_ops {
 	int (*unwrap_aes_kw)(const jwk_item_t *key, const unsigned char *in,
 		size_t in_len, unsigned char **cek, size_t *cek_len);
 
+	/* AES Key Wrap with a raw KEK (the agreed key in ECDH-ES+A*KW). */
+	int (*wrap_aes_kw_raw)(const unsigned char *kek, size_t kek_len,
+		const unsigned char *cek, size_t cek_len,
+		unsigned char **out, size_t *out_len);
+	int (*unwrap_aes_kw_raw)(const unsigned char *kek, size_t kek_len,
+		const unsigned char *in, size_t in_len,
+		unsigned char **cek, size_t *cek_len);
+
 	/* Key management: RSAES-OAEP (and OAEP-256). */
 	int (*encrypt_cek_rsa)(jwe_key_alg_t alg, const jwk_item_t *key,
 		const unsigned char *cek, size_t cek_len,
@@ -524,6 +532,16 @@ JWT_NO_EXPORT
 int jwe_ecdh_derive(jwe_key_alg_t alg, jwe_enc_t enc, const jwk_item_t *key,
 		    int for_encrypt, jwt_json_t *hdr,
 		    unsigned char **dk, size_t *dk_len);
+
+/* AES Key Wrap / Unwrap with a raw KEK (ECDH-ES+A*KW agreed key). */
+JWT_NO_EXPORT
+int jwe_aeskw_wrap_raw(const unsigned char *kek, size_t kek_len,
+		       const unsigned char *cek, size_t cek_len,
+		       unsigned char **out, size_t *out_len);
+JWT_NO_EXPORT
+int jwe_aeskw_unwrap_raw(const unsigned char *kek, size_t kek_len,
+			 const unsigned char *in, size_t in_len,
+			 unsigned char **cek, size_t *cek_len);
 
 /* Dispatch JWE content encryption/decryption to the active backend for the
  * given enc. Return 0 on success. Decrypt verifies the AEAD tag. */

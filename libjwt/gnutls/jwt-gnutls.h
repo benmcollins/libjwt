@@ -62,5 +62,11 @@ int gnutls_wrap_aes_kw(const jwk_item_t *key, const unsigned char *cek,
 	size_t cek_len, unsigned char **out, size_t *out_len);
 int gnutls_unwrap_aes_kw(const jwk_item_t *key, const unsigned char *in,
 	size_t in_len, unsigned char **cek, size_t *cek_len);
+int gnutls_wrap_aes_kw_raw(const unsigned char *kek, size_t kek_len,
+	const unsigned char *cek, size_t cek_len,
+	unsigned char **out, size_t *out_len);
+int gnutls_unwrap_aes_kw_raw(const unsigned char *kek, size_t kek_len,
+	const unsigned char *in, size_t in_len,
+	unsigned char **cek, size_t *cek_len);
 
 #endif /* JWT_GNUTLS_H */

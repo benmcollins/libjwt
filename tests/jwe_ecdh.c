@@ -178,29 +178,132 @@ START_TEST(curve_mismatch)
 }
 END_TEST
 
-START_TEST(kw_not_supported)
+/* @rfc{7518,4.6} ECDH-ES+A*KW: the agreed key wraps a generated CEK, carried
+ * in a non-empty Encrypted Key segment. */
+static void kw_roundtrip(jwe_key_alg_t alg, jwe_enc_t enc)
 {
 	jwe_builder_auto_t *builder = NULL;
+	jwe_checker_auto_t *checker = NULL;
 	char_auto *tok = NULL;
+	unsigned char *pt = NULL;
+	size_t pt_len = 0;
+
+	read_json("ec_key_prime256v1_enc.json");
+
+	builder = jwe_builder_new();
+	ck_assert_int_eq(jwe_builder_setkey(builder, alg, enc, g_item), 0);
+	tok = jwe_builder_generate(builder, (const unsigned char *)PT,
+				   strlen(PT));
+	ck_assert_ptr_nonnull(tok);
+	/* Non-empty Encrypted Key (unlike Direct mode). */
+	ck_assert_ptr_null(strstr(tok, ".."));
+
+	checker = jwe_checker_new();
+	ck_assert_int_eq(jwe_checker_setkey(checker, alg, enc, g_item), 0);
+	pt = jwe_checker_decrypt(checker, tok, &pt_len);
+	ck_assert_ptr_nonnull(pt);
+	ck_assert_int_eq(pt_len, strlen(PT));
+	ck_assert_mem_eq(pt, PT, pt_len);
+
+	free(pt);
+	free_key();
+}
+
+START_TEST(kw_128)
+{
+	SET_OPS();
+	kw_roundtrip(JWE_ALG_ECDH_ES_A128KW, JWE_ENC_A256GCM);
+}
+END_TEST
+
+START_TEST(kw_192)
+{
+	SET_OPS();
+	kw_roundtrip(JWE_ALG_ECDH_ES_A192KW, JWE_ENC_A256GCM);
+}
+END_TEST
+
+START_TEST(kw_256)
+{
+	SET_OPS();
+	kw_roundtrip(JWE_ALG_ECDH_ES_A256KW, JWE_ENC_A128CBC_HS256);
+}
+END_TEST
+
+START_TEST(kw_tamper_ek)
+{
+	jwe_builder_auto_t *builder = NULL;
+	jwe_checker_auto_t *checker = NULL;
+	char_auto *tok = NULL;
+	unsigned char *pt = NULL;
+	size_t pt_len = 0;
+	char *ek;
 
 	SET_OPS();
 	read_json("ec_key_prime256v1_enc.json");
 
-	/* ECDH-ES+A*KW passes setkey (valid EC key) but is not implemented in
-	 * this stage. */
 	builder = jwe_builder_new();
-	ck_assert_int_eq(jwe_builder_setkey(builder, JWE_ALG_ECDH_ES_A128KW,
+	ck_assert_int_eq(jwe_builder_setkey(builder, JWE_ALG_ECDH_ES_A256KW,
 					    JWE_ENC_A256GCM, g_item), 0);
 	tok = jwe_builder_generate(builder, (const unsigned char *)PT,
 				   strlen(PT));
-	ck_assert_ptr_null(tok);
-	ck_assert_int_eq(jwe_builder_error(builder), 1);
+	ck_assert_ptr_nonnull(tok);
+
+	/* Corrupt the Encrypted Key (2nd segment). @rfc{7516,11.5}: the unwrap
+	 * fails, a random CEK is substituted, and the AEAD tag fails. */
+	ek = strchr(tok, '.') + 1;
+	ck_assert_int_ne(*ek, '.');
+	*ek = (*ek == 'Q') ? 'R' : 'Q';
+
+	checker = jwe_checker_new();
+	ck_assert_int_eq(jwe_checker_setkey(checker, JWE_ALG_ECDH_ES_A256KW,
+					    JWE_ENC_A256GCM, g_item), 0);
+	pt = jwe_checker_decrypt(checker, tok, &pt_len);
+	ck_assert_ptr_null(pt);
+	ck_assert_int_eq(jwe_checker_error(checker), 1);
 
 	free_key();
 }
 END_TEST
 
-START_TEST(decrypt_kw_not_supported)
+START_TEST(kw_bad_base64_ek)
+{
+	jwe_builder_auto_t *builder = NULL;
+	jwe_checker_auto_t *checker = NULL;
+	char_auto *tok = NULL, *bad = NULL;
+	unsigned char *pt = NULL;
+	size_t pt_len = 0;
+	char *first_dot, *second_dot;
+
+	SET_OPS();
+	read_json("ec_key_prime256v1_enc.json");
+
+	builder = jwe_builder_new();
+	ck_assert_int_eq(jwe_builder_setkey(builder, JWE_ALG_ECDH_ES_A128KW,
+					    JWE_ENC_A256GCM, g_item), 0);
+	tok = jwe_builder_generate(builder, (const unsigned char *)PT,
+				   strlen(PT));
+	ck_assert_ptr_nonnull(tok);
+
+	/* Replace the Encrypted Key segment with non-base64url junk so the
+	 * decode (not the unwrap) is what fails -> @rfc{7516,11.5} random CEK. */
+	first_dot = strchr(tok, '.');
+	second_dot = strchr(first_dot + 1, '.');
+	ck_assert_int_gt(asprintf(&bad, "%.*s.@@@@%s",
+				  (int)(first_dot - tok), tok, second_dot), 0);
+
+	checker = jwe_checker_new();
+	ck_assert_int_eq(jwe_checker_setkey(checker, JWE_ALG_ECDH_ES_A128KW,
+					    JWE_ENC_A256GCM, g_item), 0);
+	pt = jwe_checker_decrypt(checker, bad, &pt_len);
+	ck_assert_ptr_null(pt);
+	ck_assert_int_eq(jwe_checker_error(checker), 1);
+
+	free_key();
+}
+END_TEST
+
+START_TEST(kw_empty_ek_rejected)
 {
 	jwe_checker_auto_t *checker = NULL;
 	unsigned char *pt = NULL;
@@ -213,10 +316,10 @@ START_TEST(decrypt_kw_not_supported)
 	ck_assert_int_eq(jwe_checker_setkey(checker, JWE_ALG_ECDH_ES_A128KW,
 					    JWE_ENC_A256GCM, g_item), 0);
 
-	/* Header alg=ECDH-ES+A128KW: rejected as not-yet-supported on decrypt.
+	/* ECDH-ES+A128KW with an empty Encrypted Key is invalid. Header is
 	 * base64url({"alg":"ECDH-ES+A128KW","enc":"A256GCM"}). */
 	pt = jwe_checker_decrypt(checker,
-		"eyJhbGciOiJFQ0RILUVTK0ExMjhLVyIsImVuYyI6IkEyNTZHQ00ifQ.QUJD.aa.bb.cc",
+		"eyJhbGciOiJFQ0RILUVTK0ExMjhLVyIsImVuYyI6IkEyNTZHQ00ifQ..aa.bb.cc",
 		&pt_len);
 	ck_assert_ptr_null(pt);
 	ck_assert_int_eq(jwe_checker_error(checker), 1);
@@ -369,8 +472,12 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, tamper_epk, 0, i);
 	tcase_add_loop_test(tc_core, wrong_key, 0, i);
 	tcase_add_loop_test(tc_core, curve_mismatch, 0, i);
-	tcase_add_loop_test(tc_core, kw_not_supported, 0, i);
-	tcase_add_loop_test(tc_core, decrypt_kw_not_supported, 0, i);
+	tcase_add_loop_test(tc_core, kw_128, 0, i);
+	tcase_add_loop_test(tc_core, kw_192, 0, i);
+	tcase_add_loop_test(tc_core, kw_256, 0, i);
+	tcase_add_loop_test(tc_core, kw_tamper_ek, 0, i);
+	tcase_add_loop_test(tc_core, kw_bad_base64_ek, 0, i);
+	tcase_add_loop_test(tc_core, kw_empty_ek_rejected, 0, i);
 	tcase_add_loop_test(tc_core, decrypt_nonempty_ek, 0, i);
 	tcase_add_loop_test(tc_core, unsupported_curve, 0, i);
 	tcase_add_loop_test(tc_core, missing_epk, 0, i);
