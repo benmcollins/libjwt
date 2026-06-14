@@ -875,6 +875,79 @@ out:
 	return pkey;
 }
 
+/* Is this an OKP X-curve (X25519/X448) usable for ECDH? */
+static int crv_is_okp_x(const char *crv)
+{
+	return !strcmp(crv, "X25519") || !strcmp(crv, "X448");
+}
+
+/* Build an "epk" JWK object {kty:"OKP",crv,x} from an OKP public EVP_PKEY.
+ * OKP public keys are a single raw octet string, base64url'd as "x". */
+static jwt_json_t *okp_epk_to_json(EVP_PKEY *pkey, const char *crv)
+{
+	jwt_json_t *epk = NULL;
+	char_auto *x_b64 = NULL;
+	unsigned char *raw = NULL;
+	size_t rawlen = 0;
+
+	if (EVP_PKEY_get_raw_public_key(pkey, NULL, &rawlen) != 1)
+		return NULL; // LCOV_EXCL_LINE
+	raw = jwt_malloc(rawlen);
+	if (raw == NULL)
+		return NULL; // LCOV_EXCL_LINE
+	if (EVP_PKEY_get_raw_public_key(pkey, raw, &rawlen) != 1)
+		goto out; // LCOV_EXCL_LINE
+
+	if (jwt_base64uri_encode(&x_b64, (char *)raw, (int)rawlen) <= 0)
+		goto out; // LCOV_EXCL_LINE
+
+	epk = jwt_json_create();
+	if (epk == NULL)
+		goto out; // LCOV_EXCL_LINE
+	jwt_json_obj_set(epk, "kty", jwt_json_create_str("OKP"));
+	jwt_json_obj_set(epk, "crv", jwt_json_create_str(crv));
+	jwt_json_obj_set(epk, "x", jwt_json_create_str(x_b64));
+
+out:
+	jwt_freemem(raw);
+
+	return epk;
+}
+
+/* Build a public OKP EVP_PKEY from an "epk" JWK object. */
+static EVP_PKEY *okp_epk_from_json(jwt_json_t *epk, const char *want_crv)
+{
+	jwt_json_t *jkty, *jcrv, *jx;
+	const char *kty, *crv;
+	unsigned char *xb = NULL;
+	int xlen = 0;
+	EVP_PKEY *pkey = NULL;
+
+	jkty = jwt_json_obj_get(epk, "kty");
+	jcrv = jwt_json_obj_get(epk, "crv");
+	jx = jwt_json_obj_get(epk, "x");
+	if (!jkty || !jcrv || !jx || !jwt_json_is_string(jkty) ||
+	    !jwt_json_is_string(jcrv) || !jwt_json_is_string(jx))
+		return NULL; // LCOV_EXCL_LINE
+
+	kty = jwt_json_str_val(jkty);
+	crv = jwt_json_str_val(jcrv);
+	if (strcmp(kty, "OKP") || strcmp(crv, want_crv))
+		return NULL;
+
+	xb = jwt_base64uri_decode(jwt_json_str_val(jx), &xlen);
+	if (xb == NULL || xlen <= 0)
+		goto out; // LCOV_EXCL_LINE
+
+	pkey = EVP_PKEY_new_raw_public_key_ex(NULL, want_crv, NULL, xb,
+					      (size_t)xlen);
+
+out:
+	jwt_freemem(xb);
+
+	return pkey;
+}
+
 /* Raw ECDH shared secret Z between a private and a peer public EVP_PKEY. */
 static int ecdh_z(EVP_PKEY *priv, EVP_PKEY *peer, unsigned char **z,
 		  size_t *z_len)
@@ -942,20 +1015,30 @@ int openssl_ecdh_derive(jwe_key_alg_t alg, jwe_enc_t enc,
 	if (out == NULL)
 		goto out; // LCOV_EXCL_LINE
 
+	int is_okp = crv_is_okp_x(crv);
+
 	if (for_encrypt) {
-		const char *ossl_crv = crv;
+		/* Ephemeral keypair on the recipient's curve. OKP curves
+		 * (X25519/X448) keygen directly by name; EC needs the group
+		 * set on the context. */
+		if (is_okp) {
+			gctx = EVP_PKEY_CTX_new_from_name(NULL, crv, NULL);
+			if (gctx == NULL || EVP_PKEY_keygen_init(gctx) <= 0)
+				goto out; // LCOV_EXCL_LINE
+		} else {
+			const char *ossl_crv = crv;
 
-		if (!strcmp(crv, "P-256")) ossl_crv = "prime256v1";
-		else if (!strcmp(crv, "P-384")) ossl_crv = "secp384r1";
-		else if (!strcmp(crv, "P-521")) ossl_crv = "secp521r1";
-		else goto out;
+			if (!strcmp(crv, "P-256")) ossl_crv = "prime256v1";
+			else if (!strcmp(crv, "P-384")) ossl_crv = "secp384r1";
+			else if (!strcmp(crv, "P-521")) ossl_crv = "secp521r1";
+			else goto out;
 
-		/* Ephemeral keypair on the recipient's curve. */
-		gctx = EVP_PKEY_CTX_new_from_name(NULL, "EC", NULL);
-		if (gctx == NULL || EVP_PKEY_keygen_init(gctx) <= 0)
-			goto out; // LCOV_EXCL_LINE
-		if (EVP_PKEY_CTX_set_group_name(gctx, ossl_crv) <= 0)
-			goto out; // LCOV_EXCL_LINE
+			gctx = EVP_PKEY_CTX_new_from_name(NULL, "EC", NULL);
+			if (gctx == NULL || EVP_PKEY_keygen_init(gctx) <= 0)
+				goto out; // LCOV_EXCL_LINE
+			if (EVP_PKEY_CTX_set_group_name(gctx, ossl_crv) <= 0)
+				goto out; // LCOV_EXCL_LINE
+		}
 		if (EVP_PKEY_keygen(gctx, &eph) <= 0)
 			goto out; // LCOV_EXCL_LINE
 
@@ -964,7 +1047,8 @@ int openssl_ecdh_derive(jwe_key_alg_t alg, jwe_enc_t enc,
 			goto out; // LCOV_EXCL_LINE
 
 		/* Emit the epk public half in the header. */
-		jepk = epk_to_json(eph, crv);
+		jepk = is_okp ? okp_epk_to_json(eph, crv)
+			      : epk_to_json(eph, crv);
 		if (jepk == NULL)
 			goto out; // LCOV_EXCL_LINE
 		jwt_json_obj_set(hdr, "epk", jepk);
@@ -972,7 +1056,8 @@ int openssl_ecdh_derive(jwe_key_alg_t alg, jwe_enc_t enc,
 		jepk = jwt_json_obj_get(hdr, "epk");
 		if (jepk == NULL)
 			goto out;
-		peer = epk_from_json(jepk, crv);
+		peer = is_okp ? okp_epk_from_json(jepk, crv)
+			      : epk_from_json(jepk, crv);
 		if (peer == NULL)
 			goto out;
 		/* Z = ECDH(recipient_priv, eph_pub). */

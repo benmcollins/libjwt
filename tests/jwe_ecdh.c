@@ -414,6 +414,112 @@ START_TEST(missing_epk)
 }
 END_TEST
 
+/* @rfc{7518,4.6} ECDH-ES on the OKP X-curves (X25519/X448). */
+static void okp_roundtrip(const char *keyfile, jwe_key_alg_t alg,
+			  jwe_enc_t enc)
+{
+	jwe_builder_auto_t *builder = NULL;
+	jwe_checker_auto_t *checker = NULL;
+	char_auto *tok = NULL;
+	unsigned char *pt = NULL;
+	size_t pt_len = 0;
+
+	read_json(keyfile);
+
+	builder = jwe_builder_new();
+	ck_assert_int_eq(jwe_builder_setkey(builder, alg, enc, g_item), 0);
+	tok = jwe_builder_generate(builder, (const unsigned char *)PT,
+				   strlen(PT));
+	ck_assert_ptr_nonnull(tok);
+
+	checker = jwe_checker_new();
+	ck_assert_int_eq(jwe_checker_setkey(checker, alg, enc, g_item), 0);
+	pt = jwe_checker_decrypt(checker, tok, &pt_len);
+	ck_assert_ptr_nonnull(pt);
+	ck_assert_int_eq(pt_len, strlen(PT));
+	ck_assert_mem_eq(pt, PT, pt_len);
+
+	free(pt);
+	free_key();
+}
+
+START_TEST(x25519_direct)
+{
+	SET_OPS();
+	okp_roundtrip("okp_x25519_enc.json", JWE_ALG_ECDH_ES, JWE_ENC_A256GCM);
+}
+END_TEST
+
+START_TEST(x25519_cbc)
+{
+	SET_OPS();
+	okp_roundtrip("okp_x25519_enc.json", JWE_ALG_ECDH_ES,
+		      JWE_ENC_A128CBC_HS256);
+}
+END_TEST
+
+START_TEST(x25519_kw)
+{
+	SET_OPS();
+	okp_roundtrip("okp_x25519_enc.json", JWE_ALG_ECDH_ES_A256KW,
+		      JWE_ENC_A256GCM);
+}
+END_TEST
+
+START_TEST(x448_direct)
+{
+	SET_OPS();
+	okp_roundtrip("okp_x448_enc.json", JWE_ALG_ECDH_ES, JWE_ENC_A256GCM);
+}
+END_TEST
+
+START_TEST(ed25519_rejected)
+{
+	jwe_builder_auto_t *builder = NULL;
+
+	SET_OPS();
+
+	/* An Ed25519 (signing) OKP key, even marked use:enc, must not be
+	 * usable for ECDH-ES key agreement. */
+	read_json("eddsa_key_ed25519_enc.json");
+	builder = jwe_builder_new();
+	ck_assert_int_ne(jwe_builder_setkey(builder, JWE_ALG_ECDH_ES,
+					    JWE_ENC_A256GCM, g_item), 0);
+	free_key();
+}
+END_TEST
+
+START_TEST(okp_curve_mismatch)
+{
+	jwe_builder_auto_t *builder = NULL;
+	jwe_checker_auto_t *checker = NULL;
+	char_auto *tok = NULL;
+	unsigned char *pt = NULL;
+	size_t pt_len = 0;
+
+	SET_OPS();
+
+	/* Encrypt to an X25519 recipient... */
+	read_json("okp_x25519_enc.json");
+	builder = jwe_builder_new();
+	ck_assert_int_eq(jwe_builder_setkey(builder, JWE_ALG_ECDH_ES,
+					    JWE_ENC_A256GCM, g_item), 0);
+	tok = jwe_builder_generate(builder, (const unsigned char *)PT,
+				   strlen(PT));
+	ck_assert_ptr_nonnull(tok);
+	free_key();
+
+	/* ...decrypt with an X448 key: the epk curve will not match. */
+	read_json("okp_x448_enc.json");
+	checker = jwe_checker_new();
+	ck_assert_int_eq(jwe_checker_setkey(checker, JWE_ALG_ECDH_ES,
+					    JWE_ENC_A256GCM, g_item), 0);
+	pt = jwe_checker_decrypt(checker, tok, &pt_len);
+	ck_assert_ptr_null(pt);
+	free_key();
+}
+END_TEST
+
 /* Both backends route ECDH-ES to the OpenSSL EVP_PKEY, so a token from one
  * provider must decrypt under all. */
 START_TEST(interop)
@@ -481,6 +587,12 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, decrypt_nonempty_ek, 0, i);
 	tcase_add_loop_test(tc_core, unsupported_curve, 0, i);
 	tcase_add_loop_test(tc_core, missing_epk, 0, i);
+	tcase_add_loop_test(tc_core, x25519_direct, 0, i);
+	tcase_add_loop_test(tc_core, x25519_cbc, 0, i);
+	tcase_add_loop_test(tc_core, x25519_kw, 0, i);
+	tcase_add_loop_test(tc_core, x448_direct, 0, i);
+	tcase_add_loop_test(tc_core, ed25519_rejected, 0, i);
+	tcase_add_loop_test(tc_core, okp_curve_mismatch, 0, i);
 	tcase_add_test(tc_core, interop);
 
 	tcase_set_timeout(tc_core, 30);

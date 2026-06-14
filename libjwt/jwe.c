@@ -270,10 +270,27 @@ const char *jwe_key_usage_check(const jwk_item_t *key, jwe_key_alg_t alg,
 	if (need == JWK_KEY_TYPE_NONE)
 		return "Unknown JWE key management algorithm"; // LCOV_EXCL_LINE
 
-	/* The key's actual type must match what the alg requires. This is the
-	 * authoritative gate and does not depend on optional JWK hints. */
-	if (jwks_item_kty(key) != need)
+	/* @rfc{7518,4.6} ECDH-ES accepts an EC key (P-256/384/521) or an OKP
+	 * key on an X-curve (X25519/X448). An OKP Ed-curve key is for signing
+	 * only and must be rejected. */
+	if (jwe_alg_is_ecdh(alg)) {
+		jwk_key_type_t kty = jwks_item_kty(key);
+		const char *crv = jwks_item_curve(key);
+
+		if (kty == JWK_KEY_TYPE_EC) {
+			/* Any supported EC curve is fine; the derive validates
+			 * the specific curve. */
+		} else if (kty == JWK_KEY_TYPE_OKP && crv != NULL &&
+			   (!strcmp(crv, "X25519") || !strcmp(crv, "X448"))) {
+			/* OKP X-curve: usable for key agreement. */
+		} else {
+			return "Key type/curve does not match ECDH-ES";
+		}
+	} else if (jwks_item_kty(key) != need) {
+		/* The key's actual type must match what the alg requires. This
+		 * is the authoritative gate and ignores optional JWK hints. */
 		return "Key type does not match JWE algorithm";
+	}
 
 	/* @rfc{7517,4.2} If "use" is set, it must be "enc" for JWE; a key
 	 * marked "sig" must never be used for encryption. */

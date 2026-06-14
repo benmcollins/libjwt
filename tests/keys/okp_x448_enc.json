@@ -1,0 +1,11 @@
+{
+  "kty": "OKP",
+  "crv": "X448",
+  "use": "enc",
+  "key_ops": [
+    "deriveKey",
+    "deriveBits"
+  ],
+  "x": "-eNBPMKYtcVxRqF8Xk2bVBdBvjAKm1gaC8LQiguNmN69hfQ5t-zEmVob_8IPyBRklLzJMWgCd2A",
+  "d": "6EYeCbX9ZymPzYOQ2M4xc67yRhJ1hxBEIZTR7LtL2DMbe8PFJhOMyv1dtamsSj5rYKmEWLURi_Y"
+}
