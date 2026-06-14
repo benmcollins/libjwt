@@ -23,13 +23,20 @@ START_TEST(test_jwks_keyring_load)
 		char_auto *out = NULL;
 		jwt_alg_t alg;
 
+		alg = jwks_item_alg(item);
+
+		/* GnuTLS has no secp256k1 (ES256K) curve, so its native JWK
+		 * parser rejects such keys; every other backend parses them.
+		 * Skip the ES256K keys when running under GnuTLS. */
+		if (alg == JWT_ALG_ES256K &&
+		    jwt_test_ops[_i].type == JWT_CRYPTO_OPS_GNUTLS)
+			continue;
+
 		if (jwks_item_error(item)) {
 			fprintf(stderr, "Err KID: %s\n",
 				jwks_item_kid(item));
 		}
 		ck_assert_int_eq(jwks_item_error(item), 0);
-
-		alg = jwks_item_alg(item);
 
 		if (alg == JWT_ALG_ES256K)
 			continue;
@@ -75,16 +82,23 @@ START_TEST(test_jwks_keyring_load)
 	i = jwks_item_count(g_jwk_set);
 	ck_assert_int_eq(i, 27);
 
+	/* Index 3 is one of the two secp256k1 keys in the keyring. */
 	ck_assert(jwks_item_free(g_jwk_set, 3));
 
 	i = jwks_item_count(g_jwk_set);
 	ck_assert_int_eq(i, 26);
 
+	/* GnuTLS has no secp256k1 curve, so the remaining secp256k1 key (index
+	 * 2) was rejected at parse and is freed here; every other backend parses
+	 * it, leaving no bad keys. */
 	i = jwks_item_free_bad(g_jwk_set);
-	ck_assert_int_eq(i, 0);
-
-	i = jwks_item_count(g_jwk_set);
-	ck_assert_int_eq(i, 26);
+	if (jwt_test_ops[_i].type == JWT_CRYPTO_OPS_GNUTLS) {
+		ck_assert_int_eq(i, 1);
+		ck_assert_int_eq(jwks_item_count(g_jwk_set), 25);
+	} else {
+		ck_assert_int_eq(i, 0);
+		ck_assert_int_eq(jwks_item_count(g_jwk_set), 26);
+	}
 
 	free_key();
 }

@@ -104,6 +104,42 @@ START_TEST(test_jwks_ec_pub_bad_points)
 }
 END_TEST
 
+/* A valid curve with x or y that fails base64url decoding (a single char is an
+ * invalid length, so jwt_base64uri_decode rejects it). This exercises the
+ * component-decode failure path that the bad64 test above skips, since that one
+ * trips on the curve name first. Rejected consistently on every backend. */
+START_TEST(test_jwks_ec_pub_bad_component_decode)
+{
+	const char *json_x = "{\"kty\":\"EC\",\"crv\":\"P-256\",\"x\":\"A\","
+		"\"y\":\"AQAB\"}";
+	const char *json_y = "{\"kty\":\"EC\",\"crv\":\"P-256\","
+		"\"x\":\"AQAB\",\"y\":\"A\"}";
+	jwk_set_t *jwk_set = NULL;
+	const jwk_item_t *item;
+	const char exp[] = "Error generating pub key from components";
+
+	SET_OPS();
+
+	jwk_set = jwks_create(json_x);
+	ck_assert_ptr_nonnull(jwk_set);
+	ck_assert(!jwks_error(jwk_set));
+	item = jwks_item_get(jwk_set, 0);
+	ck_assert_ptr_nonnull(item);
+	ck_assert_int_ne(jwks_item_error(item), 0);
+	ck_assert_str_eq(exp, jwks_item_error_msg(item));
+	jwks_free(jwk_set);
+
+	jwk_set = jwks_create(json_y);
+	ck_assert_ptr_nonnull(jwk_set);
+	ck_assert(!jwks_error(jwk_set));
+	item = jwks_item_get(jwk_set, 0);
+	ck_assert_ptr_nonnull(item);
+	ck_assert_int_ne(jwks_item_error(item), 0);
+	ck_assert_str_eq(exp, jwks_item_error_msg(item));
+	jwks_free(jwk_set);
+}
+END_TEST
+
 /* x/y that base64url-decode to more octets than the P-256 field length (32).
  * The point cannot be valid and must be rejected on every backend. */
 START_TEST(test_jwks_ec_pub_oversized)
@@ -144,6 +180,7 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, test_jwks_ec_pub_bad64, 0, i);
 	tcase_add_loop_test(tc_core, test_jwks_ec_pub_bad_type, 0, i);
 	tcase_add_loop_test(tc_core, test_jwks_ec_pub_bad_points, 0, i);
+	tcase_add_loop_test(tc_core, test_jwks_ec_pub_bad_component_decode, 0, i);
 	tcase_add_loop_test(tc_core, test_jwks_ec_pub_oversized, 0, i);
 
 	tcase_set_timeout(tc_core, 30);
