@@ -59,6 +59,7 @@ JWE key management ``alg``    | OpenSSL                   | GnuTLS              
 ``dir``                       | \emoji :white_check_mark: | \emoji :white_check_mark: | \emoji :x:
 ``A128KW`` ``A192KW`` ``A256KW`` | \emoji :white_check_mark: | \emoji :white_check_mark: | \emoji :x:
 ``RSA-OAEP`` ``RSA-OAEP-256`` | \emoji :white_check_mark: | \emoji :white_check_mark: | \emoji :x:
+``ECDH-ES`` (Direct, P-256/384/521) | \emoji :white_check_mark: | \emoji :white_check_mark: | \emoji :x:
 
 JWE content encryption ``enc`` | OpenSSL                   | GnuTLS                    | MbedTLS
 :----------------------------- | :------------------------ | :------------------------ | :--------------
@@ -66,7 +67,8 @@ JWE content encryption ``enc`` | OpenSSL                   | GnuTLS             
 ``A128CBC-HS256`` ``A192CBC-HS384`` ``A256CBC-HS512`` | \emoji :white_check_mark: | \emoji :white_check_mark: | \emoji :x:
 
 @note ``RSA1_5`` and ``zip`` are intentionally not supported. ``ECDH-ES`` is
-planned for a later release.
+supported in Direct Key Agreement mode; the ``+A*KW`` variants and the
+X25519/X448 curves are planned for a later release.
 
 @subsection optional Optional
 
