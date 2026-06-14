@@ -336,6 +336,42 @@ const char *jwe_key_usage_check(const jwk_item_t *key, jwe_key_alg_t alg,
 	return NULL;
 }
 
+/* @rfc{7516,5.1} step 14 See jwt-private.h for the contract. The base AAD is
+ * ASCII(Encoded Protected Header); a present JWE "aad" member adds '.' plus its
+ * base64url. The no-aad case aliases @protected_b64 with zero allocation, so
+ * the Compact Serialization keeps producing byte-identical AAD. */
+int jwe_build_aad(const char *protected_b64, const char *aad_b64,
+		  const unsigned char **aad, size_t *aad_len, int *owned)
+{
+	size_t plen, alen;
+	char *buf;
+
+	*owned = 0;
+
+	if (aad_b64 == NULL) {
+		*aad = (const unsigned char *)protected_b64;
+		*aad_len = strlen(protected_b64);
+		return 0;
+	}
+
+	plen = strlen(protected_b64);
+	alen = strlen(aad_b64);
+	buf = jwt_malloc(plen + 1 + alen + 1);
+	if (buf == NULL)
+		return 1; // LCOV_EXCL_LINE
+
+	memcpy(buf, protected_b64, plen);
+	buf[plen] = '.';
+	memcpy(buf + plen + 1, aad_b64, alen);
+	buf[plen + 1 + alen] = '\0';
+
+	*aad = (const unsigned char *)buf;
+	*aad_len = plen + 1 + alen;
+	*owned = 1;
+
+	return 0;
+}
+
 /* @rfc{7516,7.2.1} Return the first recipient, or NULL if the list is empty.
  * The Compact and Flattened serializations only ever have this one; the
  * General serialization iterates the list directly. */

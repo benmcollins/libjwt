@@ -1502,16 +1502,98 @@ int jwe_builder_set_partyinfo(jwe_builder_t *builder,
 			      const unsigned char *apv, size_t apv_len);
 
 /**
- * @brief Encrypt a plaintext into a Compact Serialization JWE
+ * @brief Select the serialization @ref jwe_builder_generate produces
  *
- * Produces a five-part JWE using the key and algorithms configured with
- * @ref jwe_builder_setkey.
+ * The default is @ref JWE_FORMAT_COMPACT (the five-part string). Selecting
+ * @ref JWE_FORMAT_JSON_FLAT or @ref JWE_FORMAT_JSON_GENERAL produces the
+ * Flattened or General JSON Serialization respectively. The JSON
+ * serializations are required to carry a shared unprotected header
+ * (@ref jwe_builder_add_unprotected_json), a per-recipient header, or a JWE
+ * AAD member (@ref jwe_builder_set_aad); the Compact Serialization supports
+ * none of these.
+ *
+ * @param builder Pointer to a JWE builder object
+ * @param format The serialization to emit
+ * @return 0 on success, non-zero otherwise with error set in the builder
+ *
+ * @rfc{7516,7}
+ */
+JWT_EXPORT
+int jwe_builder_set_format(jwe_builder_t *builder, jwe_serialization_t format);
+
+/**
+ * @brief Add a parameter to the JWE Protected Header
+ *
+ * Adds an application-defined member to the integrity-protected JWE header
+ * (the ``protected`` member of the JSON serializations, and part of the AAD).
+ * The library sets ``"enc"`` (and, for the Compact Serialization, ``"alg"``
+ * and the ECDH-ES parameters) itself; those reserved names are rejected here.
+ *
+ * @p value_json is parsed as JSON, so a string value must include its quotes
+ * (the four-byte fragment quote-p-r-o-d-quote for the string @c prod); objects,
+ * arrays, numbers and booleans are accepted as written. The same parameter name
+ * must not also appear in the shared unprotected or any per-recipient header
+ * (@rfc{7516,7.2.1}).
+ *
+ * @param builder Pointer to a JWE builder object
+ * @param key The header parameter name
+ * @param value_json The parameter value as a JSON fragment
+ * @return 0 on success, non-zero otherwise with error set in the builder
+ */
+JWT_EXPORT
+int jwe_builder_add_protected_json(jwe_builder_t *builder, const char *key,
+				   const char *value_json);
+
+/**
+ * @brief Add a parameter to the shared JWE Unprotected Header
+ *
+ * Adds an application-defined member to the shared (not integrity-protected)
+ * JWE header, emitted as the ``unprotected`` member of the JSON
+ * serializations. Only the JSON serializations can carry it. @p value_json is
+ * parsed as JSON (see @ref jwe_builder_add_protected_json). The same parameter
+ * name must not also appear in the protected or any per-recipient header.
+ *
+ * @param builder Pointer to a JWE builder object
+ * @param key The header parameter name
+ * @param value_json The parameter value as a JSON fragment
+ * @return 0 on success, non-zero otherwise with error set in the builder
+ *
+ * @rfc{7516,7.2.1}
+ */
+JWT_EXPORT
+int jwe_builder_add_unprotected_json(jwe_builder_t *builder, const char *key,
+				     const char *value_json);
+
+/**
+ * @brief Set the JWE Additional Authenticated Data
+ *
+ * Sets the optional application AAD emitted as the ``aad`` member of the JSON
+ * serializations. It is authenticated (bound into the AEAD tag) but not
+ * encrypted. Per @rfc{7516,5.1} the AEAD AAD becomes
+ * ``ASCII(BASE64URL(protected)) || '.' || BASE64URL(aad)``. Only the JSON
+ * serializations can carry it. Pass NULL (with length 0) to clear it.
+ *
+ * @param builder Pointer to a JWE builder object
+ * @param aad The AAD octets, or NULL
+ * @param aad_len Length of @p aad in bytes
+ * @return 0 on success, non-zero otherwise with error set in the builder
+ */
+JWT_EXPORT
+int jwe_builder_set_aad(jwe_builder_t *builder, const unsigned char *aad,
+			size_t aad_len);
+
+/**
+ * @brief Encrypt a plaintext into a JWE
+ *
+ * Produces a JWE using the key and algorithms configured with
+ * @ref jwe_builder_setkey. The serialization is the Compact Serialization (a
+ * five-part string) unless changed with @ref jwe_builder_set_format.
  *
  * @param builder Pointer to a JWE builder object
  * @param plaintext The bytes to encrypt
  * @param plaintext_len Length of @p plaintext in bytes
- * @return A newly allocated, nil-terminated compact JWE string the caller
- *  must free, or NULL on error (with the error set in the builder)
+ * @return A newly allocated, nil-terminated JWE string the caller must free,
+ *  or NULL on error (with the error set in the builder)
  */
 JWT_EXPORT
 char *jwe_builder_generate(jwe_builder_t *builder,
@@ -1621,6 +1703,44 @@ int jwe_checker_setkey(jwe_checker_t *checker, jwe_key_alg_t alg,
 JWT_EXPORT
 unsigned char *jwe_checker_decrypt(jwe_checker_t *checker, const char *token,
 				   size_t *plaintext_len);
+
+/**
+ * @brief Decrypt and authenticate a JWE in any serialization
+ *
+ * Like @ref jwe_checker_decrypt, but auto-detects the serialization: a token
+ * beginning with ``{`` is parsed as a JSON Serialization (Flattened or
+ * General), otherwise as the Compact Serialization. For a General JWE the
+ * checker selects the recipient matching its configured key and algorithm.
+ *
+ * @param checker Pointer to a JWE checker object
+ * @param token A nil-terminated JWE string (compact or JSON)
+ * @param plaintext_len If non-NULL, set to the length of the returned
+ *  plaintext on success
+ * @return A newly allocated, nil-terminated buffer of decrypted plaintext the
+ *  caller must free, or NULL on error (with the error set in the checker)
+ *
+ * @rfc{7516,7}
+ */
+JWT_EXPORT
+unsigned char *jwe_checker_decrypt_all(jwe_checker_t *checker,
+				       const char *token, size_t *plaintext_len);
+
+/**
+ * @brief Get the JWE AAD recovered from a JSON-serialized token
+ *
+ * After a successful @ref jwe_checker_decrypt_all on a JSON Serialization that
+ * carried an ``aad`` member, returns the authenticated application AAD octets.
+ * Returns NULL if the last token had no AAD member (or was compact). The
+ * returned buffer is owned by the checker and valid until the next decrypt or
+ * until the checker is freed.
+ *
+ * @param checker Pointer to a JWE checker object
+ * @param aad_len If non-NULL, set to the length of the returned AAD in bytes
+ * @return Pointer to the AAD octets, or NULL if none
+ */
+JWT_EXPORT
+const unsigned char *jwe_checker_get_aad(const jwe_checker_t *checker,
+					 size_t *aad_len);
 
 /**
  * @}
