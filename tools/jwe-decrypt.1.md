@@ -10,14 +10,18 @@
 
 # DESCRIPTION
 
-**jwe-decrypt** parses a JWE Compact Serialization token, recovers the
-Content Encryption Key, and decrypts and authenticates the content.
+**jwe-decrypt** parses a JWE token, recovers the Content Encryption Key,
+and decrypts and authenticates the content. The serialization is detected
+automatically: a token beginning with **{** is parsed as a JSON
+Serialization (Flattened or General), otherwise as the Compact
+Serialization.
 
 The key is supplied as a JSON Web Key with **-k**. The expected key
 management algorithm (**-a**) and content encryption algorithm (**-e**)
 act as an allow-list: a token whose header does not match the configured
 pair is rejected. This prevents a token from selecting an unexpected
-algorithm.
+algorithm. For a General JSON token with several recipients, the recipient
+whose algorithm matches **-a** and whose key is **-k** is selected.
 
 The token may be given as the final argument or, if omitted, read from
 standard input. On success the decrypted plaintext is written to standard
@@ -42,7 +46,9 @@ output. On any failure the program prints an error and exits non-zero.
 A failure to recover the CEK (a wrong key, bad RSA padding, or a corrupted
 wrapped key) is not distinguished from a failed content authentication
 tag: per RFC 7516, the decrypter substitutes a random CEK and fails
-uniformly at the tag, denying a padding oracle.
+uniformly at the tag, denying a padding oracle. A General JSON token in
+which no recipient matches the configured algorithm and key fails with the
+same generic error.
 
 # SEE ALSO
 

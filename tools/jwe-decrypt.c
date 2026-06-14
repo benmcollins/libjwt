@@ -21,17 +21,20 @@ _Noreturn static void usage(const char *error, int exit_state)
 	fprintf(stderr, "\
 Usage: %s [OPTIONS] [TOKEN]\n\
 \n\
-Decrypt and authenticate a JSON Web Encryption (JWE) compact token\n\
+Decrypt and authenticate a JSON Web Encryption (JWE) token\n\
 \n\
   -h, --help            This help information\n\
   -k, --key=FILE        Filename containing a JSON Web Key (required)\n\
   -a, --algorithm=ALG   Expected JWE key management algorithm\n\
   -e, --enc=ENC         Expected JWE content encryption algorithm\n\
 \n\
-The token may be given as the final argument or, if omitted, read from\n\
-stdin. The configured --algorithm and --enc act as an allow-list: a token\n\
-whose header does not match is rejected. On success the decrypted\n\
-plaintext is written to stdout.\n", get_progname());
+The serialization (Compact or JSON, Flattened or General) is detected\n\
+automatically. For a General JSON token the recipient matching the given\n\
+key and --algorithm is selected. The token may be given as the final\n\
+argument or, if omitted, read from stdin. The configured --algorithm and\n\
+--enc act as an allow-list: a token whose header does not match is\n\
+rejected. On success the decrypted plaintext is written to stdout.\n",
+		get_progname());
 
 	exit(exit_state);
 }
@@ -132,7 +135,7 @@ int main(int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 
-	pt = jwe_checker_decrypt(checker, token, &pt_len);
+	pt = jwe_checker_decrypt_all(checker, token, &pt_len);
 	if (pt == NULL) {
 		fprintf(stderr, "ERROR: %s\n", jwe_checker_error_msg(checker));
 		exit(EXIT_FAILURE);
