@@ -414,12 +414,21 @@ struct jwt_crypto_ops jwt_gnutls_ops = {
 	.sign_sha_pem		= gnutls_sign_sha_pem,
 	.verify_sha_pem		= gnutls_verify_sha_pem,
 
-	/* Needs to be implemented */
 	.jwk_implemented	= 1,
+#if JWT_GNUTLS_NATIVE_JWE
+	/* Native GnuTLS JWK parsing + RSA-OAEP + ECDH-ES (GnuTLS >= 3.8.4). */
+	.process_eddsa		= gnutls_process_eddsa,
+	.process_rsa		= gnutls_process_rsa,
+	.process_ec		= gnutls_process_ec,
+	.process_item_free	= gnutls_process_item_free,
+#else
+	/* Older GnuTLS lacks the SPKI-OAEP / derive-secret APIs, so JWK parsing
+	 * and RSA-OAEP/ECDH-ES fall back to OpenSSL (EVP_PKEY on the JWK). */
 	.process_eddsa		= openssl_process_eddsa,
 	.process_rsa		= openssl_process_rsa,
 	.process_ec		= openssl_process_ec,
 	.process_item_free	= openssl_process_item_free,
+#endif
 
 	.jwe_implemented	= 1,
 	.rng			= gnutls_rng,
@@ -431,8 +440,13 @@ struct jwt_crypto_ops jwt_gnutls_ops = {
 	.unwrap_aes_kw		= gnutls_unwrap_aes_kw,
 	.wrap_aes_kw_raw	= gnutls_wrap_aes_kw_raw,
 	.unwrap_aes_kw_raw	= gnutls_unwrap_aes_kw_raw,
-	/* RSA and ECDH-ES use the OpenSSL EVP_PKEY on the JWK. */
+#if JWT_GNUTLS_NATIVE_JWE
+	.encrypt_cek_rsa	= gnutls_encrypt_cek_rsa,
+	.decrypt_cek_rsa	= gnutls_decrypt_cek_rsa,
+	.ecdh_derive		= gnutls_ecdh_derive,
+#else
 	.encrypt_cek_rsa	= openssl_encrypt_cek_rsa,
 	.decrypt_cek_rsa	= openssl_decrypt_cek_rsa,
 	.ecdh_derive		= openssl_ecdh_derive,
+#endif
 };

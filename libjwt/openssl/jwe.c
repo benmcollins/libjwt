@@ -17,6 +17,8 @@
 #include <openssl/core_names.h>
 #include <openssl/param_build.h>
 #include <openssl/sha.h>
+#include <openssl/pem.h>
+#include <openssl/bio.h>
 
 #include <jwt.h>
 
@@ -549,13 +551,14 @@ static int oaep_set_md(EVP_PKEY_CTX *pctx, jwe_key_alg_t alg)
 	return 0;
 }
 
-/* @rfc{7518,4.3} RSAES-OAEP encryption of the CEK to the recipient public
- * key. The recipient's EVP_PKEY is the OpenSSL key parsed from the JWK. */
-int openssl_encrypt_cek_rsa(jwe_key_alg_t alg, const jwk_item_t *key,
-			    const unsigned char *cek, size_t cek_len,
-			    unsigned char **out, size_t *out_len)
+/* @rfc{7518,4.3} RSAES-OAEP encrypt the CEK to a recipient EVP_PKEY. Shared by
+ * the OpenSSL op (which uses the EVP_PKEY on the JWK) and the GnuTLS fallback
+ * (GnuTLS cannot OAEP-encrypt with a public-only key, so it builds an EVP_PKEY
+ * from the JWK's public PEM and calls this). */
+static int rsa_oaep_encrypt_pkey(jwe_key_alg_t alg, EVP_PKEY *pkey,
+				 const unsigned char *cek, size_t cek_len,
+				 unsigned char **out, size_t *out_len)
 {
-	EVP_PKEY *pkey = (EVP_PKEY *)key->provider_data;
 	EVP_PKEY_CTX *pctx = NULL;
 	unsigned char *buf = NULL;
 	size_t buflen = 0;
@@ -593,14 +596,61 @@ out:
 	return ret;
 }
 
-/* @rfc{7518,4.3} RSAES-OAEP decryption of the JWE Encrypted Key. A failure
- * here (wrong key, bad padding) is funnelled by the caller into the uniform
- * random-CEK path (RFC 7516 11.5). */
-int openssl_decrypt_cek_rsa(jwe_key_alg_t alg, const jwk_item_t *key,
-			    const unsigned char *in, size_t in_len,
-			    unsigned char **cek, size_t *cek_len)
+/* @rfc{7518,4.3} RSAES-OAEP encryption of the CEK. The recipient's EVP_PKEY is
+ * the OpenSSL key parsed from the JWK. */
+int openssl_encrypt_cek_rsa(jwe_key_alg_t alg, const jwk_item_t *key,
+			    const unsigned char *cek, size_t cek_len,
+			    unsigned char **out, size_t *out_len)
 {
-	EVP_PKEY *pkey = (EVP_PKEY *)key->provider_data;
+	return rsa_oaep_encrypt_pkey(alg, (EVP_PKEY *)key->provider_data,
+				     cek, cek_len, out, out_len);
+}
+
+/* RSAES-OAEP encryption from a PEM-encoded RSA public key. Used by the GnuTLS
+ * backend, whose pubkey path cannot OAEP-encrypt natively. */
+int openssl_encrypt_cek_rsa_pem(jwe_key_alg_t alg, const char *pem,
+				const unsigned char *cek, size_t cek_len,
+				unsigned char **out, size_t *out_len)
+{
+	EVP_PKEY *pkey = NULL;
+	BIO *bio = NULL;
+	int ret = 1;
+
+	if (pem == NULL)
+		return 1; // LCOV_EXCL_LINE
+
+	bio = BIO_new_mem_buf(pem, -1);
+	if (bio == NULL)
+		return 1; // LCOV_EXCL_LINE
+
+	/* The convenience PEM is a public key for a public-only JWK and a
+	 * private key for a private JWK; both carry the public part needed to
+	 * encrypt. Try public first, then private. */
+	pkey = PEM_read_bio_PUBKEY(bio, NULL, NULL, NULL);
+	if (pkey == NULL) {
+		BIO_free(bio);
+		bio = BIO_new_mem_buf(pem, -1);
+		if (bio == NULL)
+			return 1; // LCOV_EXCL_LINE
+		pkey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL);
+	}
+
+	if (pkey != NULL)
+		ret = rsa_oaep_encrypt_pkey(alg, pkey, cek, cek_len, out,
+					    out_len);
+
+	EVP_PKEY_free(pkey);
+	BIO_free(bio);
+
+	return ret;
+}
+
+/* @rfc{7518,4.3} RSAES-OAEP decrypt with a recipient private EVP_PKEY. Shared
+ * by the OpenSSL op and the GnuTLS fallback (see rsa_oaep_encrypt_pkey). */
+static int rsa_oaep_decrypt_pkey(jwe_key_alg_t alg, EVP_PKEY *pkey,
+				 const unsigned char *in, size_t in_len,
+				 unsigned char **cek, size_t *cek_len)
+{
 	EVP_PKEY_CTX *pctx = NULL;
 	unsigned char *buf = NULL;
 	size_t buflen = 0;
@@ -635,6 +685,44 @@ int openssl_decrypt_cek_rsa(jwe_key_alg_t alg, const jwk_item_t *key,
 out:
 	jwt_scrub_and_free(buf, buflen ? buflen : 1);
 	EVP_PKEY_CTX_free(pctx);
+
+	return ret;
+}
+
+/* @rfc{7518,4.3} RSAES-OAEP decryption of the JWE Encrypted Key. A failure
+ * here (wrong key, bad padding) is funnelled by the caller into the uniform
+ * random-CEK path (RFC 7516 11.5). */
+int openssl_decrypt_cek_rsa(jwe_key_alg_t alg, const jwk_item_t *key,
+			    const unsigned char *in, size_t in_len,
+			    unsigned char **cek, size_t *cek_len)
+{
+	return rsa_oaep_decrypt_pkey(alg, (EVP_PKEY *)key->provider_data,
+				     in, in_len, cek, cek_len);
+}
+
+/* RSAES-OAEP decryption from a PEM-encoded RSA private key. Used by the GnuTLS
+ * backend, whose native OAEP decrypt is unreliable on the supported versions. */
+int openssl_decrypt_cek_rsa_pem(jwe_key_alg_t alg, const char *pem,
+				const unsigned char *in, size_t in_len,
+				unsigned char **cek, size_t *cek_len)
+{
+	EVP_PKEY *pkey = NULL;
+	BIO *bio = NULL;
+	int ret = 1;
+
+	if (pem == NULL)
+		return 1; // LCOV_EXCL_LINE
+
+	bio = BIO_new_mem_buf(pem, -1);
+	if (bio == NULL)
+		return 1; // LCOV_EXCL_LINE
+
+	pkey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL);
+	if (pkey != NULL)
+		ret = rsa_oaep_decrypt_pkey(alg, pkey, in, in_len, cek, cek_len);
+
+	EVP_PKEY_free(pkey);
+	BIO_free(bio);
 
 	return ret;
 }

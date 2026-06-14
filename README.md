@@ -58,11 +58,15 @@ LibJWT supports JWE (RFC 7516) Compact Serialization with a single recipient.
 A JWE uses two algorithms: a key management algorithm (``alg``) and a content
 encryption algorithm (``enc``).
 
+Legend: :white_check_mark: native implementation &nbsp;·&nbsp;
+:large_blue_circle: supported, using OpenSSL as a fallback &nbsp;·&nbsp; :x: not supported
+
 JWE key management ``alg``    | OpenSSL            | GnuTLS             | MbedTLS
 :---------------------------- | :----------------- | :----------------- | :-----------------
 ``dir`` (Direct Encryption)   | :white_check_mark: | :white_check_mark: | :white_check_mark:
 ``A128KW`` ``A192KW`` ``A256KW`` | :white_check_mark: | :white_check_mark: | :white_check_mark:
-``RSA-OAEP`` ``RSA-OAEP-256`` | :white_check_mark: | :white_check_mark: | :white_check_mark:
+``RSA-OAEP`` (SHA-1)          | :white_check_mark: | :large_blue_circle: | :white_check_mark:
+``RSA-OAEP-256``              | :white_check_mark: | :white_check_mark: | :white_check_mark:
 ``ECDH-ES`` (+ ``+A128KW``/``+A192KW``/``+A256KW``) | :white_check_mark: | :white_check_mark: | :white_check_mark:
 
 JWE content encryption ``enc`` | OpenSSL            | GnuTLS             | MbedTLS
@@ -75,7 +79,9 @@ JWE content encryption ``enc`` | OpenSSL            | GnuTLS             | MbedT
 > wrapping modes, on the EC curves P-256/384/521 and the OKP curves
 > X25519/X448, with optional ``apu``/``apv`` PartyInfo. ``RSA1_5`` and
 > ``zip`` (compression) are intentionally not supported. Each backend
-> implements JWE natively (OpenSSL, GnuTLS, and MbedTLS).
+> implements JWE natively, with one exception: GnuTLS/Nettle cannot perform
+> RSA-OAEP with SHA-1, so plain ``RSA-OAEP`` falls back to OpenSSL under the
+> GnuTLS backend (``RSA-OAEP-256`` is native).
 
 ### Optional
 
