@@ -65,6 +65,7 @@ JWE key management ``alg``    | OpenSSL            | GnuTLS             | MbedTL
 ``dir`` (Direct Encryption)   | :white_check_mark: | :white_check_mark: | :x:
 ``A128KW`` ``A192KW`` ``A256KW`` | :white_check_mark: | :white_check_mark: | :x:
 ``RSA-OAEP`` ``RSA-OAEP-256`` | :white_check_mark: | :white_check_mark: | :x:
+``ECDH-ES`` (Direct, EC P-256/384/521) | :white_check_mark: | :white_check_mark: | :x:
 
 JWE content encryption ``enc`` | OpenSSL            | GnuTLS             | MbedTLS
 :----------------------------- | :----------------- | :----------------- | :--------
@@ -73,8 +74,10 @@ JWE content encryption ``enc`` | OpenSSL            | GnuTLS             | MbedT
 
 > [!NOTE]
 > ``RSA1_5`` and ``zip`` (compression) are intentionally not supported.
-> ``ECDH-ES`` is planned for a later release. RSA key operations always use
-> OpenSSL (which is required for JWK parsing).
+> ``ECDH-ES`` is supported in Direct Key Agreement mode; the ``+A*KW``
+> variants and the X25519/X448 curves are planned for a later release. RSA
+> and ECDH-ES key operations always use OpenSSL (which is required for JWK
+> parsing).
 
 ### Optional
 
