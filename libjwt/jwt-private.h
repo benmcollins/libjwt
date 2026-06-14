@@ -571,6 +571,8 @@ int jwe_alg_is_ecdh(jwe_key_alg_t alg);
 JWT_NO_EXPORT
 int jwe_alg_is_ecdh_direct(jwe_key_alg_t alg);
 JWT_NO_EXPORT
+int jwe_alg_is_direct(jwe_key_alg_t alg);
+JWT_NO_EXPORT
 int jwe_ecdh_derive(jwe_key_alg_t alg, jwe_enc_t enc, const jwk_item_t *key,
 		    int for_encrypt, jwt_json_t *hdr,
 		    unsigned char **dk, size_t *dk_len);

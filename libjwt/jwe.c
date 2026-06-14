@@ -135,6 +135,14 @@ int jwe_alg_is_ecdh_direct(jwe_key_alg_t alg)
 	return alg == JWE_ALG_ECDH_ES;
 }
 
+/* @rfc{7516,7.2.1} Does this algorithm dictate the CEK from the recipient key
+ * (dir or ECDH-ES Direct)? Such an algorithm constrains the single shared CEK,
+ * so it cannot be combined with other recipients. */
+int jwe_alg_is_direct(jwe_key_alg_t alg)
+{
+	return alg == JWE_ALG_DIR || jwe_alg_is_ecdh_direct(alg);
+}
+
 /* @rfc{7518,4.6} Run ECDH-ES agreement to derive the agreed key: the CEK in
  * Direct mode, or the KEK that wraps the CEK in +A*KW mode. On encrypt this
  * also writes "epk" into @hdr. */

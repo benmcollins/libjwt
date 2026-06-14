@@ -1414,6 +1414,17 @@ jwe_enc_t jwe_str_enc(const char *enc);
 typedef struct jwe_builder jwe_builder_t;
 
 /**
+ * @brief Opaque JWE recipient handle
+ *
+ * Returned by @ref jwe_builder_add_recipient to address one recipient of a
+ * General JSON Serialization. The handle is borrowed: it is owned by the
+ * builder and valid until the builder is freed; do not free it directly.
+ *
+ * @rfc{7516,7.2.1}
+ */
+typedef struct jwe_recipient jwe_recipient_t;
+
+/**
  * @brief Create a new JWE builder instance
  *
  * @return Pointer to a JWE builder object on success, NULL on failure
@@ -1500,6 +1511,71 @@ JWT_EXPORT
 int jwe_builder_set_partyinfo(jwe_builder_t *builder,
 			      const unsigned char *apu, size_t apu_len,
 			      const unsigned char *apv, size_t apv_len);
+
+/**
+ * @brief Add a recipient to a General JSON Serialization JWE
+ *
+ * The plaintext is encrypted once with a single CEK; each recipient wraps or
+ * encrypts that same CEK independently with its own key management algorithm
+ * and key. The first recipient may equivalently be configured with
+ * @ref jwe_builder_setkey; this call appends further ones. Adding more than one
+ * recipient forces @ref JWE_FORMAT_JSON_GENERAL.
+ *
+ * The shared content encryption algorithm (``"enc"``) must be set via
+ * @ref jwe_builder_setkey. ``dir`` and ECDH-ES Direct (@ref JWE_ALG_ECDH_ES)
+ * dictate the CEK from the key, so they cannot be combined with any other
+ * recipient.
+ *
+ * @param builder Pointer to a JWE builder object
+ * @param alg The recipient's key management algorithm (``"alg"`` header)
+ * @param key The recipient's key (a JWK)
+ * @return A borrowed recipient handle (owned by the builder, valid until it is
+ *  freed) on success, or NULL on error (with the error set in the builder)
+ *
+ * @rfc{7516,7.2.1}
+ */
+JWT_EXPORT
+jwe_recipient_t *jwe_builder_add_recipient(jwe_builder_t *builder,
+					   jwe_key_alg_t alg,
+					   const jwk_item_t *key);
+
+/**
+ * @brief Set the ECDH-ES PartyUInfo / PartyVInfo for one recipient
+ *
+ * The per-recipient equivalent of @ref jwe_builder_set_partyinfo, addressing
+ * the recipient identified by @p recipient. Has no effect for non-ECDH-ES
+ * algorithms. Pass NULL (with length 0) to leave one unset.
+ *
+ * @param recipient A recipient handle from @ref jwe_builder_add_recipient
+ * @param apu PartyUInfo octets, or NULL
+ * @param apu_len Length of @p apu in bytes
+ * @param apv PartyVInfo octets, or NULL
+ * @param apv_len Length of @p apv in bytes
+ * @return 0 on success, non-zero otherwise
+ */
+JWT_EXPORT
+int jwe_recipient_set_partyinfo(jwe_recipient_t *recipient,
+				const unsigned char *apu, size_t apu_len,
+				const unsigned char *apv, size_t apv_len);
+
+/**
+ * @brief Add a parameter to one recipient's unprotected header
+ *
+ * Adds an application-defined member to the per-recipient (unprotected) header
+ * emitted for @p recipient. @p value_json is parsed as JSON (see
+ * @ref jwe_builder_add_protected_json). The library-managed names
+ * (``alg``/``enc``/``epk``/``apu``/``apv``) and a duplicate name are rejected;
+ * the same name must not also appear in the protected or shared unprotected
+ * header (@rfc{7516,7.2.1}).
+ *
+ * @param recipient A recipient handle from @ref jwe_builder_add_recipient
+ * @param key The header parameter name
+ * @param value_json The parameter value as a JSON fragment
+ * @return 0 on success, non-zero otherwise
+ */
+JWT_EXPORT
+int jwe_recipient_add_header_json(jwe_recipient_t *recipient, const char *key,
+				  const char *value_json);
 
 /**
  * @brief Select the serialization @ref jwe_builder_generate produces
