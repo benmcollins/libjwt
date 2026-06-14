@@ -622,6 +622,94 @@ START_TEST(partyinfo_replace)
 }
 END_TEST
 
+/* @rfc{7518,C} External known-answer test for the ECDH-ES Concat KDF.
+ *
+ * RFC 7518 Appendix C gives a complete worked ECDH-ES key-agreement example:
+ * P-256, AlgorithmID "A128GCM", apu="Alice" (QWxpY2U), apv="Bob" (Qm9i),
+ * keydatalen 128, recipient (Bob) static key, ephemeral (epk) key, and the
+ * resulting derived key "VqqN6vgjbSBcIijNcacQGg".
+ *
+ * We pin a complete ECDH-ES (Direct) + A128GCM compact token whose protected
+ * header carries the RFC's exact epk/apu/apv, and whose A128GCM ciphertext was
+ * produced with the RFC's derived key as the CEK (IV = 00010203...0B). The
+ * recipient static key is tests/keys/ec_key_prime256v1_rfc7518_c_enc.json.
+ *
+ * Decrypting it proves libjwt's Concat KDF (concat_kdf() in the backends)
+ * interoperates with the RFC vector: the agreement + KDF must reproduce the
+ * exact CEK or the AEAD tag fails. It also proves the KDF is NIST SP 800-56A
+ * Concat (HKDF or any other KDF would derive a different CEK and fail), and
+ * that apu/apv are bound into the derivation. ECDH-ES is curve-deterministic,
+ * so this holds identically under every crypto backend (loop test). */
+static const char KAT_RFC7518_C[] =
+	"eyJhbGciOiJFQ0RILUVTIiwiZW5jIjoiQTEyOEdDTSIsImFwdSI6IlFXeHBZMlUiLCJh"
+	"cHYiOiJRbTlpIiwiZXBrIjp7Imt0eSI6IkVDIiwiY3J2IjoiUC0yNTYiLCJ4IjoiZ0kw"
+	"R0FJTEJkdTdUNTNha3JGbU15R2NzRjNuNWRPN01td05CSEtXNVNWMCIsInkiOiJTTFdf"
+	"eFNmZnpsUFdySEVWSTMwREhNXzRlZ1Z3dDNOUXFlVUQ3bk1GcHBzIn19.."
+	"AAECAwQFBgcICQoL.D6lxkS_zkJKLMA4lGrsPj16kHZ1qXO2XjTYGJWBrlcF-EICbruU."
+	"L12narVF24e8QZRi0iUg2A";
+
+START_TEST(kat_rfc7518_appc)
+{
+	jwe_checker_auto_t *checker = NULL;
+	unsigned char *pt = NULL;
+	size_t pt_len = 0;
+
+	SET_OPS();
+	read_json("ec_key_prime256v1_rfc7518_c_enc.json");
+
+	checker = jwe_checker_new();
+	ck_assert_int_eq(jwe_checker_setkey(checker, JWE_ALG_ECDH_ES,
+					    JWE_ENC_A128GCM, g_item), 0);
+
+	/* The CEK is fixed by the RFC's agreement + Concat KDF; the GCM tag only
+	 * verifies if libjwt derives byte-for-byte the same key. PT is the same
+	 * plaintext encrypted into the pinned token. */
+	pt = jwe_checker_decrypt(checker, KAT_RFC7518_C, &pt_len);
+	ck_assert_ptr_nonnull(pt);
+	ck_assert_int_eq(pt_len, strlen(PT));
+	ck_assert_mem_eq(pt, PT, pt_len);
+
+	free(pt);
+	free_key();
+}
+END_TEST
+
+START_TEST(kat_rfc7518_appc_tampered_hdr)
+{
+	jwe_checker_auto_t *checker = NULL;
+	char_auto *tok = NULL;
+	unsigned char *pt = NULL;
+	size_t pt_len = 0;
+	char *dot;
+
+	SET_OPS();
+	read_json("ec_key_prime256v1_rfc7518_c_enc.json");
+
+	tok = strdup(KAT_RFC7518_C);
+	ck_assert_ptr_nonnull(tok);
+
+	/* Corrupt one byte deep inside the protected header (the base64url of the
+	 * JSON carrying alg/enc/apu/apv/epk). The header determines both the
+	 * Concat KDF inputs and the AAD, so any change makes the derived CEK and
+	 * the AEAD tag disagree with the RFC vector and decryption must fail.
+	 * This guards against a vacuous pass: the KAT only succeeds with the exact
+	 * agreement + KDF the RFC specifies, not regardless of input. */
+	dot = strchr(tok, '.');
+	ck_assert_ptr_nonnull(dot);
+	ck_assert_int_gt(dot - tok, 80);
+	tok[80] = (tok[80] == 'A') ? 'B' : 'A';
+
+	checker = jwe_checker_new();
+	ck_assert_int_eq(jwe_checker_setkey(checker, JWE_ALG_ECDH_ES,
+					    JWE_ENC_A128GCM, g_item), 0);
+	pt = jwe_checker_decrypt(checker, tok, &pt_len);
+	ck_assert_ptr_null(pt);
+	ck_assert_int_eq(jwe_checker_error(checker), 1);
+
+	free_key();
+}
+END_TEST
+
 /* Both backends route ECDH-ES to the OpenSSL EVP_PKEY, so a token from one
  * provider must decrypt under all. */
 START_TEST(interop)
@@ -698,6 +786,8 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, partyinfo, 0, i);
 	tcase_add_loop_test(tc_core, partyinfo_binds_kdf, 0, i);
 	tcase_add_loop_test(tc_core, partyinfo_replace, 0, i);
+	tcase_add_loop_test(tc_core, kat_rfc7518_appc, 0, i);
+	tcase_add_loop_test(tc_core, kat_rfc7518_appc_tampered_hdr, 0, i);
 	tcase_add_test(tc_core, interop);
 
 	tcase_set_timeout(tc_core, 30);
