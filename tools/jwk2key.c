@@ -50,7 +50,7 @@ static void write_key_file(const jwk_item_t *item)
 	case JWK_KEY_TYPE_OCT:
 		pre = "oct";
 		ext = ".bin";
-		sprintf(bits, "%d", jwks_item_key_bits(item));
+		snprintf(bits, sizeof(bits), "%d", jwks_item_key_bits(item));
 		name = bits;
 		break;
 	case JWK_KEY_TYPE_EC:
@@ -58,7 +58,7 @@ static void write_key_file(const jwk_item_t *item)
 		name = jwks_item_curve(item);
 		break;
 	case JWK_KEY_TYPE_RSA:
-		sprintf(bits, "%d", jwks_item_key_bits(item));
+		snprintf(bits, sizeof(bits), "%d", jwks_item_key_bits(item));
 		name = bits;
 		switch (jwks_item_alg(item)) {
 		case JWT_ALG_PS256:
@@ -110,7 +110,7 @@ static void write_key_file(const jwk_item_t *item)
 		if (i == 0) {
 			*p++ = '-';
 			*p++ = '1';
-			strcpy(p, ext);
+			snprintf(p, file_name + sizeof(file_name) - p, "%s", ext);
 		} else {
 			p = p - 1;
 			*p = '1' + i;
