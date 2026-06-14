@@ -126,6 +126,12 @@ static void __flip_one(const char *priv, const char *pub, jwt_alg_t alg)
 	for (i = 0; i < ARRAY_SIZE(jwt_test_ops); i++) {
 		size_t c;
 
+		/* MbedTLS has no EdDSA; it can neither produce nor verify an
+		 * EdDSA token, so skip it on both sides of the flip-flop. */
+		if (alg == JWT_ALG_EDDSA &&
+		    jwt_test_ops[i].type == JWT_CRYPTO_OPS_MBEDTLS)
+			continue;
+
 		/* Generate on Here */
 		out = __builder(jwt_test_ops[i].name, priv, alg);
 		if (out == NULL)
@@ -133,6 +139,10 @@ static void __flip_one(const char *priv, const char *pub, jwt_alg_t alg)
 
 		for (c = 0; c < ARRAY_SIZE(jwt_test_ops); c++) {
 			/* Test everywhere */
+
+			if (alg == JWT_ALG_EDDSA &&
+			    jwt_test_ops[c].type == JWT_CRYPTO_OPS_MBEDTLS)
+				continue;
 
 			__checker(jwt_test_ops[c].name, pub, alg, out);
 		}

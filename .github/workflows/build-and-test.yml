@@ -89,3 +89,26 @@ jobs:
           --
           all
           check
+
+  # MbedTLS requires >= 3.6.0, which Ubuntu does not package (it ships 2.28).
+  # Debian forky provides mbedtls 3.6.x, so run the MbedTLS matrix in a forky
+  # container. This validates the native MbedTLS JWS/JWK/JWE backend and the
+  # cross-backend interop tests (which loop over every compiled provider).
+  build-linux-mbedtls:
+    runs-on: ubuntu-latest
+    container:
+      image: debian:forky
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install dependencies
+      run: |
+        apt-get update
+        apt-get install -y --no-install-recommends \
+          gcc cmake pkg-config make \
+          libssl-dev gnutls-dev libmbedtls-dev libjansson-dev \
+          libcurl4-openssl-dev check bats jq ca-certificates
+
+    - name: Build and Test (OpenSSL + GnuTLS + MbedTLS)
+      run: |
+        cmake -B build -DWITH_MBEDTLS=YES -DWITH_LIBCURL=YES
+        cmake --build build -- all check

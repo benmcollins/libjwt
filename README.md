@@ -49,10 +49,8 @@ JWS Algorithm ``alg``         | OpenSSL            | GnuTLS             | MbedTL
 ``RS256`` ``RS384`` ``RS512`` | :white_check_mark: | :white_check_mark: | :white_check_mark:
 ``EdDSA`` using ``ED25519``   | :white_check_mark: | :white_check_mark: | :x:
 ``EdDSA`` using ``ED448``     | :white_check_mark: | :white_check_mark: ``>= 3.8.8`` | :x:
-``PS256`` ``PS384`` ``PS512`` | :white_check_mark: | :white_check_mark: | :white_check_mark:``*``
+``PS256`` ``PS384`` ``PS512`` | :white_check_mark: | :white_check_mark: | :white_check_mark:
 ``ES256K``                    | :white_check_mark: | :x:                | :white_check_mark:
-
-``*`` RSASSA-PSS support in MbedTLS depends on Mbed-TLS/TF-PSA-Crypto#154
 
 #### JWE
 
@@ -61,23 +59,23 @@ A JWE uses two algorithms: a key management algorithm (``alg``) and a content
 encryption algorithm (``enc``).
 
 JWE key management ``alg``    | OpenSSL            | GnuTLS             | MbedTLS
-:---------------------------- | :----------------- | :----------------- | :--------
-``dir`` (Direct Encryption)   | :white_check_mark: | :white_check_mark: | :x:
-``A128KW`` ``A192KW`` ``A256KW`` | :white_check_mark: | :white_check_mark: | :x:
-``RSA-OAEP`` ``RSA-OAEP-256`` | :white_check_mark: | :white_check_mark: | :x:
-``ECDH-ES`` (+ ``+A128KW``/``+A192KW``/``+A256KW``) | :white_check_mark: | :white_check_mark: | :x:
+:---------------------------- | :----------------- | :----------------- | :-----------------
+``dir`` (Direct Encryption)   | :white_check_mark: | :white_check_mark: | :white_check_mark:
+``A128KW`` ``A192KW`` ``A256KW`` | :white_check_mark: | :white_check_mark: | :white_check_mark:
+``RSA-OAEP`` ``RSA-OAEP-256`` | :white_check_mark: | :white_check_mark: | :white_check_mark:
+``ECDH-ES`` (+ ``+A128KW``/``+A192KW``/``+A256KW``) | :white_check_mark: | :white_check_mark: | :white_check_mark:
 
 JWE content encryption ``enc`` | OpenSSL            | GnuTLS             | MbedTLS
-:----------------------------- | :----------------- | :----------------- | :--------
-``A128GCM`` ``A192GCM`` ``A256GCM`` | :white_check_mark: | :white_check_mark: | :x:
-``A128CBC-HS256`` ``A192CBC-HS384`` ``A256CBC-HS512`` | :white_check_mark: | :white_check_mark: | :x:
+:----------------------------- | :----------------- | :----------------- | :-----------------
+``A128GCM`` ``A192GCM`` ``A256GCM`` | :white_check_mark: | :white_check_mark: | :white_check_mark:
+``A128CBC-HS256`` ``A192CBC-HS384`` ``A256CBC-HS512`` | :white_check_mark: | :white_check_mark: | :white_check_mark:
 
 > [!NOTE]
 > ``ECDH-ES`` supports both Direct Key Agreement and the ``+A*KW`` key
 > wrapping modes, on the EC curves P-256/384/521 and the OKP curves
 > X25519/X448, with optional ``apu``/``apv`` PartyInfo. ``RSA1_5`` and
-> ``zip`` (compression) are intentionally not supported. RSA and ECDH-ES key
-> operations always use OpenSSL (which is required for JWK parsing).
+> ``zip`` (compression) are intentionally not supported. Each backend
+> implements JWE natively (OpenSSL, GnuTLS, and MbedTLS).
 
 ### Optional
 
