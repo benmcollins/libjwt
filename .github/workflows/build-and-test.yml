@@ -104,9 +104,14 @@ jobs:
       run: |
         apt-get update
         apt-get install -y --no-install-recommends \
-          gcc cmake pkg-config make \
+          gcc cmake pkg-config make git curl \
           libssl-dev gnutls-dev libmbedtls-dev libjansson-dev \
           libcurl4-openssl-dev check bats jq ca-certificates lcov
+
+    # The repo is checked out as a different owner than the container user;
+    # mark it safe so the Codecov action's git calls work.
+    - name: Mark workspace safe for git
+      run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
     # forky ships GnuTLS >= 3.8.4 and MbedTLS 3.x, so this job exercises the
     # native MbedTLS backend AND the native GnuTLS JWE path (RSA-OAEP-256,
