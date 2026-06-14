@@ -113,3 +113,35 @@ RSAENC="../tests/keys/rsa_key_2048_enc.json"
 	run ./tools/jwe-encrypt -k ${OCT256} -a BOGUS -e A256GCM -j '{}'
 	[ "${status}" -ne 0 ]
 }
+
+# Regression for #264: an oct JWK with a very large `k` makes the key
+# bit-length (len_k * 8) an 8+ digit number. jwk2key formatted it into a
+# fixed 8-byte buffer (char bits[8]) with an unbounded sprintf, overflowing
+# the stack. The decoded `k` here is ~1.3 MB, so bits = 10500000 (8 digits)
+# and overflowed bits[8].
+#
+# A crash is not a reliable signal (the overflow lands in adjacent stack
+# memory and often doesn't fault), so instead assert the *observable*
+# outcome: with the fix, bits is safely truncated and a correctly named
+# oct_1050000.bin is written. Without the fix, the overflow corrupts the
+# output path and that file is never created.
+@test "jwk2key handles oversized oct key without buffer overflow (#264)" {
+	dir="${BATS_TMPDIR:-/tmp}/jwk2key264_$$"
+	mkdir -p "${dir}"
+	jwk="${dir}/big.json"
+	# 1.75 MB of base64url 'A's decodes to ~1.3 MB -> bits = 10500000,
+	# truncated to 1050000 (7 digits) once snprintf bounds the write.
+	k="$(head -c 1750000 /dev/zero | tr '\0' 'A')"
+	printf '{"kty":"oct","k":"%s"}' "${k}" > "${jwk}"
+
+	run ./tools/jwk2key -d "${dir}" "${jwk}"
+
+	status_was="${status}"
+	have_out=0
+	[ -f "${dir}/oct_1050000.bin" ] && have_out=1
+	rm -rf "${dir}"
+
+	# Must not crash (128+signal) and must produce the correctly named file.
+	[ "${status_was}" -lt 128 ]
+	[ "${have_out}" -eq 1 ]
+}
