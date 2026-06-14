@@ -1,0 +1,11 @@
+{
+  "kty": "OKP",
+  "crv": "X25519",
+  "use": "enc",
+  "key_ops": [
+    "deriveKey",
+    "deriveBits"
+  ],
+  "x": "S46Jc4ib5np5zMd8F4xCJL3wLqM_mYlgGGhw0XQAsBU",
+  "d": "8HS-8uSD0zo8pLVHOs3UQh6R57knGnjMgf7iCCknPGs"
+}
