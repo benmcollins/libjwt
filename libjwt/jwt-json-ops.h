@@ -100,6 +100,26 @@ int jwt_json_obj_merge(jwt_json_t *object, jwt_json_t *other);
 JWT_NO_EXPORT
 int jwt_json_obj_merge_new(jwt_json_t *object, jwt_json_t *other);
 
+/**
+ * Iterate the members of a JSON object, invoking @cb for each (key, value).
+ *
+ * Backends differ in how they enumerate object members (Jansson's
+ * json_object_foreach vs json-c's json_object_object_foreach), and the
+ * loop variables are backend-internal types, so a public iterator macro
+ * (like jwt_json_arr_foreach) is not portable here. A callback is.
+ *
+ * @cb returning non-zero stops iteration early and that value becomes the
+ * return value; if @cb returns 0 for every member (or the object is empty),
+ * the return is 0. A NULL object or a non-object @object is a no-op
+ * returning 0 (mirroring the abort-safety of jwt_json_arr_size on json-c).
+ * The value handed to @cb is BORROWED (not a new reference).
+ */
+typedef int (*jwt_json_obj_iter_cb)(const char *key, jwt_json_t *value,
+				    void *ctx);
+JWT_NO_EXPORT
+int jwt_json_obj_foreach(const jwt_json_t *object, jwt_json_obj_iter_cb cb,
+			 void *ctx);
+
 /* ================================================================
  * Array operations
  * ================================================================ */
