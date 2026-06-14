@@ -442,4 +442,5 @@ struct jwt_crypto_ops jwt_openssl_ops = {
 	.unwrap_aes_kw		= openssl_unwrap_aes_kw,
 	.encrypt_cek_rsa	= openssl_encrypt_cek_rsa,
 	.decrypt_cek_rsa	= openssl_decrypt_cek_rsa,
+	.ecdh_derive		= openssl_ecdh_derive,
 };

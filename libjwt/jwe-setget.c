@@ -29,6 +29,14 @@ const char *jwe_alg_str(jwe_key_alg_t alg)
 		return "RSA-OAEP";
 	case JWE_ALG_RSA_OAEP_256:
 		return "RSA-OAEP-256";
+	case JWE_ALG_ECDH_ES:
+		return "ECDH-ES";
+	case JWE_ALG_ECDH_ES_A128KW:
+		return "ECDH-ES+A128KW";
+	case JWE_ALG_ECDH_ES_A192KW:
+		return "ECDH-ES+A192KW";
+	case JWE_ALG_ECDH_ES_A256KW:
+		return "ECDH-ES+A256KW";
 	default:
 		return NULL;
 	}
@@ -51,6 +59,14 @@ jwe_key_alg_t jwe_str_alg(const char *alg)
 		return JWE_ALG_RSA_OAEP;
 	else if (!strcmp(alg, "RSA-OAEP-256"))
 		return JWE_ALG_RSA_OAEP_256;
+	else if (!strcmp(alg, "ECDH-ES"))
+		return JWE_ALG_ECDH_ES;
+	else if (!strcmp(alg, "ECDH-ES+A128KW"))
+		return JWE_ALG_ECDH_ES_A128KW;
+	else if (!strcmp(alg, "ECDH-ES+A192KW"))
+		return JWE_ALG_ECDH_ES_A192KW;
+	else if (!strcmp(alg, "ECDH-ES+A256KW"))
+		return JWE_ALG_ECDH_ES_A256KW;
 
 	return JWE_ALG_INVAL;
 }

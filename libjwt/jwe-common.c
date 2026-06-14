@@ -175,6 +175,24 @@ char *FUNC(generate)(jwe_common_t *__cmd, const unsigned char *plaintext,
 		return NULL; // LCOV_EXCL_LINE
 	}
 
+	/* @rfc{7518,4.6} ECDH-ES (Direct): derive the CEK and add the "epk"
+	 * to the header BEFORE it is serialized, since the header bytes are
+	 * the AAD. The Encrypted Key stays empty (like dir). */
+	if (jwe_alg_is_ecdh(__cmd->c.key_alg)) {
+		if (!jwe_alg_is_ecdh_direct(__cmd->c.key_alg)) {
+			jwt_write_error(__cmd,
+				"ECDH-ES key wrapping not yet supported");
+			return NULL;
+		}
+		if (jwe_ecdh_derive(__cmd->c.key_alg, __cmd->c.enc,
+				    __cmd->c.key, 1, hdr, &cek, &cek_len)) {
+			// LCOV_EXCL_START
+			jwt_write_error(__cmd, "ECDH-ES key agreement failed");
+			return NULL;
+			// LCOV_EXCL_STOP
+		}
+	}
+
 	hdr_json = jwt_json_serialize(hdr, JWT_JSON_SORT_KEYS | JWT_JSON_COMPACT);
 	if (hdr_json == NULL)
 		goto oom; // LCOV_EXCL_LINE
@@ -185,7 +203,10 @@ char *FUNC(generate)(jwe_common_t *__cmd, const unsigned char *plaintext,
 
 	/* @rfc{7516,5.1} Produce the CEK and the JWE Encrypted Key per the key
 	 * management algorithm. */
-	if (__cmd->c.key_alg == JWE_ALG_DIR) {
+	if (jwe_alg_is_ecdh(__cmd->c.key_alg)) {
+		/* ECDH-ES (Direct): CEK already derived above; Encrypted Key
+		 * is empty. */
+	} else if (__cmd->c.key_alg == JWE_ALG_DIR) {
 		/* dir: the CEK is the shared symmetric key; Encrypted Key is
 		 * empty. */
 		size_t need = jwe_enc_cek_len(__cmd->c.enc);
@@ -387,8 +408,31 @@ unsigned char *FUNC(decrypt)(jwe_common_t *__cmd, const char *token,
 		return NULL;
 	}
 
-	/* @rfc{7516,5.2} CEK: dir uses the shared key directly. */
-	if (alg == JWE_ALG_DIR) {
+	/* @rfc{7516,5.2} CEK per the key management algorithm. */
+	if (jwe_alg_is_ecdh(alg)) {
+		/* @rfc{7518,4.6} ECDH-ES (Direct): derive the CEK from the
+		 * recipient private key and the header's "epk". Encrypted Key
+		 * is empty. */
+		if (!jwe_alg_is_ecdh_direct(alg)) {
+			jwt_write_error(__cmd,
+				"ECDH-ES key wrapping not yet supported");
+			return NULL;
+		}
+		if (*p_ek != '\0') {
+			jwt_write_error(__cmd,
+				"ECDH-ES (Direct) must have an empty Encrypted Key");
+			return NULL;
+		}
+		if (jwe_ecdh_derive(alg, enc, __cmd->c.key, 0, hdr,
+				    &cek, &cek_len)) {
+			jwt_write_error(__cmd, "ECDH-ES key agreement failed");
+			goto fail;
+		}
+		if (cek_len != jwe_enc_cek_len(enc)) {
+			jwt_write_error(__cmd, "Derived CEK length wrong"); // LCOV_EXCL_LINE
+			goto fail; // LCOV_EXCL_LINE
+		}
+	} else if (alg == JWE_ALG_DIR) {
 		size_t need = jwe_enc_cek_len(enc);
 
 		if (*p_ek != '\0') {

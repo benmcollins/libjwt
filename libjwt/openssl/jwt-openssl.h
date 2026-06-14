@@ -50,5 +50,8 @@ int openssl_encrypt_cek_rsa(jwe_key_alg_t alg, const jwk_item_t *key,
 int openssl_decrypt_cek_rsa(jwe_key_alg_t alg, const jwk_item_t *key,
 	const unsigned char *in, size_t in_len,
 	unsigned char **cek, size_t *cek_len);
+int openssl_ecdh_derive(jwe_key_alg_t alg, jwe_enc_t enc,
+	const jwk_item_t *key, int for_encrypt, jwt_json_t *hdr,
+	unsigned char **dk, size_t *dk_len);
 
 #endif /* JWT_OPENSSL_H */
