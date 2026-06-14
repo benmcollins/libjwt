@@ -120,6 +120,8 @@ int jwt_json_arr_append(jwt_json_t *array, jwt_json_t *value);
  * Type checking
  * ================================================================ */
 JWT_NO_EXPORT
+int jwt_json_is_object(const jwt_json_t *json);
+JWT_NO_EXPORT
 int jwt_json_is_array(const jwt_json_t *json);
 JWT_NO_EXPORT
 int jwt_json_is_string(const jwt_json_t *json);

@@ -612,6 +612,18 @@ JWT_NO_EXPORT
 const char *jwe_key_usage_check(const jwk_item_t *key, jwe_key_alg_t alg,
 				int for_encrypt);
 
+/* @rfc{7516,5.1} step 14 Build the Additional Authenticated Data for the AEAD.
+ * Compact and the JSON serializations agree on the base: ASCII(@protected_b64).
+ * When a JWE "aad" member is present (its base64url form passed as @aad_b64),
+ * the AAD becomes ASCII(@protected_b64 || '.' || @aad_b64). On return *@aad
+ * points at the AAD bytes and *@aad_len is its length. If *@owned is set, the
+ * caller must free *@aad; otherwise *@aad aliases @protected_b64 (the no-aad
+ * case, byte-identical to the Compact Serialization) and must not be freed.
+ * Returns 0 on success, non-zero on allocation failure. */
+JWT_NO_EXPORT
+int jwe_build_aad(const char *protected_b64, const char *aad_b64,
+		  const unsigned char **aad, size_t *aad_len, int *owned);
+
 /* Recipient list helpers (jwe.c). A recipient is heap-allocated and linked
  * into jwe_common.recipients. jwe_recipient_first() returns the first recipient
  * or NULL; jwe_recipient_first_or_add() returns it, creating an empty one if

@@ -198,6 +198,11 @@ int jwt_json_arr_append(jwt_json_t *array, jwt_json_t *value)
  * Type checking
  * ================================================================ */
 
+int jwt_json_is_object(const jwt_json_t *json)
+{
+	return json_is_object(to_json(json));
+}
+
 int jwt_json_is_array(const jwt_json_t *json)
 {
 	return json_is_array(to_json(json));
