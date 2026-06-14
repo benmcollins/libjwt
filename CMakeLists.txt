@@ -178,7 +178,9 @@ if (MBEDTLS_FOUND)
 	target_link_libraries(jwt PUBLIC PkgConfig::MBEDTLS)
 	target_link_libraries(jwt_static PUBLIC PkgConfig::MBEDTLS)
 	list(APPEND JWT_SOURCES
-	     libjwt/mbedtls/sign-verify.c)
+	     libjwt/mbedtls/jwk-parse.c
+	     libjwt/mbedtls/sign-verify.c
+	     libjwt/mbedtls/jwe.c)
 endif()
 
 set(HAVE_CRYPTO TRUE)

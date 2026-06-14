@@ -104,6 +104,31 @@ START_TEST(test_jwks_ec_pub_bad_points)
 }
 END_TEST
 
+/* x/y that base64url-decode to more octets than the P-256 field length (32).
+ * The point cannot be valid and must be rejected on every backend. */
+START_TEST(test_jwks_ec_pub_oversized)
+{
+	const char *json = "{\"kty\":\"EC\",\"crv\":\"P-256\","
+		"\"x\":\"" "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" "\","
+		"\"y\":\"" "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" "\"}";
+	jwk_set_t *jwk_set = NULL;
+	const jwk_item_t *item;
+
+	SET_OPS();
+
+	jwk_set = jwks_create(json);
+
+	ck_assert_ptr_nonnull(jwk_set);
+	ck_assert(!jwks_error(jwk_set));
+
+	item = jwks_item_get(jwk_set, 0);
+	ck_assert_ptr_nonnull(item);
+	ck_assert_int_ne(jwks_item_error(item), 0);
+
+	jwks_free(jwk_set);
+}
+END_TEST
+
 static Suite *libjwt_suite(const char *title)
 {
 	Suite *s;
@@ -119,6 +144,7 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, test_jwks_ec_pub_bad64, 0, i);
 	tcase_add_loop_test(tc_core, test_jwks_ec_pub_bad_type, 0, i);
 	tcase_add_loop_test(tc_core, test_jwks_ec_pub_bad_points, 0, i);
+	tcase_add_loop_test(tc_core, test_jwks_ec_pub_oversized, 0, i);
 
 	tcase_set_timeout(tc_core, 30);
 

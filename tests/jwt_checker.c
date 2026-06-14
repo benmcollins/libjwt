@@ -533,6 +533,145 @@ START_TEST(verify_rsapss384)
 }
 END_TEST
 
+/* Build a token under the current backend, flip the last signature byte, and
+ * confirm verification fails on every backend. This exercises the EC and RSA
+ * signature-verification-failure paths (a tampered/invalid signature). */
+static void __verify_tampered_sig(const char *priv, const char *pub,
+				  jwt_alg_t alg)
+{
+	jwt_builder_auto_t *builder = NULL;
+	jwt_checker_auto_t *checker = NULL;
+	char_auto *token = NULL;
+	char *sig;
+	int ret;
+
+	read_json(priv);
+	builder = jwt_builder_new();
+	ck_assert_ptr_nonnull(builder);
+	ck_assert_int_eq(jwt_builder_setkey(builder, alg, g_item), 0);
+	token = jwt_builder_generate(builder);
+	ck_assert_ptr_nonnull(token);
+	free_key();
+
+	/* Corrupt the first base64url character of the signature segment (the
+	 * high-order signature bits, so the decoded value always changes — the
+	 * trailing char can carry unused padding bits and may decode the same). */
+	sig = strrchr(token, '.');
+	ck_assert_ptr_nonnull(sig);
+	sig++; /* first char of the signature */
+	*sig = (*sig == 'A') ? 'B' : 'A';
+
+	read_json(pub);
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+	ck_assert_int_eq(jwt_checker_setkey(checker, alg, g_item), 0);
+
+	ret = jwt_checker_verify(checker, token);
+	ck_assert_int_ne(ret, 0);
+
+	free_key();
+}
+
+START_TEST(verify_es256_tampered)
+{
+	SET_OPS();
+	__verify_tampered_sig("ec_key_prime256v1.json",
+			      "ec_key_prime256v1_pub.json", JWT_ALG_ES256);
+}
+END_TEST
+
+/* Regression: reusing one RSA key object for a PSS op and then an RS* op must
+ * not corrupt the RS* result. Some backends (MbedTLS) hold a mutable padding
+ * mode on the shared key context; a PS* call must not make a later RS256 sign
+ * silently emit a PSS signature. Build PS256 then RS256 on the SAME key, and
+ * confirm the RS256 token verifies as RS256. */
+START_TEST(verify_rs_after_ps_same_key)
+{
+	jwt_builder_auto_t *b_ps = NULL, *b_rs = NULL;
+	jwt_checker_auto_t *checker = NULL;
+	char_auto *tok_ps = NULL, *tok_rs = NULL;
+
+	SET_OPS();
+
+	/* An RSA key with no "alg" restriction, usable for both PS* and RS*. */
+	read_json("rsa_pss_key_2048_notpss.json");
+
+	b_ps = jwt_builder_new();
+	ck_assert_ptr_nonnull(b_ps);
+	ck_assert_int_eq(jwt_builder_setkey(b_ps, JWT_ALG_PS256, g_item), 0);
+	tok_ps = jwt_builder_generate(b_ps);
+	ck_assert_ptr_nonnull(tok_ps);
+
+	b_rs = jwt_builder_new();
+	ck_assert_ptr_nonnull(b_rs);
+	ck_assert_int_eq(jwt_builder_setkey(b_rs, JWT_ALG_RS256, g_item), 0);
+	tok_rs = jwt_builder_generate(b_rs);
+	ck_assert_ptr_nonnull(tok_rs);
+
+	free_key();
+
+	read_json("rsa_pss_key_2048_notpss_pub.json");
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+	ck_assert_int_eq(jwt_checker_setkey(checker, JWT_ALG_RS256, g_item), 0);
+	/* If the RS256 sign had been corrupted into PSS, this verify fails. */
+	ck_assert_int_eq(jwt_checker_verify(checker, tok_rs), 0);
+	free_key();
+}
+END_TEST
+
+START_TEST(verify_rs256_tampered)
+{
+	SET_OPS();
+	__verify_tampered_sig("rsa_key_2048.json", "rsa_key_2048_pub.json",
+			      JWT_ALG_RS256);
+}
+END_TEST
+
+/* MbedTLS has no EdDSA support: verifying an EdDSA token under MbedTLS must be
+ * rejected with a clear error, while OpenSSL/GnuTLS verify it normally. The
+ * token is produced in-test under the first compiled (non-MbedTLS) backend so
+ * the test is self-contained and not time-sensitive across runs. */
+START_TEST(verify_eddsa_mbedtls_rejected)
+{
+	jwt_checker_auto_t *checker = NULL;
+	jwt_builder_auto_t *builder = NULL;
+	char_auto *token = NULL;
+	int ret;
+
+	SET_OPS();
+
+	/* Build an EdDSA token under OpenSSL (always compiled, has EdDSA). */
+	ret = jwt_set_crypto_ops("openssl");
+	ck_assert_int_eq(ret, 0);
+	read_json("eddsa_key_ed25519.json");
+	builder = jwt_builder_new();
+	ck_assert_ptr_nonnull(builder);
+	ck_assert_int_eq(jwt_builder_setkey(builder, JWT_ALG_EDDSA, g_item), 0);
+	token = jwt_builder_generate(builder);
+	ck_assert_ptr_nonnull(token);
+	free_key();
+
+	/* Verify under the backend selected by this loop iteration. */
+	SET_OPS();
+	read_json("eddsa_key_ed25519_pub.json");
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+	ck_assert_int_eq(jwt_checker_setkey(checker, JWT_ALG_EDDSA, g_item), 0);
+
+	ret = jwt_checker_verify(checker, token);
+	if (jwt_test_ops[_i].type == JWT_CRYPTO_OPS_MBEDTLS) {
+		ck_assert_int_ne(ret, 0);
+		ck_assert_ptr_nonnull(strstr(jwt_checker_error_msg(checker),
+					     "MbedTLS does not support EdDSA"));
+	} else {
+		ck_assert_int_eq(ret, 0);
+	}
+
+	free_key();
+}
+END_TEST
+
 static int __verify_hs256_wcb(jwt_t *jwt, jwt_config_t *config)
 {
 	ck_assert_ptr_nonnull(jwt);
@@ -1423,6 +1562,10 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, verify_bad_header, 0, i);
 	tcase_add_loop_test(tc_core, verify_bad_payload, 0, i);
 	tcase_add_loop_test(tc_core, verify_rsapss384, 0, i);
+	tcase_add_loop_test(tc_core, verify_es256_tampered, 0, i);
+	tcase_add_loop_test(tc_core, verify_rs256_tampered, 0, i);
+	tcase_add_loop_test(tc_core, verify_rs_after_ps_same_key, 0, i);
+	tcase_add_loop_test(tc_core, verify_eddsa_mbedtls_rejected, 0, i);
 	tcase_add_loop_test(tc_core, verify_wcb, 0, i);
 	tcase_add_loop_test(tc_core, just_fail_wcb, 0, i);
 	tcase_add_loop_test(tc_core, verify_stress, 0, i);

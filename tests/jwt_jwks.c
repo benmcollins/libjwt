@@ -44,6 +44,18 @@ START_TEST(test_jwks_keyring_load)
 		ck_assert_int_eq(ret, 0);
 
 		out = jwt_builder_generate(builder);
+
+		/* MbedTLS has no EdDSA support; rather than producing a token it
+		 * must reject EdDSA signing with a clear error. */
+		if (alg == JWT_ALG_EDDSA &&
+		    jwt_test_ops[_i].type == JWT_CRYPTO_OPS_MBEDTLS) {
+			ck_assert_ptr_null(out);
+			ck_assert_ptr_nonnull(strstr(
+				jwt_builder_error_msg(builder),
+				"MbedTLS does not support EdDSA"));
+			continue;
+		}
+
 		if (out == NULL) {
 			fprintf(stderr, "Gen KID(%d/%s): %s\n", i,
 				jwt_alg_str(alg),
