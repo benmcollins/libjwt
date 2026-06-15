@@ -219,6 +219,49 @@ START_TEST(test_der_matches_pem)
 }
 END_TEST
 
+/* @rfc{7517,3} JWK member values are unpadded base64url, so an exported JWK
+ * must never contain the standard-base64 characters '+' or '/' or any padding
+ * '='. Export a range of key types (RSA/EC/EdDSA, public and private) and check
+ * the whole JSON document is clean. */
+START_TEST(test_export_is_base64url)
+{
+	static const char *keys[] = {
+		"rsa_key_2048.pem",
+		"rsa_key_2048_pub.pem",
+		"ec_key_prime256v1.pem",
+		"ec_key_prime256v1_pub.pem",
+		"eddsa_key_ed25519.pem",
+		"eddsa_key_ed25519_pub.pem",
+	};
+	size_t i;
+
+	SET_OPS();
+
+	for (i = 0; i < ARRAY_SIZE(keys); i++) {
+		jwk_set_auto_t *set = NULL;
+		char_auto *json = NULL;
+		char *buf;
+		size_t len;
+
+		buf = read_file(keys[i], &len);
+		set = jwks_load_fromkey(NULL, buf, len, JWK_KEY_NONE);
+		free(buf);
+
+		ck_assert_ptr_nonnull(set);
+		ck_assert_int_eq(jwks_error(set), 0);
+
+		json = jwks_export(set, 1);
+		ck_assert_ptr_nonnull(json);
+
+		/* No JSON syntax uses '+'/'='; '/' appears only inside member
+		 * values, so any occurrence means a non-base64url field. */
+		ck_assert_ptr_null(strchr(json, '+'));
+		ck_assert_ptr_null(strchr(json, '/'));
+		ck_assert_ptr_null(strchr(json, '='));
+	}
+}
+END_TEST
+
 /* JWK_KEY_GEN_KID adds a kid; without it there is none. */
 START_TEST(test_gen_kid)
 {
@@ -509,6 +552,7 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, test_fromkey_file, 0, i);
 	tcase_add_loop_test(tc_core, test_fromkey_buf, 0, i);
 	tcase_add_loop_test(tc_core, test_der_matches_pem, 0, i);
+	tcase_add_loop_test(tc_core, test_export_is_base64url, 0, i);
 	tcase_add_loop_test(tc_core, test_gen_kid, 0, i);
 	tcase_add_loop_test(tc_core, test_hmac_fallback, 0, i);
 	tcase_add_loop_test(tc_core, test_append_to_set, 0, i);

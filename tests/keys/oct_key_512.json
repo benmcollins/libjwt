@@ -3,7 +3,7 @@
     {
       "kty": "oct",
       "alg": "HS512",
-      "k": "vPnfAG10Y09YGh+DQQwQ-n1lye8hfaO1PYdh8qr5oOI5gxKaX1GNBgwtSWsFyt7txFpuMs4kf_3wPWIefC2rQg"
+      "k": "vPnfAG10Y09YGh-DQQwQ-n1lye8hfaO1PYdh8qr5oOI5gxKaX1GNBgwtSWsFyt7txFpuMs4kf_3wPWIefC2rQg"
     }
   ]
 }

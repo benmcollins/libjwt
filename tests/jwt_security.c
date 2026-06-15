@@ -1057,6 +1057,29 @@ START_TEST(test_alg_confusion_malformed_jwk_kty_alg)
 }
 END_TEST
 
+/* base64url carries no padding, so a literal '=' inside a token segment is
+ * invalid. The decoder now rejects it outright rather than silently stopping
+ * at it and decoding only the prefix. (Downstream JSON/signature validation
+ * also rejects the resulting truncation, so this is a conformance guard that
+ * the malformed segment never decodes, not a bypass reproducer.) */
+START_TEST(test_embedded_pad_rejected)
+{
+	jwt_checker_auto_t *checker = NULL;
+	/* {"alg":"none"} . <payload with an embedded '='> . */
+	const char token[] = "eyJhbGciOiJub25lIn0.eyJp=c3MiOiJ4In0.";
+	int ret;
+
+	SET_OPS();
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+	ck_assert_int_eq(jwt_checker_setkey(checker, JWT_ALG_NONE, NULL), 0);
+
+	ret = jwt_checker_verify(checker, token);
+	ck_assert_int_ne(ret, 0);
+}
+END_TEST
+
 /*
  * === Suite Setup ===
  */
@@ -1150,6 +1173,8 @@ static Suite *libjwt_suite(const char *title)
 			    test_alg_confusion_callback_rsa_no_alg, 0, i);
 	tcase_add_loop_test(tc_alg_confusion,
 			    test_alg_confusion_malformed_jwk_kty_alg, 0, i);
+	tcase_add_loop_test(tc_alg_confusion,
+			    test_embedded_pad_rejected, 0, i);
 
 	tcase_set_timeout(tc_alg_confusion, 30);
 	suite_add_tcase(s, tc_alg_confusion);

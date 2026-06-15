@@ -81,6 +81,9 @@ START_TEST(rsa_pub_bad64)
 }
 END_TEST
 
+/* JWK member values MUST be base64url (RFC 7517 3 / draft-jones-json-web-key
+ * 5). An "n"/"e" using the standard-base64 alphabet (here a '/') is not valid
+ * base64url and must be rejected, not decoded leniently. */
 START_TEST(rsa_pub_binary64)
 {
 	const char *json = "{\"kty\":\"RSA\",\"n\":"
@@ -94,12 +97,11 @@ START_TEST(rsa_pub_binary64)
 	jwk_set = jwks_create(json);
 
 	ck_assert_ptr_nonnull(jwk_set);
-	ck_assert(!jwks_error(jwk_set));
 
 	item = jwks_item_get(jwk_set, 0);
 	ck_assert_ptr_nonnull(item);
-	ck_assert_ptr_nonnull(jwks_item_pem(item));
-	ck_assert_int_eq(jwks_item_error(item), 0);
+	/* The non-base64url "n"/"e" fail to decode, so the item is in error. */
+	ck_assert_int_ne(jwks_item_error(item), 0);
 
 	jwks_free(jwk_set);
 }
