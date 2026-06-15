@@ -24,30 +24,38 @@ struct jwks_data {
 /* Maximum size we will accept for a JWKS response (1 MiB). */
 #define JWKS_MAX_RESPONSE_SIZE	(1024 * 1024)
 
-static size_t header_cb(char *buf, size_t size, size_t nmemb, void *ctx)
+/* Grow the response buffer to hold at least need bytes plus a NUL. The caller
+ * has already bounded need by JWKS_MAX_RESPONSE_SIZE, so need + 1 cannot
+ * overflow. Returns 0 on success. */
+static int jwks_buf_reserve(struct jwks_data *data, size_t need)
 {
-	size_t total_size = size * nmemb;
-	struct jwks_data *data = ctx;
-	long content_length;
-	char *endptr;
+	size_t new_alloc;
+	char *tmp;
 
-	if (strncasecmp(buf, "Content-Length:", 15))
-		return total_size;
-
-	content_length = strtol(buf + 15, &endptr, 10);
-	if (endptr == buf + 15 || content_length <= 0 ||
-	    content_length > JWKS_MAX_RESPONSE_SIZE)
-		return 0;
-
-	data->alloc_size = (size_t)content_length;
-	data->buf = jwt_malloc(data->alloc_size + 1);
-	if (!data->buf)
+	if (need + 1 <= data->alloc_size)
 		return 0; // LCOV_EXCL_LINE
 
-	data->size = 0;
-	data->buf[0] = '\0';
+	/* Grow geometrically, capped at the maximum response size (+1 NUL). */
+	new_alloc = data->alloc_size ? data->alloc_size : 4096;
+	while (new_alloc < need + 1)
+		new_alloc *= 2;
+	if (new_alloc > JWKS_MAX_RESPONSE_SIZE + 1)
+		new_alloc = JWKS_MAX_RESPONSE_SIZE + 1;
 
-	return total_size;
+	/* Use the jwt allocator (no jwt_realloc exists) so a custom
+	 * jwt_set_alloc() applies and the caller's jwt_freemem() matches. */
+	tmp = jwt_malloc(new_alloc);
+	if (tmp == NULL)
+		return 1; // LCOV_EXCL_LINE
+
+	if (data->size)
+		memcpy(tmp, data->buf, data->size);
+	jwt_freemem(data->buf);
+
+	data->buf = tmp;
+	data->alloc_size = new_alloc;
+
+	return 0;
 }
 
 static size_t write_cb(void *contents, size_t size, size_t nmemb, void *ctx)
@@ -55,7 +63,22 @@ static size_t write_cb(void *contents, size_t size, size_t nmemb, void *ctx)
 	size_t total_size = size * nmemb;
 	struct jwks_data *data = ctx;
 
-	if (data->size + total_size > data->alloc_size)
+	if (total_size == 0)
+		return 0; // LCOV_EXCL_LINE
+
+	/* Enforce the response-size cap up front; this also keeps the
+	 * data->size + total_size arithmetic below from overflowing. This is a
+	 * belt behind CURLOPT_MAXFILESIZE (which catches a server-advertised
+	 * oversize body first); it still bounds a body that exceeds the cap
+	 * without advertising its size, e.g. chunked transfer-encoding. */
+	if (total_size > JWKS_MAX_RESPONSE_SIZE ||
+	    data->size > JWKS_MAX_RESPONSE_SIZE - total_size)
+		return 0; // LCOV_EXCL_LINE
+
+	/* Grow the buffer as the body streams in. This does not depend on a
+	 * Content-Length header (so chunked transfer-encoding works), and a
+	 * single growing buffer avoids the duplicate-header allocation leak. */
+	if (jwks_buf_reserve(data, data->size + total_size))
 		return 0; // LCOV_EXCL_LINE
 
 	memcpy(&(data->buf[data->size]), contents, total_size);
@@ -84,10 +107,13 @@ static char *__curl_get(jwk_set_t *jwk_set, const char *url, size_t *len,
 	}
 
 	curl_easy_setopt(curl, CURLOPT_URL, url);
-	curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, header_cb);
-	curl_easy_setopt(curl, CURLOPT_HEADERDATA, (void *)&data);
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_cb);
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&data);
+
+	/* Belt to the write_cb cap: let libcurl abort early when the server
+	 * advertises an oversized body via Content-Length. */
+	curl_easy_setopt(curl, CURLOPT_MAXFILESIZE,
+			 (long)JWKS_MAX_RESPONSE_SIZE);
 
 	/* Hostname verification is meaningless without peer (CA chain)
 	 * verification: anyone can present a self-signed certificate bearing
@@ -105,6 +131,7 @@ static char *__curl_get(jwk_set_t *jwk_set, const char *url, size_t *len,
 
 	if (res != CURLE_OK) {
 		jwt_write_error(jwk_set, "%s", curl_easy_strerror(res));
+		jwt_freemem(data.buf);
 		return NULL;
 	}
 

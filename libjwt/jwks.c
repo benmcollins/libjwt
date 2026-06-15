@@ -132,7 +132,9 @@ static int process_octet(jwt_json_t *jwk, jwk_item_t *item)
 	item->provider = JWT_CRYPTO_OPS_ANY;
 	item->oct.key = bin_k;
 	item->oct.len = len_k;
-	item->bits = len_k * 8;
+	/* Compute in size_t: len_k * 8 in int overflows (UB) for a decoded key
+	 * larger than INT_MAX/8, yielding a bogus bit count. len_k > 0 here. */
+	item->bits = (size_t)len_k * 8;
 
 	return 0;
 }
