@@ -67,15 +67,7 @@ int openssl_encrypt_cek_rsa(jwe_key_alg_t alg, const jwk_item_t *key,
 	const unsigned char *cek, size_t cek_len,
 	unsigned char **out, size_t *out_len);
 JWT_NO_EXPORT
-int openssl_encrypt_cek_rsa_pem(jwe_key_alg_t alg, const char *pem,
-	const unsigned char *cek, size_t cek_len,
-	unsigned char **out, size_t *out_len);
-JWT_NO_EXPORT
 int openssl_decrypt_cek_rsa(jwe_key_alg_t alg, const jwk_item_t *key,
-	const unsigned char *in, size_t in_len,
-	unsigned char **cek, size_t *cek_len);
-JWT_NO_EXPORT
-int openssl_decrypt_cek_rsa_pem(jwe_key_alg_t alg, const char *pem,
 	const unsigned char *in, size_t in_len,
 	unsigned char **cek, size_t *cek_len);
 JWT_NO_EXPORT

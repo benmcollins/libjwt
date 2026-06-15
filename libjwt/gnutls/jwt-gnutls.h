@@ -36,20 +36,6 @@ void gnutls_process_item_free(jwk_item_t *item);
 JWT_NO_EXPORT
 int gnutls_key2jwk_params(const char *key, size_t len, jwk_export_t *out);
 
-#ifdef HAVE_OPENSSL
-/* GnuTLS/nettle has no SHA-1 RSA-OAEP, so plain RSA-OAEP (SHA-1) is delegated
- * to OpenSSL when that backend is compiled in (RSA-OAEP-256 is native, and
- * without OpenSSL the SHA-1 variant is rejected cleanly). */
-JWT_NO_EXPORT
-int openssl_encrypt_cek_rsa_pem(jwe_key_alg_t alg, const char *pem,
-	const unsigned char *cek, size_t cek_len,
-	unsigned char **out, size_t *out_len);
-JWT_NO_EXPORT
-int openssl_decrypt_cek_rsa_pem(jwe_key_alg_t alg, const char *pem,
-	const unsigned char *in, size_t in_len,
-	unsigned char **cek, size_t *cek_len);
-#endif /* HAVE_OPENSSL */
-
 /* JWE (RFC 7516/7518) — native GnuTLS implementations. Backend internals
  * reached only through the jwt_crypto_ops table; keep out of ABI. */
 JWT_NO_EXPORT

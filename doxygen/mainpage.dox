@@ -54,14 +54,13 @@ using a key management algorithm (``alg``) plus a content encryption
 algorithm (``enc``).
 
 Legend: \emoji :white_check_mark: native implementation &middot;
-\emoji :large_blue_circle: supported, using OpenSSL as a fallback &middot;
 \emoji :x: not supported
 
 JWE key management ``alg``    | OpenSSL                   | GnuTLS                    | MbedTLS
 :---------------------------- | :------------------------ | :------------------------ | :------------------------
 ``dir``                       | \emoji :white_check_mark: | \emoji :white_check_mark: | \emoji :white_check_mark:
 ``A128KW`` ``A192KW`` ``A256KW`` | \emoji :white_check_mark: | \emoji :white_check_mark: | \emoji :white_check_mark:
-``RSA-OAEP`` (SHA-1)          | \emoji :white_check_mark: | \emoji :large_blue_circle: | \emoji :white_check_mark:
+``RSA-OAEP`` (SHA-1)          | \emoji :white_check_mark: | \emoji :x:                | \emoji :white_check_mark:
 ``RSA-OAEP-256``              | \emoji :white_check_mark: | \emoji :white_check_mark: | \emoji :white_check_mark:
 ``ECDH-ES`` (+ ``+A128KW``/``+A192KW``/``+A256KW``) | \emoji :white_check_mark: | \emoji :white_check_mark: | \emoji :white_check_mark:
 
@@ -73,10 +72,9 @@ JWE content encryption ``enc`` | OpenSSL                   | GnuTLS             
 @note ``ECDH-ES`` supports both Direct Key Agreement and ``+A*KW`` key
 wrapping, on the EC curves P-256/384/521 and the OKP curves X25519/X448, with
 optional ``apu``/``apv`` PartyInfo. ``RSA1_5`` and ``zip`` are intentionally
-not supported. Each backend implements JWE natively except that GnuTLS/Nettle
-cannot perform RSA-OAEP with SHA-1, so under the GnuTLS backend plain
-``RSA-OAEP`` falls back to OpenSSL when it is compiled in, and is otherwise
-unsupported (``RSA-OAEP-256`` is native).
+not supported. Each backend implements JWE natively. GnuTLS/Nettle cannot
+perform RSA-OAEP with SHA-1, so the GnuTLS backend does not support plain
+``RSA-OAEP`` (``RSA-OAEP-256`` is native).
 
 @subsection optional Optional
 
