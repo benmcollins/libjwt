@@ -282,8 +282,7 @@ int mbedtls_key2jwk_params(const char *key, size_t len, jwk_export_t *out)
 {
 	mbedtls_pk_context pk;
 	unsigned char *copy;
-	psa_key_type_t kt;
-	int is_priv = 0, ret = 1;
+	int is_priv = 0, is_rsa, is_ec, ret = 1;
 	size_t parse_len;
 
 	if (psa_crypto_init() != PSA_SUCCESS)
@@ -320,12 +319,29 @@ int mbedtls_key2jwk_params(const char *key, size_t len, jwk_export_t *out)
 
 	/* mbedtls_pk has no RSA-PSS vs RSA distinction at the key-type level (the
 	 * padding is a sign-time choice), so an RSA-PSS key exports as a plain RSA
-	 * JWK with no "alg" hint. */
-	kt = mbedtls_pk_get_key_type(&pk);
-	if (PSA_KEY_TYPE_IS_RSA(kt)) {
+	 * JWK with no "alg" hint. MbedTLS 4.x reports the key type as a PSA type;
+	 * 3.x uses the classic mbedtls_pk_type_t. */
+#if MBEDTLS_VERSION_MAJOR >= 4
+	{
+		psa_key_type_t kt = mbedtls_pk_get_key_type(&pk);
+
+		is_rsa = PSA_KEY_TYPE_IS_RSA(kt);
+		is_ec = PSA_KEY_TYPE_IS_ECC(kt);
+	}
+#else
+	{
+		mbedtls_pk_type_t pt = mbedtls_pk_get_type(&pk);
+
+		is_rsa = (pt == MBEDTLS_PK_RSA || pt == MBEDTLS_PK_RSASSA_PSS);
+		is_ec = (pt == MBEDTLS_PK_ECKEY || pt == MBEDTLS_PK_ECKEY_DH ||
+			 pt == MBEDTLS_PK_ECDSA);
+	}
+#endif
+
+	if (is_rsa) {
 		out->kty = JWK_KEY_TYPE_RSA;
 		ret = export_via_psa(&pk, is_priv, out);
-	} else if (PSA_KEY_TYPE_IS_ECC(kt)) {
+	} else if (is_ec) {
 		out->kty = JWK_KEY_TYPE_EC;
 		ret = export_via_psa(&pk, is_priv, out);
 	} else {

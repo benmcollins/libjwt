@@ -7,10 +7,6 @@
 
 #include "jwt_tests.h"
 
-#ifdef HAVE_GNUTLS
-#include <gnutls/gnutls.h>
-#endif
-
 /* Tests for the native-key import API: jwks_load_fromkey(),
  * jwks_load_fromkey_file(), jwks_create_fromkey(), jwks_create_fromkey_file()
  * and the JWK-JSON exporters jwks_item_export() / jwks_export(). These convert
@@ -41,27 +37,16 @@ static const struct keyspec keys[] = {
 	{ "eddsa_key_ed448.pem",    JWK_KEY_TYPE_OKP, JWT_ALG_EDDSA, "Ed448",     1, 0 },
 };
 
-/* GnuTLS >= 3.8.4 parses JWKs natively and has no secp256k1 support. Mirrors
- * the helper in jwt_jwks.c. */
-static int gnutls_native_jwk(jwt_crypto_provider_t type)
-{
-#if defined(HAVE_GNUTLS) && GNUTLS_VERSION_NUMBER >= 0x030804
-	return type == JWT_CRYPTO_OPS_GNUTLS;
-#else
-	(void)type;
-	return 0;
-#endif
-}
-
 /* Whether @file (a tests/keys/pem-files fixture) cannot be converted to a JWK
  * by the given backend, so the round-trip test must skip it:
- *  - Native GnuTLS has no secp256k1 (ES256K).
+ *  - The GnuTLS backend has no secp256k1 (ES256K) in its native key2jwk, in
+ *    any GnuTLS version.
  *  - MbedTLS has no EdDSA, and mbedtls_pk has no OKP representation, so Ed
  *    keys do not parse. It also treats RSA-PSS as plain RSA (no PS256 "alg"
  *    hint), so the rsa_pss fixture's expected alg cannot be reproduced. */
 static int skip_key(const char *file, jwt_crypto_provider_t type)
 {
-	if (strstr(file, "secp256k1") && gnutls_native_jwk(type))
+	if (strstr(file, "secp256k1") && type == JWT_CRYPTO_OPS_GNUTLS)
 		return 1;
 
 	if (type == JWT_CRYPTO_OPS_MBEDTLS &&
