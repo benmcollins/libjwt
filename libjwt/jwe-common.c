@@ -1165,6 +1165,47 @@ done:
 	return out;
 }
 
+/* @rfc{7516,4.1.13}/@rfc{7515,4.1.11} Enforce the "crit" header on decrypt.
+ * If present it must be a non-empty array of strings, each naming a header
+ * member the recipient understands. libjwt implements no critical JWE header
+ * parameters and exposes no API to register understood ones, so any well-formed
+ * "crit" names something we do not understand and the JWE MUST be rejected.
+ * Returns 0 if there is no "crit" to act on, 1 (with an error set) otherwise. */
+static int FUNC(check_crit)(jwe_common_t *__cmd, jwt_json_t *hdr)
+{
+	jwt_json_t *crit, *ent;
+	size_t n;
+
+	crit = jwt_json_obj_get(hdr, "crit");
+	if (crit == NULL)
+		return 0;
+
+	if (!jwt_json_is_array(crit)) {
+		jwt_write_error(__cmd, "JWE \"crit\" header must be an array");
+		return 1;
+	}
+
+	n = jwt_json_arr_size(crit);
+	if (n == 0) {
+		jwt_write_error(__cmd, "JWE \"crit\" header must not be empty");
+		return 1;
+	}
+
+	ent = jwt_json_arr_get(crit, 0);
+	if (ent == NULL || !jwt_json_is_string(ent)) {
+		jwt_write_error(__cmd,
+			"JWE \"crit\" header entries must be strings");
+		return 1;
+	}
+
+	/* Well-formed and non-empty: it lists at least one parameter we cannot
+	 * possibly understand, so reject. */
+	jwt_write_error(__cmd, "Unsupported critical JWE header: \"%s\"",
+			jwt_json_str_val(ent));
+
+	return 1;
+}
+
 /* @rfc{7516,5.2} Decrypt and authenticate a Compact Serialization JWE. */
 static unsigned char *FUNC(decrypt_compact)(jwe_common_t *__cmd,
 		struct jwe_recipient *recip, const char *token,
@@ -1232,6 +1273,9 @@ static unsigned char *FUNC(decrypt_compact)(jwe_common_t *__cmd,
 		return NULL;
 	}
 
+	if (FUNC(check_crit)(__cmd, hdr))
+		return NULL;
+
 	alg = jwe_str_alg(jwt_json_str_val(jalg));
 	enc = jwe_str_enc(jwt_json_str_val(jenc));
 	if (alg != recip->key_alg || enc != __cmd->c.enc) {
@@ -1268,6 +1312,14 @@ unsigned char *FUNC(decrypt)(jwe_common_t *__cmd, const char *token,
 		jwt_write_error(__cmd, "No key/algorithm set");
 		return NULL;
 	}
+
+	/* @rfc{7516,7.2.1} Reset any AAD recovered from a prior token (e.g. a
+	 * JSON token decrypted earlier via decrypt_all on the same checker) so
+	 * get_aad() does not return a stale value after this compact decrypt,
+	 * which never repopulates it. Mirrors the reset in decrypt_all. */
+	jwt_scrub_and_free(__cmd->c.recovered_aad, __cmd->c.recovered_aad_len);
+	__cmd->c.recovered_aad = NULL;
+	__cmd->c.recovered_aad_len = 0;
 
 	return FUNC(decrypt_compact)(__cmd, recip, token, plaintext_len);
 }
@@ -1412,6 +1464,10 @@ static unsigned char *FUNC(decrypt_json)(jwe_common_t *__cmd,
 		jwt_write_error(__cmd, "JWE \"zip\" is not supported");
 		return NULL;
 	}
+	/* @rfc{7515,4.1.11} "crit" is only meaningful in the integrity-protected
+	 * header. Reject any critical parameter we cannot understand. */
+	if (FUNC(check_crit)(__cmd, prot))
+		return NULL;
 	enc_str = jwt_json_str_val(jenc);
 	enc = jwe_str_enc(enc_str);
 	if (enc != __cmd->c.enc) {

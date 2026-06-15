@@ -281,6 +281,18 @@ START_TEST(aad_not_stale)
 	ck_assert_ptr_null(pt);
 	ck_assert_ptr_null(jwe_checker_get_aad(checker, NULL));
 
+	/* The compact-only entry point jwe_checker_decrypt() must reset the AAD
+	 * too: recover AAD from the JSON token via decrypt_all, then decrypt the
+	 * compact token via the compact entry and confirm no stale AAD lingers. */
+	pt = jwe_checker_decrypt_all(checker, jt, &pt_len);
+	ck_assert_ptr_nonnull(pt);
+	ck_assert_ptr_nonnull(jwe_checker_get_aad(checker, NULL));
+	free(pt);
+	pt = jwe_checker_decrypt(checker, ct, &pt_len);
+	ck_assert_ptr_nonnull(pt);
+	ck_assert_ptr_null(jwe_checker_get_aad(checker, NULL));
+	free(pt);
+
 	free_key();
 }
 END_TEST

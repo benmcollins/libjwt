@@ -865,6 +865,55 @@ START_TEST(claim_setgetdel)
 }
 END_TEST
 
+/* @rfc{7519,4.1.3} A token whose "aud" is an array verifies when the expected
+ * audience is among the elements, and is rejected when it is not. The single
+ * string form continues to work. */
+START_TEST(claim_aud_array)
+{
+	jwt_checker_auto_t *checker = NULL;
+	/* {"alg":"none"} . {"aud":["you","me","them"]} . */
+	const char tok_match[] =
+		"eyJhbGciOiJub25lIn0.eyJhdWQiOlsieW91IiwibWUiLCJ0aGVtIl19.";
+	/* {"alg":"none"} . {"aud":["you","them"]} . */
+	const char tok_nomatch[] =
+		"eyJhbGciOiJub25lIn0.eyJhdWQiOlsieW91IiwidGhlbSJdfQ.";
+	/* {"alg":"none"} . {"aud":"me"} . */
+	const char tok_str[] =
+		"eyJhbGciOiJub25lIn0.eyJhdWQiOiJtZSJ9.";
+	int ret;
+
+	SET_OPS();
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+
+	ret = jwt_checker_setkey(checker, JWT_ALG_NONE, NULL);
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_checker_claim_set(checker, JWT_CLAIM_AUD, "me");
+	ck_assert_int_eq(ret, 0);
+
+	/* Array containing the expected audience: accepted. */
+	ret = jwt_checker_verify(checker, tok_match);
+	ck_assert_int_eq(ret, 0);
+
+	/* Array not containing it: rejected. */
+	ret = jwt_checker_verify(checker, tok_nomatch);
+	ck_assert_int_ne(ret, 0);
+	jwt_checker_error_clear(checker);
+
+	/* Single-string form still works. */
+	ret = jwt_checker_verify(checker, tok_str);
+	ck_assert_int_eq(ret, 0);
+
+	/* A non-string, non-array "aud" (here a number) is a type mismatch that
+	 * is not an array, so it fails. {"alg":"none"} . {"aud":5} . */
+	ret = jwt_checker_verify(checker,
+				 "eyJhbGciOiJub25lIn0.eyJhdWQiOjV9.");
+	ck_assert_int_ne(ret, 0);
+}
+END_TEST
+
 START_TEST(claim_time_set)
 {
 	jwt_checker_auto_t *checker = NULL;
@@ -1411,6 +1460,53 @@ START_TEST(jti_verify_reject)
 }
 END_TEST
 
+/* The jti callback must NOT fire on a token whose signature fails to verify:
+ * it typically mutates external state (replay cache), so firing it on a forged
+ * token would let an attacker poison that state. */
+static int g_jti_fired;
+
+static int __jti_record(const jwt_t *jwt, jwt_config_t *config, const char *jti)
+{
+	(void)jwt;
+	(void)config;
+	(void)jti;
+	g_jti_fired = 1;
+	return 0;
+}
+
+START_TEST(jti_not_called_on_bad_sig)
+{
+	/* {"alg":"HS256"} . {"jti":"abc-123"} . <32 zero bytes> — valid jti,
+	 * but the HMAC is wrong for oct_key_256.json, so the sig fails. */
+	const char token[] =
+		"eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiJhYmMtMTIzIn0."
+		"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+	jwt_checker_auto_t *checker = NULL;
+	int ret;
+
+	SET_OPS();
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+
+	read_json("oct_key_256.json");
+	ret = jwt_checker_setkey(checker, JWT_ALG_HS256, g_item);
+	ck_assert_int_eq(ret, 0);
+
+	g_jti_fired = 0;
+	ret = jwt_checker_setjti(checker, __jti_record, NULL);
+	ck_assert_int_eq(ret, 0);
+
+	/* Verification must fail (bad signature)... */
+	ret = jwt_checker_verify(checker, token);
+	ck_assert_int_ne(ret, 0);
+	/* ...and the jti callback must not have run. */
+	ck_assert_int_eq(g_jti_fired, 0);
+
+	free_key();
+}
+END_TEST
+
 START_TEST(jti_verify_missing)
 {
 	/* {"alg":"none"} . {"iss":"x"} . — no jti, but a jti cb is set. */
@@ -1594,6 +1690,7 @@ static Suite *libjwt_suite(const char *title)
 
 	tc_core = tcase_create("Claims");
 	tcase_add_loop_test(tc_core, claim_setgetdel, 0, i);
+	tcase_add_loop_test(tc_core, claim_aud_array, 0, i);
 	tcase_add_loop_test(tc_core, claim_time_set, 0, i);
 	suite_add_tcase(s, tc_core);
 
@@ -1623,6 +1720,7 @@ static Suite *libjwt_suite(const char *title)
 	tc_core = tcase_create("JTI");
 	tcase_add_loop_test(tc_core, jti_verify, 0, i);
 	tcase_add_loop_test(tc_core, jti_verify_reject, 0, i);
+	tcase_add_loop_test(tc_core, jti_not_called_on_bad_sig, 0, i);
 	tcase_add_loop_test(tc_core, jti_verify_missing, 0, i);
 	tcase_add_loop_test(tc_core, jti_verify_not_string, 0, i);
 	tcase_add_loop_test(tc_core, jti_setjti_null, 0, i);

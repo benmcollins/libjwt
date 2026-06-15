@@ -1057,6 +1057,69 @@ START_TEST(test_alg_confusion_malformed_jwk_kty_alg)
 }
 END_TEST
 
+/* @rfc{8725,2.4} Duplicate members in the token header or payload must be
+ * rejected so a peer that picks a different occurrence cannot disagree with us
+ * about a claim/header. The Jansson backend rejects duplicates; json-c cannot
+ * (it keeps the last occurrence), a documented limitation, so there the token
+ * parses. */
+START_TEST(test_dup_members_rejected)
+{
+	jwt_checker_auto_t *checker = NULL;
+	/* {"alg":"none","alg":"none"} . {"iss":"x"} . */
+	const char dup_hdr[] =
+		"eyJhbGciOiJub25lIiwiYWxnIjoibm9uZSJ9.eyJpc3MiOiJ4In0.";
+	/* {"alg":"none"} . {"iss":"a","iss":"b"} . */
+	const char dup_pay[] =
+		"eyJhbGciOiJub25lIn0.eyJpc3MiOiJhIiwiaXNzIjoiYiJ9.";
+	int ret;
+
+	SET_OPS();
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+	ck_assert_int_eq(jwt_checker_setkey(checker, JWT_ALG_NONE, NULL), 0);
+
+	ret = jwt_checker_verify(checker, dup_hdr);
+#ifdef HAVE_JSON_C
+	/* json-c keeps the last occurrence; the token still parses/verifies. */
+	ck_assert_int_eq(ret, 0);
+#else
+	ck_assert_int_ne(ret, 0);
+#endif
+	jwt_checker_error_clear(checker);
+
+	ret = jwt_checker_verify(checker, dup_pay);
+#ifdef HAVE_JSON_C
+	ck_assert_int_eq(ret, 0);
+#else
+	ck_assert_int_ne(ret, 0);
+#endif
+}
+END_TEST
+
+/* @rfc{7519,4.1.4} A token that omits "exp" passes a default checker even with
+ * the EXP check enabled (validate-if-present). Pin this documented behavior so
+ * it cannot change silently. */
+START_TEST(test_missing_exp_passes)
+{
+	jwt_checker_auto_t *checker = NULL;
+	/* {"alg":"none"} . {"iss":"x"} . — no exp/nbf at all. */
+	const char token[] = "eyJhbGciOiJub25lIn0.eyJpc3MiOiJ4In0.";
+	int ret;
+
+	SET_OPS();
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+	ck_assert_int_eq(jwt_checker_setkey(checker, JWT_ALG_NONE, NULL), 0);
+
+	/* The default checker enables EXP/NBF, but a token lacking them is
+	 * accepted (absence is not a failure). */
+	ret = jwt_checker_verify(checker, token);
+	ck_assert_int_eq(ret, 0);
+}
+END_TEST
+
 /*
  * === Suite Setup ===
  */
@@ -1150,6 +1213,10 @@ static Suite *libjwt_suite(const char *title)
 			    test_alg_confusion_callback_rsa_no_alg, 0, i);
 	tcase_add_loop_test(tc_alg_confusion,
 			    test_alg_confusion_malformed_jwk_kty_alg, 0, i);
+	tcase_add_loop_test(tc_alg_confusion,
+			    test_dup_members_rejected, 0, i);
+	tcase_add_loop_test(tc_alg_confusion,
+			    test_missing_exp_passes, 0, i);
 
 	tcase_set_timeout(tc_alg_confusion, 30);
 	suite_add_tcase(s, tc_alg_confusion);
