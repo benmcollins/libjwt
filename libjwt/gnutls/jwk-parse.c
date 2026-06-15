@@ -527,7 +527,7 @@ void gnutls_process_item_free(jwk_item_t *item)
 	}
 
 	if (item->pem) {
-		OPENSSL_cleanse(item->pem, strlen(item->pem));
+		jwt_cleanse(item->pem, strlen(item->pem));
 		jwt_freemem(item->pem);
 	}
 

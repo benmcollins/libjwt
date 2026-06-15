@@ -65,6 +65,7 @@ missing lines covered.
 | Option | Default | Description |
 |--------|---------|-------------|
 | `WITH_JSON_C` | OFF | Use json-c instead of Jansson |
+| `WITH_OPENSSL` | ON | Enable OpenSSL backend |
 | `WITH_GNUTLS` | auto-detect | Enable GnuTLS backend |
 | `WITH_MBEDTLS` | OFF | Enable MBedTLS backend |
 | `WITH_LIBCURL` | OFF | Enable libcurl for remote JWKS |
@@ -79,7 +80,7 @@ missing lines covered.
 
 The library has two key abstraction interfaces that allow swapping implementations:
 
-1. **Crypto backend abstraction** (`jwt-crypto-ops.c`, `jwt-private.h:jwt_crypto_ops`): Each crypto provider (OpenSSL, GnuTLS, MBedTLS) implements the `jwt_crypto_ops` struct with function pointers for sign/verify and JWK parsing. OpenSSL is always required (handles JWK parsing); GnuTLS and MBedTLS are optional additional providers. The active provider is selected at runtime via `jwt_set_crypto_ops()`.
+1. **Crypto backend abstraction** (`jwt-crypto-ops.c`, `jwt-private.h:jwt_crypto_ops`): Each crypto provider (OpenSSL, GnuTLS, MBedTLS) implements the `jwt_crypto_ops` struct with function pointers for sign/verify, JWK parsing (`process_*`), and native-key→JWK conversion (`key2jwk_params`, assembled by the common `jwk-export.c`). All three backends are optional and interchangeable; the build requires at least one but works with any combination (default `WITH_OPENSSL=ON`). A GnuTLS-only build (no OpenSSL) requires GnuTLS >= 3.8.4, since older GnuTLS has no native JWK/JWE path and falls back to OpenSSL. The active provider is selected at runtime via `jwt_set_crypto_ops()`; the default is the first compiled backend (OpenSSL > GnuTLS > MBedTLS).
 
 2. **JSON backend abstraction** (`jwt-json-ops.h`): Jansson and json-c each implement the same JSON operations interface. Selected at compile time via `WITH_JSON_C`.
 

@@ -35,7 +35,10 @@ Standard | RFC                                                                  
 - MbedTLS (>= 3.6.0)
 
 > [!NOTE]
-> OpenSSL is required and used for JWK(S) operations.
+> At least one crypto backend is required, but any non-empty combination
+> works. OpenSSL is enabled by default and can be disabled with
+> ``-DWITH_OPENSSL=OFF``. Each backend parses and converts JWK(S) natively.
+> A GnuTLS-only build (no OpenSSL) requires GnuTLS >= 3.8.4.
 
 ### Algorithm support matrix
 
@@ -89,8 +92,9 @@ JWE content encryption ``enc`` | OpenSSL            | GnuTLS             | MbedT
 > X25519/X448, with optional ``apu``/``apv`` PartyInfo. ``RSA1_5`` and
 > ``zip`` (compression) are intentionally not supported. Each backend
 > implements JWE natively, with one exception: GnuTLS/Nettle cannot perform
-> RSA-OAEP with SHA-1, so plain ``RSA-OAEP`` falls back to OpenSSL under the
-> GnuTLS backend (``RSA-OAEP-256`` is native).
+> RSA-OAEP with SHA-1, so under the GnuTLS backend plain ``RSA-OAEP`` falls
+> back to OpenSSL when it is compiled in, and is otherwise unsupported
+> (``RSA-OAEP-256`` is native).
 
 ### Optional
 
