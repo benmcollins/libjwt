@@ -386,7 +386,9 @@ if (CHECK_FOUND)
 		include(CodeCoverage)
 		append_coverage_compiler_flags()
 
-		set(COVERAGE_LCOV_INCLUDES "${CMAKE_SOURCE_DIR}/libjwt/")
+		set(COVERAGE_LCOV_INCLUDES
+			"${CMAKE_SOURCE_DIR}/libjwt/"
+			"${CMAKE_SOURCE_DIR}/tools/")
 		setup_target_for_coverage_lcov(
 			NAME check-code-coverage
 			OUTPUT "${PROJECT_NAME}-${PROJECT_VERSION}-coverage"
