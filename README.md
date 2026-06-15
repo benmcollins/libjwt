@@ -5,9 +5,6 @@
 
 [![maClara](https://img.shields.io/badge/Sponsored%20by-maClara%2C%20LLC-blue?style=plastic&logoColor=blue)](https://maclara-llc.com)
 
-> [!WARNING]
-> Version 3 of LibJWT is a complete overhaul of the code. Please see documentation for usage.
-
 ## :bulb: Supported Standards
 
 Standard | RFC                                                                        | Description
