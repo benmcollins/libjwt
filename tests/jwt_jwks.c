@@ -5,6 +5,7 @@
 #include <string.h>
 #include <errno.h>
 #include <time.h>
+#include <unistd.h>
 
 #include "jwt_tests.h"
 
@@ -150,6 +151,46 @@ START_TEST(load_fromurl)
 
 	ck_assert_int_gt(jwks_item_count(jwk_set), 0);
 }
+END_TEST
+
+/* A response larger than JWKS_MAX_RESPONSE_SIZE (1 MiB) must be rejected rather
+ * than read into memory unbounded. For a file:// URL CURLOPT_MAXFILESIZE
+ * catches the advertised size; the write_cb cap is the belt for bodies that do
+ * not advertise their size (e.g. chunked). Either way the load must fail. */
+START_TEST(load_fromurl_oversized)
+{
+	jwk_set_auto_t *jwk_set = NULL;
+	char path[] = "/tmp/libjwt_oversized_XXXXXX";
+	char *url = NULL;
+	size_t i;
+	int fd;
+	FILE *fp;
+
+	SET_OPS();
+
+	fd = mkstemp(path);
+	ck_assert_int_ge(fd, 0);
+	fp = fdopen(fd, "w");
+	ck_assert_ptr_nonnull(fp);
+
+	/* Write ~1.5 MiB of valid JSON whitespace wrapping an empty keyset, so
+	 * the size cap (not a JSON parse error) is what triggers rejection. */
+	fputs("{\"keys\":[]", fp);
+	for (i = 0; i < (size_t)(1536 * 1024); i++)
+		fputc(' ', fp);
+	fputs("}", fp);
+	fclose(fp);
+
+	ck_assert_int_gt(asprintf(&url, "file://%s", path), 0);
+
+	jwk_set = jwks_create_fromurl(url, 0);
+	ck_assert_ptr_nonnull(jwk_set);
+	ck_assert_int_ne(jwks_error(jwk_set), 0);
+
+	free(url);
+	unlink(path);
+}
+END_TEST
 #else
 START_TEST(load_fromurl)
 {
@@ -256,6 +297,9 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, test_jwks_keyring_all_bad, 0, i);
 
 	tcase_add_loop_test(tc_core, load_fromurl, 0, i);
+#ifdef HAVE_LIBCURL
+	tcase_add_loop_test(tc_core, load_fromurl_oversized, 0, i);
+#endif
 
 	/* Some coverage attempts */
 	tcase_add_loop_test(tc_core, test_jwks_key_op_all_types, 0, i);
