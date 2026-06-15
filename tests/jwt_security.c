@@ -1057,6 +1057,51 @@ START_TEST(test_alg_confusion_malformed_jwk_kty_alg)
 }
 END_TEST
 
+/* An out-of-range "exp" must not be silently accepted. json-c reports an
+ * integer larger than INT64_MAX as a normal integer and clamps it to
+ * INT64_MAX, which would make exp=99999999999999999999999999 verify as an
+ * effectively never-expiring token; Jansson rejects the whole token at parse.
+ * Both backends must reject the token (fail closed), and a valid far-future
+ * exp must still verify. Both tokens below are HS256-signed with the
+ * oct_key_256.json key. */
+START_TEST(test_exp_out_of_range_int)
+{
+	jwt_checker_auto_t *checker = NULL;
+	/* {"alg":"HS256"} . {"exp":99999999999999999999999999} . <hmac> */
+	const char tok_big[] =
+		"eyJhbGciOiJIUzI1NiJ9"
+		".eyJleHAiOjk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5fQ"
+		".LSbPILA_I3R_0saPbagko0aSRck-ZX9XZeRIduLgbvU";
+	/* {"alg":"HS256"} . {"exp":7999999999} . <hmac> (valid, far future) */
+	const char tok_ok[] =
+		"eyJhbGciOiJIUzI1NiJ9"
+		".eyJleHAiOjc5OTk5OTk5OTl9"
+		".IFlzCWYGNIBrNj3BL5lOsS4baJqdmWc-7LVIfaKf5mw";
+	int ret;
+
+	SET_OPS();
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+
+	read_json("oct_key_256.json");
+
+	ret = jwt_checker_setkey(checker, JWT_ALG_HS256, g_item);
+	ck_assert_int_eq(ret, 0);
+
+	/* Out-of-range exp: rejected on both JSON backends. */
+	ret = jwt_checker_verify(checker, tok_big);
+	ck_assert_int_ne(ret, 0);
+	jwt_checker_error_clear(checker);
+
+	/* Control: a valid far-future exp still verifies. */
+	ret = jwt_checker_verify(checker, tok_ok);
+	ck_assert_int_eq(ret, 0);
+
+	free_key();
+}
+END_TEST
+
 /*
  * === Suite Setup ===
  */
@@ -1150,6 +1195,8 @@ static Suite *libjwt_suite(const char *title)
 			    test_alg_confusion_callback_rsa_no_alg, 0, i);
 	tcase_add_loop_test(tc_alg_confusion,
 			    test_alg_confusion_malformed_jwk_kty_alg, 0, i);
+	tcase_add_loop_test(tc_alg_confusion,
+			    test_exp_out_of_range_int, 0, i);
 
 	tcase_set_timeout(tc_alg_confusion, 30);
 	suite_add_tcase(s, tc_alg_confusion);
