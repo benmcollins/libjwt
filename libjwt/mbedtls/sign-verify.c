@@ -390,6 +390,8 @@ struct jwt_crypto_ops jwt_mbedtls_ops = {
 	.process_rsa		= mbedtls_process_rsa,
 	.process_ec		= mbedtls_process_ec,
 	.process_item_free	= mbedtls_process_item_free,
+	/* Native-key -> JWK conversion is always done by OpenSSL. */
+	.key2jwk		= openssl_key2jwk,
 
 	.jwe_implemented	= 1,
 	.rng			= mbedtls_rng,

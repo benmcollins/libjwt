@@ -257,6 +257,12 @@ struct jwt_crypto_ops {
 	int (*process_ec)(jwt_json_t *jwk, jwk_item_t *item);
 	void (*process_item_free)(jwk_item_t *item);
 
+	/* Inverse of the process_* ops: convert a native key (PEM, DER, or raw
+	 * HMAC bytes) into one or more JWK JSON objects appended to out_array.
+	 * Always backed by OpenSSL regardless of the active backend. */
+	int (*key2jwk)(const char *key, size_t len, unsigned int flags,
+		jwt_json_t *out_array);
+
 	/* JWE (RFC 7516/7518). A backend may implement JWE crypto ops even if
 	 * it does not parse JWKs (JWK parsing always falls back to OpenSSL).
 	 * jwe_implemented is set once a backend provides the ops below; until

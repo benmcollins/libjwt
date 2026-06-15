@@ -429,6 +429,8 @@ struct jwt_crypto_ops jwt_gnutls_ops = {
 	.process_ec		= openssl_process_ec,
 	.process_item_free	= openssl_process_item_free,
 #endif
+	/* Native-key -> JWK conversion is always done by OpenSSL. */
+	.key2jwk		= openssl_key2jwk,
 
 	.jwe_implemented	= 1,
 	.rng			= gnutls_rng,

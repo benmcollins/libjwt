@@ -13,6 +13,9 @@ int openssl_process_eddsa(jwt_json_t *jwk, jwk_item_t *item);
 int openssl_process_rsa(jwt_json_t *jwk, jwk_item_t *item);
 int openssl_process_ec(jwt_json_t *jwk, jwk_item_t *item);
 void openssl_process_item_free(jwk_item_t *item);
+JWT_NO_EXPORT
+int openssl_key2jwk(const char *key, size_t len, unsigned int flags,
+	jwt_json_t *out_array);
 
 /* JWE (RFC 7516/7518). These are backend internals reached only through the
  * jwt_crypto_ops table, so they must stay out of the shared library's ABI. */
