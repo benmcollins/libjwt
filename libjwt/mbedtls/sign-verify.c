@@ -364,6 +364,14 @@ static int mbedtls_verify_sha_pem(jwt_t *jwt, const char *head,
 	} else if (key->kty == JWK_KEY_TYPE_RSA) {
 		mbedtls_rsa_context *rsa = (mbedtls_rsa_context *)&key->rsa;
 
+		/* The MbedTLS RSA verify functions take no length argument and
+		 * unconditionally read mbedtls_rsa_get_len(rsa) bytes from sig.
+		 * Reject a signature that is not exactly the modulus length so a
+		 * short attacker-controlled segment cannot cause an out-of-bounds
+		 * read of the heap buffer (which is sized to the decoded length). */
+		if (sig_len < 0 || (size_t)sig_len != mbedtls_rsa_get_len(rsa))
+			VERIFY_ERROR("Invalid RSA signature size");
+
 		if (jwt->alg == JWT_ALG_PS256 || jwt->alg == JWT_ALG_PS384 ||
 		    jwt->alg == JWT_ALG_PS512) {
 			if (mbedtls_rsa_set_padding(rsa, MBEDTLS_RSA_PKCS_V21,
