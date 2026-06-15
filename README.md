@@ -33,7 +33,7 @@ Standard | RFC                                                                  
 ### Crypto support
 
 - OpenSSL (>= 3.0.0)
-- GnuTLS (>= 3.8.4)
+- GnuTLS (>= 3.8.8)
 - MbedTLS (>= 3.6.0)
 
 > [!NOTE]
@@ -49,7 +49,7 @@ JWS Algorithm ``alg``         | OpenSSL            | GnuTLS             | MbedTL
 ``ES256`` ``ES384`` ``ES512`` | :white_check_mark: | :white_check_mark: | :white_check_mark:
 ``RS256`` ``RS384`` ``RS512`` | :white_check_mark: | :white_check_mark: | :white_check_mark:
 ``EdDSA`` using ``ED25519``   | :white_check_mark: | :white_check_mark: | :x:
-``EdDSA`` using ``ED448``     | :white_check_mark: | :white_check_mark: ``>= 3.8.8`` | :x:
+``EdDSA`` using ``ED448``     | :white_check_mark: | :white_check_mark: | :x:
 ``PS256`` ``PS384`` ``PS512`` | :white_check_mark: | :white_check_mark: | :white_check_mark:
 ``ES256K``                    | :white_check_mark: | :x:                | :white_check_mark:
 

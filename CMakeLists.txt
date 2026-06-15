@@ -52,7 +52,7 @@ if (WITH_GNUTLS)
 	if (NOT GNUTLS_AUTO)
 		set(GNUTLS_REQUIRED REQUIRED)
 	endif()
-	pkg_check_modules(GNUTLS gnutls>=3.8.4 IMPORTED_TARGET
+	pkg_check_modules(GNUTLS gnutls>=3.8.8 IMPORTED_TARGET
 			  ${GNUTLS_REQUIRED})
 endif()
 
