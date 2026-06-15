@@ -277,6 +277,56 @@ START_TEST(test_jwks_eddsa_missing_x)
 }
 END_TEST
 
+/* OKP X25519 JWK with an oversized "x" (33 bytes instead of 32). The MbedTLS
+ * backend previously imported the raw little-endian value with no length check,
+ * accepting a malformed key that OpenSSL and GnuTLS reject. All backends must
+ * now reject it (the field width is fixed at 32 bytes for X25519). */
+START_TEST(test_jwks_okp_x25519_bad_x_len)
+{
+	const char *json = "{\"kty\":\"OKP\","
+		"\"crv\":\"X25519\","
+		/* 33-byte x (valid 32-byte value with a trailing zero byte). */
+		"\"x\":\"S46Jc4ib5np5zMd8F4xCJL3wLqM_mYlgGGhw0XQAsBUA\"}";
+	jwk_set_t *jwk_set = NULL;
+	const jwk_item_t *item;
+
+	SET_OPS();
+
+	jwk_set = jwks_create(json);
+	ck_assert_ptr_nonnull(jwk_set);
+
+	item = jwks_item_get(jwk_set, 0);
+	ck_assert_ptr_nonnull(item);
+	ck_assert_int_ne(jwks_item_error(item), 0);
+
+	jwks_free(jwk_set);
+}
+END_TEST
+
+/* As above but for the private scalar "d": a valid 32-byte X25519 "x" with an
+ * oversized 33-byte "d" must also be rejected by the length check. */
+START_TEST(test_jwks_okp_x25519_bad_d_len)
+{
+	const char *json = "{\"kty\":\"OKP\","
+		"\"crv\":\"X25519\","
+		"\"x\":\"S46Jc4ib5np5zMd8F4xCJL3wLqM_mYlgGGhw0XQAsBU\","
+		"\"d\":\"8HS-8uSD0zo8pLVHOs3UQh6R57knGnjMgf7iCCknPGsA\"}";
+	jwk_set_t *jwk_set = NULL;
+	const jwk_item_t *item;
+
+	SET_OPS();
+
+	jwk_set = jwks_create(json);
+	ck_assert_ptr_nonnull(jwk_set);
+
+	item = jwks_item_get(jwk_set, 0);
+	ck_assert_ptr_nonnull(item);
+	ck_assert_int_ne(jwks_item_error(item), 0);
+
+	jwks_free(jwk_set);
+}
+END_TEST
+
 /* RSA JWK with partial private key (some but not all components) */
 START_TEST(test_jwks_rsa_partial_private_key)
 {
@@ -1210,6 +1260,38 @@ START_TEST(test_jwks_oom_no_corruption)
 }
 END_TEST
 
+/* An ES256 token whose signature is a valid ECDSA size for a *different*
+ * algorithm (96 bytes, the ES384 size) but wrong for the bound ES256/P-256 key
+ * must be rejected. The MbedTLS backend previously accepted any of the three
+ * ECDSA sizes and split R||S accordingly before verifying; it now requires the
+ * exact size for the bound alg, matching OpenSSL. Rejection holds on all
+ * backends. */
+START_TEST(test_es256_wrong_size_sig)
+{
+	jwt_checker_auto_t *checker = NULL;
+	const char token[] =
+		"eyJhbGciOiJFUzI1NiJ9.eyJzdWIiOiJ4In0."
+		"AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEB"
+		"AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEB";
+	int ret;
+
+	SET_OPS();
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+
+	read_json("ec_key_prime256v1_pub.json");
+
+	ret = jwt_checker_setkey(checker, JWT_ALG_ES256, g_item);
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_checker_verify(checker, token);
+	ck_assert_int_ne(ret, 0);
+
+	free_key();
+}
+END_TEST
+
 /*
  * === Suite Setup ===
  */
@@ -1239,6 +1321,8 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_jwks_json, test_jwks_rsa_missing_n, 0, i);
 	tcase_add_loop_test(tc_jwks_json, test_jwks_rsa_missing_e, 0, i);
 	tcase_add_loop_test(tc_jwks_json, test_jwks_eddsa_missing_x, 0, i);
+	tcase_add_loop_test(tc_jwks_json, test_jwks_okp_x25519_bad_x_len, 0, i);
+	tcase_add_loop_test(tc_jwks_json, test_jwks_okp_x25519_bad_d_len, 0, i);
 	tcase_add_loop_test(tc_jwks_json, test_jwks_rsa_partial_private_key, 0, i);
 	tcase_add_loop_test(tc_jwks_json, test_jwks_rsa_wrong_value_types, 0, i);
 	tcase_add_loop_test(tc_jwks_json, test_jwks_deeply_nested, 0, i);
@@ -1309,6 +1393,8 @@ static Suite *libjwt_suite(const char *title)
 			    test_exp_out_of_range_int, 0, i);
 	tcase_add_loop_test(tc_alg_confusion,
 			    test_jwks_oom_no_corruption, 0, i);
+	tcase_add_loop_test(tc_alg_confusion,
+			    test_es256_wrong_size_sig, 0, i);
 
 	tcase_set_timeout(tc_alg_confusion, 30);
 	suite_add_tcase(s, tc_alg_confusion);

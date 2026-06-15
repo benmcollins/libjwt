@@ -402,7 +402,12 @@ static int gnutls_verify_sha_pem(jwt_t *jwt, const char *head,
 verify_clean_sig:
 	gnutls_pubkey_deinit(pubkey);
 
-	return ret;
+	/* Return the error flag, not ret: the default (RSA/RSA-PSS/EdDSA) branch
+	 * reaches VERIFY_ERROR without setting ret, so returning ret would report
+	 * a failed verification as success (0). jwt_write_error() always sets
+	 * jwt->error, so this reflects failure for every algorithm and matches
+	 * the OpenSSL and MbedTLS verify paths. */
+	return jwt->error;
 }
 
 /* Export our ops */
