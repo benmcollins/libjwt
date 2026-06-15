@@ -11,6 +11,7 @@
  * @brief The C JSON Web Token Library +JWK + JWKS
  *
  * @include{doc} mainpage.dox
+ * @include{doc} examples.dox
  */
 
 #ifndef JWT_H

@@ -1,0 +1,451 @@
+@page examples \emoji :bulb: Usage Examples
+
+This page walks through common end-to-end tasks with LibJWT, starting from the
+simplest possible case and gradually layering in more advanced concepts. Each
+example introduces only one or two new ideas, so they are meant to be read in
+order.
+
+Almost everything in LibJWT is built around two pairs of objects:
+
+Purpose                 | Create / sign         | Consume / verify
+:---------------------- | :-------------------- | :--------------------
+Signed tokens (JWS)     | @ref jwt_builder_t    | @ref jwt_checker_t
+Encrypted tokens (JWE)  | @ref jwe_builder_t    | @ref jwe_checker_t
+
+The pattern is always the same: create the object, configure it (a key, some
+claims, perhaps a callback), then call a single function to produce or consume a
+token.
+
+> [!NOTE]
+> To keep them readable, the examples below check only the most important return
+> values. Real applications should check every return code (using
+> ``jwt_builder_error_msg()`` and friends to report failures) and are encouraged
+> to use the ``jwt_builder_auto_t`` / ``jwt_checker_auto_t`` /
+> ``jwe_builder_auto_t`` / ``jwe_checker_auto_t`` / ``jwk_set_auto_t`` cleanup
+> types (on GCC and Clang) so objects are freed automatically when they go out of
+> scope.
+
+@tableofcontents
+
+@section ex_jws \emoji :pencil2: Signing and Verifying (JWS)
+
+These examples cover creating and consuming signed tokens with the
+@ref jwt_builder_grp and @ref jwt_checker_grp.
+
+@subsection ex_jws_sign Signing your first token
+
+The simplest token is signed with ``HS256``, an HMAC over a shared secret. The
+secret is just a JWK with ``"kty":"oct"``. Loading a key is always a two-step
+process: read the JSON into a keyring (@ref jwk_set_t) with one of the
+``jwks_create_*`` functions, then pull the individual key (@ref jwk_item_t) out
+of it with @ref jwks_item_get.
+
+@code{.c}
+#include <stdio.h>
+#include <stdlib.h>
+#include <jwt.h>
+
+int main(void)
+{
+    jwt_builder_t *builder = NULL;
+    jwk_set_t *keys = NULL;
+    const jwk_item_t *key = NULL;
+    char *token = NULL;
+
+    /* Load the signing key (a JWK with "kty":"oct"). */
+    keys = jwks_create_fromfile("oct_key_256.json");
+    key = jwks_item_get(keys, 0);
+
+    /* Create the builder and give it the key + algorithm. */
+    builder = jwt_builder_new();
+    jwt_builder_setkey(builder, JWT_ALG_HS256, key);
+
+    /* Generate the token. The caller owns the returned string. */
+    token = jwt_builder_generate(builder);
+    if (token == NULL)
+        fprintf(stderr, "generate failed: %s\n", jwt_builder_error_msg(builder));
+    else
+        printf("%s\n", token);
+
+    free(token);
+    jwt_builder_free(builder);
+    jwks_free(keys);
+    return 0;
+}
+@endcode
+
+By default the builder adds an ``iat`` (Issued At) claim. You can turn that off
+with @ref jwt_builder_enable_iat.
+
+@subsection ex_jws_verify Verifying a token
+
+Verifying mirrors signing: load the same key, set it on a @ref jwt_checker_t with
+the algorithm you expect, then call @ref jwt_checker_verify. A return of ``0``
+means the signature (and any configured claim checks) passed.
+
+@code{.c}
+jwt_checker_t *checker = NULL;
+jwk_set_t *keys = NULL;
+const jwk_item_t *key = NULL;
+
+keys = jwks_create_fromfile("oct_key_256.json");
+key = jwks_item_get(keys, 0);
+
+checker = jwt_checker_new();
+jwt_checker_setkey(checker, JWT_ALG_HS256, key);
+
+if (jwt_checker_verify(checker, token) == 0)
+    printf("token is valid\n");
+else
+    printf("rejected: %s\n", jwt_checker_error_msg(checker));
+
+jwt_checker_free(checker);
+jwks_free(keys);
+@endcode
+
+@note Pinning the algorithm with @ref jwt_checker_setkey is a security feature:
+the checker will reject a token whose ``alg`` header does not match the algorithm
+you configured. This prevents algorithm-confusion attacks.
+
+@subsection ex_jws_claims Adding and validating claims
+
+Claims and headers are set through a small helper struct, @ref jwt_value_t. You
+fill it in with one of the ``jwt_set_SET_*`` macros, then hand it to
+@ref jwt_builder_claim_set. Anything you set on the builder is copied into every
+token it generates.
+
+@code{.c}
+jwt_value_t jval;
+
+/* "sub": "user@example.com" */
+jwt_set_SET_STR(&jval, "sub", "user@example.com");
+jwt_builder_claim_set(builder, &jval);
+
+/* "iss": "myapp" */
+jwt_set_SET_STR(&jval, "iss", "myapp");
+jwt_builder_claim_set(builder, &jval);
+
+/* A custom integer claim. */
+jwt_set_SET_INT(&jval, "login_count", 42);
+jwt_builder_claim_set(builder, &jval);
+@endcode
+
+On the verifying side, the checker can validate a handful of registered claims
+for you with a simple comparison. Use @ref jwt_checker_claim_set with the claim
+you care about; verification then fails if the token's value does not match.
+
+@code{.c}
+/* Only accept tokens issued by "myapp" for the "billing" audience. */
+jwt_checker_claim_set(checker, JWT_CLAIM_ISS, "myapp");
+jwt_checker_claim_set(checker, JWT_CLAIM_AUD, "billing");
+
+if (jwt_checker_verify(checker, token) == 0)
+    printf("issuer and audience accepted\n");
+@endcode
+
+The checker validates ``iss``, ``aud``, and ``sub`` by string comparison, and
+``exp``/``nbf`` by time (see below). For anything more involved — multiple
+acceptable issuers, custom claims, business rules — use a callback
+(@ref ex_jws_callback).
+
+@subsection ex_jws_time Expiration and not-before
+
+The ``exp`` (Expiration) and ``nbf`` (Not Before) claims are time-based, so
+LibJWT manages them as offsets from "now". On the builder, set the offset in
+seconds with @ref jwt_builder_time_offset.
+
+@code{.c}
+/* Token is valid for one hour. */
+jwt_builder_time_offset(builder, JWT_CLAIM_EXP, 3600);
+
+/* ...and not valid until 30 seconds from now. */
+jwt_builder_time_offset(builder, JWT_CLAIM_NBF, 30);
+@endcode
+
+The checker validates ``exp`` and ``nbf`` automatically whenever they are
+present. To tolerate small clock differences between machines, give it some
+leeway (in seconds) with @ref jwt_checker_time_leeway.
+
+@code{.c}
+/* Allow 60 seconds of clock skew on both exp and nbf. */
+jwt_checker_time_leeway(checker, JWT_CLAIM_EXP, 60);
+jwt_checker_time_leeway(checker, JWT_CLAIM_NBF, 60);
+@endcode
+
+@subsection ex_jws_crit Critical headers
+
+Sometimes a token carries a custom header that the recipient @em must
+understand. @rfc{7515,4.1.11} handles this with the ``crit`` (Critical) header,
+which lists header names that cannot be ignored. On the builder, register each
+critical name with @ref jwt_builder_setcrit; the header itself is added in a
+callback (see @ref ex_jws_callback).
+
+@code{.c}
+/* Mark our custom "myhdr" header as critical. */
+jwt_builder_setcrit(builder, "myhdr");
+@endcode
+
+A checker rejects any token whose ``crit`` header lists a name it has not been
+told to expect. Declare the names your application understands with
+@ref jwt_checker_understands.
+
+@code{.c}
+/* We know how to process "myhdr"; without this, verify() would fail. */
+jwt_checker_understands(checker, "myhdr");
+@endcode
+
+@subsection ex_jws_callback Dynamic tokens with a callback
+
+Everything above is static — the same configuration applies to every token. When
+something must change per token (a different ``sub`` for each user, a key chosen
+at runtime, a unique ``jti``), use a callback. The builder invokes it during
+@ref jwt_builder_generate, after the token object is created but before it is
+signed, giving you a @ref jwt_t to modify and a @ref jwt_config_t to set the key
+and algorithm.
+
+@code{.c}
+/* Set a per-token claim and choose the signing key at generation time. */
+static int on_generate(jwt_t *jwt, jwt_config_t *config)
+{
+    jwt_value_t jval;
+    const char *user = config->ctx; /* the ctx we registered below */
+
+    jwt_set_SET_STR(&jval, "sub", user);
+    jwt_claim_set(jwt, &jval);
+
+    config->alg = JWT_ALG_HS256;
+    config->key = my_lookup_key(user); /* application-provided */
+
+    return 0; /* non-zero aborts generation */
+}
+
+/* Register it, passing a context pointer through to the callback. */
+jwt_builder_setcb(builder, on_generate, "user@example.com");
+
+token = jwt_builder_generate(builder);
+@endcode
+
+The checker has the mirror-image hook, @ref jwt_checker_setcb — it runs during
+verification so you can inspect the header and claims, or select the verification
+key, before the signature is checked. (A checker callback should only read the
+@ref jwt_t — changes to it do not affect verification.)
+
+@note For the very common case of a unique token id, the builder offers a
+dedicated @ref jwt_builder_setjti hook to generate the ``jti`` claim, paired with
+@ref jwt_checker_setjti on the checker for replay protection.
+
+@section ex_jwe \emoji :lock: Encrypting and Decrypting (JWE)
+
+Encrypted tokens use the @ref jwe_builder_grp and @ref jwe_checker_grp. The main
+difference from JWS is that JWE needs @em two algorithms: a key management
+algorithm (the ``"alg"`` header, @ref jwe_key_alg_t) that establishes the Content
+Encryption Key (CEK), and a content encryption algorithm (the ``"enc"`` header,
+@ref jwe_enc_t) that actually encrypts the payload.
+
+@subsection ex_jwe_encrypt Encrypting your first token
+
+The simplest JWE uses ``dir`` (Direct Encryption): a shared symmetric key @em is
+the CEK, so there is no key wrapping. Here it is paired with ``A256GCM`` content
+encryption. The key is a JWK with ``"kty":"oct"``. Because the plaintext can be
+arbitrary bytes, @ref jwe_builder_generate takes an explicit length.
+
+@code{.c}
+#include <stdlib.h>
+#include <string.h>
+#include <jwt.h>
+
+jwe_builder_t *builder = NULL;
+jwk_set_t *keys = NULL;
+const jwk_item_t *key = NULL;
+const char *message = "the launch code is 0000";
+char *token = NULL;
+
+keys = jwks_create_fromfile("oct_dir_256.json");
+key = jwks_item_get(keys, 0);
+
+builder = jwe_builder_new();
+jwe_builder_setkey(builder, JWE_ALG_DIR, JWE_ENC_A256GCM, key);
+
+token = jwe_builder_generate(builder, (const unsigned char *)message,
+                             strlen(message));
+if (token == NULL)
+    fprintf(stderr, "encrypt failed: %s\n", jwe_builder_error_msg(builder));
+else
+    printf("%s\n", token); /* a five-part compact JWE */
+
+free(token);
+jwe_builder_free(builder);
+jwks_free(keys);
+@endcode
+
+@subsection ex_jwe_decrypt Decrypting a token
+
+To decrypt, configure a @ref jwe_checker_t with the same key and the algorithms
+you expect, then call @ref jwe_checker_decrypt. It returns a newly allocated
+buffer and, through its out-parameter, the true plaintext length. The buffer is
+also nil-terminated for convenience.
+
+@code{.c}
+jwe_checker_t *checker = NULL;
+unsigned char *plaintext = NULL;
+size_t len = 0;
+
+keys = jwks_create_fromfile("oct_dir_256.json");
+key = jwks_item_get(keys, 0);
+
+checker = jwe_checker_new();
+jwe_checker_setkey(checker, JWE_ALG_DIR, JWE_ENC_A256GCM, key);
+
+plaintext = jwe_checker_decrypt(checker, token, &len);
+if (plaintext == NULL)
+    fprintf(stderr, "decrypt failed: %s\n", jwe_checker_error_msg(checker));
+else
+    printf("recovered %zu bytes: %s\n", len, plaintext);
+
+free(plaintext);
+jwe_checker_free(checker);
+jwks_free(keys);
+@endcode
+
+@note Decryption with an authenticated mode like ``A256GCM`` also @em verifies
+the token. If the ciphertext, IV, or tag has been altered, decryption fails and
+returns NULL — there is no separate "verify" step.
+
+@subsection ex_jwe_rsa Encrypting to a recipient's public key
+
+``dir`` requires both sides to share a secret in advance. More often you want to
+encrypt to someone's @em public key so that only their private key can decrypt.
+That is what the asymmetric key management algorithms are for. Here we use
+``RSA-OAEP-256``: only the ``alg`` changes — the rest of the flow is identical.
+
+@code{.c}
+/* The sender needs only the recipient's public RSA JWK. */
+keys = jwks_create_fromfile("rsa_key_2048_enc.json");
+key = jwks_item_get(keys, 0);
+
+builder = jwe_builder_new();
+jwe_builder_setkey(builder, JWE_ALG_RSA_OAEP_256, JWE_ENC_A256GCM, key);
+
+token = jwe_builder_generate(builder, (const unsigned char *)message,
+                             strlen(message));
+@endcode
+
+The recipient decrypts exactly as in @ref ex_jwe_decrypt, but using their RSA
+@em private key and the matching ``JWE_ALG_RSA_OAEP_256``.
+
+@subsection ex_jwe_json JSON serialization and AAD
+
+Every example so far produced the @rfc{7516,7.1} Compact Serialization — the
+five-part ``a.b.c.d.e`` string. The @rfc{7516,7.2} JSON Serialization is a JSON
+object instead, and it can carry things the compact form cannot, such as
+Additional Authenticated Data (AAD): bytes that are authenticated (bound into the
+tag) but not encrypted. Select the JSON form with @ref jwe_builder_set_format and
+attach AAD with @ref jwe_builder_set_aad.
+
+@code{.c}
+static const unsigned char aad[] = "context-id:42";
+
+builder = jwe_builder_new();
+jwe_builder_setkey(builder, JWE_ALG_DIR, JWE_ENC_A256GCM, key);
+
+/* Produce the Flattened JSON Serialization with AAD. */
+jwe_builder_set_format(builder, JWE_FORMAT_JSON_FLAT);
+jwe_builder_set_aad(builder, aad, sizeof(aad) - 1);
+
+token = jwe_builder_generate(builder, (const unsigned char *)message,
+                             strlen(message));
+@endcode
+
+A JSON token may be compact @em or JSON, so on the consuming side use
+@ref jwe_checker_decrypt_all, which auto-detects the serialization. After a
+successful decrypt you can recover the authenticated AAD with
+@ref jwe_checker_get_aad.
+
+@code{.c}
+size_t aad_len = 0;
+const unsigned char *got = NULL;
+
+plaintext = jwe_checker_decrypt_all(checker, token, &len);
+
+got = jwe_checker_get_aad(checker, &aad_len);
+if (got != NULL)
+    printf("authenticated AAD: %.*s\n", (int)aad_len, got);
+@endcode
+
+@subsection ex_jwe_multi Multiple recipients
+
+The General JSON Serialization can address @em several recipients at once: the
+payload is encrypted a single time with one CEK, and that CEK is then wrapped
+independently for each recipient. Any one recipient can decrypt the token with
+their own key. Configure the first recipient with @ref jwe_builder_setkey as
+usual, then add each additional one with @ref jwe_builder_add_recipient. Adding a
+second recipient automatically switches output to @ref JWE_FORMAT_JSON_GENERAL.
+
+@code{.c}
+const jwk_item_t *rsa_key = NULL, *ec_key = NULL;
+jwk_set_t *rsa_keys = NULL, *ec_keys = NULL;
+
+rsa_keys = jwks_create_fromfile("rsa_key_2048_enc.json");
+rsa_key  = jwks_item_get(rsa_keys, 0);
+ec_keys  = jwks_create_fromfile("ec_key_prime256v1_enc.json");
+ec_key   = jwks_item_get(ec_keys, 0);
+
+builder = jwe_builder_new();
+
+/* First recipient: RSA. The shared "enc" is set here. */
+jwe_builder_setkey(builder, JWE_ALG_RSA_OAEP_256, JWE_ENC_A256GCM, rsa_key);
+
+/* Second recipient: an EC key via ECDH-ES + A128KW. */
+jwe_builder_add_recipient(builder, JWE_ALG_ECDH_ES_A128KW, ec_key);
+
+/* Produces the General JSON Serialization with a "recipients" array. */
+token = jwe_builder_generate(builder, (const unsigned char *)message,
+                             strlen(message));
+@endcode
+
+Each recipient decrypts with their own key. The checker is configured with that
+recipient's key and algorithm, and @ref jwe_checker_decrypt_all finds the
+matching entry in the ``recipients`` array.
+
+@code{.c}
+/* The EC recipient decrypts with its own key and algorithm. */
+checker = jwe_checker_new();
+jwe_checker_setkey(checker, JWE_ALG_ECDH_ES_A128KW, JWE_ENC_A256GCM, ec_key);
+
+plaintext = jwe_checker_decrypt_all(checker, token, &len);
+@endcode
+
+@note ``dir`` and ECDH-ES Direct (@ref JWE_ALG_ECDH_ES) derive the CEK directly
+from a single key, so they cannot be combined with other recipients.
+
+@subsection ex_jwe_ecdh ECDH-ES and PartyInfo
+
+ECDH-ES derives the CEK from an (ephemeral) Diffie-Hellman exchange against the
+recipient's EC key. The derivation (a Concat KDF, @rfc{7518,4.6}) can optionally
+mix in two application-supplied octet strings, PartyUInfo and PartyVInfo, which
+are also emitted as the ``apu`` and ``apv`` headers. Set them with
+@ref jwe_builder_set_partyinfo.
+
+@code{.c}
+keys = jwks_create_fromfile("ec_key_prime256v1_enc.json");
+key = jwks_item_get(keys, 0);
+
+builder = jwe_builder_new();
+jwe_builder_setkey(builder, JWE_ALG_ECDH_ES, JWE_ENC_A256GCM, key);
+
+/* Optional context bound into the key derivation. */
+jwe_builder_set_partyinfo(builder,
+                          (const unsigned char *)"Alice", 5,  /* apu */
+                          (const unsigned char *)"Bob", 3);   /* apv */
+
+token = jwe_builder_generate(builder, (const unsigned char *)message,
+                             strlen(message));
+@endcode
+
+The decrypting side sets the same algorithms and uses its EC private key; the
+``apu``/``apv`` values travel in the token, so the checker reproduces the same
+derivation automatically.
+
+@note For per-recipient PartyInfo or per-recipient headers in a General JSON
+token, use the recipient handle returned by @ref jwe_builder_add_recipient with
+@ref jwe_recipient_set_partyinfo and @ref jwe_recipient_add_header_json.
