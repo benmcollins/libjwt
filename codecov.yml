@@ -1,10 +1,12 @@
 # Coverage now includes the CLI tools under tools/ (see COVERAGE_LCOV_INCLUDES
 # in CMakeLists.txt), not just the libjwt/ library. The tools are exercised
-# only by the BATS jwt_cli test, so their argument-parsing, usage text, and
-# platform-specific branches are largely uncovered by design. To avoid the
-# overall project percentage gating CI on that, the project status is
-# informational (it reports, but never fails). The patch status remains the
-# real gate: changed lines must be covered.
+# only by the BATS jwt_cli test, so their argument parsing, usage text, and
+# platform-specific branches are largely uncovered by design.
+#
+# Both statuses are therefore informational: they report coverage but never
+# fail CI. The project's own gate is `make check-code-coverage` (run in CI),
+# which enforces that the libjwt/ library has no new uncovered lines; codecov
+# here is for visibility, including the otherwise-unreported tool coverage.
 coverage:
   status:
     project:
@@ -12,4 +14,4 @@ coverage:
         informational: true
     patch:
       default:
-        target: auto
+        informational: true
