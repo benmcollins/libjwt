@@ -179,6 +179,11 @@ static int jwe_recip_set_partyinfo(struct jwe_recipient *r,
 {
 	char *apu_b64 = NULL, *apv_b64 = NULL;
 
+	/* jwt_base64uri_encode takes an int length; reject inputs that would not
+	 * survive the size_t->int cast rather than truncating to a bogus length. */
+	if (apu_len > INT_MAX || apv_len > INT_MAX)
+		goto oom; // LCOV_EXCL_LINE
+
 	if (apu && apu_len &&
 	    jwt_base64uri_encode(&apu_b64, (const char *)apu, (int)apu_len) <= 0)
 		goto oom; // LCOV_EXCL_LINE
@@ -447,6 +452,11 @@ int FUNC(set_aad)(jwe_common_t *__cmd, const unsigned char *aad, size_t aad_len)
 		return 1;
 
 	if (aad != NULL && aad_len) {
+		/* jwt_base64uri_encode takes an int length; reject an AAD that
+		 * would not survive the size_t->int cast. */
+		if (aad_len > INT_MAX)
+			goto oom; // LCOV_EXCL_LINE
+
 		raw = jwt_malloc(aad_len);
 		if (raw == NULL)
 			goto oom; // LCOV_EXCL_LINE
@@ -778,6 +788,17 @@ char *FUNC(generate)(jwe_common_t *__cmd, const unsigned char *plaintext,
 		jwt_write_error(__cmd, "No plaintext given");
 		return NULL;
 	}
+
+	/* The ciphertext (>= plaintext length) is later base64url-encoded via
+	 * jwt_base64uri_encode, which takes an int. Reject a plaintext that
+	 * would not survive the size_t->int cast rather than truncating it to a
+	 * negative length and under-allocating the encode buffer. */
+	// LCOV_EXCL_START
+	if (plaintext_len > INT_MAX) {
+		jwt_write_error(__cmd, "Plaintext too large");
+		return NULL;
+	}
+	// LCOV_EXCL_STOP
 
 	n = __cmd->c.n_recipients;
 	is_json = (__cmd->c.format != JWE_FORMAT_COMPACT);

@@ -1988,8 +1988,12 @@ jwk_set_t *jwks_load_fromfp(jwk_set_t *jwk_set, FILE *input);
  *   to add new keys to it.
  * @param url A string URL to where the JSON representation of a single key
  *   or array of "keys" can be retrieved from. Generally a json file.
- * @param verify Set to 1 to verify the Host, 2 to verify Host and Peer.
- *   2 is recommended unless you really need to disable with 0.
+ * @param verify Set to non-zero to fully verify the TLS connection
+ *   (certificate chain/peer @b and hostname); set to 0 to disable
+ *   verification entirely. Non-zero is strongly recommended: hostname
+ *   verification on its own is meaningless, so any value >= 1 enables
+ *   both peer and host verification. 0 disables all verification and is
+ *   insecure (use only for testing).
  * @return A valid jwt_set_t on success. On failure, either NULL
  *   or a jwt_set_t with error set. NULL generally means ENOMEM.
  */

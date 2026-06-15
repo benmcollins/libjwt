@@ -257,6 +257,16 @@ static int jwt_encode(jwt_t *jwt, char **out)
 		// LCOV_EXCL_STOP
 	}
 
+	/* head_len and payload_len are each bounded by jwt_base64uri_encode to
+	 * encode within INT_MAX, but guard their sum so head_len + payload_len + 3
+	 * cannot overflow the int allocation size below. */
+	if (head_len > INT_MAX - payload_len - 3) {
+		// LCOV_EXCL_START
+		jwt_write_error(jwt, "Encoded token too large");
+		return 1;
+		// LCOV_EXCL_STOP
+	}
+
 	/* The part we need to sign, but add space for 2 dots and a nil */
 	buf = jwt_malloc(head_len + payload_len + 3);
 	if (buf == NULL) {
