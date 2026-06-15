@@ -20,7 +20,9 @@ Standard | RFC        | Description
 
 @subsection req Required
 
-- [JANSSON](https://github.com/akheron/jansson) (>= 2.0)
+- A JSON library — either [Jansson](https://github.com/akheron/jansson)
+  (>= 2.0, the default) or [json-c](https://github.com/json-c/json-c)
+  (>= 0.16, selected with ``-DWITH_JSON_C=ON``). The two are interchangeable.
 - [CMake](https://cmake.org) (>= 3.7)
 
 @subsection req_crypto Crypto support
@@ -29,9 +31,11 @@ Standard | RFC        | Description
 - GnuTLS (>= 3.6.0)
 - MbedTLS (>= 3.6.0)
 
-@note OpenSSL is always required. All three backends parse JWK(S) natively
-(GnuTLS native parsing requires GnuTLS >= 3.8.4; older GnuTLS delegates JWK(S)
-parsing and RSA-OAEP/ECDH-ES to OpenSSL).
+@note At least one crypto backend is required, but any non-empty combination
+works. OpenSSL is enabled by default and can be disabled with
+``-DWITH_OPENSSL=OFF``. Each backend parses and converts JWK(S) natively. A
+GnuTLS-only build (no OpenSSL) requires GnuTLS >= 3.8.4; older GnuTLS delegates
+JWK(S) parsing and RSA-OAEP/ECDH-ES to OpenSSL.
 
 @subsection crypto_support Algorithm support matrix
 
@@ -72,8 +76,9 @@ JWE content encryption ``enc`` | OpenSSL                   | GnuTLS             
 wrapping, on the EC curves P-256/384/521 and the OKP curves X25519/X448, with
 optional ``apu``/``apv`` PartyInfo. ``RSA1_5`` and ``zip`` are intentionally
 not supported. Each backend implements JWE natively except that GnuTLS/Nettle
-cannot perform RSA-OAEP with SHA-1, so plain ``RSA-OAEP`` falls back to OpenSSL
-under the GnuTLS backend (``RSA-OAEP-256`` is native).
+cannot perform RSA-OAEP with SHA-1, so under the GnuTLS backend plain
+``RSA-OAEP`` falls back to OpenSSL when it is compiled in, and is otherwise
+unsupported (``RSA-OAEP-256`` is native).
 
 @subsection optional Optional
 
