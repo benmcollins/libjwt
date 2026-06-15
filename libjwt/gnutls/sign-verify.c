@@ -1,5 +1,5 @@
 /* Copyright (C) 2017 Nicolas Mora <mail@babelouest.org>
-   Copyright (C) 2024-2025 maClara, LLC <info@maclara-llc.com>
+   Copyright (C) 2024-2026 maClara, LLC <info@maclara-llc.com>
    This file is part of the JWT C Library
 
    SPDX-License-Identifier:  MPL-2.0
