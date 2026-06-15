@@ -53,6 +53,24 @@ static int gnutls_native_jwk(jwt_crypto_provider_t type)
 #endif
 }
 
+/* Whether @file (a tests/keys/pem-files fixture) cannot be converted to a JWK
+ * by the given backend, so the round-trip test must skip it:
+ *  - Native GnuTLS has no secp256k1 (ES256K).
+ *  - MbedTLS has no EdDSA, and mbedtls_pk has no OKP representation, so Ed
+ *    keys do not parse. It also treats RSA-PSS as plain RSA (no PS256 "alg"
+ *    hint), so the rsa_pss fixture's expected alg cannot be reproduced. */
+static int skip_key(const char *file, jwt_crypto_provider_t type)
+{
+	if (strstr(file, "secp256k1") && gnutls_native_jwk(type))
+		return 1;
+
+	if (type == JWT_CRYPTO_OPS_MBEDTLS &&
+	    (strstr(file, "eddsa") || strstr(file, "rsa_pss")))
+		return 1;
+
+	return 0;
+}
+
 static char *read_file(const char *file, size_t *len_out)
 {
 	char *path, *buf;
@@ -120,7 +138,7 @@ START_TEST(test_fromkey_file)
 		char *path;
 		int ret;
 
-		if (keys[i].es256k && gnutls_native_jwk(jwt_test_ops[_i].type))
+		if (skip_key(keys[i].file, jwt_test_ops[_i].type))
 			continue;
 
 		ret = asprintf(&path, KEYDIR "/pem-files/%s", keys[i].file);
@@ -155,7 +173,7 @@ START_TEST(test_fromkey_buf)
 		char *buf;
 		size_t len;
 
-		if (keys[i].es256k && gnutls_native_jwk(jwt_test_ops[_i].type))
+		if (skip_key(keys[i].file, jwt_test_ops[_i].type))
 			continue;
 
 		buf = read_file(keys[i].file, &len);
@@ -194,6 +212,9 @@ START_TEST(test_der_matches_pem)
 		char_auto *pjson = NULL, *djson = NULL;
 		char *pbuf, *dbuf;
 		size_t plen, dlen;
+
+		if (skip_key(pairs[i][0], jwt_test_ops[_i].type))
+			continue;
 
 		pbuf = read_file(pairs[i][0], &plen);
 		dbuf = read_file(pairs[i][1], &dlen);
@@ -242,6 +263,9 @@ START_TEST(test_export_is_base64url)
 		char_auto *json = NULL;
 		char *buf;
 		size_t len;
+
+		if (skip_key(keys[i], jwt_test_ops[_i].type))
+			continue;
 
 		buf = read_file(keys[i], &len);
 		set = jwks_load_fromkey(NULL, buf, len, JWK_KEY_NONE);
@@ -396,7 +420,7 @@ START_TEST(test_export_reimport)
 		char *buf;
 		size_t len;
 
-		if (keys[i].es256k && gnutls_native_jwk(jwt_test_ops[_i].type))
+		if (skip_key(keys[i].file, jwt_test_ops[_i].type))
 			continue;
 
 		buf = read_file(keys[i].file, &len);

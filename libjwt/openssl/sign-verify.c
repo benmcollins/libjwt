@@ -431,7 +431,7 @@ struct jwt_crypto_ops jwt_openssl_ops = {
 	.process_rsa		= openssl_process_rsa,
 	.process_ec		= openssl_process_ec,
 	.process_item_free	= openssl_process_item_free,
-	.key2jwk		= openssl_key2jwk,
+	.key2jwk_params		= openssl_key2jwk_params,
 
 	.jwe_implemented	= 1,
 	.rng			= openssl_rng,

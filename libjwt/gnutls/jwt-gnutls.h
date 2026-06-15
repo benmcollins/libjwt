@@ -47,9 +47,17 @@ JWT_NO_EXPORT
 void gnutls_process_item_free(jwk_item_t *item);
 #endif
 
+/* Native-key -> JWK conversion (the key2jwk_params op). Implemented natively
+ * for all supported GnuTLS versions; see jwk-export.c. */
+JWT_NO_EXPORT
+int gnutls_key2jwk_params(const char *key, size_t len, jwk_export_t *out);
+
+#ifdef HAVE_OPENSSL
 /* OpenSSL fallbacks: JWK parsing and RSA-OAEP/ECDH-ES, used when the GnuTLS
- * version predates the native path. Declared unconditionally so the ops table
- * can select them under the version #if. Backend internals; keep out of ABI. */
+ * version predates the native path (< 3.8.4), plus the RSA-OAEP SHA-1 fallback
+ * on the native path (GnuTLS/nettle has no SHA-1 OAEP). Only declared when the
+ * OpenSSL backend is compiled in; a build without OpenSSL requires GnuTLS
+ * >= 3.8.4 (enforced by CMake) and rejects RSA-OAEP (SHA-1) cleanly. */
 JWT_NO_EXPORT
 int openssl_process_eddsa(jwt_json_t *jwk, jwk_item_t *item);
 JWT_NO_EXPORT
@@ -58,9 +66,6 @@ JWT_NO_EXPORT
 int openssl_process_ec(jwt_json_t *jwk, jwk_item_t *item);
 JWT_NO_EXPORT
 void openssl_process_item_free(jwk_item_t *item);
-JWT_NO_EXPORT
-int openssl_key2jwk(const char *key, size_t len, unsigned int flags,
-	jwt_json_t *out_array);
 JWT_NO_EXPORT
 int openssl_encrypt_cek_rsa(jwe_key_alg_t alg, const jwk_item_t *key,
 	const unsigned char *cek, size_t cek_len,
@@ -81,6 +86,7 @@ JWT_NO_EXPORT
 int openssl_ecdh_derive(jwe_key_alg_t alg, jwe_enc_t enc,
 	const jwk_item_t *key, int for_encrypt, jwt_json_t *hdr,
 	unsigned char **dk, size_t *dk_len);
+#endif /* HAVE_OPENSSL */
 
 /* JWE (RFC 7516/7518) — native GnuTLS implementations. Backend internals
  * reached only through the jwt_crypto_ops table; keep out of ABI. */

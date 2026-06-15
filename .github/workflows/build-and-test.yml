@@ -71,6 +71,45 @@ jobs:
       working-directory: ${{github.workspace}}/build
       run: ctest -T memcheck
 
+  # OpenSSL is now an optional backend, so the library must build and pass the
+  # test suite with any non-empty subset of {OpenSSL, GnuTLS, MbedTLS}. Exercise
+  # all seven combinations. forky provides all three (GnuTLS >= 3.8.4 and
+  # MbedTLS 3.x); GnuTLS >= 3.8.4 is required for the OpenSSL-less GnuTLS combos
+  # (older GnuTLS has no native JWK/JWE path and relies on the OpenSSL fallback).
+  build-linux-combos:
+    runs-on: ubuntu-latest
+    container:
+      image: debian:forky
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: "MbedTLS",                flags: "-DWITH_OPENSSL=OFF -DWITH_GNUTLS=OFF -DWITH_MBEDTLS=ON" }
+          - { name: "GnuTLS",                 flags: "-DWITH_OPENSSL=OFF -DWITH_GNUTLS=ON -DWITH_MBEDTLS=OFF" }
+          - { name: "OpenSSL",                flags: "-DWITH_OPENSSL=ON -DWITH_GNUTLS=OFF -DWITH_MBEDTLS=OFF" }
+          - { name: "MbedTLS+GnuTLS",         flags: "-DWITH_OPENSSL=OFF -DWITH_GNUTLS=ON -DWITH_MBEDTLS=ON" }
+          - { name: "MbedTLS+OpenSSL",        flags: "-DWITH_OPENSSL=ON -DWITH_GNUTLS=OFF -DWITH_MBEDTLS=ON" }
+          - { name: "GnuTLS+OpenSSL",         flags: "-DWITH_OPENSSL=ON -DWITH_GNUTLS=ON -DWITH_MBEDTLS=OFF" }
+          - { name: "MbedTLS+GnuTLS+OpenSSL", flags: "-DWITH_OPENSSL=ON -DWITH_GNUTLS=ON -DWITH_MBEDTLS=ON" }
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install dependencies
+      run: |
+        apt-get update
+        apt-get install -y --no-install-recommends \
+          gcc cmake pkg-config make git curl \
+          libssl-dev gnutls-dev libmbedtls-dev libjansson-dev \
+          libcurl4-openssl-dev check bats jq ca-certificates
+
+    - name: "Build (${{ matrix.name }})"
+      run: |
+        cmake -B build ${{ matrix.flags }} -DWITH_LIBCURL=YES
+        cmake --build build -- all
+
+    - name: "Test (${{ matrix.name }})"
+      working-directory: ${{github.workspace}}/build
+      run: ctest --output-on-failure
+
   build-linux-json-c:
     runs-on: ubuntu-latest
     steps:

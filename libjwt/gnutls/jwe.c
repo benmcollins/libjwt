@@ -656,10 +656,17 @@ int gnutls_encrypt_cek_rsa(jwe_key_alg_t alg, const jwk_item_t *key,
 	if (jk == NULL || jk->kty != JWK_KEY_TYPE_RSA)
 		return 1; // LCOV_EXCL_LINE
 
-	/* SHA-1 RSA-OAEP: GnuTLS cannot; delegate to OpenSSL via the PEM. */
-	if (dig == GNUTLS_DIG_UNKNOWN)
+	/* SHA-1 RSA-OAEP: GnuTLS/nettle has no SHA-1 OAEP. */
+	if (dig == GNUTLS_DIG_UNKNOWN) {
+#ifdef HAVE_OPENSSL
+		/* Delegate to OpenSSL via the PEM when that backend is present. */
 		return openssl_encrypt_cek_rsa_pem(alg, jwks_item_pem(key), cek,
 						   cek_len, out, out_len);
+#else
+		/* No OpenSSL backend: RSA-OAEP (SHA-1) is not supported here. */
+		return 1;
+#endif
+	}
 
 	if (gnutls_x509_spki_init(&spki))
 		return 1; // LCOV_EXCL_LINE
@@ -721,10 +728,17 @@ int gnutls_decrypt_cek_rsa(jwe_key_alg_t alg, const jwk_item_t *key,
 	if (jk == NULL || jk->kty != JWK_KEY_TYPE_RSA || jk->priv == NULL)
 		return 1; // LCOV_EXCL_LINE
 
-	/* SHA-1 RSA-OAEP: GnuTLS cannot; delegate to OpenSSL via the PEM. */
-	if (oaep_dig(alg) == GNUTLS_DIG_UNKNOWN)
+	/* SHA-1 RSA-OAEP: GnuTLS/nettle has no SHA-1 OAEP. */
+	if (oaep_dig(alg) == GNUTLS_DIG_UNKNOWN) {
+#ifdef HAVE_OPENSSL
+		/* Delegate to OpenSSL via the PEM when that backend is present. */
 		return openssl_decrypt_cek_rsa_pem(alg, jwks_item_pem(key), in,
 						   in_len, cek, cek_len);
+#else
+		/* No OpenSSL backend: RSA-OAEP (SHA-1) is not supported here. */
+		return 1;
+#endif
+	}
 
 	/* The RSA-OAEP-256 SPKI was attached to jk->priv once at parse time
 	 * (gnutls_jwk_rsa_set_oaep), so decrypt does not mutate the shared key

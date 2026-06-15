@@ -16,7 +16,14 @@
 #include "jwt-json-ops.h"
 #include <time.h>
 #include <stdarg.h>
+#include <stddef.h>
+#include <limits.h>
+#ifdef HAVE_OPENSSL
+/* Only the OpenSSL backend needs this, and those files include it directly.
+ * Kept here under HAVE_OPENSSL so OpenSSL builds are unchanged; non-OpenSSL
+ * builds must not depend on any OpenSSL header. */
 #include <openssl/crypto.h>
+#endif
 
 #include "ll.h"
 
@@ -235,6 +242,31 @@ struct jwk_item {
 };
 
 /* Crypto operations */
+/* The largest number of base64url members any single key contributes to a JWK:
+ * an RSA private key has n,e,d,p,q,dp,dq,qi = 8. */
+#define JWK_EXPORT_MAX_PARAMS 8
+
+/* One JWK member carrying raw key material (big-endian for integers, raw octets
+ * for OKP) to be base64url-encoded by the common jwt_key2jwk() code. */
+struct jwk_export_param {
+	const char *name;	/* JWK member name: "n","e","d","p","q","dp","dq","qi","x","y" */
+	unsigned char *data;	/* heap (jwt_malloc); freed and scrubbed by the common code */
+	size_t len;
+};
+
+/* Neutral, crypto-free representation of a parsed native key. The active
+ * backend's key2jwk_params op fills this from a PEM/DER blob; the common
+ * jwt_key2jwk() (jwk-export.c) turns it into a JWK JSON object. This is the
+ * inverse of the process_* JWK-parsing ops. */
+typedef struct {
+	jwk_key_type_t kty;	/* JWK_KEY_TYPE_RSA / _EC / _OKP			*/
+	int is_private;		/* 1 if private material was extracted		*/
+	char crv[256];		/* curve name (EC/OKP), empty if not applicable	*/
+	char alg[32];		/* suggested "alg" value, empty if none		*/
+	struct jwk_export_param params[JWK_EXPORT_MAX_PARAMS];
+	int nparams;
+} jwk_export_t;
+
 struct jwt_crypto_ops {
 	const char *name;
 	jwt_crypto_provider_t provider;
@@ -257,11 +289,14 @@ struct jwt_crypto_ops {
 	int (*process_ec)(jwt_json_t *jwk, jwk_item_t *item);
 	void (*process_item_free)(jwk_item_t *item);
 
-	/* Inverse of the process_* ops: convert a native key (PEM, DER, or raw
-	 * HMAC bytes) into one or more JWK JSON objects appended to out_array.
-	 * Always backed by OpenSSL regardless of the active backend. */
-	int (*key2jwk)(const char *key, size_t len, unsigned int flags,
-		jwt_json_t *out_array);
+	/* Inverse of the process_* ops: parse a native key (PEM or DER) and
+	 * extract its raw components into the neutral jwk_export_t. The common
+	 * jwt_key2jwk() then base64url-encodes them into a JWK. Returns 0 on
+	 * success (out filled), or non-zero if the input is not a parseable
+	 * asymmetric key (the common code then tries the HMAC fallback).
+	 * Implemented natively by each backend; NULL if a backend cannot convert
+	 * native keys at all. */
+	int (*key2jwk_params)(const char *key, size_t len, jwk_export_t *out);
 
 	/* JWE (RFC 7516/7518). A backend may implement JWE crypto ops even if
 	 * it does not parse JWKs (JWK parsing always falls back to OpenSSL).
@@ -363,13 +398,51 @@ jwt_t *jwt_new(void);
 	}				\
 })
 
-/* Scrub and free sensitive key material. Uses OPENSSL_cleanse which is
- * available on all platforms (OpenSSL >= 3.0 is always required). */
+/* Portable secure zeroization. Writes through a volatile pointer so the
+ * compiler may not optimize the wipe away (the property OPENSSL_cleanse and
+ * explicit_bzero provide). Backend-agnostic: no OpenSSL dependency, so this
+ * works when libjwt is built without the OpenSSL backend. */
+static inline void jwt_cleanse(void *__ptr, size_t __len)
+{
+	if (__ptr == NULL || __len == 0)
+		return;
+
+	volatile unsigned char *__p = (volatile unsigned char *)__ptr;
+	while (__len--)
+		*__p++ = 0;
+}
+
+/* Scrub and free sensitive key material. */
 #define jwt_scrub_and_free(__ptr, __len) ({	\
-	if (__ptr)				\
-		OPENSSL_cleanse(__ptr, __len);	\
+	jwt_cleanse(__ptr, __len);		\
 	jwt_freemem(__ptr);			\
 })
+
+/* Append a raw key component to a jwk_export_t, taking ownership of @data
+ * (the common jwt_key2jwk() scrubs and frees it). */
+static inline void jwk_export_add(jwk_export_t *out, const char *name,
+				  unsigned char *data, size_t len)
+{
+	if (out->nparams >= JWK_EXPORT_MAX_PARAMS) {
+		// LCOV_EXCL_START
+		jwt_scrub_and_free(data, len);
+		return;
+		// LCOV_EXCL_STOP
+	}
+
+	out->params[out->nparams].name = name;
+	out->params[out->nparams].data = data;
+	out->params[out->nparams].len = len;
+	out->nparams++;
+}
+
+/* Convert a native key (PEM, DER, or — with JWK_KEY_TRY_HMAC — raw HMAC bytes)
+ * into one or more JWK JSON objects appended to @out_array. Backend-neutral:
+ * asymmetric parsing is dispatched to jwt_ops->key2jwk_params and the JWK is
+ * assembled here. Returns 0 if a key (or HMAC fallback) was produced, else -1. */
+JWT_NO_EXPORT
+int jwt_key2jwk(const char *key, size_t len, unsigned int flags,
+		jwt_json_t *out_array);
 
 static inline void jwt_freememp(char **mem) {
 	jwt_freemem(*mem);

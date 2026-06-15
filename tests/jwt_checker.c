@@ -637,12 +637,25 @@ START_TEST(verify_eddsa_mbedtls_rejected)
 	jwt_checker_auto_t *checker = NULL;
 	jwt_builder_auto_t *builder = NULL;
 	char_auto *token = NULL;
+	const char *signer = NULL;
+	size_t s;
 	int ret;
 
 	SET_OPS();
 
-	/* Build an EdDSA token under OpenSSL (always compiled, has EdDSA). */
-	ret = jwt_set_crypto_ops("openssl");
+	/* Build the EdDSA token under the first compiled backend that supports
+	 * EdDSA (anything but MbedTLS). If only MbedTLS is compiled there is no
+	 * EdDSA signer available, so there is nothing to test here. */
+	for (s = 0; s < ARRAY_SIZE(jwt_test_ops); s++) {
+		if (jwt_test_ops[s].type != JWT_CRYPTO_OPS_MBEDTLS) {
+			signer = jwt_test_ops[s].name;
+			break;
+		}
+	}
+	if (signer == NULL)
+		return;
+
+	ret = jwt_set_crypto_ops(signer);
 	ck_assert_int_eq(ret, 0);
 	read_json("eddsa_key_ed25519.json");
 	builder = jwt_builder_new();

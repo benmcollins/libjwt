@@ -42,6 +42,21 @@ CLAIM_RES="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZG1pbiI6ZmFsc2UsImV4cCI6MTgz
 }
 
 @test "Generate JWKS from PEM Files" {
+	# The golden all.json covers every key type, but only the OpenSSL backend
+	# converts them all: GnuTLS has no secp256k1, MbedTLS has no EdDSA (the
+	# others silently fall back to an "oct" key via TRY_HMAC). OpenSSL is the
+	# only backend that yields EC for secp256k1 AND OKP for Ed25519, so probe
+	# both and skip otherwise.
+	k1=$(./tools/key2jwk -o - \
+		${SRCDIR}/tests/keys/pem-files/ec_key_secp256k1.pem 2>/dev/null \
+		| jq -r '.keys[0].kty')
+	ed=$(./tools/key2jwk -o - \
+		${SRCDIR}/tests/keys/pem-files/eddsa_key_ed25519.pem 2>/dev/null \
+		| jq -r '.keys[0].kty')
+	if [ "${k1}" != "EC" ] || [ "${ed}" != "OKP" ]; then
+		skip "active backend cannot convert all key types (needs OpenSSL)"
+	fi
+
 	./tools/key2jwk --disable-kid -o - \
 		${SRCDIR}/tests/keys/pem-files/*.pem \
 		${SRCDIR}/tests/keys/pem-files/*.bin | \

@@ -45,6 +45,7 @@ option(WITH_MBEDTLS "Whether to use mbedTLS (default is OFF)" OFF)
 option(WITH_LIBCURL "Whether to include CUrl for retrieving JWKS (default is OFF)" OFF)
 option(WITH_TESTS "Whether to build and run the testsuite (default is ON)" ON)
 option(WITH_KCAPI_MD "Whether to use the Linux Kernel Crypto API to offload hmac (default OFF)" OFF)
+option(WITH_OPENSSL "Whether to use OpenSSL (default is ON)" ON)
 
 # Optional
 if (WITH_GNUTLS)
@@ -67,9 +68,11 @@ if (WITH_KCAPI_MD)
 	find_library(HAVE_KCAPI kcapi REQUIRED)
 endif()
 
-# Required
-pkg_check_modules(OPENSSL openssl>=3.0.0 IMPORTED_TARGET
-		  REQUIRED)
+# Optional (default ON). OpenSSL was historically mandatory; it is now one of
+# the interchangeable crypto backends, like GnuTLS and MbedTLS.
+if (WITH_OPENSSL)
+	pkg_check_modules(OPENSSL openssl>=3.0.0 IMPORTED_TARGET REQUIRED)
+endif()
 
 add_library(jwt SHARED)
 add_library(jwt_static STATIC)
@@ -130,7 +133,8 @@ set(JWT_SOURCES libjwt/jwt-memory.c
 	libjwt/jwe.c
 	libjwt/jwe-builder.c
 	libjwt/jwe-checker.c
-	libjwt/jwks-curl.c)
+	libjwt/jwks-curl.c
+	libjwt/jwk-export.c)
 
 # Allow building without deprecated functions (suggested)
 option(EXCLUDE_DEPRECATED
@@ -169,6 +173,7 @@ if (GNUTLS_FOUND)
 	target_link_libraries(jwt_static PUBLIC PkgConfig::GNUTLS)
 	list(APPEND JWT_SOURCES
 	     libjwt/gnutls/jwk-parse.c
+	     libjwt/gnutls/jwk-export.c
 	     libjwt/gnutls/sign-verify.c
 	     libjwt/gnutls/jwe.c)
 endif()
@@ -180,19 +185,30 @@ if (MBEDTLS_FOUND)
 	target_link_libraries(jwt_static PUBLIC PkgConfig::MBEDTLS)
 	list(APPEND JWT_SOURCES
 	     libjwt/mbedtls/jwk-parse.c
+	     libjwt/mbedtls/jwk-export.c
 	     libjwt/mbedtls/sign-verify.c
 	     libjwt/mbedtls/jwe.c)
 endif()
 
-set(HAVE_CRYPTO TRUE)
-add_definitions(-DHAVE_OPENSSL)
-target_link_libraries(jwt PUBLIC PkgConfig::OPENSSL)
-target_link_libraries(jwt_static PUBLIC PkgConfig::OPENSSL)
-list(APPEND JWT_SOURCES
-     libjwt/openssl/jwk-parse.c
-     libjwt/openssl/jwk-export.c
-     libjwt/openssl/sign-verify.c
-     libjwt/openssl/jwe.c)
+if (OPENSSL_FOUND)
+	set(HAVE_CRYPTO TRUE)
+	add_definitions(-DHAVE_OPENSSL)
+	target_link_libraries(jwt PUBLIC PkgConfig::OPENSSL)
+	target_link_libraries(jwt_static PUBLIC PkgConfig::OPENSSL)
+	list(APPEND JWT_SOURCES
+	     libjwt/openssl/jwk-parse.c
+	     libjwt/openssl/jwk-export.c
+	     libjwt/openssl/sign-verify.c
+	     libjwt/openssl/jwe.c)
+endif()
+
+# Without OpenSSL, the GnuTLS backend has no fallback for JWK parsing,
+# RSA-OAEP, or ECDH-ES, so it requires the native path (GnuTLS >= 3.8.4).
+if (GNUTLS_FOUND AND NOT OPENSSL_FOUND AND GNUTLS_VERSION VERSION_LESS "3.8.4")
+	message(FATAL_ERROR
+		"GnuTLS >= 3.8.4 is required when building without OpenSSL "
+		"(found GnuTLS ${GNUTLS_VERSION})")
+endif()
 
 if (LIBCURL_FOUND)
 	add_definitions(-DHAVE_LIBCURL)
@@ -208,8 +224,9 @@ function(jwt_add_tool)
 
 	list(APPEND TOOLS ${Tool_NAME})
 	add_executable(${Tool_NAME} ${Tool_SRC})
+	# Tools use only the public libjwt API; they need no crypto backend link.
 	target_link_libraries(${Tool_NAME}
-		PRIVATE jwt PkgConfig::OPENSSL)
+		PRIVATE jwt)
 	set_target_properties(${Tool_NAME} PROPERTIES
 		RUNTIME_OUTPUT_DIRECTORY
 		"${CMAKE_BINARY_DIR}/tools")
@@ -294,6 +311,25 @@ foreach (FLAG ${_JSON_LDFLAGS} ${OPENSSL_LDFLAGS} ${GNUTLS_LDFLAGS}
 	string(APPEND LIBJWT_LDFLAGS " " ${FLAG})
 endforeach()
 
+# Populate the pkg-config "Requires" line from the actually-enabled backends,
+# so consumers only pull in the crypto libraries this build was linked against.
+if (WITH_JSON_C)
+	set(JSON_MODULE_NAME "json-c")
+else()
+	set(JSON_MODULE_NAME "jansson")
+endif()
+set(OPENSSL_MODULE_NAME "")
+set(GNUTLS_MODULE_NAME "")
+set(MBEDTLS_MODULE_NAME "")
+if (OPENSSL_FOUND)
+	set(OPENSSL_MODULE_NAME "openssl")
+endif()
+if (GNUTLS_FOUND)
+	set(GNUTLS_MODULE_NAME "gnutls")
+endif()
+if (MBEDTLS_FOUND)
+	set(MBEDTLS_MODULE_NAME "mbedcrypto")
+endif()
 
 configure_file(libjwt/libjwt.pc.in libjwt.pc @ONLY)
 install(FILES ${CMAKE_BINARY_DIR}/libjwt.pc

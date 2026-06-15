@@ -619,7 +619,7 @@ jwk_set_t *jwks_load_fromkey(jwk_set_t *jwk_set, const char *key,
 	if (j_array == NULL)
 		return jwk_set; // LCOV_EXCL_LINE
 
-	if (jwt_ops->key2jwk(key, len, flags, j_array)) {
+	if (jwt_key2jwk(key, len, flags, j_array)) {
 		jwt_write_error(jwk_set, "Could not parse key as PEM, DER, "
 				"or HMAC");
 		return jwk_set;
