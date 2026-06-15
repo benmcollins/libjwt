@@ -25,7 +25,9 @@ Standard | RFC                                                                  
 
 ### Required
 
-- [JANSSON](https://github.com/akheron/jansson) (>= 2.0)
+- A JSON library — either [Jansson](https://github.com/akheron/jansson)
+  (>= 2.0, the default) or [json-c](https://github.com/json-c/json-c)
+  (>= 0.16, selected with ``-DWITH_JSON_C=ON``). The two are interchangeable.
 - [CMake](https://cmake.org) (>= 3.7)
 
 ### Crypto support
@@ -38,7 +40,8 @@ Standard | RFC                                                                  
 > At least one crypto backend is required, but any non-empty combination
 > works. OpenSSL is enabled by default and can be disabled with
 > ``-DWITH_OPENSSL=OFF``. Each backend parses and converts JWK(S) natively.
-> A GnuTLS-only build (no OpenSSL) requires GnuTLS >= 3.8.4.
+> A GnuTLS-only build (no OpenSSL) requires GnuTLS >= 3.8.4; older GnuTLS
+> delegates JWK(S) parsing and RSA-OAEP/ECDH-ES to OpenSSL.
 
 ### Algorithm support matrix
 
