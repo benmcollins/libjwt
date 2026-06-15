@@ -342,11 +342,15 @@ typedef enum {
 
 /**
  * @defgroup jwt_grp JSON Web Token
+ *
+ * @brief Create and consume JSON Web Tokens (JWS)
  * @{
  */
 
 /**
  * @defgroup jwt_builder_grp Builder
+ *
+ * @brief Create and sign JWT tokens
  *
  * Creating a JWT token involves several steps. First is creating a
  * jwt_builder_t object, which can be thought of as a JWT factory. Once
@@ -613,6 +617,8 @@ char *jwt_builder_generate(jwt_builder_t *builder);
 /**
  * @defgroup jwt_checker_grp Checker
  *
+ * @brief Verify and validate JWT tokens
+ *
  * Validating a JWT involves decoding the Base64url parts of the JWT then
  * verifying claims and the signature hash. The checker object allows you to
  * configure how you want to perform these steps so you can easily process
@@ -816,6 +822,8 @@ int jwt_checker_verify(jwt_checker_t *checker, const char *token);
 /**
  * @defgroup jwt_claims_grp Claims and Headers
  *
+ * @brief Get and set JWT claims and header parameters
+ *
  * Working with claims and header elements across checker and builder
  * objects is similar, but the usage for it is not.
  *
@@ -824,11 +832,15 @@ int jwt_checker_verify(jwt_checker_t *checker, const char *token);
 
 /**
  * @defgroup jwt_claims_helpers_grp Utility Functions
+ *
+ * @brief Set up a jwt_value_t for getting and setting claims and headers
  * @{
  */
 
 /**
  * @defgroup jwt_helpers_get_grp Getters
+ *
+ * @brief Set up a jwt_value_t to retrieve a claim or header value
  *
  * When getting a value, you must set type and name. On a successful return, the
  * the value specific to the type will be filled in. Common error responses for
@@ -912,6 +924,8 @@ int jwt_checker_verify(jwt_checker_t *checker, const char *token);
 
 /**
  * @defgroup jwt_helpers_set_grp Setters
+ *
+ * @brief Set up a jwt_value_t to store a claim or header value
  *
  * When setting a value, you must set the type, name, and the specific val for
  * the type. If the value already exists, then the function will return
@@ -1006,6 +1020,8 @@ int jwt_checker_verify(jwt_checker_t *checker, const char *token);
 
 /**
  * @defgroup jwt_claims_builder_grp Builder Functions
+ *
+ * @brief Get, set, and delete claims and headers on a builder object
  *
  * For the builder function, you can create a set of values in the header and
  * payload that will be copied verbatim to any token generated from it. The
@@ -1119,6 +1135,8 @@ int jwt_builder_time_offset(jwt_builder_t *builder, jwt_claims_t claim,
 /**
  * @defgroup jwt_claims_checker_grp Checker Functions
  *
+ * @brief Get, set, and delete the claims a checker validates
+ *
  * For a checker object, claims will be used to verify the token. This
  * verification is very simplistic and only supports standards-defined
  * claims like ``nbf``, ``iss``, etc. Even for some of these, LibJWT can
@@ -1200,6 +1218,8 @@ int jwt_checker_time_leeway(jwt_checker_t *checker, jwt_claims_t claim,
 
 /**
  * @defgroup jwt_object_grp JWT Functions
+ *
+ * @brief Get and set claims and headers on a jwt_t during a callback
  *
  * For most usage, setting values in the builder object is enough to provide
  * all the information you would like set in a JWT token. However, if some
@@ -1290,6 +1310,8 @@ jwt_value_error_t jwt_claim_del(jwt_t *jwt, const char *claim);
 
 /**
  * @defgroup jwt_alg_grp Algorithms
+ *
+ * @brief Convert between algorithm types and their string names
  *
  * Utility functions to convert between string and type for ``alg``
  * @{
@@ -1407,6 +1429,8 @@ jwe_enc_t jwe_str_enc(const char *enc);
 
 /**
  * @defgroup jwe_builder_grp Builder
+ *
+ * @brief Create and encrypt JWE tokens
  *
  * Creating a JWE token mirrors the JWS builder: create a jwe_builder_t,
  * configure it with a recipient key plus a key management (``"alg"``) and
@@ -1690,6 +1714,8 @@ char *jwe_builder_generate(jwe_builder_t *builder,
 /**
  * @defgroup jwe_checker_grp Checker
  *
+ * @brief Decrypt and authenticate JWE tokens
+ *
  * Consuming a JWE token mirrors the JWS checker: create a jwe_checker_t,
  * configure it with the key and the expected algorithms, then decrypt and
  * authenticate tokens.
@@ -1836,11 +1862,15 @@ const unsigned char *jwe_checker_get_aad(const jwe_checker_t *checker,
 
 /**
  * @defgroup jwks_grp JSON Web Keys
+ *
+ * @brief Load and use JSON Web Keys (JWK) and Key Sets (JWKS)
  * @{
  */
 
 /**
  * @defgroup jwks_core_grp JWK Management
+ *
+ * @brief Create and manage keyrings of JWK and JWKS keys
  *
  * Functions to handle JSON that represents JWK and JWKS for use in validating
  * or signing JWT objects.
@@ -2065,6 +2095,8 @@ static inline void jwks_freep(jwk_set_t **jwks) {
 /**
  * @defgroup jwks_item_grp JSON Web Key Usage
  *
+ * @brief Inspect and use individual JWK items from a keyring
+ *
  * Functionality for using a JWK (represented as a jwk_item_t) to sign and
  * validate JWT objects.
  *
@@ -2280,11 +2312,16 @@ size_t jwks_item_count(const jwk_set_t *jwk_set);
 
 /**
  * @defgroup jwt_advanced_grp Advanced Functionality
+ *
+ * @brief Configure memory allocators and crypto backends
  * @{
  */
 
 /**
  * @defgroup jwt_memory_grp Memory Handlers
+ *
+ * @brief Get or set the memory allocation functions LibJWT uses
+ *
  * These functions allow you to get or set memory allocation functions.
  * @{
  */
@@ -2330,6 +2367,9 @@ void jwt_get_alloc(jwt_malloc_t *pmalloc, jwt_free_t *pfree);
 
 /**
  * @defgroup jwt_crypto_grp Cryptographic Ops
+ *
+ * @brief Select which crypto backend LibJWT uses
+ *
  * Functions used to set and get which crypto operations are used
  *
  * LibJWT supports several crypto libraries, mainly "openssl", "gnutls",
