@@ -1,8 +1,5 @@
 @mainpage Welcome to LibJWT
 
-> [!WARNING]
-> Version 3 of LibJWT is a complete overhaul of the code. Please see documentation for usage.
-
 @section standards \emoji :bulb: Supported Standards
 
 Standard | RFC        | Description
