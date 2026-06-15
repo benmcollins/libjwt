@@ -26,39 +26,28 @@ jobs:
   build-macos:
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - uses: ConorMacBride/install-package@v1
       with:
         brew: gnutls openssl@3 jansson pkgconf cmake check curl bats-core jq
 
     - name: Build and Test
-      uses: threeal/cmake-action@v2.1.0
-      with:
-        options:
-          WITH_LIBCURL=YES
-        build-args: |
-          --
-          all
-          check
+      run: |
+        cmake -B build -DWITH_LIBCURL=YES
+        cmake --build build -- all check
 
   build-linux:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - uses: ConorMacBride/install-package@v1
       with:
         apt: gnutls-dev libssl-dev libjansson-dev pkg-config check lcov valgrind libcurl4-openssl-dev bats jq
 
     - name: Build, Test, and Coverage
-      uses: threeal/cmake-action@v2.1.0
-      with:
-        options: |
-          ENABLE_COVERAGE=YES
-          WITH_LIBCURL=YES
-        build-args: |
-          --
-          all
-          check-code-coverage
+      run: |
+        cmake -B build -DENABLE_COVERAGE=YES -DWITH_LIBCURL=YES
+        cmake --build build -- all check-code-coverage
 
     - uses: codecov/codecov-action@v5.1.2
       with:
@@ -92,7 +81,7 @@ jobs:
           - { name: "GnuTLS+OpenSSL",         flags: "-DWITH_OPENSSL=ON -DWITH_GNUTLS=ON -DWITH_MBEDTLS=OFF" }
           - { name: "MbedTLS+GnuTLS+OpenSSL", flags: "-DWITH_OPENSSL=ON -DWITH_GNUTLS=ON -DWITH_MBEDTLS=ON" }
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Install dependencies
       run: |
         apt-get update
@@ -113,21 +102,15 @@ jobs:
   build-linux-json-c:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - uses: ConorMacBride/install-package@v1
       with:
         apt: gnutls-dev libssl-dev libjson-c-dev pkg-config check libcurl4-openssl-dev bats jq
 
     - name: Build and Test with json-c
-      uses: threeal/cmake-action@v2.1.0
-      with:
-        options: |
-          WITH_JSON_C=YES
-          WITH_LIBCURL=YES
-        build-args: |
-          --
-          all
-          check
+      run: |
+        cmake -B build -DWITH_JSON_C=YES -DWITH_LIBCURL=YES
+        cmake --build build -- all check
 
   # MbedTLS requires >= 3.6.0, which Ubuntu does not package (it ships 2.28).
   # Debian forky provides mbedtls 3.6.x, so run the MbedTLS matrix in a forky
@@ -138,7 +121,7 @@ jobs:
     container:
       image: debian:forky
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Install dependencies
       run: |
         apt-get update
