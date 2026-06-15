@@ -149,6 +149,12 @@ START_TEST(load_fromurl)
 	ck_assert_ptr_nonnull(jwk_set);
 
 	ck_assert_int_gt(jwks_item_count(jwk_set), 0);
+
+	/* verify=1 now requests full TLS verification (peer + host), the same
+	 * as verify=2; both must still load a plain file:// URL successfully. */
+	jwk_set = jwks_load_fromurl(jwk_set, test_url, 1);
+	ck_assert_ptr_nonnull(jwk_set);
+	ck_assert_int_gt(jwks_item_count(jwk_set), 0);
 }
 #else
 START_TEST(load_fromurl)
