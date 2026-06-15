@@ -6,15 +6,7 @@
    License, v. 2.0. If a copy of the MPL was not distributed with this
    file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#include <mbedtls/md.h>
-#include <mbedtls/ssl.h>
-#include <mbedtls/rsa.h>
-#include <mbedtls/pk.h>
-#include <mbedtls/ecp.h>
-#include <mbedtls/ecdsa.h>
-#include <mbedtls/error.h>
-#include <mbedtls/entropy.h>
-#include <mbedtls/ctr_drbg.h>
+#include <psa/crypto.h>
 #include <string.h>
 
 #include <jwt.h>
@@ -23,119 +15,113 @@
 
 #include "jwt-mbedtls.h"
 
+/* @rfc{7518,3.2} HMAC with SHA-2 via PSA. The oct key is imported as a volatile
+ * PSA HMAC key, used once, and destroyed. */
 static int mbedtls_sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
                                  const char *str, unsigned int str_len)
 {
-	mbedtls_md_context_t ctx;
-	const mbedtls_md_info_t *md_info;
-	void *key;
-	size_t key_len;
-	int ret = 1;
-
-	key = jwt->key->oct.key;
-	key_len = jwt->key->oct.len;
+	psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
+	mbedtls_svc_key_id_t kid;
+	psa_algorithm_t alg;
+	size_t mac_size, mac_len = 0;
+	psa_status_t st;
 
 	*out = NULL;
 
-	/* Determine the HMAC algorithm based on jwt->alg */
 	switch (jwt->alg) {
 	case JWT_ALG_HS256:
-		md_info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
-		break;
+		alg = PSA_ALG_HMAC(PSA_ALG_SHA_256); mac_size = 32; break;
 	case JWT_ALG_HS384:
-		md_info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA384);
-		break;
+		alg = PSA_ALG_HMAC(PSA_ALG_SHA_384); mac_size = 48; break;
 	case JWT_ALG_HS512:
-		md_info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA512);
-		break;
+		alg = PSA_ALG_HMAC(PSA_ALG_SHA_512); mac_size = 64; break;
 	// LCOV_EXCL_START
 	default:
 		return 1;
 	// LCOV_EXCL_STOP
 	}
 
-	*out = jwt_malloc(mbedtls_md_get_size(md_info));
-	if (*out == NULL)
+	if (psa_crypto_init() != PSA_SUCCESS)
 		return 1; // LCOV_EXCL_LINE
 
-	mbedtls_md_init(&ctx);
+	psa_set_key_type(&attr, PSA_KEY_TYPE_HMAC);
+	psa_set_key_usage_flags(&attr, PSA_KEY_USAGE_SIGN_MESSAGE);
+	psa_set_key_algorithm(&attr, alg);
 
-	ret = mbedtls_md_setup(&ctx, md_info, 1);
-	if (ret) {
+	if (psa_import_key(&attr, jwt->key->oct.key, jwt->key->oct.len, &kid))
+		return 1; // LCOV_EXCL_LINE
+
+	*out = jwt_malloc(mac_size);
+	if (*out == NULL) {
 		// LCOV_EXCL_START
-		mbedtls_md_free(&ctx);
+		psa_destroy_key(kid);
+		return 1;
+		// LCOV_EXCL_STOP
+	}
+
+	st = psa_mac_compute(kid, alg, (const unsigned char *)str, str_len,
+			     (unsigned char *)*out, mac_size, &mac_len);
+	psa_destroy_key(kid);
+
+	if (st != PSA_SUCCESS) {
+		// LCOV_EXCL_START
 		jwt_freemem(*out);
 		return 1;
 		// LCOV_EXCL_STOP
 	}
 
-	/* Start HMAC calculation */
-	ret = mbedtls_md_hmac_starts(&ctx, key, key_len);
-	if (!ret)
-		ret = mbedtls_md_hmac_update(&ctx, (const unsigned char *)str,
-				       str_len);
-	if (!ret)
-		ret = mbedtls_md_hmac_finish(&ctx, (unsigned char *)*out);
-	if (ret) {
-		// LCOV_EXCL_START
-		mbedtls_md_free(&ctx);
-		jwt_freemem(*out);
-		return 1;
-		// LCOV_EXCL_STOP
-	}
-
-	/* Get the output size */
-	*len = mbedtls_md_get_size(md_info);
-
-	mbedtls_md_free(&ctx);
+	*len = (unsigned int)mac_len;
 
 	return 0;
 }
 
-#define SIGN_ERROR(_msg) { jwt_write_error(jwt, "JWT[MbedTLS]: " _msg); goto sign_clean_key; }
-
-/* Map a signing alg to its MbedTLS message digest. Returns NULL for algs that
- * do not use a PEM key here (HMAC) or are unsupported. */
-static const mbedtls_md_info_t *sign_md_info(jwt_alg_t alg)
+/* Map a JWS signing alg to its PSA signature algorithm (hash included). Returns
+ * 0 on success. EdDSA is handled by the caller (rejected); HMAC never reaches
+ * here. */
+static int sign_alg_to_psa(jwt_alg_t alg, psa_algorithm_t *psa_alg)
 {
 	switch (alg) {
-	case JWT_ALG_RS256:
-	case JWT_ALG_PS256:
 	case JWT_ALG_ES256:
 	case JWT_ALG_ES256K:
-		return mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
-	case JWT_ALG_RS384:
-	case JWT_ALG_PS384:
+		*psa_alg = PSA_ALG_ECDSA(PSA_ALG_SHA_256); return 0;
 	case JWT_ALG_ES384:
-		return mbedtls_md_info_from_type(MBEDTLS_MD_SHA384);
-	case JWT_ALG_RS512:
-	case JWT_ALG_PS512:
+		*psa_alg = PSA_ALG_ECDSA(PSA_ALG_SHA_384); return 0;
 	case JWT_ALG_ES512:
-		return mbedtls_md_info_from_type(MBEDTLS_MD_SHA512);
+		*psa_alg = PSA_ALG_ECDSA(PSA_ALG_SHA_512); return 0;
+	case JWT_ALG_RS256:
+		*psa_alg = PSA_ALG_RSA_PKCS1V15_SIGN(PSA_ALG_SHA_256); return 0;
+	case JWT_ALG_RS384:
+		*psa_alg = PSA_ALG_RSA_PKCS1V15_SIGN(PSA_ALG_SHA_384); return 0;
+	case JWT_ALG_RS512:
+		*psa_alg = PSA_ALG_RSA_PKCS1V15_SIGN(PSA_ALG_SHA_512); return 0;
+	case JWT_ALG_PS256:
+		*psa_alg = PSA_ALG_RSA_PSS(PSA_ALG_SHA_256); return 0;
+	case JWT_ALG_PS384:
+		*psa_alg = PSA_ALG_RSA_PSS(PSA_ALG_SHA_384); return 0;
+	case JWT_ALG_PS512:
+		*psa_alg = PSA_ALG_RSA_PSS(PSA_ALG_SHA_512); return 0;
 	// LCOV_EXCL_START
 	default:
-		return NULL;
+		return 1;
 	// LCOV_EXCL_STOP
 	}
 }
 
-/* Sign using the native MbedTLS key object stored on the JWK (provider_data),
- * not a re-parsed PEM. This is required for RSA-PSS, whose OpenSSL-exported
- * id-RSASSA-PSS PEM mbedtls_pk_parse_key rejects, and keeps every alg native. */
+/* Sign using the native PSA key imported from the JWK material on the key
+ * object. For ECDSA, PSA emits the raw R||S signature, which is exactly the
+ * JOSE form; for RSA the PSS/PKCS#1v1.5 padding is selected by @alg. */
 static int mbedtls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 				const char *str, unsigned int str_len)
 {
-	size_t out_size;
-	const mbedtls_md_info_t *md_info;
 	const mbedtls_jwk_t *key;
-	unsigned char hash[MBEDTLS_MD_MAX_SIZE];
-	unsigned char sig[MBEDTLS_PK_SIGNATURE_MAX_SIZE];
-	mbedtls_entropy_context entropy;
-	mbedtls_ctr_drbg_context ctr_drbg;
+	mbedtls_svc_key_id_t kid;
+	psa_algorithm_t alg;
+	unsigned char sig[PSA_SIGNATURE_MAX_SIZE];
 	size_t sig_len = 0;
-	const char *pers = "libjwt_ecdsa_sign";
 
-	/* MbedTLS has no EdDSA; reject cleanly rather than mis-signing. */
+	*out = NULL;
+
+	/* PSA here has no EdDSA; reject cleanly rather than mis-signing. */
 	if (jwt->alg == JWT_ALG_EDDSA)
 		return jwt_write_error(jwt,
 			"JWT[MbedTLS]: MbedTLS does not support EdDSA");
@@ -147,150 +133,41 @@ static int mbedtls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 
 	key = jwt->key->provider_data;
 
-	md_info = sign_md_info(jwt->alg);
-	if (md_info == NULL)
+	if (sign_alg_to_psa(jwt->alg, &alg))
 		return jwt_write_error(jwt, "JWT[MbedTLS]: Unsupported algorithm"); // LCOV_EXCL_LINE
 
-	mbedtls_entropy_init(&entropy);
-	mbedtls_ctr_drbg_init(&ctr_drbg);
+	if (mbedtls_jwk_to_psa(key, 1, alg, PSA_KEY_USAGE_SIGN_MESSAGE, &kid))
+		return jwt_write_error(jwt, "JWT[MbedTLS]: Failed to load signing key"); // LCOV_EXCL_LINE
 
-	if (mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func,
-			&entropy, (const unsigned char *)pers, strlen(pers)))
-		SIGN_ERROR("Failed RNG setup"); // LCOV_EXCL_LINE
-
-	/* Compute the hash of the input string */
-	if (mbedtls_md(md_info, (unsigned char *)str, str_len, hash))
-		SIGN_ERROR("Error initializing md context"); // LCOV_EXCL_LINE
-
-	if (key->kty == JWK_KEY_TYPE_EC) {
-		/* EC: produce a raw R||S JOSE signature. */
-		mbedtls_ecp_keypair *kp = (mbedtls_ecp_keypair *)&key->ec;
-		mbedtls_mpi r, s;
-		int adj;
-
-		mbedtls_mpi_init(&r);
-		mbedtls_mpi_init(&s);
-
-		if (mbedtls_ecdsa_sign(&kp->MBEDTLS_PRIVATE(grp), &r, &s,
-				       &kp->MBEDTLS_PRIVATE(d), hash,
-				       mbedtls_md_get_size(md_info),
-				       mbedtls_ctr_drbg_random, &ctr_drbg)) {
-			// LCOV_EXCL_START
-			mbedtls_mpi_free(&r);
-			mbedtls_mpi_free(&s);
-			SIGN_ERROR("Error signing token");
-			// LCOV_EXCL_STOP
-		}
-
-		switch (jwt->alg) {
-		case JWT_ALG_ES256:
-		case JWT_ALG_ES256K:
-			adj = 32;
-			break;
-		case JWT_ALG_ES384:
-			adj = 48;
-			break;
-		case JWT_ALG_ES512:
-			adj = 66;
-			break;
+	if (psa_sign_message(kid, alg, (const unsigned char *)str, str_len,
+			     sig, sizeof(sig), &sig_len)) {
 		// LCOV_EXCL_START
-		default:
-			mbedtls_mpi_free(&r);
-			mbedtls_mpi_free(&s);
-			SIGN_ERROR("Unknown EC alg");
+		psa_destroy_key(kid);
+		return jwt_write_error(jwt, "JWT[MbedTLS]: Error signing token");
 		// LCOV_EXCL_STOP
-		}
-
-		out_size = adj * 2;
-		*out = jwt_malloc(out_size);
-		if (*out == NULL) {
-			// LCOV_EXCL_START
-			mbedtls_mpi_free(&r);
-			mbedtls_mpi_free(&s);
-			SIGN_ERROR("Out of memory");
-			// LCOV_EXCL_STOP
-		}
-		memset(*out, 0, out_size);
-
-		mbedtls_mpi_write_binary(&r, (unsigned char *)(*out), adj);
-		mbedtls_mpi_write_binary(&s, (unsigned char *)(*out) + adj, adj);
-
-		*len = out_size;
-
-		mbedtls_mpi_free(&r);
-		mbedtls_mpi_free(&s);
-	} else if (key->kty == JWK_KEY_TYPE_RSA) {
-		mbedtls_rsa_context *rsa = (mbedtls_rsa_context *)&key->rsa;
-
-		switch (jwt->alg) {
-		case JWT_ALG_PS256:
-		case JWT_ALG_PS384:
-		case JWT_ALG_PS512:
-			if (mbedtls_rsa_set_padding(rsa, MBEDTLS_RSA_PKCS_V21,
-					mbedtls_md_get_type(md_info)))
-				SIGN_ERROR("Failed setting RSASSA-PSS padding"); // LCOV_EXCL_LINE
-
-			if (mbedtls_rsa_rsassa_pss_sign(rsa,
-					mbedtls_ctr_drbg_random, &ctr_drbg,
-					mbedtls_md_get_type(md_info),
-					mbedtls_md_get_size(md_info), hash, sig))
-				SIGN_ERROR("Failed signing RSASSA-PSS"); // LCOV_EXCL_LINE
-			break;
-
-		case JWT_ALG_RS256:
-		case JWT_ALG_RS384:
-		case JWT_ALG_RS512:
-			/* Reset the shared context to PKCS1v1.5 padding: a prior
-			 * PSS or RSA-OAEP op on the same key object leaves it at
-			 * PKCS_V21, and the v1.5 signer rejects that state
-			 * (MBEDTLS_ERR_RSA_BAD_INPUT_DATA). */
-			if (mbedtls_rsa_set_padding(rsa, MBEDTLS_RSA_PKCS_V15,
-						    MBEDTLS_MD_NONE))
-				SIGN_ERROR("Failed setting PKCS1 padding"); // LCOV_EXCL_LINE
-			if (mbedtls_rsa_rsassa_pkcs1_v15_sign(rsa,
-					mbedtls_ctr_drbg_random, &ctr_drbg,
-					mbedtls_md_get_type(md_info),
-					mbedtls_md_get_size(md_info), hash, sig))
-				SIGN_ERROR("Error signing token"); // LCOV_EXCL_LINE
-			break;
-
-		// LCOV_EXCL_START
-		default:
-			SIGN_ERROR("Unexpected algorithm");
-		// LCOV_EXCL_STOP
-		}
-
-		sig_len = mbedtls_rsa_get_len(rsa);
-
-		*out = jwt_malloc(sig_len);
-		if (*out == NULL)
-			SIGN_ERROR("Out of memory"); // LCOV_EXCL_LINE
-		memcpy(*out, sig, sig_len);
-		*len = sig_len;
-	} else {
-		SIGN_ERROR("Key is not compatible"); // LCOV_EXCL_LINE
 	}
+	psa_destroy_key(kid);
 
-sign_clean_key:
-	mbedtls_ctr_drbg_free(&ctr_drbg);
-	mbedtls_entropy_free(&entropy);
+	*out = jwt_malloc(sig_len);
+	if (*out == NULL)
+		return jwt_write_error(jwt, "JWT[MbedTLS]: Out of memory"); // LCOV_EXCL_LINE
+	memcpy(*out, sig, sig_len);
+	*len = (unsigned int)sig_len;
 
-	return jwt->error;
+	return 0;
 }
 
-#define VERIFY_ERROR(_msg) { jwt_write_error(jwt, "JWT[MbedTLS]: " _msg); goto verify_clean_key; }
-
-/* Verify using the native MbedTLS key object on the JWK (provider_data). */
+/* Verify using the native PSA key imported from the JWK material. */
 static int mbedtls_verify_sha_pem(jwt_t *jwt, const char *head,
 				  unsigned int head_len,
 				  unsigned char *sig, int sig_len)
 {
-	unsigned char hash[MBEDTLS_MD_MAX_SIZE];
-	const mbedtls_md_info_t *md_info = NULL;
 	const mbedtls_jwk_t *key;
-	int ret = 1;
+	mbedtls_svc_key_id_t kid;
+	psa_algorithm_t alg;
+	int exp_len = 0;
 
-	/* MbedTLS has no EdDSA; reject cleanly. */
+	/* PSA here has no EdDSA; reject cleanly. */
 	if (jwt->alg == JWT_ALG_EDDSA)
 		return jwt_write_error(jwt,
 			"JWT[MbedTLS]: MbedTLS does not support EdDSA");
@@ -302,106 +179,47 @@ static int mbedtls_verify_sha_pem(jwt_t *jwt, const char *head,
 
 	key = jwt->key->provider_data;
 
-	md_info = sign_md_info(jwt->alg);
-	if (md_info == NULL)
-		VERIFY_ERROR("Unsupported algorithm"); // LCOV_EXCL_LINE
+	if (sign_alg_to_psa(jwt->alg, &alg))
+		return jwt_write_error(jwt, "JWT[MbedTLS]: Unsupported algorithm"); // LCOV_EXCL_LINE
 
-	/* Compute the hash of the input string */
-	if ((ret = mbedtls_md(md_info, (const unsigned char *)head, head_len,
-			      hash)))
-		VERIFY_ERROR("Failed to compute hash"); // LCOV_EXCL_LINE
-
+	/* Require the signature to be exactly the size dictated by the bound
+	 * algorithm: for EC the R||S length pinned to the curve (ES256/ES256K=64,
+	 * ES384=96, ES512=132); for RSA exactly the modulus length. This matches
+	 * the OpenSSL backend's stricter check. */
 	if (key->kty == JWK_KEY_TYPE_EC) {
-		mbedtls_ecp_keypair *kp = (mbedtls_ecp_keypair *)&key->ec;
-		mbedtls_mpi r, s;
-		int exp_len;
-
-		/* Require the signature to be exactly the size dictated by the
-		 * bound algorithm, not merely one of the three valid ECDSA sizes.
-		 * This pins R||S to the alg/curve (ES256/ES256K=64, ES384=96,
-		 * ES512=132), matching the OpenSSL backend's stricter check. */
 		switch (jwt->alg) {
 		case JWT_ALG_ES256:
-		case JWT_ALG_ES256K:
-			exp_len = 64;
-			break;
-		case JWT_ALG_ES384:
-			exp_len = 96;
-			break;
-		case JWT_ALG_ES512:
-			exp_len = 132;
-			break;
+		case JWT_ALG_ES256K: exp_len = 64; break;
+		case JWT_ALG_ES384: exp_len = 96; break;
+		case JWT_ALG_ES512: exp_len = 132; break;
 		// LCOV_EXCL_START
 		default:
-			VERIFY_ERROR("Unexpected EC algorithm");
+			return jwt_write_error(jwt,
+				"JWT[MbedTLS]: Unexpected EC algorithm");
 		// LCOV_EXCL_STOP
 		}
-
-		mbedtls_mpi_init(&r);
-		mbedtls_mpi_init(&s);
-
-		/* Split R/S from the JOSE signature. */
-		if (sig_len == exp_len) {
-			size_t r_size = sig_len / 2;
-			mbedtls_mpi_read_binary(&r, sig, r_size);
-			mbedtls_mpi_read_binary(&s, sig + r_size, r_size);
-		} else {
-			mbedtls_mpi_free(&r);
-			mbedtls_mpi_free(&s);
-			VERIFY_ERROR("Invalid ECDSA sig size");
-		}
-
-		if (mbedtls_ecdsa_verify(&kp->MBEDTLS_PRIVATE(grp), hash,
-				mbedtls_md_get_size(md_info),
-				&kp->MBEDTLS_PRIVATE(Q), &r, &s))
-			ret = 1;
-
-		mbedtls_mpi_free(&r);
-		mbedtls_mpi_free(&s);
-
-		if (ret)
-			VERIFY_ERROR("Failed to verify signature");
+		if (sig_len != exp_len)
+			return jwt_write_error(jwt,
+				"JWT[MbedTLS]: Invalid ECDSA sig size");
 	} else if (key->kty == JWK_KEY_TYPE_RSA) {
-		mbedtls_rsa_context *rsa = (mbedtls_rsa_context *)&key->rsa;
-
-		/* The MbedTLS RSA verify functions take no length argument and
-		 * unconditionally read mbedtls_rsa_get_len(rsa) bytes from sig.
-		 * Reject a signature that is not exactly the modulus length so a
-		 * short attacker-controlled segment cannot cause an out-of-bounds
-		 * read of the heap buffer (which is sized to the decoded length). */
-		if (sig_len < 0 || (size_t)sig_len != mbedtls_rsa_get_len(rsa))
-			VERIFY_ERROR("Invalid RSA signature size");
-
-		if (jwt->alg == JWT_ALG_PS256 || jwt->alg == JWT_ALG_PS384 ||
-		    jwt->alg == JWT_ALG_PS512) {
-			if (mbedtls_rsa_set_padding(rsa, MBEDTLS_RSA_PKCS_V21,
-					mbedtls_md_get_type(md_info)))
-				VERIFY_ERROR("Failed setting RSASSA-PSS padding"); // LCOV_EXCL_LINE
-			if (mbedtls_rsa_rsassa_pss_verify(rsa,
-					mbedtls_md_get_type(md_info),
-					mbedtls_md_get_size(md_info),
-					hash, sig))
-				VERIFY_ERROR("Failed to verify signature");
-		} else {
-			/* Reset to PKCS1v1.5 padding before verifying (see the
-			 * matching note in the sign path). */
-			if (mbedtls_rsa_set_padding(rsa, MBEDTLS_RSA_PKCS_V15,
-						    MBEDTLS_MD_NONE))
-				VERIFY_ERROR("Failed setting PKCS1 padding"); // LCOV_EXCL_LINE
-			if (mbedtls_rsa_rsassa_pkcs1_v15_verify(rsa,
-					mbedtls_md_get_type(md_info),
-					mbedtls_md_get_size(md_info),
-					hash, sig))
-				VERIFY_ERROR("Failed to verify signature");
-		}
+		if (sig_len < 0 || (size_t)sig_len != (key->bits + 7) / 8)
+			return jwt_write_error(jwt,
+				"JWT[MbedTLS]: Invalid RSA signature size");
 	} else {
-		VERIFY_ERROR("Unexpected key type"); // LCOV_EXCL_LINE
+		return jwt_write_error(jwt, "JWT[MbedTLS]: Unexpected key type"); // LCOV_EXCL_LINE
 	}
 
-	ret = 0;
+	if (mbedtls_jwk_to_psa(key, 0, alg, PSA_KEY_USAGE_VERIFY_MESSAGE, &kid))
+		return jwt_write_error(jwt, "JWT[MbedTLS]: Key is not compatible"); // LCOV_EXCL_LINE
 
-verify_clean_key:
-	return jwt->error;
+	if (psa_verify_message(kid, alg, (const unsigned char *)head, head_len,
+			       sig, (size_t)sig_len)) {
+		psa_destroy_key(kid);
+		return jwt_write_error(jwt, "JWT[MbedTLS]: Failed to verify signature");
+	}
+	psa_destroy_key(kid);
+
+	return 0;
 }
 
 /* Export our ops */

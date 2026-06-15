@@ -9,10 +9,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <mbedtls/rsa.h>
-#include <mbedtls/ecp.h>
+#include <mbedtls/asn1write.h>
 #include <mbedtls/pk.h>
-#include <mbedtls/bignum.h>
+#include <mbedtls/platform_util.h>
+#include <psa/crypto.h>
 
 #include <jwt.h>
 
@@ -51,58 +51,282 @@ static unsigned char *decode_member(jwt_json_t *jwk, const char *name, int *len)
 	return jwt_base64uri_decode(str, len);
 }
 
-/* Map a JWK "crv" to a MbedTLS EC group id (NIST + Montgomery X-curves). */
-static mbedtls_ecp_group_id ec_crv_to_group(const char *crv)
+/* Bit length of a big-endian unsigned integer held in @b[0..len). */
+static size_t be_bitlen(const unsigned char *b, size_t len)
 {
-	if (!strcmp(crv, "P-256"))
-		return MBEDTLS_ECP_DP_SECP256R1;
-	if (!strcmp(crv, "P-384"))
-		return MBEDTLS_ECP_DP_SECP384R1;
-	if (!strcmp(crv, "P-521"))
-		return MBEDTLS_ECP_DP_SECP521R1;
-	if (!strcmp(crv, "secp256k1"))
-		return MBEDTLS_ECP_DP_SECP256K1;
-	if (!strcmp(crv, "X25519"))
-		return MBEDTLS_ECP_DP_CURVE25519;
-	if (!strcmp(crv, "X448"))
-		return MBEDTLS_ECP_DP_CURVE448;
+	size_t i = 0, bits;
+	unsigned char top;
 
-	return MBEDTLS_ECP_DP_NONE;
+	while (i < len && b[i] == 0)
+		i++; // LCOV_EXCL_LINE
+	if (i == len)
+		return 0; // LCOV_EXCL_LINE
+
+	bits = (len - i - 1) * 8;
+	for (top = b[i]; top; top >>= 1)
+		bits++;
+
+	return bits;
 }
 
-/* Export a PEM string from a native RSA/EC key into item->pem (a convenience
- * exposed via jwks_item_pem and used by the jwk2key tool). Failure is
- * non-fatal: pem is optional, so we just leave it NULL. */
-static void set_pem_from_pk(jwk_item_t *item, mbedtls_pk_context *pk, int priv)
+/* Map a NIST/secp JWK "crv" to a PSA ECC family + key size. Returns 0 and fills
+ * @fam/@bits/@fieldlen on success, non-zero for an unknown curve. (Montgomery
+ * X-curves are handled in mbedtls_process_eddsa, not here.) */
+static int crv_to_psa(const char *crv, psa_ecc_family_t *fam, size_t *bits,
+		      size_t *fieldlen)
 {
+	if (!strcmp(crv, "P-256")) {
+		*fam = PSA_ECC_FAMILY_SECP_R1; *bits = 256;
+	} else if (!strcmp(crv, "P-384")) {
+		*fam = PSA_ECC_FAMILY_SECP_R1; *bits = 384;
+	} else if (!strcmp(crv, "P-521")) {
+		*fam = PSA_ECC_FAMILY_SECP_R1; *bits = 521;
+	} else if (!strcmp(crv, "secp256k1")) {
+		*fam = PSA_ECC_FAMILY_SECP_K1; *bits = 256;
+	} else {
+		return 1;
+	}
+
+	*fieldlen = (*bits + 7) / 8;
+
+	return 0;
+}
+
+/* Import a short-lived PSA key from the stored JWK material with the given
+ * policy. Public/private key form is selected by @want_private. See the header. */
+JWT_NO_EXPORT
+int mbedtls_jwk_to_psa(const mbedtls_jwk_t *key, int want_private,
+	psa_algorithm_t alg, psa_key_usage_t usage, mbedtls_svc_key_id_t *kid)
+{
+	psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
+	psa_key_type_t type;
+	const unsigned char *data;
+	size_t data_len;
+	psa_status_t st;
+
+	*kid = MBEDTLS_SVC_KEY_ID_INIT;
+
+	if (psa_crypto_init() != PSA_SUCCESS)
+		return 1; // LCOV_EXCL_LINE
+
+	if (want_private) {
+		if (key->priv == NULL)
+			return 1; // LCOV_EXCL_LINE
+		data = key->priv;
+		data_len = key->priv_len;
+		type = (key->kty == JWK_KEY_TYPE_RSA)
+			? PSA_KEY_TYPE_RSA_KEY_PAIR
+			: PSA_KEY_TYPE_ECC_KEY_PAIR(key->ecc_family);
+	} else {
+		if (key->pub == NULL)
+			return 1; // LCOV_EXCL_LINE
+		data = key->pub;
+		data_len = key->pub_len;
+		type = (key->kty == JWK_KEY_TYPE_RSA)
+			? PSA_KEY_TYPE_RSA_PUBLIC_KEY
+			: PSA_KEY_TYPE_ECC_PUBLIC_KEY(key->ecc_family);
+	}
+
+	psa_set_key_type(&attr, type);
+	psa_set_key_usage_flags(&attr, usage);
+	psa_set_key_algorithm(&attr, alg);
+
+	st = psa_import_key(&attr, data, data_len, kid);
+	psa_reset_key_attributes(&attr);
+
+	return st != PSA_SUCCESS;
+}
+
+/* Write one ASN.1 INTEGER from a raw big-endian magnitude (the mbedtls asn1
+ * writers fill the buffer back-to-front from *p). Strips leading zero bytes and
+ * prepends a 0x00 sign byte when the high bit is set. Returns the encoded length
+ * or a negative error. */
+static int asn1_write_int_raw(unsigned char **p, unsigned char *start,
+			      const unsigned char *raw, size_t raw_len)
+{
+	const unsigned char *v = raw;
+	size_t n = raw_len;
+	int ret, len = 0;
+
+	while (n > 1 && v[0] == 0) {
+		v++; // LCOV_EXCL_LINE
+		n--; // LCOV_EXCL_LINE
+	}
+
+	if ((ret = mbedtls_asn1_write_raw_buffer(p, start, v, n)) < 0)
+		return ret; // LCOV_EXCL_LINE
+	len += ret;
+
+	if (v[0] & 0x80) {
+		if (*p <= start)
+			return -1; // LCOV_EXCL_LINE
+		*--(*p) = 0x00;
+		len += 1;
+	}
+
+	if ((ret = mbedtls_asn1_write_len(p, start, (size_t)len)) < 0)
+		return ret; // LCOV_EXCL_LINE
+	len += ret;
+	if ((ret = mbedtls_asn1_write_tag(p, start, MBEDTLS_ASN1_INTEGER)) < 0)
+		return ret; // LCOV_EXCL_LINE
+	len += ret;
+
+	return len;
+}
+
+/* @rfc{8017} Build a DER PKCS#1 RSAPublicKey { n, e } from the raw components. */
+static unsigned char *build_rsa_pub_der(const unsigned char *n, size_t n_l,
+					const unsigned char *e, size_t e_l,
+					size_t *out_len)
+{
+	size_t cap = n_l + e_l + 32;
+	unsigned char *tmp, *p, *der;
+	int len = 0, ret;
+
+	tmp = jwt_malloc(cap);
+	if (tmp == NULL)
+		return NULL; // LCOV_EXCL_LINE
+	p = tmp + cap;
+
+	if ((ret = asn1_write_int_raw(&p, tmp, e, e_l)) < 0)
+		goto fail; // LCOV_EXCL_LINE
+	len += ret;
+	if ((ret = asn1_write_int_raw(&p, tmp, n, n_l)) < 0)
+		goto fail; // LCOV_EXCL_LINE
+	len += ret;
+	if ((ret = mbedtls_asn1_write_len(&p, tmp, (size_t)len)) < 0)
+		goto fail; // LCOV_EXCL_LINE
+	len += ret;
+	if ((ret = mbedtls_asn1_write_tag(&p, tmp,
+			MBEDTLS_ASN1_CONSTRUCTED | MBEDTLS_ASN1_SEQUENCE)) < 0)
+		goto fail; // LCOV_EXCL_LINE
+	len += ret;
+
+	der = jwt_malloc((size_t)len);
+	if (der == NULL)
+		goto fail; // LCOV_EXCL_LINE
+	memcpy(der, p, (size_t)len);
+	*out_len = (size_t)len;
+	jwt_freemem(tmp);
+	return der;
+
+fail:
+	jwt_freemem(tmp); // LCOV_EXCL_LINE
+	return NULL; // LCOV_EXCL_LINE
+}
+
+/* @rfc{8017} Build a DER PKCS#1 RSAPrivateKey { 0, n, e, d, p, q, dp, dq, qi }
+ * from the raw components. The result is scrubbed/freed by the caller. */
+static unsigned char *build_rsa_priv_der(
+	const unsigned char *n, size_t n_l, const unsigned char *e, size_t e_l,
+	const unsigned char *d, size_t d_l, const unsigned char *p_, size_t p_l,
+	const unsigned char *q, size_t q_l, const unsigned char *dp, size_t dp_l,
+	const unsigned char *dq, size_t dq_l, const unsigned char *qi, size_t qi_l,
+	size_t *out_len)
+{
+	size_t cap = n_l + e_l + d_l + p_l + q_l + dp_l + dq_l + qi_l + 64;
+	unsigned char *tmp, *p, *der;
+	int len = 0, ret;
+
+	tmp = jwt_malloc(cap);
+	if (tmp == NULL)
+		return NULL; // LCOV_EXCL_LINE
+	p = tmp + cap;
+
+	/* Written back-to-front, so emit fields in reverse order. */
+	if ((ret = asn1_write_int_raw(&p, tmp, qi, qi_l)) < 0) goto fail; // LCOV_EXCL_LINE
+	len += ret;
+	if ((ret = asn1_write_int_raw(&p, tmp, dq, dq_l)) < 0) goto fail; // LCOV_EXCL_LINE
+	len += ret;
+	if ((ret = asn1_write_int_raw(&p, tmp, dp, dp_l)) < 0) goto fail; // LCOV_EXCL_LINE
+	len += ret;
+	if ((ret = asn1_write_int_raw(&p, tmp, q, q_l)) < 0) goto fail; // LCOV_EXCL_LINE
+	len += ret;
+	if ((ret = asn1_write_int_raw(&p, tmp, p_, p_l)) < 0) goto fail; // LCOV_EXCL_LINE
+	len += ret;
+	if ((ret = asn1_write_int_raw(&p, tmp, d, d_l)) < 0) goto fail; // LCOV_EXCL_LINE
+	len += ret;
+	if ((ret = asn1_write_int_raw(&p, tmp, e, e_l)) < 0) goto fail; // LCOV_EXCL_LINE
+	len += ret;
+	if ((ret = asn1_write_int_raw(&p, tmp, n, n_l)) < 0) goto fail; // LCOV_EXCL_LINE
+	len += ret;
+	if ((ret = mbedtls_asn1_write_int(&p, tmp, 0)) < 0) goto fail; // LCOV_EXCL_LINE
+	len += ret;
+	if ((ret = mbedtls_asn1_write_len(&p, tmp, (size_t)len)) < 0) goto fail; // LCOV_EXCL_LINE
+	len += ret;
+	if ((ret = mbedtls_asn1_write_tag(&p, tmp,
+			MBEDTLS_ASN1_CONSTRUCTED | MBEDTLS_ASN1_SEQUENCE)) < 0)
+		goto fail; // LCOV_EXCL_LINE
+	len += ret;
+
+	der = jwt_malloc((size_t)len);
+	if (der == NULL)
+		goto fail; // LCOV_EXCL_LINE
+	memcpy(der, p, (size_t)len);
+	*out_len = (size_t)len;
+	mbedtls_platform_zeroize(tmp, cap);
+	jwt_freemem(tmp);
+	return der;
+
+fail:
+	// LCOV_EXCL_START
+	mbedtls_platform_zeroize(tmp, cap);
+	jwt_freemem(tmp);
+	return NULL;
+	// LCOV_EXCL_STOP
+}
+
+/* Best-effort PEM export into item->pem (a convenience surfaced by
+ * jwks_item_pem and the jwk2key tool). PEM is optional and backend-dependent;
+ * any failure simply leaves item->pem NULL. Only RSA and NIST EC keys are
+ * exported (pk has no representation for OKP/Montgomery). */
+static void set_pem_best_effort(jwk_item_t *item, const mbedtls_jwk_t *key)
+{
+	mbedtls_svc_key_id_t kid;
+	mbedtls_pk_context pk;
 	unsigned char buf[8192];
-	char *dest;
-	size_t len;
-	int ret;
+	psa_algorithm_t alg;
+	psa_key_usage_t usage = PSA_KEY_USAGE_EXPORT;
+	int priv = key->is_private, ret;
 
-	if (priv)
-		ret = mbedtls_pk_write_key_pem(pk, buf, sizeof(buf));
+	if (key->kty == JWK_KEY_TYPE_RSA)
+		alg = PSA_ALG_RSA_PSS(PSA_ALG_ANY_HASH);
+	else if (key->kty == JWK_KEY_TYPE_EC)
+		alg = PSA_ALG_ECDSA(PSA_ALG_ANY_HASH);
 	else
-		ret = mbedtls_pk_write_pubkey_pem(pk, buf, sizeof(buf));
+		return;	// LCOV_EXCL_LINE (OKP has no pk/PEM form; not called for OKP)
 
-	if (ret != 0)
+	usage |= priv ? PSA_KEY_USAGE_SIGN_MESSAGE : PSA_KEY_USAGE_VERIFY_MESSAGE;
+
+	if (mbedtls_jwk_to_psa(key, priv, alg, usage, &kid))
 		return; // LCOV_EXCL_LINE
 
-	len = strlen((char *)buf);
-	dest = jwt_malloc(len + 1);
-	if (dest == NULL)
-		return; // LCOV_EXCL_LINE
+	mbedtls_pk_init(&pk);
 
-	memcpy(dest, buf, len + 1);
-	item->pem = dest;
+	if (mbedtls_pk_copy_from_psa(kid, &pk) == 0) {
+		ret = priv ? mbedtls_pk_write_key_pem(&pk, buf, sizeof(buf))
+			   : mbedtls_pk_write_pubkey_pem(&pk, buf, sizeof(buf));
+		if (ret == 0) {
+			size_t len = strlen((char *)buf);
+			char *dest = jwt_malloc(len + 1);
+			if (dest != NULL) {
+				memcpy(dest, buf, len + 1);
+				item->pem = dest;
+			}
+		}
+	}
 
+	mbedtls_pk_free(&pk);
+	psa_destroy_key(kid);
 	mbedtls_platform_zeroize(buf, sizeof(buf));
 }
 
-/* @rfc{7518,6.3} Build a native RSA key from the JWK components. The same path
- * serves RSA and RSA-PSS; the PSS padding is applied at sign/verify, so we keep
- * a plain RSA context and never round-trip through an id-RSASSA-PSS PEM (which
- * mbedtls_pk_parse_key would reject). */
+/* @rfc{7518,6.3} Build the importable RSA material (DER PKCS#1) from the JWK
+ * components. The same path serves RSA and RSA-PSS — the padding scheme is a
+ * sign/verify-time choice, so we keep a single neutral RSA key. We deliberately
+ * defer all key validation to first use (psa_import_key at sign/verify/encrypt
+ * time): this matches the OpenSSL parser's loose fromdata for public keys, which
+ * the RSA error-path tests rely on. */
 JWT_NO_EXPORT
 int mbedtls_process_rsa(jwt_json_t *jwk, jwk_item_t *item)
 {
@@ -111,10 +335,7 @@ int mbedtls_process_rsa(jwt_json_t *jwk, jwk_item_t *item)
 	int n_l, e_l, d_l, p_l, q_l, dp_l, dq_l, qi_l;
 	jwt_json_t *jd, *jp, *jq, *jdp, *jdq, *jqi;
 	mbedtls_jwk_t *key = NULL;
-	mbedtls_pk_context pk;
-	int priv = 0, have_pem = 0, ret = -1;
-
-	mbedtls_pk_init(&pk);
+	int priv = 0, ret = -1;
 
 	/* Presence of the JSON members first (matches the OpenSSL parser's
 	 * "missing" vs "decode error" distinction the error-path tests rely on). */
@@ -149,7 +370,26 @@ int mbedtls_process_rsa(jwt_json_t *jwk, jwk_item_t *item)
 	key = jwk_new(JWK_KEY_TYPE_RSA);
 	if (key == NULL)
 		goto cleanup; // LCOV_EXCL_LINE
-	mbedtls_rsa_init(&key->rsa);
+
+	key->bits = be_bitlen(n, (size_t)n_l);
+	item->bits = key->bits;
+
+	/* PSA caps RSA at PSA_VENDOR_RSA_MAX_KEY_BITS (a property of the linked
+	 * crypto build, 4096 by default). The classic API had no such limit, so a
+	 * larger key would parse but fail at first use; reject it here with a clear
+	 * message instead. */
+	if (key->bits > PSA_VENDOR_RSA_MAX_KEY_BITS) {
+		jwt_write_error(item,
+			"RSA key size (%zu bits) exceeds the backend maximum "
+			"of %u bits", key->bits,
+			(unsigned int)PSA_VENDOR_RSA_MAX_KEY_BITS);
+		goto cleanup;
+	}
+
+	key->pub = build_rsa_pub_der(n, (size_t)n_l, e, (size_t)e_l,
+				     &key->pub_len);
+	if (key->pub == NULL)
+		goto cleanup; // LCOV_EXCL_LINE
 
 	if (priv) {
 		d = decode_member(jwk, "d", &d_l);
@@ -162,49 +402,29 @@ int mbedtls_process_rsa(jwt_json_t *jwk, jwk_item_t *item)
 			jwt_write_error(item, "Error decoding priv components");
 			goto cleanup;
 		}
-		if (mbedtls_rsa_import_raw(&key->rsa, n, n_l, p, p_l, q, q_l,
-					   d, d_l, e, e_l) ||
-		    mbedtls_rsa_complete(&key->rsa) ||
-		    mbedtls_rsa_check_privkey(&key->rsa)) {
-			// LCOV_EXCL_START
-			jwt_write_error(item, "Error importing RSA private key");
-			goto cleanup;
-			// LCOV_EXCL_STOP
-		}
-		item->is_private_key = key->is_private = 1;
-	} else {
-		/* Public key: import n,e only. We deliberately skip
-		 * mbedtls_rsa_complete()/check_pubkey() — they enforce minimum
-		 * sizes and reject structurally-odd keys that OpenSSL's loose
-		 * fromdata accepts; matching OpenSSL keeps cross-backend parsing
-		 * consistent (the RSA error-path tests rely on this). */
-		if (mbedtls_rsa_import_raw(&key->rsa, n, n_l, NULL, 0, NULL, 0,
-					   NULL, 0, e, e_l)) {
-			jwt_write_error(item, "Error importing RSA public key"); // LCOV_EXCL_LINE
+		key->priv = build_rsa_priv_der(n, n_l, e, e_l, d, d_l, p, p_l,
+					       q, q_l, dp, dp_l, dq, dq_l,
+					       qi, qi_l, &key->priv_len);
+		if (key->priv == NULL)
 			goto cleanup; // LCOV_EXCL_LINE
-		}
+		item->is_private_key = key->is_private = 1;
 	}
-
-	item->bits = mbedtls_rsa_get_bitlen(&key->rsa);
-
-	/* Wrap in a temporary pk_context only to export the convenience PEM. */
-	if (mbedtls_pk_setup(&pk, mbedtls_pk_info_from_type(MBEDTLS_PK_RSA)) == 0 &&
-	    mbedtls_rsa_copy(mbedtls_pk_rsa(pk), &key->rsa) == 0)
-		have_pem = 1;
 
 	item->provider = JWT_CRYPTO_OPS_MBEDTLS;
 	item->provider_data = key;
+
+	set_pem_best_effort(item, key);
+
 	key = NULL;
 	ret = 0;
 
-	if (have_pem)
-		set_pem_from_pk(item, &pk, priv);
-
 cleanup: // LCOV_EXCL_LINE (gcov mis-counts the bare label)
-	mbedtls_pk_free(&pk);
 	if (key != NULL) {
-		mbedtls_rsa_free(&key->rsa);
+		// LCOV_EXCL_START
+		jwt_freemem(key->pub);
+		jwt_scrub_and_free(key->priv, key->priv_len);
 		jwt_freemem(key);
+		// LCOV_EXCL_STOP
 	}
 	jwt_freemem(n);
 	jwt_freemem(e);
@@ -218,21 +438,22 @@ cleanup: // LCOV_EXCL_LINE (gcov mis-counts the bare label)
 	return ret;
 }
 
-/* @rfc{7518,6.2} Build a native EC keypair from the JWK crv/x/y[/d]. */
+/* @rfc{7518,6.2} Build the importable EC material from the JWK crv/x/y[/d]. The
+ * public point (and private scalar, when present) is validated at parse via a
+ * throwaway PSA import, so structurally-bad points are rejected here exactly as
+ * the OpenSSL parser does. */
 JWT_NO_EXPORT
 int mbedtls_process_ec(jwt_json_t *jwk, jwk_item_t *item)
 {
-	unsigned char *x = NULL, *y = NULL, *d = NULL, *point = NULL;
+	unsigned char *x = NULL, *y = NULL, *d = NULL;
 	int x_l, y_l, d_l = 0;
 	jwt_json_t *jcrv, *jx, *jy, *jd;
 	const char *crv;
-	mbedtls_ecp_group_id gid;
+	psa_ecc_family_t fam;
+	size_t bits, fieldlen;
 	mbedtls_jwk_t *key = NULL;
-	mbedtls_pk_context pk;
-	size_t fieldlen, ptlen;
-	int priv = 0, have_pem = 0, ret = -1;
-
-	mbedtls_pk_init(&pk);
+	mbedtls_svc_key_id_t kid;
+	int priv = 0, ret = -1;
 
 	jcrv = jwt_json_obj_get(jwk, "crv");
 	jx = jwt_json_obj_get(jwk, "x");
@@ -253,8 +474,7 @@ int mbedtls_process_ec(jwt_json_t *jwk, jwk_item_t *item)
 
 	/* An unknown curve and bad x/y points are both pub-key construction
 	 * failures, sharing one message to mirror the OpenSSL parser. */
-	gid = ec_crv_to_group(crv);
-	if (gid == MBEDTLS_ECP_DP_NONE) {
+	if (crv_to_psa(crv, &fam, &bits, &fieldlen)) {
 		jwt_write_error(item,
 			"Error generating pub key from components");
 		goto cleanup;
@@ -263,18 +483,9 @@ int mbedtls_process_ec(jwt_json_t *jwk, jwk_item_t *item)
 	key = jwk_new(JWK_KEY_TYPE_EC);
 	if (key == NULL)
 		goto cleanup; // LCOV_EXCL_LINE
-	mbedtls_ecp_keypair_init(&key->ec);
-
-	if (mbedtls_ecp_group_load(&key->ec.MBEDTLS_PRIVATE(grp), gid)) {
-		jwt_write_error(item, "Error loading EC group"); // LCOV_EXCL_LINE
-		goto cleanup; // LCOV_EXCL_LINE
-	}
-
-	/* Field length from the loaded group. JWK coordinates are big-endian
-	 * and may have had leading zero bytes stripped (e.g. P-521 often
-	 * decodes to 65 bytes, not 66), so left-pad each into the fixed field
-	 * width that mbedtls_ecp_point_read_binary expects. */
-	fieldlen = (key->ec.MBEDTLS_PRIVATE(grp).nbits + 7) / 8;
+	key->ecc_family = fam;
+	key->bits = bits;
+	item->bits = bits;
 
 	x = decode_member(jwk, "x", &x_l);
 	y = decode_member(jwk, "y", &y_l);
@@ -286,85 +497,81 @@ int mbedtls_process_ec(jwt_json_t *jwk, jwk_item_t *item)
 	}
 
 	/* Uncompressed point: 0x04 || X || Y, each left-padded to fieldlen. */
-	ptlen = 1 + fieldlen * 2;
-	point = jwt_malloc(ptlen);
-	if (point == NULL)
+	key->pub_len = 1 + fieldlen * 2;
+	key->pub = jwt_malloc(key->pub_len);
+	if (key->pub == NULL)
 		goto cleanup; // LCOV_EXCL_LINE
-	memset(point, 0, ptlen);
-	point[0] = 0x04;
-	memcpy(point + 1 + (fieldlen - (size_t)x_l), x, (size_t)x_l);
-	memcpy(point + 1 + fieldlen + (fieldlen - (size_t)y_l), y, (size_t)y_l);
-
-	if (mbedtls_ecp_point_read_binary(&key->ec.MBEDTLS_PRIVATE(grp),
-					  &key->ec.MBEDTLS_PRIVATE(Q),
-					  point, ptlen) ||
-	    mbedtls_ecp_check_pubkey(&key->ec.MBEDTLS_PRIVATE(grp),
-				     &key->ec.MBEDTLS_PRIVATE(Q))) {
-		jwt_write_error(item,
-			"Error generating pub key from components");
-		goto cleanup;
-	}
+	memset(key->pub, 0, key->pub_len);
+	key->pub[0] = 0x04;
+	memcpy(key->pub + 1 + (fieldlen - (size_t)x_l), x, (size_t)x_l);
+	memcpy(key->pub + 1 + fieldlen + (fieldlen - (size_t)y_l), y, (size_t)y_l);
 
 	if (jd != NULL && jwt_json_is_string(jd)) {
 		d = decode_member(jwk, "d", &d_l);
-		if (d == NULL) {
-			jwt_write_error(item, "Error decoding EC d"); // LCOV_EXCL_LINE
-			goto cleanup; // LCOV_EXCL_LINE
-		}
-		if (mbedtls_mpi_read_binary(&key->ec.MBEDTLS_PRIVATE(d),
-					    d, (size_t)d_l) ||
-		    mbedtls_ecp_check_privkey(&key->ec.MBEDTLS_PRIVATE(grp),
-					      &key->ec.MBEDTLS_PRIVATE(d))) {
+		if (d == NULL || (size_t)d_l > fieldlen) {
 			// LCOV_EXCL_START
 			jwt_write_error(item, "Error importing EC private key");
 			goto cleanup;
 			// LCOV_EXCL_STOP
 		}
+		/* Scalar left-padded to the field length for PSA import. */
+		key->priv_len = fieldlen;
+		key->priv = jwt_malloc(key->priv_len);
+		if (key->priv == NULL)
+			goto cleanup; // LCOV_EXCL_LINE
+		memset(key->priv, 0, key->priv_len);
+		memcpy(key->priv + (fieldlen - (size_t)d_l), d, (size_t)d_l);
 		item->is_private_key = key->is_private = priv = 1;
 	}
 
-	item->bits = key->ec.MBEDTLS_PRIVATE(grp).nbits;
-
-	/* Wrap a copy of the native keypair in a pk_context for the PEM export.
-	 * mbedtls_pk_setup(ECKEY) gives an initialized-but-empty keypair, so we
-	 * load the group and copy Q (and d for private keys) into it. */
-	if (mbedtls_pk_setup(&pk, mbedtls_pk_info_from_type(MBEDTLS_PK_ECKEY)) == 0) {
-		mbedtls_ecp_keypair *kp = mbedtls_pk_ec(pk);
-
-		if (mbedtls_ecp_group_load(&kp->MBEDTLS_PRIVATE(grp), gid) == 0 &&
-		    mbedtls_ecp_copy(&kp->MBEDTLS_PRIVATE(Q),
-				     &key->ec.MBEDTLS_PRIVATE(Q)) == 0 &&
-		    (!priv || mbedtls_mpi_copy(&kp->MBEDTLS_PRIVATE(d),
-					       &key->ec.MBEDTLS_PRIVATE(d)) == 0))
-			have_pem = 1;
+	/* Validate the public point (on-curve) via a throwaway PSA import. */
+	if (mbedtls_jwk_to_psa(key, 0, PSA_ALG_ECDSA(PSA_ALG_ANY_HASH),
+			       PSA_KEY_USAGE_VERIFY_MESSAGE, &kid)) {
+		jwt_write_error(item,
+			"Error generating pub key from components");
+		goto cleanup;
 	}
+	psa_destroy_key(kid);
+
+	/* Validate the private scalar, when present, the same way. */
+	if (priv &&
+	    mbedtls_jwk_to_psa(key, 1, PSA_ALG_ECDSA(PSA_ALG_ANY_HASH),
+			       PSA_KEY_USAGE_SIGN_MESSAGE, &kid)) {
+		// LCOV_EXCL_START
+		jwt_write_error(item, "Error importing EC private key");
+		goto cleanup;
+		// LCOV_EXCL_STOP
+	}
+	if (priv)
+		psa_destroy_key(kid);
 
 	item->provider = JWT_CRYPTO_OPS_MBEDTLS;
 	item->provider_data = key;
+
+	set_pem_best_effort(item, key);
+
 	key = NULL;
 	ret = 0;
 
-	if (have_pem)
-		set_pem_from_pk(item, &pk, priv);
-
 cleanup: // LCOV_EXCL_LINE (gcov mis-counts the bare label)
-	mbedtls_pk_free(&pk);
 	if (key != NULL) {
-		mbedtls_ecp_keypair_free(&key->ec);
+		jwt_freemem(key->pub);
+		jwt_scrub_and_free(key->priv, key->priv_len);
 		jwt_freemem(key);
 	}
 	jwt_freemem(x);
 	jwt_freemem(y);
-	jwt_freemem(point);
 	jwt_scrub_and_free(d, d ? (size_t)d_l : 0);
 
 	return ret;
 }
 
-/* @rfc{8037} OKP keys. MbedTLS supports the X-curves (X25519/X448) for ECDH but
- * has no EdDSA at all. We retain the native ECP keypair for X-curves and only
- * the raw material for Ed-curves; an Ed key parses cleanly so a keyring still
- * loads, but any sign/verify/JWE op on it fails with a clear error. */
+/* @rfc{8037} OKP keys. PSA (like MbedTLS classic) supports the X-curves
+ * (X25519/X448) for ECDH but has no EdDSA. We keep the raw material for both:
+ * X-curves as PSA-importable little-endian bytes, Ed-curves retained only so a
+ * keyring still loads (any sign/verify/JWE on an Ed key fails with a clear
+ * error). Montgomery keys need no on-curve check — any value of the right length
+ * is a valid u-coordinate — so length is the only validation. */
 JWT_NO_EXPORT
 int mbedtls_process_eddsa(jwt_json_t *jwk, jwk_item_t *item)
 {
@@ -373,6 +580,7 @@ int mbedtls_process_eddsa(jwt_json_t *jwk, jwk_item_t *item)
 	jwt_json_t *jcrv, *jx, *jd;
 	const char *crv;
 	mbedtls_jwk_t *key = NULL;
+	size_t keylen = 0;
 	int is_ed, ret = -1;
 
 	jcrv = jwt_json_obj_get(jwk, "crv");
@@ -413,37 +621,28 @@ int mbedtls_process_eddsa(jwt_json_t *jwk, jwk_item_t *item)
 	if (key == NULL)
 		goto cleanup; // LCOV_EXCL_LINE
 	key->okp_is_ed = is_ed;
+	key->bits = item->bits;
 
 	if (jd != NULL)
 		item->is_private_key = key->is_private = 1;
 
 	if (is_ed) {
-		/* Ed-curves: store raw material only (mbedtls has no EdDSA). */
+		/* Ed-curves: store raw material only (no EdDSA support here). */
 		if (jx != NULL && jwt_json_is_string(jx)) {
-			key->okp_ed.pub = decode_member(jwk, "x", &x_l);
-			key->okp_ed.pub_len = key->okp_ed.pub ? (size_t)x_l : 0;
+			key->pub = decode_member(jwk, "x", &x_l);
+			key->pub_len = key->pub ? (size_t)x_l : 0;
 		}
 		if (jd != NULL && jwt_json_is_string(jd)) {
-			key->okp_ed.priv = decode_member(jwk, "d", &d_l);
-			key->okp_ed.priv_len = key->okp_ed.priv ? (size_t)d_l : 0;
+			key->priv = decode_member(jwk, "d", &d_l);
+			key->priv_len = key->priv ? (size_t)d_l : 0;
 		}
 	} else {
-		/* X-curves: a native ECP keypair usable for ECDH. The JWK "x"/
-		 * "d" are RFC 7748 little-endian; mbedtls Montgomery points read
-		 * little-endian via the *_le MPI helpers. */
-		mbedtls_ecp_group_id gid = ec_crv_to_group(crv);
-		/* Field width: X25519 = 32 bytes, X448 = 56 bytes. The decoded
-		 * "x"/"d" must be exactly this length. Without the check an
-		 * over/undersized attacker-supplied value would be accepted here
-		 * (mbedtls grows the MPI dynamically), where OpenSSL/GnuTLS and the
-		 * mbedtls "epk" reader reject it. */
-		size_t keylen = !strcmp(crv, "X25519") ? 32 : 56;
-
-		mbedtls_ecp_keypair_init(&key->ec);
-		if (mbedtls_ecp_group_load(&key->ec.MBEDTLS_PRIVATE(grp), gid)) {
-			jwt_write_error(item, "Error loading OKP group"); // LCOV_EXCL_LINE
-			goto cleanup; // LCOV_EXCL_LINE
-		}
+		/* X-curves: PSA-importable little-endian material. The decoded
+		 * "x"/"d" must be exactly the curve length (X25519 = 32, X448 =
+		 * 56); without the check an over/undersized attacker value would
+		 * be accepted where OpenSSL/GnuTLS reject it. */
+		key->ecc_family = PSA_ECC_FAMILY_MONTGOMERY;
+		keylen = !strcmp(crv, "X25519") ? 32 : 56;
 
 		if (jx != NULL && jwt_json_is_string(jx)) {
 			x = decode_member(jwk, "x", &x_l);
@@ -455,15 +654,9 @@ int mbedtls_process_eddsa(jwt_json_t *jwk, jwk_item_t *item)
 				jwt_write_error(item, "Invalid OKP x length");
 				goto cleanup;
 			}
-			if (mbedtls_mpi_read_binary_le(
-				    &key->ec.MBEDTLS_PRIVATE(Q).MBEDTLS_PRIVATE(X),
-				    x, (size_t)x_l) ||
-			    mbedtls_mpi_lset(
-				    &key->ec.MBEDTLS_PRIVATE(Q).MBEDTLS_PRIVATE(Z),
-				    1)) {
-				jwt_write_error(item, "Error importing OKP x"); // LCOV_EXCL_LINE
-				goto cleanup; // LCOV_EXCL_LINE
-			}
+			key->pub = x;
+			key->pub_len = (size_t)x_l;
+			x = NULL;
 		}
 		if (jd != NULL && jwt_json_is_string(jd)) {
 			d = decode_member(jwk, "d", &d_l);
@@ -475,12 +668,9 @@ int mbedtls_process_eddsa(jwt_json_t *jwk, jwk_item_t *item)
 				jwt_write_error(item, "Invalid OKP d length");
 				goto cleanup;
 			}
-			if (mbedtls_mpi_read_binary_le(
-				    &key->ec.MBEDTLS_PRIVATE(d), d,
-				    (size_t)d_l)) {
-				jwt_write_error(item, "Error importing OKP d"); // LCOV_EXCL_LINE
-				goto cleanup; // LCOV_EXCL_LINE
-			}
+			key->priv = d;
+			key->priv_len = (size_t)d_l;
+			d = NULL;
 		}
 	}
 
@@ -490,21 +680,11 @@ int mbedtls_process_eddsa(jwt_json_t *jwk, jwk_item_t *item)
 	ret = 0;
 
 cleanup:
-	/* Only reached with key != NULL on a post-allocation error path, all of
-	 * which are defensive (decode/group-load failures). */
-	// LCOV_EXCL_START
 	if (key != NULL) {
-		/* okp_ed and ec overlap in a union; free only the one in use. */
-		if (is_ed) {
-			jwt_scrub_and_free(key->okp_ed.pub, key->okp_ed.pub_len);
-			jwt_scrub_and_free(key->okp_ed.priv,
-					   key->okp_ed.priv_len);
-		} else {
-			mbedtls_ecp_keypair_free(&key->ec);
-		}
+		jwt_freemem(key->pub);
+		jwt_scrub_and_free(key->priv, key->priv_len);
 		jwt_freemem(key);
 	}
-	// LCOV_EXCL_STOP
 	jwt_freemem(x);
 	jwt_scrub_and_free(d, d ? (size_t)d_l : 0);
 
@@ -521,30 +701,8 @@ void mbedtls_process_item_free(jwk_item_t *item)
 
 	key = item->provider_data;
 	if (key != NULL) {
-		switch (key->kty) {
-		case JWK_KEY_TYPE_RSA:
-			mbedtls_rsa_free(&key->rsa);
-			break;
-		case JWK_KEY_TYPE_EC:
-			mbedtls_ecp_keypair_free(&key->ec);
-			break;
-		case JWK_KEY_TYPE_OKP:
-			/* okp_ed and ec overlap in a union; free only the one in
-			 * use. Ed-curves kept raw buffers; X-curves an ecp pair. */
-			if (key->okp_is_ed) {
-				jwt_scrub_and_free(key->okp_ed.pub,
-						   key->okp_ed.pub_len);
-				jwt_scrub_and_free(key->okp_ed.priv,
-						   key->okp_ed.priv_len);
-			} else {
-				mbedtls_ecp_keypair_free(&key->ec);
-			}
-			break;
-		// LCOV_EXCL_START
-		default:
-			break;
-		// LCOV_EXCL_STOP
-		}
+		jwt_freemem(key->pub);
+		jwt_scrub_and_free(key->priv, key->priv_len);
 		jwt_freemem(key);
 	}
 

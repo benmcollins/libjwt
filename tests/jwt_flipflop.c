@@ -117,7 +117,8 @@ static void __checker(const char *cops, const char *pub, jwt_alg_t alg,
 	free_key();
 }
 
-static void __flip_one(const char *priv, const char *pub, jwt_alg_t alg)
+static void __flip_one(const char *priv, const char *pub, jwt_alg_t alg,
+		       int mbedtls_skip)
 {
 	char *out = NULL;
 	size_t i;
@@ -126,9 +127,11 @@ static void __flip_one(const char *priv, const char *pub, jwt_alg_t alg)
 	for (i = 0; i < ARRAY_SIZE(jwt_test_ops); i++) {
 		size_t c;
 
-		/* MbedTLS has no EdDSA; it can neither produce nor verify an
-		 * EdDSA token, so skip it on both sides of the flip-flop. */
-		if (alg == JWT_ALG_EDDSA &&
+		/* MbedTLS has no EdDSA, and its PSA backend cannot handle RSA keys
+		 * above PSA_VENDOR_RSA_MAX_KEY_BITS (the 8192-bit key); in either
+		 * case it can neither produce nor verify, so skip it on both sides
+		 * of the flip-flop. */
+		if ((alg == JWT_ALG_EDDSA || mbedtls_skip) &&
 		    jwt_test_ops[i].type == JWT_CRYPTO_OPS_MBEDTLS)
 			continue;
 
@@ -140,7 +143,7 @@ static void __flip_one(const char *priv, const char *pub, jwt_alg_t alg)
 		for (c = 0; c < ARRAY_SIZE(jwt_test_ops); c++) {
 			/* Test everywhere */
 
-			if (alg == JWT_ALG_EDDSA &&
+			if ((alg == JWT_ALG_EDDSA || mbedtls_skip) &&
 			    jwt_test_ops[c].type == JWT_CRYPTO_OPS_MBEDTLS)
 				continue;
 
@@ -157,7 +160,17 @@ static void __flip_one(const char *priv, const char *pub, jwt_alg_t alg)
 START_TEST(__name)				\
 {						\
         __flip_one(#__name ".json",		\
-		   #__pub ".json", __alg);	\
+		   #__pub ".json", __alg, 0);	\
+}						\
+END_TEST
+
+/* As FLIPFLOP_KEY, but skip the MbedTLS backend (its PSA crypto cannot import
+ * RSA keys above PSA_VENDOR_RSA_MAX_KEY_BITS). */
+#define FLIPFLOP_KEY_NO_MBEDTLS(__name, __pub, __alg)	\
+START_TEST(__name)				\
+{						\
+        __flip_one(#__name ".json",		\
+		   #__pub ".json", __alg, 1);	\
 }						\
 END_TEST
 
@@ -165,7 +178,7 @@ END_TEST
 START_TEST(rsa_no_alg_ ## __alg)		\
 {						\
 	__flip_one(#__name ".json",		\
-		   #__pub ".json", __alg);	\
+		   #__pub ".json", __alg, 0);	\
 }						\
 END_TEST
 
@@ -192,7 +205,7 @@ FLIPFLOP_KEY(rsa_key_2048,
 FLIPFLOP_KEY(rsa_key_4096,
 	     rsa_key_4096,
 	     JWT_ALG_RS384);
-FLIPFLOP_KEY(rsa_key_8192,
+FLIPFLOP_KEY_NO_MBEDTLS(rsa_key_8192,
 	     rsa_key_8192_pub,
 	     JWT_ALG_RS512);
 
