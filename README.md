@@ -1,4 +1,4 @@
-![LibJWT - The C JWT Library](images/LibJWT-800x152.png)
+![LibJWT - The C JWT Library](images/social-preview.png)
 ---
 
 [![codecov](https://codecov.io/gh/benmcollins/libjwt/graph/badge.svg?token=MhCaZ8cpwQ)](https://codecov.io/gh/benmcollins/libjwt)
