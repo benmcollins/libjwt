@@ -156,7 +156,13 @@ static jwk_item_t *jwk_process_one(jwk_set_t *jwk_set, jwt_json_t *jwk)
 	item->json = jwt_json_clone(jwk);
 	if (item->json == NULL) {
 		// LCOV_EXCL_START
-		jwt_freemem(jwk);
+		/* Only free what this function owns: the jwk_item_t allocated
+		 * above. "jwk" is a borrowed reference into the caller-owned
+		 * parsed JSON tree (j_all or an array element) and must not be
+		 * freed here; doing so with jwt_freemem() (a raw free of a live,
+		 * refcounted json object) would corrupt that tree and double-free
+		 * it when the caller releases it. item->json is NULL here. */
+		jwt_freemem(item);
 		jwt_write_error(jwk_set,
 			"Error allocating memory for jwk_item_t");
 		return NULL;
