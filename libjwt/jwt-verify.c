@@ -27,7 +27,11 @@ static jwt_json_t *jwt_base64uri_decode_to_json(char *src)
 
 	buf[len] = '\0';
 
-	js = jwt_json_parse(buf, 0, NULL);
+	/* @rfc{8725,2.4} Reject duplicate members in the token header/payload so
+	 * a peer that selects a different occurrence cannot be made to disagree
+	 * with us about a claim/header. Supported by the Jansson backend; json-c
+	 * cannot reject duplicates (it keeps the last), a documented limitation. */
+	js = jwt_json_parse(buf, JWT_JSON_REJECT_DUPLICATES, NULL);
 
 	jwt_freemem(buf);
 
@@ -205,6 +209,28 @@ int jwt_parse(jwt_t *jwt, const char *token, unsigned int *len)
 	return 0;
 }
 
+/* @rfc{7519,4.1.3} "aud" may be a single string OR an array of strings. Return
+ * 1 if the expected audience is among the array elements, 0 otherwise. */
+static int __aud_matches_array(jwt_t *jwt, const char *want)
+{
+	jwt_json_t *aud, *ent;
+	size_t i, n;
+
+	aud = jwt_json_obj_get(jwt->claims, "aud");
+	if (aud == NULL || !jwt_json_is_array(aud))
+		return 0;
+
+	n = jwt_json_arr_size(aud);
+	for (i = 0; i < n; i++) {
+		ent = jwt_json_arr_get(aud, i);
+		if (ent && jwt_json_is_string(ent) &&
+		    !strcmp(want, jwt_json_str_val(ent)))
+			return 1;
+	}
+
+	return 0;
+}
+
 static int __check_str_claim(jwt_t *jwt, jwt_claims_t claim, char *claim_str)
 {
 	jwt_checker_t *checker = jwt->checker;
@@ -223,10 +249,17 @@ static int __check_str_claim(jwt_t *jwt, jwt_claims_t claim, char *claim_str)
 	jwt_set_GET_STR(&jval, claim_str);
 	err = jwt_claim_get(jwt, &jval);
 
-	if (err != JWT_VALUE_ERR_NONE || strcmp(str, jval.str_val))
-		return 1;
+	if (err == JWT_VALUE_ERR_NONE)
+		return strcmp(str, jval.str_val) ? 1 : 0;
 
-	return 0;
+	/* A type error on "aud" means it is an array (RFC 7519 4.1.3 allows
+	 * that): accept the token if the expected audience is among the
+	 * elements. Any other claim, or a non-matching array, fails. */
+	if (claim == JWT_CLAIM_AUD && err == JWT_VALUE_ERR_TYPE &&
+	    __aud_matches_array(jwt, str))
+		return 0;
+
+	return 1;
 }
 
 static jwt_claims_t __verify_claims(jwt_t *jwt)
@@ -275,25 +308,41 @@ static jwt_claims_t __verify_claims(jwt_t *jwt)
 	if (__check_str_claim(jwt, JWT_CLAIM_AUD, "aud"))
 		failed |= JWT_CLAIM_AUD;
 
-	/* @rfc{7519,4.1.7} jti: hand the id to the application callback,
-	 * which validates/consumes it (e.g. replay protection). A registered
-	 * callback means a token with no jti is rejected. */
-	if (checker->c.jti_check) {
-		JWT_CONFIG_DECLARE(jti_config);
-
-		jwt_set_GET_STR(&jval, "jti");
-		err = jwt_claim_get(jwt, &jval);
-
-		if (err != JWT_VALUE_ERR_NONE) {
-			failed |= JWT_CLAIM_JTI;
-		} else {
-			jti_config.ctx = checker->c.jti_ctx;
-			if (checker->c.jti_check(jwt, &jti_config, jval.str_val))
-				failed |= JWT_CLAIM_JTI;
-		}
-	}
-
 	return failed;
+}
+
+/* @rfc{7519,4.1.7} jti: hand the id to the application callback, which
+ * validates/consumes it (e.g. replay protection). A registered callback means
+ * a token with no jti is rejected.
+ *
+ * This is intentionally kept separate from __verify_claims() and run only
+ * after the signature has verified: the callback typically mutates external
+ * state (records/burns the jti for replay protection), so it must not fire on
+ * a token whose signature has not been validated. Running it pre-signature
+ * would let an attacker who knows a victim's jti poison the replay cache or
+ * burn the id with forged, unauthenticated tokens. */
+static jwt_claims_t __verify_jti(jwt_t *jwt)
+{
+	jwt_checker_t *checker = jwt->checker;
+	jwt_value_t jval;
+	jwt_value_error_t err;
+
+	if (!checker->c.jti_check)
+		return 0;
+
+	JWT_CONFIG_DECLARE(jti_config);
+
+	jwt_set_GET_STR(&jval, "jti");
+	err = jwt_claim_get(jwt, &jval);
+
+	if (err != JWT_VALUE_ERR_NONE)
+		return JWT_CLAIM_JTI;
+
+	jti_config.ctx = checker->c.jti_ctx;
+	if (checker->c.jti_check(jwt, &jti_config, jval.str_val))
+		return JWT_CLAIM_JTI;
+
+	return 0;
 }
 
 /* This is after parsing and possibly a user callback. */
@@ -370,16 +419,26 @@ jwt_t *jwt_verify_complete(jwt_t *jwt, const jwt_config_t *config,
 	sig = token + (payload_len + 1);
 	sig_len = strlen(sig);
 
-	/* Check for conflicts in user request and JWT */
+	/* Check for conflicts in user request and JWT, and run the read-only
+	 * claim checks (exp/nbf/iss/sub/aud). */
 	if (__verify_config_post(jwt, config, sig_len))
 		return jwt;
 
 	/* After all the checks, if we don't have a sig, we can move on. */
-	if (!sig_len)
-		return jwt;
+	if (sig_len) {
+		/* At this point, config is never NULL */
+		jwt->key = config->key;
 
-	/* At this point, config is never NULL */
-	jwt->key = config->key;
+		jwt = jwt_verify_sig(jwt, token, payload_len, sig);
+		if (jwt->error)
+			return jwt;
+	}
 
-	return jwt_verify_sig(jwt, token, payload_len, sig);
+	/* Signature has now verified (or there is none and "none" was
+	 * permitted). Only now run the jti replay callback, which may mutate
+	 * external state and must not fire on an unauthenticated token. */
+	if (__verify_jti(jwt))
+		jwt_write_error(jwt, "Failed one or more claims");
+
+	return jwt;
 }
