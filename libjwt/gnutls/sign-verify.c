@@ -410,13 +410,6 @@ verify_clean_sig:
 	return jwt->error;
 }
 
-/* Without the native path (GnuTLS < 3.8.4), JWK parsing and RSA-OAEP/ECDH-ES
- * fall back to OpenSSL, so that combination requires the OpenSSL backend. CMake
- * enforces this too; this is a defensive guard. */
-#if !JWT_GNUTLS_NATIVE_JWE && !defined(HAVE_OPENSSL)
-#error "GnuTLS < 3.8.4 requires the OpenSSL backend; build with OpenSSL or GnuTLS >= 3.8.4"
-#endif
-
 /* Export our ops */
 struct jwt_crypto_ops jwt_gnutls_ops = {
 	.name			= "gnutls",
@@ -427,20 +420,11 @@ struct jwt_crypto_ops jwt_gnutls_ops = {
 	.verify_sha_pem		= gnutls_verify_sha_pem,
 
 	.jwk_implemented	= 1,
-#if JWT_GNUTLS_NATIVE_JWE
 	/* Native GnuTLS JWK parsing + RSA-OAEP + ECDH-ES (GnuTLS >= 3.8.4). */
 	.process_eddsa		= gnutls_process_eddsa,
 	.process_rsa		= gnutls_process_rsa,
 	.process_ec		= gnutls_process_ec,
 	.process_item_free	= gnutls_process_item_free,
-#else
-	/* Older GnuTLS lacks the SPKI-OAEP / derive-secret APIs, so JWK parsing
-	 * and RSA-OAEP/ECDH-ES fall back to OpenSSL (EVP_PKEY on the JWK). */
-	.process_eddsa		= openssl_process_eddsa,
-	.process_rsa		= openssl_process_rsa,
-	.process_ec		= openssl_process_ec,
-	.process_item_free	= openssl_process_item_free,
-#endif
 	/* Native-key -> JWK conversion, done natively by GnuTLS. */
 	.key2jwk_params		= gnutls_key2jwk_params,
 
@@ -454,13 +438,7 @@ struct jwt_crypto_ops jwt_gnutls_ops = {
 	.unwrap_aes_kw		= gnutls_unwrap_aes_kw,
 	.wrap_aes_kw_raw	= gnutls_wrap_aes_kw_raw,
 	.unwrap_aes_kw_raw	= gnutls_unwrap_aes_kw_raw,
-#if JWT_GNUTLS_NATIVE_JWE
 	.encrypt_cek_rsa	= gnutls_encrypt_cek_rsa,
 	.decrypt_cek_rsa	= gnutls_decrypt_cek_rsa,
 	.ecdh_derive		= gnutls_ecdh_derive,
-#else
-	.encrypt_cek_rsa	= openssl_encrypt_cek_rsa,
-	.decrypt_cek_rsa	= openssl_decrypt_cek_rsa,
-	.ecdh_derive		= openssl_ecdh_derive,
-#endif
 };

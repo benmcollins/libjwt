@@ -615,8 +615,6 @@ int gnutls_unwrap_aes_kw_raw(const unsigned char *kek, size_t kek_len,
 	return kw_unwrap_raw(kek, kek_len, in, in_len, cek, cek_len);
 }
 
-#if JWT_GNUTLS_NATIVE_JWE
-
 #include <gnutls/abstract.h>
 #include <gnutls/x509.h>
 
@@ -1133,5 +1131,3 @@ out:
 
 	return ret;
 }
-
-#endif /* JWT_GNUTLS_NATIVE_JWE */

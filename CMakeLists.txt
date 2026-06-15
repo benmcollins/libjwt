@@ -52,7 +52,7 @@ if (WITH_GNUTLS)
 	if (NOT GNUTLS_AUTO)
 		set(GNUTLS_REQUIRED REQUIRED)
 	endif()
-	pkg_check_modules(GNUTLS gnutls>=3.6.0 IMPORTED_TARGET
+	pkg_check_modules(GNUTLS gnutls>=3.8.4 IMPORTED_TARGET
 			  ${GNUTLS_REQUIRED})
 endif()
 
@@ -200,14 +200,6 @@ if (OPENSSL_FOUND)
 	     libjwt/openssl/jwk-export.c
 	     libjwt/openssl/sign-verify.c
 	     libjwt/openssl/jwe.c)
-endif()
-
-# Without OpenSSL, the GnuTLS backend has no fallback for JWK parsing,
-# RSA-OAEP, or ECDH-ES, so it requires the native path (GnuTLS >= 3.8.4).
-if (GNUTLS_FOUND AND NOT OPENSSL_FOUND AND GNUTLS_VERSION VERSION_LESS "3.8.4")
-	message(FATAL_ERROR
-		"GnuTLS >= 3.8.4 is required when building without OpenSSL "
-		"(found GnuTLS ${GNUTLS_VERSION})")
 endif()
 
 if (LIBCURL_FOUND)

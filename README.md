@@ -33,15 +33,13 @@ Standard | RFC                                                                  
 ### Crypto support
 
 - OpenSSL (>= 3.0.0)
-- GnuTLS (>= 3.6.0)
+- GnuTLS (>= 3.8.4)
 - MbedTLS (>= 3.6.0)
 
 > [!NOTE]
 > At least one crypto backend is required, but any non-empty combination
 > works. OpenSSL is enabled by default and can be disabled with
 > ``-DWITH_OPENSSL=OFF``. Each backend parses and converts JWK(S) natively.
-> A GnuTLS-only build (no OpenSSL) requires GnuTLS >= 3.8.4; older GnuTLS
-> delegates JWK(S) parsing and RSA-OAEP/ECDH-ES to OpenSSL.
 
 ### Algorithm support matrix
 

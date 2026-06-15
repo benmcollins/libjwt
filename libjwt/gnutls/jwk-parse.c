@@ -18,8 +18,6 @@
 #include "jwt-private.h"
 #include "jwt-gnutls.h"
 
-#if JWT_GNUTLS_NATIVE_JWE
-
 /* base64url-decode a JWK string member into a gnutls_datum_t. The datum's
  * data is a jwt_malloc'd buffer the caller frees with jwt_freemem(d->data). */
 static int decode_member(jwt_json_t *jwk, const char *name, gnutls_datum_t *d)
@@ -535,5 +533,3 @@ void gnutls_process_item_free(jwk_item_t *item)
 	item->provider_data = NULL;
 	item->provider = JWT_CRYPTO_OPS_NONE;
 }
-
-#endif /* JWT_GNUTLS_NATIVE_JWE */
