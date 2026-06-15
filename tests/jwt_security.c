@@ -277,6 +277,56 @@ START_TEST(test_jwks_eddsa_missing_x)
 }
 END_TEST
 
+/* OKP X25519 JWK with an oversized "x" (33 bytes instead of 32). The MbedTLS
+ * backend previously imported the raw little-endian value with no length check,
+ * accepting a malformed key that OpenSSL and GnuTLS reject. All backends must
+ * now reject it (the field width is fixed at 32 bytes for X25519). */
+START_TEST(test_jwks_okp_x25519_bad_x_len)
+{
+	const char *json = "{\"kty\":\"OKP\","
+		"\"crv\":\"X25519\","
+		/* 33-byte x (valid 32-byte value with a trailing zero byte). */
+		"\"x\":\"S46Jc4ib5np5zMd8F4xCJL3wLqM_mYlgGGhw0XQAsBUA\"}";
+	jwk_set_t *jwk_set = NULL;
+	const jwk_item_t *item;
+
+	SET_OPS();
+
+	jwk_set = jwks_create(json);
+	ck_assert_ptr_nonnull(jwk_set);
+
+	item = jwks_item_get(jwk_set, 0);
+	ck_assert_ptr_nonnull(item);
+	ck_assert_int_ne(jwks_item_error(item), 0);
+
+	jwks_free(jwk_set);
+}
+END_TEST
+
+/* As above but for the private scalar "d": a valid 32-byte X25519 "x" with an
+ * oversized 33-byte "d" must also be rejected by the length check. */
+START_TEST(test_jwks_okp_x25519_bad_d_len)
+{
+	const char *json = "{\"kty\":\"OKP\","
+		"\"crv\":\"X25519\","
+		"\"x\":\"S46Jc4ib5np5zMd8F4xCJL3wLqM_mYlgGGhw0XQAsBU\","
+		"\"d\":\"8HS-8uSD0zo8pLVHOs3UQh6R57knGnjMgf7iCCknPGsA\"}";
+	jwk_set_t *jwk_set = NULL;
+	const jwk_item_t *item;
+
+	SET_OPS();
+
+	jwk_set = jwks_create(json);
+	ck_assert_ptr_nonnull(jwk_set);
+
+	item = jwks_item_get(jwk_set, 0);
+	ck_assert_ptr_nonnull(item);
+	ck_assert_int_ne(jwks_item_error(item), 0);
+
+	jwks_free(jwk_set);
+}
+END_TEST
+
 /* RSA JWK with partial private key (some but not all components) */
 START_TEST(test_jwks_rsa_partial_private_key)
 {
@@ -1057,6 +1107,191 @@ START_TEST(test_alg_confusion_malformed_jwk_kty_alg)
 }
 END_TEST
 
+/* A token with alg=RS256 but a signature segment far shorter than the RSA
+ * modulus must be rejected, not read past the end of the heap-allocated
+ * signature buffer. The MbedTLS RSA verify functions take no length argument
+ * and read mbedtls_rsa_get_len() bytes unconditionally; without an explicit
+ * size check the 3-byte signature here (base64url "AAAA") caused an ~253-byte
+ * out-of-bounds heap read on the MbedTLS backend. All backends must reject it.
+ */
+START_TEST(test_rsa_short_signature_oob)
+{
+	jwt_checker_auto_t *checker = NULL;
+	const char token[] =
+		"eyJhbGciOiJSUzI1NiJ9"
+		".eyJzdWIiOiJhZG1pbiJ9"
+		".AAAA";
+	int ret;
+
+	SET_OPS();
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+
+	read_json("rsa_key_2048_pub.json");
+
+	ret = jwt_checker_setkey(checker, JWT_ALG_RS256, g_item);
+	ck_assert_int_eq(ret, 0);
+
+	/* Must be rejected on every backend, and must not over-read. */
+	ret = jwt_checker_verify(checker, token);
+	ck_assert_int_ne(ret, 0);
+
+	free_key();
+}
+
+/* An out-of-range "exp" must not be silently accepted. json-c reports an
+ * integer larger than INT64_MAX as a normal integer and clamps it to
+ * INT64_MAX, which would make exp=99999999999999999999999999 verify as an
+ * effectively never-expiring token; Jansson rejects the whole token at parse.
+ * Both backends must reject the token (fail closed), and a valid far-future
+ * exp must still verify. Both tokens below are HS256-signed with the
+ * oct_key_256.json key. */
+START_TEST(test_exp_out_of_range_int)
+{
+	jwt_checker_auto_t *checker = NULL;
+	/* {"alg":"HS256"} . {"exp":99999999999999999999999999} . <hmac> */
+	const char tok_big[] =
+		"eyJhbGciOiJIUzI1NiJ9"
+		".eyJleHAiOjk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5fQ"
+		".LSbPILA_I3R_0saPbagko0aSRck-ZX9XZeRIduLgbvU";
+	/* {"alg":"HS256"} . {"exp":7999999999} . <hmac> (valid, far future) */
+	const char tok_ok[] =
+		"eyJhbGciOiJIUzI1NiJ9"
+		".eyJleHAiOjc5OTk5OTk5OTl9"
+		".IFlzCWYGNIBrNj3BL5lOsS4baJqdmWc-7LVIfaKf5mw";
+	int ret;
+
+	SET_OPS();
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+
+	read_json("oct_key_256.json");
+
+	ret = jwt_checker_setkey(checker, JWT_ALG_HS256, g_item);
+	ck_assert_int_eq(ret, 0);
+
+	/* Out-of-range exp: rejected on both JSON backends. */
+	ret = jwt_checker_verify(checker, tok_big);
+	ck_assert_int_ne(ret, 0);
+	jwt_checker_error_clear(checker);
+
+	/* Control: a valid far-future exp still verifies. */
+	ret = jwt_checker_verify(checker, tok_ok);
+	ck_assert_int_eq(ret, 0);
+
+	free_key();
+}
+END_TEST
+
+/* Fault-injecting allocator: returns NULL on the Nth allocation. Used to
+ * drive the out-of-memory error paths in JWKS parsing deterministically. */
+static long g_alloc_fail_at = -1;
+static long g_alloc_count;
+
+static void *failing_malloc(size_t size)
+{
+	if (++g_alloc_count == g_alloc_fail_at)
+		return NULL;
+	return malloc(size);
+}
+
+static void failing_free(void *ptr)
+{
+	free(ptr);
+}
+
+/* Smoke test for the JWKS allocation-failure paths: parse a multi-key JWKS
+ * while failing each successive allocation in turn, and assert the library
+ * never crashes and teardown is clean.
+ *
+ * This exercises (under the Jansson backend, whose allocator this hook can
+ * override) the out-of-memory branches in jwk_process_one(), including the
+ * clone-failure path whose deallocator bug this change fixes. It is a
+ * robustness guard rather than a discriminating reproducer: the wrong-free
+ * corrupted a borrowed, refcounted JSON node, which json's refcounting does
+ * not surface as a deterministic fault here, and the json-c allocator hook is
+ * a no-op so that backend's internal clone cannot be failed this way. The
+ * actual fix (free the owned jwk_item_t, never the borrowed argument) is
+ * verified by inspection; this test ensures the OOM paths stay crash-free. */
+START_TEST(test_jwks_oom_no_corruption)
+{
+	const char *json = "{\"keys\":[{\"kty\":\"oct\",\"alg\":\"HS256\","
+		"\"k\":\"0gmNspkRljssLSrldySnYUS-zhtCo5sqeqo_yl7n2XA\"},"
+		"{\"kty\":\"oct\",\"alg\":\"HS384\","
+		"\"k\":\"YWFhYWJiYmJjY2NjZGRkZGVlZWVmZmZmZ2dnZ2hoaGg\"}]}";
+	long n;
+
+	SET_OPS();
+
+	for (n = 1; n <= 20; n++) {
+		jwk_set_t *jwk_set;
+
+		g_alloc_count = 0;
+		g_alloc_fail_at = n;
+		ck_assert_int_eq(jwt_set_alloc(failing_malloc, failing_free), 0);
+
+		jwk_set = jwks_create(json);
+
+		/* Restore the default allocator before any assertion can
+		 * longjmp out, so a later test never runs with the failing one. */
+		g_alloc_fail_at = -1;
+		jwt_set_alloc(NULL, NULL);
+
+		/* Either the set failed to allocate, or it parsed; in both
+		 * cases item access and teardown must be safe (no UAF / double
+		 * free of the parsed tree). */
+		if (jwk_set != NULL) {
+			(void)jwks_item_get(jwk_set, 0);
+			(void)jwks_item_get(jwk_set, 1);
+			jwks_free(jwk_set);
+		}
+	}
+
+	/* A clean full load with the default allocator still works. */
+	g_alloc_fail_at = -1;
+	{
+		jwk_set_auto_t *ok = jwks_create(json);
+		ck_assert_ptr_nonnull(ok);
+		ck_assert_int_eq(jwks_error_any(ok), 0);
+		ck_assert_int_eq(jwks_item_count(ok), 2);
+	}
+}
+END_TEST
+
+/* An ES256 token whose signature is a valid ECDSA size for a *different*
+ * algorithm (96 bytes, the ES384 size) but wrong for the bound ES256/P-256 key
+ * must be rejected. The MbedTLS backend previously accepted any of the three
+ * ECDSA sizes and split R||S accordingly before verifying; it now requires the
+ * exact size for the bound alg, matching OpenSSL. Rejection holds on all
+ * backends. */
+START_TEST(test_es256_wrong_size_sig)
+{
+	jwt_checker_auto_t *checker = NULL;
+	const char token[] =
+		"eyJhbGciOiJFUzI1NiJ9.eyJzdWIiOiJ4In0."
+		"AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEB"
+		"AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEB";
+	int ret;
+
+	SET_OPS();
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+
+	read_json("ec_key_prime256v1_pub.json");
+
+	ret = jwt_checker_setkey(checker, JWT_ALG_ES256, g_item);
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_checker_verify(checker, token);
+	ck_assert_int_ne(ret, 0);
+
+	free_key();
+}
+END_TEST
+
 /*
  * === Suite Setup ===
  */
@@ -1086,6 +1321,8 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_jwks_json, test_jwks_rsa_missing_n, 0, i);
 	tcase_add_loop_test(tc_jwks_json, test_jwks_rsa_missing_e, 0, i);
 	tcase_add_loop_test(tc_jwks_json, test_jwks_eddsa_missing_x, 0, i);
+	tcase_add_loop_test(tc_jwks_json, test_jwks_okp_x25519_bad_x_len, 0, i);
+	tcase_add_loop_test(tc_jwks_json, test_jwks_okp_x25519_bad_d_len, 0, i);
 	tcase_add_loop_test(tc_jwks_json, test_jwks_rsa_partial_private_key, 0, i);
 	tcase_add_loop_test(tc_jwks_json, test_jwks_rsa_wrong_value_types, 0, i);
 	tcase_add_loop_test(tc_jwks_json, test_jwks_deeply_nested, 0, i);
@@ -1150,6 +1387,14 @@ static Suite *libjwt_suite(const char *title)
 			    test_alg_confusion_callback_rsa_no_alg, 0, i);
 	tcase_add_loop_test(tc_alg_confusion,
 			    test_alg_confusion_malformed_jwk_kty_alg, 0, i);
+	tcase_add_loop_test(tc_alg_confusion,
+			    test_rsa_short_signature_oob, 0, i);
+	tcase_add_loop_test(tc_alg_confusion,
+			    test_exp_out_of_range_int, 0, i);
+	tcase_add_loop_test(tc_alg_confusion,
+			    test_jwks_oom_no_corruption, 0, i);
+	tcase_add_loop_test(tc_alg_confusion,
+			    test_es256_wrong_size_sig, 0, i);
 
 	tcase_set_timeout(tc_alg_confusion, 30);
 	suite_add_tcase(s, tc_alg_confusion);

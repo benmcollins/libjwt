@@ -314,21 +314,41 @@ static int mbedtls_verify_sha_pem(jwt_t *jwt, const char *head,
 	if (key->kty == JWK_KEY_TYPE_EC) {
 		mbedtls_ecp_keypair *kp = (mbedtls_ecp_keypair *)&key->ec;
 		mbedtls_mpi r, s;
+		int exp_len;
+
+		/* Require the signature to be exactly the size dictated by the
+		 * bound algorithm, not merely one of the three valid ECDSA sizes.
+		 * This pins R||S to the alg/curve (ES256/ES256K=64, ES384=96,
+		 * ES512=132), matching the OpenSSL backend's stricter check. */
+		switch (jwt->alg) {
+		case JWT_ALG_ES256:
+		case JWT_ALG_ES256K:
+			exp_len = 64;
+			break;
+		case JWT_ALG_ES384:
+			exp_len = 96;
+			break;
+		case JWT_ALG_ES512:
+			exp_len = 132;
+			break;
+		// LCOV_EXCL_START
+		default:
+			VERIFY_ERROR("Unexpected EC algorithm");
+		// LCOV_EXCL_STOP
+		}
 
 		mbedtls_mpi_init(&r);
 		mbedtls_mpi_init(&s);
 
 		/* Split R/S from the JOSE signature. */
-		if (sig_len == 64 || sig_len == 96 || sig_len == 132) {
+		if (sig_len == exp_len) {
 			size_t r_size = sig_len / 2;
 			mbedtls_mpi_read_binary(&r, sig, r_size);
 			mbedtls_mpi_read_binary(&s, sig + r_size, r_size);
 		} else {
-			// LCOV_EXCL_START
 			mbedtls_mpi_free(&r);
 			mbedtls_mpi_free(&s);
 			VERIFY_ERROR("Invalid ECDSA sig size");
-			// LCOV_EXCL_STOP
 		}
 
 		if (mbedtls_ecdsa_verify(&kp->MBEDTLS_PRIVATE(grp), hash,
@@ -343,6 +363,14 @@ static int mbedtls_verify_sha_pem(jwt_t *jwt, const char *head,
 			VERIFY_ERROR("Failed to verify signature");
 	} else if (key->kty == JWK_KEY_TYPE_RSA) {
 		mbedtls_rsa_context *rsa = (mbedtls_rsa_context *)&key->rsa;
+
+		/* The MbedTLS RSA verify functions take no length argument and
+		 * unconditionally read mbedtls_rsa_get_len(rsa) bytes from sig.
+		 * Reject a signature that is not exactly the modulus length so a
+		 * short attacker-controlled segment cannot cause an out-of-bounds
+		 * read of the heap buffer (which is sized to the decoded length). */
+		if (sig_len < 0 || (size_t)sig_len != mbedtls_rsa_get_len(rsa))
+			VERIFY_ERROR("Invalid RSA signature size");
 
 		if (jwt->alg == JWT_ALG_PS256 || jwt->alg == JWT_ALG_PS384 ||
 		    jwt->alg == JWT_ALG_PS512) {

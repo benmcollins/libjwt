@@ -18,6 +18,7 @@
 #include <limits.h>
 #include <string.h>
 #include <stdlib.h>
+#include <errno.h>
 
 /* From jwt-memory.c - declared here to avoid pulling in jwt-private.h
  * which requires the full jwt.h public header. */
@@ -276,7 +277,38 @@ int jwt_json_is_string(const jwt_json_t *json)
 
 int jwt_json_is_int(const jwt_json_t *json)
 {
-	return json && json_object_is_type(to_jc(json), json_type_int);
+	struct json_object *obj;
+	const char *raw;
+	char *end = NULL;
+
+	if (!json)
+		return 0; // LCOV_EXCL_LINE
+
+	obj = to_jc(json);
+	if (!json_object_is_type(obj, json_type_int))
+		return 0;
+
+	/* json-c reports an out-of-range integer as json_type_int and silently
+	 * clamps json_object_get_int64() to INT64_MAX/INT64_MIN, so a claim such
+	 * as exp=99999999999999999999999999 would be treated as a valid (and,
+	 * for exp, effectively never-expiring) integer. Jansson rejects the
+	 * whole token on such input. Re-parse the original lexeme and reject the
+	 * value here so callers see JWT_VALUE_ERR_TYPE, matching Jansson and
+	 * keeping the two JSON backends consistent.
+	 *
+	 * Note: json-c clamps the lexeme itself on negative underflow before we
+	 * can see it, so a hugely-negative integer cannot be detected this way.
+	 * That direction is harmless for exp/nbf (it is fail-closed). */
+	raw = json_object_get_string(obj);
+	if (!raw)
+		return 0; // LCOV_EXCL_LINE
+
+	errno = 0;
+	(void)strtoll(raw, &end, 10);
+	if (errno == ERANGE || end == raw || (end && *end != '\0'))
+		return 0;
+
+	return 1;
 }
 
 int jwt_json_is_bool(const jwt_json_t *json)

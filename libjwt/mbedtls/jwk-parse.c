@@ -432,6 +432,12 @@ int mbedtls_process_eddsa(jwt_json_t *jwk, jwk_item_t *item)
 		 * "d" are RFC 7748 little-endian; mbedtls Montgomery points read
 		 * little-endian via the *_le MPI helpers. */
 		mbedtls_ecp_group_id gid = ec_crv_to_group(crv);
+		/* Field width: X25519 = 32 bytes, X448 = 56 bytes. The decoded
+		 * "x"/"d" must be exactly this length. Without the check an
+		 * over/undersized attacker-supplied value would be accepted here
+		 * (mbedtls grows the MPI dynamically), where OpenSSL/GnuTLS and the
+		 * mbedtls "epk" reader reject it. */
+		size_t keylen = !strcmp(crv, "X25519") ? 32 : 56;
 
 		mbedtls_ecp_keypair_init(&key->ec);
 		if (mbedtls_ecp_group_load(&key->ec.MBEDTLS_PRIVATE(grp), gid)) {
@@ -444,6 +450,10 @@ int mbedtls_process_eddsa(jwt_json_t *jwk, jwk_item_t *item)
 			if (x == NULL) {
 				jwt_write_error(item, "Error decoding OKP x"); // LCOV_EXCL_LINE
 				goto cleanup; // LCOV_EXCL_LINE
+			}
+			if ((size_t)x_l != keylen) {
+				jwt_write_error(item, "Invalid OKP x length");
+				goto cleanup;
 			}
 			if (mbedtls_mpi_read_binary_le(
 				    &key->ec.MBEDTLS_PRIVATE(Q).MBEDTLS_PRIVATE(X),
@@ -460,6 +470,10 @@ int mbedtls_process_eddsa(jwt_json_t *jwk, jwk_item_t *item)
 			if (d == NULL) {
 				jwt_write_error(item, "Error decoding OKP d"); // LCOV_EXCL_LINE
 				goto cleanup; // LCOV_EXCL_LINE
+			}
+			if ((size_t)d_l != keylen) {
+				jwt_write_error(item, "Invalid OKP d length");
+				goto cleanup;
 			}
 			if (mbedtls_mpi_read_binary_le(
 				    &key->ec.MBEDTLS_PRIVATE(d), d,

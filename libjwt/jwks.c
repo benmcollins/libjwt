@@ -85,7 +85,7 @@ static void jwk_process_values(jwt_json_t *jwk, jwk_item_t *item)
 	j_kid = jwt_json_obj_get(jwk, "kid");
 	if (j_kid && jwt_json_is_string(j_kid)) {
 		const char *kid = jwt_json_str_val(j_kid);
-		int len = strlen(kid);
+		size_t len = strlen(kid);
 
 		if (len) {
 			item->kid = jwt_malloc(len + 1);
@@ -95,7 +95,7 @@ static void jwk_process_values(jwt_json_t *jwk, jwk_item_t *item)
 					"Error allocating memory for kid");
 				// LCOV_EXCL_STOP
 			} else { // LCOV_EXCL_LINE
-				strcpy(item->kid, kid);
+				memcpy(item->kid, kid, len + 1);
 			}
 		}
 	}
@@ -122,10 +122,10 @@ static int process_octet(jwt_json_t *jwk, jwk_item_t *item)
 
 	bin_k = jwt_base64uri_decode(str_k, &len_k);
 	if (bin_k == NULL) {
-		// LCOV_EXCL_START
+		/* Reachable: jwt_base64uri_decode returns NULL for a non-base64url
+		 * "k" (exercised by test_jwks_oct_invalid_base64). */
 		jwt_write_error(item, "Invalid JWK: failed to decode `k`");
 		return -1;
-		// LCOV_EXCL_STOP
 	}
 
 	item->is_private_key = 1;
@@ -158,7 +158,13 @@ static jwk_item_t *jwk_process_one(jwk_set_t *jwk_set, jwt_json_t *jwk)
 	item->json = jwt_json_clone(jwk);
 	if (item->json == NULL) {
 		// LCOV_EXCL_START
-		jwt_freemem(jwk);
+		/* Only free what this function owns: the jwk_item_t allocated
+		 * above. "jwk" is a borrowed reference into the caller-owned
+		 * parsed JSON tree (j_all or an array element) and must not be
+		 * freed here; doing so with jwt_freemem() (a raw free of a live,
+		 * refcounted json object) would corrupt that tree and double-free
+		 * it when the caller releases it. item->json is NULL here. */
+		jwt_freemem(item);
 		jwt_write_error(jwk_set,
 			"Error allocating memory for jwk_item_t");
 		return NULL;

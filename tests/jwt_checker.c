@@ -1008,7 +1008,12 @@ START_TEST(verify_ps256_bad_sig)
 
 	err = jwt_checker_error_msg(checker);
 	ck_assert_ptr_nonnull(err);
-	ck_assert_ptr_nonnull(strstr(err, "Failed to verify signature"));
+	/* The signature segment here decodes to 27 bytes, far short of the
+	 * 256-byte RSA-2048 modulus. OpenSSL/GnuTLS run the verify and report
+	 * a verification failure; MbedTLS rejects the mismatched length up
+	 * front ("Invalid RSA signature size"). Either is a correct rejection. */
+	ck_assert(strstr(err, "Failed to verify signature") != NULL ||
+		  strstr(err, "Invalid RSA signature size") != NULL);
 
 	free_key();
 }
