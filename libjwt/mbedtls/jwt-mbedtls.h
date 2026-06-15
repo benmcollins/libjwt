@@ -50,6 +50,12 @@ int mbedtls_process_ec(jwt_json_t *jwk, jwk_item_t *item);
 JWT_NO_EXPORT
 void mbedtls_process_item_free(jwk_item_t *item);
 
+/* Native-key -> JWK conversion is always done by OpenSSL, regardless of the
+ * active backend (OpenSSL is always linked). Backend internal; keep out of ABI. */
+JWT_NO_EXPORT
+int openssl_key2jwk(const char *key, size_t len, unsigned int flags,
+	jwt_json_t *out_array);
+
 /* JWE (RFC 7516/7518) — native MbedTLS implementations. */
 JWT_NO_EXPORT
 int mbedtls_rng(unsigned char *out, size_t len);

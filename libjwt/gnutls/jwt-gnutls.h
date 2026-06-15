@@ -59,6 +59,9 @@ int openssl_process_ec(jwt_json_t *jwk, jwk_item_t *item);
 JWT_NO_EXPORT
 void openssl_process_item_free(jwk_item_t *item);
 JWT_NO_EXPORT
+int openssl_key2jwk(const char *key, size_t len, unsigned int flags,
+	jwt_json_t *out_array);
+JWT_NO_EXPORT
 int openssl_encrypt_cek_rsa(jwe_key_alg_t alg, const jwk_item_t *key,
 	const unsigned char *cek, size_t cek_len,
 	unsigned char **out, size_t *out_len);

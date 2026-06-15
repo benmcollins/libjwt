@@ -190,6 +190,7 @@ target_link_libraries(jwt PUBLIC PkgConfig::OPENSSL)
 target_link_libraries(jwt_static PUBLIC PkgConfig::OPENSSL)
 list(APPEND JWT_SOURCES
      libjwt/openssl/jwk-parse.c
+     libjwt/openssl/jwk-export.c
      libjwt/openssl/sign-verify.c
      libjwt/openssl/jwe.c)
 
@@ -202,31 +203,16 @@ endif()
 set(TOOLS)
 
 function(jwt_add_tool)
-	set(options STATIC)
 	set(oneValueArgs NAME SRC DIR)
-	cmake_parse_arguments(Tool "${options}" "${oneValueArgs}" "" ${ARGN})
+	cmake_parse_arguments(Tool "" "${oneValueArgs}" "" ${ARGN})
 
 	list(APPEND TOOLS ${Tool_NAME})
 	add_executable(${Tool_NAME} ${Tool_SRC})
-	if (Tool_STATIC)
-		# Some tools reach into LibJWT internals (e.g. key2jwk uses
-		# jwt-private.h) that are not exported from the shared library,
-		# so they must link the static archive. Tracked in #275: once
-		# that logic moves into libjwt as exported public API, drop the
-		# STATIC flag and let these link the shared library too.
-		target_link_libraries(${Tool_NAME}
-			PRIVATE jwt_static PkgConfig::OPENSSL)
-		set_target_properties(${Tool_NAME} PROPERTIES
-			RUNTIME_OUTPUT_DIRECTORY
-			"${CMAKE_BINARY_DIR}/tools"
-			COMPILE_FLAGS -DJWT_STATIC_DEFINE)
-	else()
-		target_link_libraries(${Tool_NAME}
-			PRIVATE jwt PkgConfig::OPENSSL)
-		set_target_properties(${Tool_NAME} PROPERTIES
-			RUNTIME_OUTPUT_DIRECTORY
-			"${CMAKE_BINARY_DIR}/tools")
-	endif()
+	target_link_libraries(${Tool_NAME}
+		PRIVATE jwt PkgConfig::OPENSSL)
+	set_target_properties(${Tool_NAME} PROPERTIES
+		RUNTIME_OUTPUT_DIRECTORY
+		"${CMAKE_BINARY_DIR}/tools")
 	install(TARGETS ${Tool_NAME}
 		RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 endfunction()
@@ -237,7 +223,7 @@ jwt_add_tool(NAME jwt-generate
 	     SRC tools/jwt-generate.c)
 jwt_add_tool(NAME jwk2key
 	     SRC tools/jwk2key.c)
-jwt_add_tool(NAME key2jwk STATIC
+jwt_add_tool(NAME key2jwk
 	     SRC tools/key2jwk.c)
 jwt_add_tool(NAME jwe-encrypt
 	     SRC tools/jwe-encrypt.c)
@@ -366,7 +352,7 @@ if (CHECK_FOUND)
 
 	# JWKS Tests
 	list (APPEND UNIT_TESTS jwt_jwks jwt_jwks_errors
-		jwt_ec jwt_rsa jwt_hs)
+		jwt_ec jwt_rsa jwt_hs jwt_jwks_pem)
 
 	# Checker and Builder
 	list (APPEND UNIT_TESTS jwt_builder jwt_checker jwt_flipflop)

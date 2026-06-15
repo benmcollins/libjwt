@@ -2019,6 +2019,80 @@ JWT_EXPORT
 jwk_set_t *jwks_create_fromurl(const char *url, int verify);
 
 /**
+ * @brief Flags controlling how a native key is imported into a keyring
+ *
+ * Used with the jwks_load_fromkey() and jwks_create_fromkey() family. The
+ * input to those functions may be a PEM file, a DER file, or (with
+ * ::JWK_KEY_TRY_HMAC) raw bytes treated as an HMAC key, so these flags are
+ * named JWK_KEY_* rather than anything PEM-specific.
+ */
+typedef enum {
+	JWK_KEY_NONE		= 0x0000,	/**< No options */
+	JWK_KEY_GEN_KID		= 0x0001,	/**< Generate a random (uuidv4)
+						     "kid" for each imported key */
+	JWK_KEY_TRY_HMAC	= 0x0002,	/**< If the input does not parse
+						     as a PEM/DER key, treat the
+						     raw bytes as an "oct" (HMAC)
+						     key */
+} jwk_key_flags_t;
+
+/**
+ * @brief Create or add to a keyring by importing a native key
+ *
+ * Import a key that is NOT already in JWK form — a PEM or DER encoded public
+ * or private key (RSA, RSA-PSS, EC, or EdDSA), or (with ::JWK_KEY_TRY_HMAC)
+ * raw bytes treated as an HMAC key — and convert it into a JWK in the keyring.
+ * This is the inverse of jwks_item_pem().
+ *
+ * As with jwks_load(), pass NULL as @p jwk_set to create a new keyring, or an
+ * existing one to add to it. On success you should check jwks_error() and
+ * jwks_error_any() as with any other loader.
+ *
+ * @param jwk_set Either NULL to create a new set, or an existing jwk_set_t to
+ *   add the imported key to.
+ * @param key A buffer holding a single PEM, DER, or raw key.
+ * @param len The length of @p key in bytes.
+ * @param flags A bitwise OR of ::jwk_key_flags_t values (or ::JWK_KEY_NONE).
+ * @return A valid jwk_set_t on success. On failure, either NULL or a
+ *   jwk_set_t with error set. NULL generally means ENOMEM or that the key
+ *   could not be parsed.
+ */
+JWT_EXPORT
+jwk_set_t *jwks_load_fromkey(jwk_set_t *jwk_set, const char *key,
+			     const size_t len, unsigned int flags);
+
+/**
+ * @brief Create or add to a keyring by importing a native key from a file
+ *
+ * Like jwks_load_fromkey(), but reads the key from a file (PEM or DER).
+ *
+ * @param jwk_set Either NULL to create a new set, or an existing jwk_set_t to
+ *   add the imported key to.
+ * @param file_name Path to a file holding a single PEM, DER, or raw key.
+ * @param flags A bitwise OR of ::jwk_key_flags_t values (or ::JWK_KEY_NONE).
+ * @return A valid jwk_set_t on success. On failure, either NULL or a
+ *   jwk_set_t with error set.
+ */
+JWT_EXPORT
+jwk_set_t *jwks_load_fromkey_file(jwk_set_t *jwk_set, const char *file_name,
+				  unsigned int flags);
+
+/**
+ * @brief Wrapper around jwks_load_fromkey() that explicitly creates a new
+ *  keyring
+ */
+JWT_EXPORT
+jwk_set_t *jwks_create_fromkey(const char *key, const size_t len,
+			       unsigned int flags);
+
+/**
+ * @brief Wrapper around jwks_load_fromkey_file() that explicitly creates a new
+ *  keyring
+ */
+JWT_EXPORT
+jwk_set_t *jwks_create_fromkey_file(const char *file_name, unsigned int flags);
+
+/**
  * @brief Check if there is an error with a jwk_set
  *
  * An Error in a jwk_set is usually passive and generally means there was an
@@ -2232,6 +2306,36 @@ jwk_key_op_t jwks_item_key_ops(const jwk_item_t *item);
  */
 JWT_EXPORT
 const char *jwks_item_pem(const jwk_item_t *item);
+
+/**
+ * @brief Serialize a single JWK item to a JWK JSON string
+ *
+ * Produces the JSON Web Key representation of this item. This is the
+ * serialization counterpart to the jwks_load_fromkey() import path.
+ *
+ * @param item A JWK Item
+ * @param priv If non-zero, include private key parameters when the item is a
+ *   private key. If zero, only public parameters are emitted.
+ * @return A newly allocated, nil-terminated JSON string the caller must free
+ *   with free(), or NULL on error.
+ */
+JWT_EXPORT
+char *jwks_item_export(const jwk_item_t *item, int priv);
+
+/**
+ * @brief Serialize a whole keyring to a JWKS JSON string
+ *
+ * Produces a JWK Set (an object with a @c "keys" array) containing every item
+ * in the set.
+ *
+ * @param jwk_set An existing jwk_set_t
+ * @param priv If non-zero, include private key parameters for private keys. If
+ *   zero, only public parameters are emitted.
+ * @return A newly allocated, nil-terminated JSON string the caller must free
+ *   with free(), or NULL on error.
+ */
+JWT_EXPORT
+char *jwks_export(const jwk_set_t *jwk_set, int priv);
 
 /**
  * @brief Retrieve binary octet data of a key

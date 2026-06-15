@@ -13,7 +13,7 @@ PEM or DER format.
 This program will parse PEM/DER key files (public and private) into JSON
 Web Keys and output a JWK Set.
 Note that HMAC keys are \f[I]guessed\f[R] based on them not being parsed
-by OpenSSL.
+as a PEM or DER key.
 This may cause some issues.
 You can disable this with the \f[B]\-m\f[R] option.
 .PP
@@ -84,7 +84,7 @@ Do not output anything except for hard errors (and the JWKS).
 Disable generating \f[B]kid\f[R] attribute.
 .TP
 \f[B]\-m\f[R], \f[B]\-\-disable\-hmac\f[R]
-Disable falling back to HAMC for key files that OpenSSL cannot read.
+Disable falling back to HMAC for key files that cannot be read as PEM or DER.
 .TP
 \f[B]\-o\f[R] \f[I]FILE\f[R], \f[B]\-\-output\f[R]=\f[I]FILE\f[R]
 Use \f[I]FILE\f[R] to write the JWKS.

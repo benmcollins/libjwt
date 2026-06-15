@@ -67,6 +67,21 @@ EOF
 )
 }
 
+@test "Generate JWK from DER matches PEM" {
+	./tools/key2jwk --disable-kid -o - \
+		${SRCDIR}/tests/keys/pem-files/rsa_key_2048.der | \
+		grep -v libjwt.io: > der.json
+	./tools/key2jwk --disable-kid -o - \
+		${SRCDIR}/tests/keys/pem-files/rsa_key_2048.pem | \
+		grep -v libjwt.io: > pem.json
+
+	jq -r -n --slurpfile A pem.json --slurpfile B der.json -f <(cat<<"EOF"
+def equiv(x): . == x;
+if ($A[0].keys[0]) == ($B[0].keys[0]) then empty else halt_error(1) end
+EOF
+)
+}
+
 @test "Convert JWK to PEM - RSA" {
 	rm -f rsa_1024_0023a6e1-f093-448d-9038-9ff168611b86.pem
 	./tools/jwk2key -d . ${SRCDIR}/tests/keys/rsa_key_1024.json
