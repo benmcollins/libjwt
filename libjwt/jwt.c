@@ -615,7 +615,7 @@ base64_decode(const char *in, unsigned int inlen, unsigned char *out)
 			break;
 		case 1:
 			out[j++] |= (c >> 4) & 0x3;
-			out[j] = (c & 0xF) << 4; 
+			out[j] = (c & 0xF) << 4;
 			break;
 		case 2:
 			out[j++] |= (c >> 2) & 0xF;
@@ -669,7 +669,16 @@ void *jwt_base64uri_decode(const char *src, int *ret_len)
 		return NULL; // LCOV_EXCL_LINE
 
 	for (i = 0; i < len; i++) {
-		switch (src[i]) {
+		char c = src[i];
+
+		/* @rfc{7515,2}, @rfc{7517,3} JWS/JWE token segments and JWK member
+		 * values are unpadded base64url: the alphabet is exactly
+		 * [A-Za-z0-9_-]. Reject the standard-base64 characters '+' and '/'
+		 * and any literal padding '=' (which would otherwise truncate the
+		 * input silently), so a value cannot be re-spelled in the standard
+		 * alphabet yet decode to the same bytes. '-' and '_' are translated
+		 * to their standard-alphabet form for the decoder below. */
+		switch (c) {
 		case '-':
 			new[i] = '+';
 			break;
@@ -677,7 +686,12 @@ void *jwt_base64uri_decode(const char *src, int *ret_len)
 			new[i] = '/';
 			break;
 		default:
-			new[i] = src[i];
+			if (!((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
+			      (c >= '0' && c <= '9'))) {
+				jwt_freemem(new);
+				return NULL;
+			}
+			new[i] = c;
 		}
 	}
 
