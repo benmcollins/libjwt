@@ -122,6 +122,125 @@ START_TEST(tamper_ct_fails)
 }
 END_TEST
 
+/* A GCM token whose IV is not 96 bits must be rejected (RFC 7518 5.3 fixes the
+ * GCM IV at 12 bytes). With the central iv_len gate the token is rejected as
+ * malformed before the cipher runs; without it the wrong IV would change J0 and
+ * the GCM tag check would fail anyway, so the observable outcome is the same.
+ * This is therefore a conformance regression guard rather than a bypass test:
+ * it pins that a non-12-byte IV never decrypts. Replace the 12-byte IV segment
+ * with a 16-byte one (still valid base64url) and require rejection. */
+START_TEST(gcm_wrong_iv_len_fails)
+{
+	jwe_builder_auto_t *builder = NULL;
+	jwe_checker_auto_t *checker = NULL;
+	char_auto *tok = NULL;
+	char *bad = NULL;
+	unsigned char *pt = NULL;
+	size_t pt_len = 0;
+	char *iv_start, *iv_end;
+	/* base64url of 16 bytes "abcdefghijklmnop" (no padding). */
+	static const char iv16[] = "YWJjZGVmZ2hpamtsbW5vcA";
+
+	SET_OPS();
+	read_json("oct_dir_256.json");
+
+	builder = jwe_builder_new();
+	ck_assert_int_eq(jwe_builder_setkey(builder, JWE_ALG_DIR,
+					    JWE_ENC_A256GCM, g_item), 0);
+	tok = jwe_builder_generate(builder, (const unsigned char *)PT,
+				   strlen(PT));
+	ck_assert_ptr_nonnull(tok);
+
+	/* Locate the IV segment (3rd of 5: hdr . EK . iv . ct . tag). */
+	iv_start = strchr(tok, '.') + 1;	/* start of EK (empty) */
+	iv_start = strchr(iv_start, '.') + 1;	/* start of iv */
+	iv_end = strchr(iv_start, '.');		/* end of iv */
+	ck_assert_ptr_nonnull(iv_end);
+
+	/* Rebuild the token with the oversized IV in place of the original. */
+	ck_assert_int_gt(asprintf(&bad, "%.*s%s%s",
+				  (int)(iv_start - tok), tok, iv16, iv_end), 0);
+
+	checker = jwe_checker_new();
+	ck_assert_int_eq(jwe_checker_setkey(checker, JWE_ALG_DIR,
+					    JWE_ENC_A256GCM, g_item), 0);
+	pt = jwe_checker_decrypt(checker, bad, &pt_len);
+	ck_assert_ptr_null(pt);
+	ck_assert_int_eq(jwe_checker_error(checker), 1);
+
+	free(bad);
+	free_key();
+}
+END_TEST
+
+/* A JWE whose protected header carries a "crit" parameter must be rejected:
+ * libjwt understands no critical JWE header parameters (RFC 7516 4.1.13). The
+ * crit check runs before tag verification, so even though replacing the header
+ * invalidates the tag, the failure is reported as the crit error. */
+START_TEST(crit_header_rejected)
+{
+	jwe_builder_auto_t *builder = NULL;
+	jwe_checker_auto_t *checker = NULL;
+	char_auto *tok = NULL;
+	char *bad = NULL;
+	unsigned char *pt = NULL;
+	size_t pt_len = 0;
+	char *rest;
+	/* {"alg":"dir","enc":"A256GCM","crit":["myparam"],"myparam":1} */
+	static const char crit_hdr[] =
+		"eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwiY3JpdCI6WyJteXBhcmFtIl0"
+		"sIm15cGFyYW0iOjF9";
+
+	SET_OPS();
+	read_json("oct_dir_256.json");
+
+	builder = jwe_builder_new();
+	ck_assert_int_eq(jwe_builder_setkey(builder, JWE_ALG_DIR,
+					    JWE_ENC_A256GCM, g_item), 0);
+	tok = jwe_builder_generate(builder, (const unsigned char *)PT,
+				   strlen(PT));
+	ck_assert_ptr_nonnull(tok);
+
+	/* Each of these protected headers must be rejected by the crit check:
+	 * a well-formed crit (unknown param), a non-array crit, an empty crit,
+	 * and a crit array with a non-string entry. */
+	static const char *const bad_hdrs[] = {
+		crit_hdr,
+		/* {"alg":"dir","enc":"A256GCM","crit":"x"} */
+		"eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwiY3JpdCI6IngifQ",
+		/* {"alg":"dir","enc":"A256GCM","crit":[]} */
+		"eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwiY3JpdCI6W119",
+		/* {"alg":"dir","enc":"A256GCM","crit":[1]} */
+		"eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIiwiY3JpdCI6WzFdfQ",
+	};
+	size_t bi;
+
+	rest = strchr(tok, '.');
+	ck_assert_ptr_nonnull(rest);
+
+	checker = jwe_checker_new();
+	ck_assert_int_eq(jwe_checker_setkey(checker, JWE_ALG_DIR,
+					    JWE_ENC_A256GCM, g_item), 0);
+
+	for (bi = 0; bi < ARRAY_SIZE(bad_hdrs); bi++) {
+		/* Swap the protected header (1st segment) for the bad one. */
+		ck_assert_int_gt(asprintf(&bad, "%s%s", bad_hdrs[bi], rest), 0);
+
+		pt = jwe_checker_decrypt(checker, bad, &pt_len);
+		ck_assert_ptr_null(pt);
+		ck_assert_int_eq(jwe_checker_error(checker), 1);
+		ck_assert_ptr_nonnull(strstr(jwe_checker_error_msg(checker),
+					     "crit"));
+
+		jwe_checker_error_clear(checker);
+		free(bad);
+		bad = NULL;
+	}
+
+	free_key();
+}
+END_TEST
+
 START_TEST(wrong_key_fails)
 {
 	jwe_builder_auto_t *builder = NULL;
@@ -407,6 +526,8 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, roundtrip_192, 0, i);
 	tcase_add_loop_test(tc_core, roundtrip_256, 0, i);
 	tcase_add_loop_test(tc_core, tamper_ct_fails, 0, i);
+	tcase_add_loop_test(tc_core, gcm_wrong_iv_len_fails, 0, i);
+	tcase_add_loop_test(tc_core, crit_header_rejected, 0, i);
 	tcase_add_loop_test(tc_core, wrong_key_fails, 0, i);
 	tcase_add_loop_test(tc_core, dir_wrong_len, 0, i);
 	tcase_add_loop_test(tc_core, reject_non_jwe, 0, i);

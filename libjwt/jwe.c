@@ -251,6 +251,16 @@ int jwe_decrypt_content(jwe_enc_t enc, const unsigned char *cek,
 	const unsigned char *tag, size_t tag_len,
 	unsigned char **pt, size_t *pt_len)
 {
+	/* Reject an IV whose length is not the exact size this "enc" requires.
+	 * RFC 7518 5.3 fixes the GCM IV at 96 bits and 5.2 fixes the CBC-HMAC IV
+	 * at 128 bits; the IV is attacker-controlled (base64url-decoded from the
+	 * token) and the caller only checked iv_len > 0. The CBC backends already
+	 * enforce 16 internally, but the GCM backends accepted any length and set
+	 * it as the GCM IV. Gate both modes centrally so non-conformant IV lengths
+	 * are rejected uniformly across all backends. */
+	if (iv_len != jwe_enc_iv_len(enc))
+		return 1;
+
 	if (enc_is_gcm(enc)) {
 		if (jwt_ops->decrypt_aes_gcm == NULL)
 			return 1; // LCOV_EXCL_LINE

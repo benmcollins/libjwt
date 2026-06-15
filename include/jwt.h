@@ -1148,13 +1148,24 @@ int jwt_builder_time_offset(jwt_builder_t *builder, jwt_claims_t claim,
  * This is a list of the claims that LibJWT can check on its own, and the
  * method that is used to decide success:
  *
- * Claim   | Type      | Comparison for Validation
- * ------- | --------- | -----------------------------
- * ``exp`` | Timestamp | ``exp`` > (now + leeway)
- * ``nbf`` | Timestamp | ``nbf`` <= (now - leeway)
- * ``iss`` | String    | !strcmp(``iss``, ``userval``)
- * ``aud`` | String    | !strcmp(``aud``, ``userval``)
- * ``sub`` | String    | !strcmp(``sub``, ``userval``)
+ * Claim   | Type            | Comparison for Validation
+ * ------- | --------------- | -----------------------------
+ * ``exp`` | Timestamp       | ``exp`` > (now + leeway)
+ * ``nbf`` | Timestamp       | ``nbf`` <= (now - leeway)
+ * ``iss`` | String          | !strcmp(``iss``, ``userval``)
+ * ``aud`` | String or Array | ``userval`` equals ``aud``, or is among its elements
+ * ``sub`` | String          | !strcmp(``sub``, ``userval``)
+ *
+ * @note Validation is "validate if present": enabling a check (e.g.
+ * ``JWT_CLAIM_EXP``) only fails a token when the claim @b is present and does
+ * not satisfy the comparison above. A token that @b omits the claim passes the
+ * check. In particular, enabling ``JWT_CLAIM_EXP`` does @b not by itself
+ * require that a token carry an ``exp``; if you must reject tokens lacking a
+ * given claim, enforce that in a callback.
+ *
+ * @note Per @rfc{7519,4.1.3}, ``aud`` may be a single string or an array of
+ * strings; the token is accepted when your configured audience matches the
+ * string or appears among the array elements.
  *
  * @note The checker object does not evaluate any values in the header with
  * the exception of the ``alg`` element when validating a token. Anything you
@@ -1977,8 +1988,12 @@ jwk_set_t *jwks_load_fromfp(jwk_set_t *jwk_set, FILE *input);
  *   to add new keys to it.
  * @param url A string URL to where the JSON representation of a single key
  *   or array of "keys" can be retrieved from. Generally a json file.
- * @param verify Set to 1 to verify the Host, 2 to verify Host and Peer.
- *   2 is recommended unless you really need to disable with 0.
+ * @param verify Set to non-zero to fully verify the TLS connection
+ *   (certificate chain/peer @b and hostname); set to 0 to disable
+ *   verification entirely. Non-zero is strongly recommended: hostname
+ *   verification on its own is meaningless, so any value >= 1 enables
+ *   both peer and host verification. 0 disables all verification and is
+ *   insecure (use only for testing).
  * @return A valid jwt_set_t on success. On failure, either NULL
  *   or a jwt_set_t with error set. NULL generally means ENOMEM.
  */
