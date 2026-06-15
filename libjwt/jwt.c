@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <limits.h>
 
 #include <jwt.h>
 
@@ -278,7 +279,7 @@ static int sign_sha_hmac(jwt_t *jwt, char **out, unsigned int *len,
 	// LCOV_EXCL_START
 	default:
 		/* This isn't a failure in kcapi, so just error out */
-		jwt_freemem(out);
+		jwt_freemem(*out);
 		return 1;
 	// LCOV_EXCL_STOP
 	}
@@ -708,6 +709,13 @@ int jwt_base64uri_encode(char **_dst, const char *plain, int plain_len)
 {
 	int len, i;
 	char *dst;
+
+	/* Guard the size math: BASE64_ENCODE_OUT_SIZE computes ((s+2)/3)*4+1,
+	 * which overflows the int result (and so under-allocates dst) well below
+	 * INT_MAX, and plain_len can also arrive negative from a truncated size_t
+	 * cast at a caller. Reject anything that would not encode within INT_MAX. */
+	if (plain_len < 0 || (unsigned int)plain_len > (INT_MAX - 1) / 4 * 3 - 2)
+		return -1; // LCOV_EXCL_LINE
 
 	len = BASE64_ENCODE_OUT_SIZE(plain_len);
 	dst = jwt_malloc(len + 1);
