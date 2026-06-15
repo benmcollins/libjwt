@@ -9,37 +9,50 @@
 #ifndef JWT_MBEDTLS_H
 #define JWT_MBEDTLS_H
 
-#include <mbedtls/rsa.h>
-#include <mbedtls/ecp.h>
+#include <psa/crypto.h>
 
-/* A parsed JWK held as a native MbedTLS key object. This is what a MbedTLS
- * jwk_item_t.provider_data points to. MbedTLS 3.x has no single "any key"
- * container that covers every type we need (it lacks EdDSA entirely), so we
- * carry a small tagged union of the native objects.
+/* A parsed JWK held as PSA-importable key material. This is what a MbedTLS
+ * jwk_item_t.provider_data points to.
  *
- * - RSA / RSA-PSS: mbedtls_rsa_context (JWK alg "PS*" is still an RSA key here;
- *   the PSS padding is applied at sign/verify time, avoiding the id-RSASSA-PSS
- *   PEM that mbedtls_pk_parse_key rejects).
- * - EC (P-256/384/521) and OKP X-curves (X25519/X448): mbedtls_ecp_keypair.
- * - OKP Ed-curves (Ed25519/Ed448): MbedTLS has no EdDSA support, so we only
- *   retain the raw key material and curve name. The key parses cleanly (so a
- *   keyring containing one still loads), but any sign/verify/JWE operation on
- *   it fails with a clear "not supported" error. */
+ * MbedTLS 4.x (TF-PSA-Crypto) split the crypto core out, made the classic
+ * low-level API (mbedtls_rsa_*, mbedtls_ecp_*, ...) private, and removed the
+ * mbedtls_ecdh_* primitives entirely. The public, version-stable crypto API is
+ * now PSA Crypto (psa/crypto.h), which is also present in MbedTLS 3.6 LTS. So
+ * instead of holding a native key object, we keep the raw importable material
+ * and, for each operation, import a short-lived (volatile) PSA key with exactly
+ * the policy that operation needs, then destroy it. This keeps one code path
+ * for both 3.6 and 4.x and sidesteps PSA's single-policy-per-key model (an RSA
+ * JWK may be used for PS*, RS*, or RSA-OAEP).
+ *
+ * Material by key type (all heap-allocated; private material scrubbed on free):
+ *  - RSA:    pub  = DER PKCS#1 RSAPublicKey;  priv = DER PKCS#1 RSAPrivateKey.
+ *  - EC:     pub  = uncompressed point 0x04||X||Y (big-endian, field-padded);
+ *            priv = raw scalar, big-endian, left-padded to the field length.
+ *  - OKP X-curve (X25519/X448): pub = raw little-endian u-coordinate;
+ *            priv = raw little-endian scalar. Used for ECDH-ES only.
+ *  - OKP Ed-curve (Ed25519/Ed448): neither MbedTLS nor PSA here implement EdDSA;
+ *            we retain the raw pub/priv only so a keyring still loads, but any
+ *            sign/verify/JWE on such a key fails with a clear "not supported". */
 typedef struct {
 	jwk_key_type_t kty;	/* EC, RSA, or OKP				*/
-	int is_private;		/* 1 if private components are present		*/
-	int okp_is_ed;		/* For OKP: 1 = Ed-curve (raw), 0 = X-curve (ec) */
-	union {
-		mbedtls_rsa_context rsa;
-		mbedtls_ecp_keypair ec;	/* EC and OKP X-curves			*/
-		struct {		/* OKP Ed-curves (unsupported by mbedtls) */
-			unsigned char *pub;
-			size_t pub_len;
-			unsigned char *priv;
-			size_t priv_len;
-		} okp_ed;
-	};
+	int is_private;		/* 1 if private material is present		*/
+	int okp_is_ed;		/* For OKP: 1 = Ed-curve (raw), 0 = X-curve	*/
+	psa_ecc_family_t ecc_family;	/* EC/OKP-X: the PSA curve family	*/
+	size_t bits;		/* key size in bits (mirrors item->bits)	*/
+
+	unsigned char *pub;	/* public material (see above)			*/
+	size_t pub_len;
+	unsigned char *priv;	/* private material (NULL for a public key)	*/
+	size_t priv_len;
 } mbedtls_jwk_t;
+
+/* Import a short-lived (volatile) PSA key from the stored JWK material with the
+ * given algorithm/usage policy. @want_private selects the key-pair (private) vs
+ * the public key. On success *kid holds a key the caller must release with
+ * psa_destroy_key(). Returns 0 on success, non-zero on failure. */
+JWT_NO_EXPORT
+int mbedtls_jwk_to_psa(const mbedtls_jwk_t *key, int want_private,
+	psa_algorithm_t alg, psa_key_usage_t usage, mbedtls_svc_key_id_t *kid);
 
 JWT_NO_EXPORT
 int mbedtls_process_eddsa(jwt_json_t *jwk, jwk_item_t *item);

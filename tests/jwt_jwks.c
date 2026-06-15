@@ -53,6 +53,15 @@ START_TEST(test_jwks_keyring_load)
 		    gnutls_native_jwk(jwt_test_ops[_i].type))
 			continue;
 
+		/* MbedTLS (PSA) rejects RSA keys larger than the crypto build's
+		 * PSA_VENDOR_RSA_MAX_KEY_BITS (4096 by default) at parse, so the
+		 * two 8192-bit keys in this ring are flagged bad there. */
+		if (jwt_test_ops[_i].type == JWT_CRYPTO_OPS_MBEDTLS &&
+		    jwks_item_key_bits(item) > 4096) {
+			ck_assert_int_ne(jwks_item_error(item), 0);
+			continue;
+		}
+
 		if (jwks_item_error(item)) {
 			fprintf(stderr, "Err KID: %s\n",
 				jwks_item_kid(item));
@@ -117,6 +126,11 @@ START_TEST(test_jwks_keyring_load)
 	if (gnutls_native_jwk(jwt_test_ops[_i].type)) {
 		ck_assert_int_eq(i, 1);
 		ck_assert_int_eq(jwks_item_count(g_jwk_set), 25);
+	} else if (jwt_test_ops[_i].type == JWT_CRYPTO_OPS_MBEDTLS) {
+		/* The two 8192-bit RSA keys exceed the PSA RSA size limit and
+		 * were rejected at parse. */
+		ck_assert_int_eq(i, 2);
+		ck_assert_int_eq(jwks_item_count(g_jwk_set), 24);
 	} else {
 		ck_assert_int_eq(i, 0);
 		ck_assert_int_eq(jwks_item_count(g_jwk_set), 26);
