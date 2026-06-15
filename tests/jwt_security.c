@@ -1057,6 +1057,39 @@ START_TEST(test_alg_confusion_malformed_jwk_kty_alg)
 }
 END_TEST
 
+/* A token with alg=RS256 but a signature segment far shorter than the RSA
+ * modulus must be rejected, not read past the end of the heap-allocated
+ * signature buffer. The MbedTLS RSA verify functions take no length argument
+ * and read mbedtls_rsa_get_len() bytes unconditionally; without an explicit
+ * size check the 3-byte signature here (base64url "AAAA") caused an ~253-byte
+ * out-of-bounds heap read on the MbedTLS backend. All backends must reject it.
+ */
+START_TEST(test_rsa_short_signature_oob)
+{
+	jwt_checker_auto_t *checker = NULL;
+	const char token[] =
+		"eyJhbGciOiJSUzI1NiJ9"
+		".eyJzdWIiOiJhZG1pbiJ9"
+		".AAAA";
+	int ret;
+
+	SET_OPS();
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+
+	read_json("rsa_key_2048_pub.json");
+
+	ret = jwt_checker_setkey(checker, JWT_ALG_RS256, g_item);
+	ck_assert_int_eq(ret, 0);
+
+	/* Must be rejected on every backend, and must not over-read. */
+	ret = jwt_checker_verify(checker, token);
+	ck_assert_int_ne(ret, 0);
+
+	free_key();
+}
+
 /* An out-of-range "exp" must not be silently accepted. json-c reports an
  * integer larger than INT64_MAX as a normal integer and clamps it to
  * INT64_MAX, which would make exp=99999999999999999999999999 verify as an
@@ -1195,6 +1228,8 @@ static Suite *libjwt_suite(const char *title)
 			    test_alg_confusion_callback_rsa_no_alg, 0, i);
 	tcase_add_loop_test(tc_alg_confusion,
 			    test_alg_confusion_malformed_jwk_kty_alg, 0, i);
+	tcase_add_loop_test(tc_alg_confusion,
+			    test_rsa_short_signature_oob, 0, i);
 	tcase_add_loop_test(tc_alg_confusion,
 			    test_exp_out_of_range_int, 0, i);
 
