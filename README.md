@@ -25,7 +25,7 @@ Standard | RFC                                                                  
 
 ### Required
 
-- A JSON library — either [Jansson](https://github.com/akheron/jansson)
+- A JSON library: either [Jansson](https://github.com/akheron/jansson)
   (>= 2.0, the default) or [json-c](https://github.com/json-c/json-c)
   (>= 0.16, selected with ``-DWITH_JSON_C=ON``). The two are interchangeable.
 - [CMake](https://cmake.org) (>= 3.7)
