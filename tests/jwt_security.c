@@ -1135,6 +1135,81 @@ START_TEST(test_exp_out_of_range_int)
 }
 END_TEST
 
+/* Fault-injecting allocator: returns NULL on the Nth allocation. Used to
+ * drive the out-of-memory error paths in JWKS parsing deterministically. */
+static long g_alloc_fail_at = -1;
+static long g_alloc_count;
+
+static void *failing_malloc(size_t size)
+{
+	if (++g_alloc_count == g_alloc_fail_at)
+		return NULL;
+	return malloc(size);
+}
+
+static void failing_free(void *ptr)
+{
+	free(ptr);
+}
+
+/* Smoke test for the JWKS allocation-failure paths: parse a multi-key JWKS
+ * while failing each successive allocation in turn, and assert the library
+ * never crashes and teardown is clean.
+ *
+ * This exercises (under the Jansson backend, whose allocator this hook can
+ * override) the out-of-memory branches in jwk_process_one(), including the
+ * clone-failure path whose deallocator bug this change fixes. It is a
+ * robustness guard rather than a discriminating reproducer: the wrong-free
+ * corrupted a borrowed, refcounted JSON node, which json's refcounting does
+ * not surface as a deterministic fault here, and the json-c allocator hook is
+ * a no-op so that backend's internal clone cannot be failed this way. The
+ * actual fix (free the owned jwk_item_t, never the borrowed argument) is
+ * verified by inspection; this test ensures the OOM paths stay crash-free. */
+START_TEST(test_jwks_oom_no_corruption)
+{
+	const char *json = "{\"keys\":[{\"kty\":\"oct\",\"alg\":\"HS256\","
+		"\"k\":\"0gmNspkRljssLSrldySnYUS-zhtCo5sqeqo_yl7n2XA\"},"
+		"{\"kty\":\"oct\",\"alg\":\"HS384\","
+		"\"k\":\"YWFhYWJiYmJjY2NjZGRkZGVlZWVmZmZmZ2dnZ2hoaGg\"}]}";
+	long n;
+
+	SET_OPS();
+
+	for (n = 1; n <= 20; n++) {
+		jwk_set_t *jwk_set;
+
+		g_alloc_count = 0;
+		g_alloc_fail_at = n;
+		ck_assert_int_eq(jwt_set_alloc(failing_malloc, failing_free), 0);
+
+		jwk_set = jwks_create(json);
+
+		/* Restore the default allocator before any assertion can
+		 * longjmp out, so a later test never runs with the failing one. */
+		g_alloc_fail_at = -1;
+		jwt_set_alloc(NULL, NULL);
+
+		/* Either the set failed to allocate, or it parsed; in both
+		 * cases item access and teardown must be safe (no UAF / double
+		 * free of the parsed tree). */
+		if (jwk_set != NULL) {
+			(void)jwks_item_get(jwk_set, 0);
+			(void)jwks_item_get(jwk_set, 1);
+			jwks_free(jwk_set);
+		}
+	}
+
+	/* A clean full load with the default allocator still works. */
+	g_alloc_fail_at = -1;
+	{
+		jwk_set_auto_t *ok = jwks_create(json);
+		ck_assert_ptr_nonnull(ok);
+		ck_assert_int_eq(jwks_error_any(ok), 0);
+		ck_assert_int_eq(jwks_item_count(ok), 2);
+	}
+}
+END_TEST
+
 /*
  * === Suite Setup ===
  */
@@ -1232,6 +1307,8 @@ static Suite *libjwt_suite(const char *title)
 			    test_rsa_short_signature_oob, 0, i);
 	tcase_add_loop_test(tc_alg_confusion,
 			    test_exp_out_of_range_int, 0, i);
+	tcase_add_loop_test(tc_alg_confusion,
+			    test_jwks_oom_no_corruption, 0, i);
 
 	tcase_set_timeout(tc_alg_confusion, 30);
 	suite_add_tcase(s, tc_alg_confusion);
