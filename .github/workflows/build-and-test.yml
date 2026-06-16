@@ -62,8 +62,14 @@ jobs:
       matrix:
         json: [ jansson, json-c ]
         distro: [ ubuntu-22.04, ubuntu-24.04, ubuntu-26.04, debian-stable, debian-oldstable ]
-        # Attach per-distro runner/container (and the preview flag) to both JSON
-        # variants of each distro -> 5 distros x 2 backends = 10 jobs.
+        exclude:
+          # Ubuntu 22.04 (jammy) ships json-c 0.15; libjwt requires json-c >= 0.16
+          # (CMakeLists.txt), so that one combination can't configure. jammy still
+          # builds with jansson. (json-c: noble 0.17, bookworm 0.16, trixie/
+          # resolute 0.18 all clear the floor.)
+          - { distro: ubuntu-22.04, json: json-c }
+        # Attach per-distro runner/container (and the preview flag) to each JSON
+        # variant of each distro -> 5 distros x 2 backends - 1 exclude = 9 jobs.
         include:
           - { distro: ubuntu-22.04,     runs-on: "ubuntu-22.04",  container: "" }
           - { distro: ubuntu-24.04,     runs-on: "ubuntu-24.04",  container: "" }
