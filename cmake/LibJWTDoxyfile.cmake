@@ -3,7 +3,9 @@
 set(DOXYGEN_MARKDOWN_ID_STYLE "GITHUB")
 set(DOXYGEN_PROJECT_LOGO "images/LibJWT.svg")
 set(DOXYGEN_PROJECT_ICON "images/favicon.ico")
-set(DOXYGEN_INPUT_ENCODING "ISO-8859-1")
+# Sources are UTF-8; decoding them as ISO-8859-1 turned any non-ASCII byte
+# (em-dashes, curly quotes, etc.) into mojibake in the generated HTML.
+set(DOXYGEN_INPUT_ENCODING "UTF-8")
 set(DOXYGEN_STRIP_FROM_PATH ${CMAKE_SOURCE_DIR})
 set(DOXYGEN_OPTIMIZE_OUTPUT_FOR_C "YES")
 set(DOXYGEN_TYPEDEF_HIDES_STRUCT "YES")

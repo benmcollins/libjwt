@@ -70,17 +70,13 @@ missing lines covered.
 # Docs are built automatically if Doxygen is found
 ```
 
-**Doc encoding: keep doxygen-rendered docs ASCII-only.** Doxygen processes
-`include/jwt.h` (public-header doc comments) and `doxygen/mainpage.dox` with
-`DOXYGEN_INPUT_ENCODING = ISO-8859-1` (`cmake/LibJWTDoxyfile.cmake`), but the
-sources are UTF-8, so any non-ASCII byte in those files renders as mojibake in
-the generated HTML (a UTF-8 em-dash, U+2014, shows up as an `a`-prefixed
-box-character blob). Use ASCII in them: a plain `-` instead of an em-dash,
-straight quotes instead of curly, `>=`/`->` instead of the symbols, and doxygen
-`\emoji`/HTML entities for any symbol you need. Plain markdown (`README.md`,
-files under `.github/`) is GitHub-rendered and unaffected, but keep it ASCII too
-for consistency. (Setting the encoding to UTF-8 would also fix it; the project
-keeps docs ASCII instead.)
+**Doc encoding.** Doxygen processes `include/jwt.h` (public-header doc comments)
+and `doxygen/mainpage.dox`. `DOXYGEN_INPUT_ENCODING` in
+`cmake/LibJWTDoxyfile.cmake` is **UTF-8** to match the UTF-8 sources, so
+non-ASCII (em-dashes, curly quotes, symbols) renders correctly in the generated
+HTML. It was previously `ISO-8859-1`, which decoded the UTF-8 bytes as Latin-1
+and produced mojibake (a UTF-8 em-dash showed up as an `a`-prefixed
+box-character blob); do not revert it.
 
 ## Key CMake Options
 
