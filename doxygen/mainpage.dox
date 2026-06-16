@@ -49,7 +49,7 @@ JWS Algorithm ``alg``         | OpenSSL                   | GnuTLS              
 
 @note On the GnuTLS backend, loading a "seed-only" OKP private JWK (an
 ``Ed25519``/``Ed448`` key with ``d`` but no public coordinate ``x``) requires
-GnuTLS >= 3.8.13 — older GnuTLS crashes deriving the public key, so LibJWT
+GnuTLS >= 3.8.13. Older GnuTLS crashes deriving the public key, so LibJWT
 rejects such keys. A key that carries ``x``, any public key, and PEM/DER keys
 are unaffected (as are the OpenSSL and MbedTLS backends). The version is checked
 at runtime, so upgrading the shared ``libgnutls`` lifts this without rebuilding

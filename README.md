@@ -65,7 +65,7 @@ FIPS-204 seed. MbedTLS has no ML-DSA and rejects ``AKP`` keys.
 
 [^okp3813]: On the **GnuTLS** backend these specific cases need **GnuTLS >=
 3.8.13**: (a) loading an OKP *private* JWK supplied without its public
-coordinate ``x`` — a "seed-only" ``Ed25519``/``Ed448`` key (older GnuTLS
+coordinate ``x``, a "seed-only" ``Ed25519``/``Ed448`` key (older GnuTLS
 crashes deriving the public key); and (b) ``ECDH-ES`` with the ``X25519`` and
 ``X448`` curves. Anything that carries ``x`` (including every public key and
 every PEM/DER key) is unaffected, as are the OpenSSL and MbedTLS backends. The
