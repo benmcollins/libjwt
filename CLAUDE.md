@@ -91,7 +91,7 @@ missing lines covered.
 
 The library has two key abstraction interfaces that allow swapping implementations:
 
-1. **Crypto backend abstraction** (`jwt-crypto-ops.c`, `jwt-private.h:jwt_crypto_ops`): Each crypto provider (OpenSSL, GnuTLS, MBedTLS) implements the `jwt_crypto_ops` struct with function pointers for sign/verify, JWK parsing (`process_*`), and native-key→JWK conversion (`key2jwk_params`, assembled by the common `jwk-export.c`). All three backends are optional and interchangeable; the build requires at least one but works with any combination (default `WITH_OPENSSL=ON`). A GnuTLS-only build (no OpenSSL) requires GnuTLS >= 3.8.4, since older GnuTLS has no native JWK/JWE path and falls back to OpenSSL. The active provider is selected at runtime via `jwt_set_crypto_ops()`; the default is the first compiled backend (OpenSSL > GnuTLS > MBedTLS).
+1. **Crypto backend abstraction** (`jwt-crypto-ops.c`, `jwt-private.h:jwt_crypto_ops`): Each crypto provider (OpenSSL, GnuTLS, MBedTLS) implements the `jwt_crypto_ops` struct with function pointers for sign/verify, JWK parsing (`process_*`), and native-key→JWK conversion (`key2jwk_params`, assembled by the common `jwk-export.c`). All three backends are optional and interchangeable; the build requires at least one but works with any combination (default `WITH_OPENSSL=ON`). A GnuTLS-only build (no OpenSSL) requires GnuTLS >= 3.8.4, since older GnuTLS has no native JWK/JWE path and falls back to OpenSSL. The MbedTLS backend targets the MbedTLS **3.6.x LTS** API (`mbedcrypto>=3.6.0`); MbedTLS **4.x will not build** — its PSA rewrite drops the legacy `mbedtls_pk_*` API the backend uses — so pin 3.6.x (the CI image builds it from source for this reason). The active provider is selected at runtime via `jwt_set_crypto_ops()`; the default is the first compiled backend (OpenSSL > GnuTLS > MBedTLS).
 
 2. **JSON backend abstraction** (`jwt-json-ops.h`): Jansson and json-c each implement the same JSON operations interface. Selected at compile time via `WITH_JSON_C`.
 
@@ -127,6 +127,20 @@ feature:
   imports that; `gnutls_x509_privkey_export2_pkcs8(..., GNUTLS_PKCS_MLDSA_SEED,
   ...)` SEGFAULTS on a seedless key, so export probes for the seed via a plain
   PKCS#8 export first.
+
+**Dynamic (runtime) version gating.** When the defect is in the *shared* crypto
+library rather than libjwt, gate on the RUNTIME version so a library upgrade
+fixes it without rebuilding libjwt. Use a hybrid: a build-time
+`#if GNUTLS_VERSION_NUMBER < 0xMMmmpp` (keeps the code absent — and
+coverage-invisible — when built against a fixed version) wrapping a runtime
+`gnutls_check_version("M.m.p")` check that decides per call. `gnutls/jwk-parse.c`
+(`gnutls_process_eddsa`) rejects two **GnuTLS < 3.8.13** OKP defects this way:
+(1) `gnutls_privkey_import_ecc_raw()` **SEGFAULTS** deriving the public key for a
+*seed-only* OKP private JWK — `d` present, **no `x`** — for any curve
+(Ed25519/Ed448/X25519/X448); (2) X25519/X448 **ECDH-ES** derive yields nothing.
+Keys that carry `x`, all public keys, and the PEM/DER path (whose JWK export
+always includes `x`) are unaffected, as are OpenSSL and MbedTLS. A library must
+*error*, not crash, on a key it can't handle.
 
 ### Source Organization
 
@@ -164,21 +178,51 @@ Tests use the [Check](https://libcheck.github.io/check/) C unit testing framewor
   which provider supports what — e.g. `mldsa_supported()` in `jwt_mldsa.c` loads a
   known AKP key under the active ops, so the success tests run on OpenSSL and a
   PQC-enabled GnuTLS and skip a GnuTLS without leancrypto (and MbedTLS).
+  `gnutls_okp_jwk_broken()` in `jwt_tests.h` is a second example — it mirrors the
+  library's hybrid build/runtime gate (`gnutls_check_version("3.8.13")`) to skip
+  the OKP keys an old GnuTLS can't load, so the suite passes on GnuTLS 3.8.9 and
+  3.8.13 alike.
 
 ## Continuous Integration
 
-`.github/workflows/build-and-test.yml`:
-- `build-linux` and `build-linux-mbedtls` collect LCOV coverage and upload to
-  **Codecov**. Do NOT add compiled-but-unexercised code to these jobs (see the
-  gcov/`#ifdef` note under Build Commands) — it lowers `codecov/patch`.
-- `build-linux-combos` runs the seven backend combinations in a `debian:forky`
-  container (forky ships OpenSSL >= 3.5, GnuTLS 3.8.13, MbedTLS 3.x) and does
-  **not** collect coverage. This is the place to add extra build/test matrix rows
-  (e.g. the `WITH_ML_DSA=ON` row that exercises ML-DSA on forky's OpenSSL). forky
-  has no leancrypto, so GnuTLS's ML-DSA *success* path is not CI-tested.
+`.github/workflows/build-and-test.yml`. Codecov is **informational only** (never
+fails CI), and the in-CI coverage step runs `check-code-coverage` under `|| true`
+and just uploads the `.info` — it does **not** fail on a coverage regression. The
+"no new uncovered lines in `libjwt/`+`tools/`" rule is a developer discipline you
+enforce locally before committing (see Build Commands / Issue Workflow), not an
+automatic CI gate. Still, do NOT add compiled-but-unexercised code to a coverage
+job (see the gcov/`#ifdef` note under Build Commands) — it lowers `codecov/patch`.
+
+- **CI base image** — `build-linux-combos` runs inside a custom image,
+  `ghcr.io/benmcollins/libjwt/gnutls-leancrypto-mbedtls`, built from
+  `.github/docker/Dockerfile` and pushed by `.github/workflows/ci-image.yml`
+  (GHCR via the built-in `GITHUB_TOKEN`; the package must be **public** so
+  `container:` jobs and fork PRs can pull it). It is `debian:forky` with GnuTLS
+  built `--with-leancrypto` (so the ML-DSA **and** Ed448/X25519/X448 success
+  paths are real — forky's apt GnuTLS lacks both) and the latest MbedTLS 3.6.x
+  LTS, both from source; everything else (and every build-dep) is native Debian
+  apt. See `.github/docker/README.md`. Respin by bumping the Dockerfile `ARG`
+  pins and re-running the workflow. A CI change that *references* the image must
+  land only after the image is pushed and made public.
+- `build-linux-combos` runs the seven backend combinations in that image. The
+  renamed **`all`** row (all three backends + `WITH_ML_DSA=ON`) is the **only**
+  row that collects coverage → Codecov **and** runs `ctest -T memcheck`; on the
+  leancrypto image its ML-DSA/Ed448/X-curve lines are exercised, not just
+  compiled. The other rows just build + `ctest`.
+- `build-linux` is a vendor-compatibility matrix: Ubuntu 22.04/24.04/26.04 and
+  Debian stable/oldstable, each built with **both** JSON backends (jansson +
+  json-c) — OpenSSL only. GnuTLS is OFF on every row: the GnuTLS these distros
+  ship is either below the `gnutls>=3.8.8` CMake floor or `<= 3.8.12` (which hits
+  the GnuTLS < 3.8.13 OKP defects — see the version-gated note), so none can fully
+  exercise it. json-c is excluded on Ubuntu 22.04 (jammy ships json-c
+  0.15 < the 0.16 floor). Debian has no hosted runner, so stable/oldstable run as
+  `container:`; `ubuntu-26.04` is a preview runner (`continue-on-error`).
+- `build-linux-mbedtls` and `build-linux-json-c` were **removed** — folded into
+  the `all` row and the compat matrix respectively.
 - For same-repo PRs the workflow runs from the PR branch's copy of the YAML; for
   forks it uses the base branch's. `paths-ignore` skips runs whose changes are
-  entirely docs/`.github`/images.
+  entirely docs/`.github`/images — so a `.github`-only push won't trigger it (use
+  `workflow_dispatch`).
 
 ## Compiler Flags
 
