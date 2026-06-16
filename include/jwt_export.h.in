@@ -20,6 +20,12 @@
  * with jansson's json_int_t when working with JSON integers. */
 #define @USE_LONG_LONG_NAME@	@DEFINE_LONG_LONG@
 
+/* Whether this build includes experimental ML-DSA (FIPS 204 / RFC 9964)
+ * support. Defined only when built with -DWITH_ML_DSA=ON against a crypto
+ * backend that implements ML-DSA (OpenSSL >= 3.5). Downstream code can test
+ * this to know whether the JWT_ALG_ML_DSA_* algorithms are usable. */
+#cmakedefine LIBJWT_HAVE_ML_DSA 1
+
 #ifdef @STATIC_DEFINE@
 #  define @EXPORT_MACRO_NAME@
 #  define @NO_EXPORT_MACRO_NAME@

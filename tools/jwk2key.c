@@ -74,6 +74,24 @@ static void write_key_file(const jwk_item_t *item)
 		pre = "eddsa";
 		name = "ED25519";
 		break;
+#ifdef LIBJWT_HAVE_ML_DSA
+	case JWK_KEY_TYPE_AKP:
+		pre = "mldsa";
+		switch (jwks_item_alg(item)) {
+		case JWT_ALG_ML_DSA_44:
+			name = "44";
+			break;
+		case JWT_ALG_ML_DSA_65:
+			name = "65";
+			break;
+		case JWT_ALG_ML_DSA_87:
+			name = "87";
+			break;
+		default:
+			name = "unknown";
+		}
+		break;
+#endif
 	default:
 		fprintf(stderr, "Unknown kty\n");
 		return;

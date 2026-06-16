@@ -53,6 +53,14 @@ const char *jwt_alg_str(jwt_alg_t alg)
 		return "PS512";
 	case JWT_ALG_EDDSA:
 		return "EdDSA";
+#ifdef LIBJWT_HAVE_ML_DSA
+	case JWT_ALG_ML_DSA_44:
+		return "ML-DSA-44";
+	case JWT_ALG_ML_DSA_65:
+		return "ML-DSA-65";
+	case JWT_ALG_ML_DSA_87:
+		return "ML-DSA-87";
+#endif
 	default:
 		return NULL;
 	}
@@ -93,6 +101,14 @@ jwt_alg_t jwt_str_alg(const char *alg)
 		return JWT_ALG_PS512;
 	else if (!strcmp(alg, "EdDSA"))
 		return JWT_ALG_EDDSA;
+#ifdef LIBJWT_HAVE_ML_DSA
+	else if (!strcmp(alg, "ML-DSA-44"))
+		return JWT_ALG_ML_DSA_44;
+	else if (!strcmp(alg, "ML-DSA-65"))
+		return JWT_ALG_ML_DSA_65;
+	else if (!strcmp(alg, "ML-DSA-87"))
+		return JWT_ALG_ML_DSA_87;
+#endif
 
 	return JWT_ALG_INVAL;
 }
@@ -208,6 +224,16 @@ static int __check_key_bits(jwt_t *jwt)
 		jwt_write_error(jwt, "Key needs to be 256 or 456 bits: %d bits",
 				key_bits);
 		break;
+
+#ifdef LIBJWT_HAVE_ML_DSA
+	case JWT_ALG_ML_DSA_44:
+	case JWT_ALG_ML_DSA_65:
+	case JWT_ALG_ML_DSA_87:
+		/* ML-DSA key strength is fixed by the variant, and the
+		 * variant is bound to the key material by the backend, so
+		 * there is no short-key risk to guard against here. */
+		return 0;
+#endif
 
 	case JWT_ALG_ES256K:
 	case JWT_ALG_ES256:
@@ -341,6 +367,13 @@ int jwt_sign(jwt_t *jwt, char **out, unsigned int *len, const char *str,
 
 	/* EdDSA */
 	case JWT_ALG_EDDSA:
+
+#ifdef LIBJWT_HAVE_ML_DSA
+	/* ML-DSA (FIPS 204) */
+	case JWT_ALG_ML_DSA_44:
+	case JWT_ALG_ML_DSA_65:
+	case JWT_ALG_ML_DSA_87:
+#endif
 		if (__check_key_bits(jwt))
 			return 1;
 		if (jwt_ops->sign_sha_pem(jwt, out, len, str, str_len)) {
@@ -441,6 +474,13 @@ jwt_t *jwt_verify_sig(jwt_t *jwt, const char *head, unsigned int head_len,
 
 	/* EdDSA */
 	case JWT_ALG_EDDSA:
+
+#ifdef LIBJWT_HAVE_ML_DSA
+	/* ML-DSA (FIPS 204) */
+	case JWT_ALG_ML_DSA_44:
+	case JWT_ALG_ML_DSA_65:
+	case JWT_ALG_ML_DSA_87:
+#endif
 		if (__check_key_bits(jwt))
 			break;
 

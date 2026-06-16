@@ -243,3 +243,43 @@ ECENC="../tests/keys/ec_key_prime256v1_enc.json"
 	[ "${status_was}" -lt 128 ]
 	[ "${have_out}" -eq 1 ]
 }
+
+# --- ML-DSA (FIPS 204 / RFC 9964) ----------------------------------------
+#
+# These only run when the library was built with WITH_ML_DSA against a capable
+# backend (OpenSSL >= 3.5); otherwise jwt-generate does not list the algorithm
+# and the tests skip. Fixtures are the committed AKP JWKs under tests/keys.
+
+mldsa_supported() {
+	./tools/jwt-generate -l 2>/dev/null | grep -q 'ML-DSA-44'
+}
+
+@test "ML-DSA sign and verify (all variants)" {
+	mldsa_supported || skip "ML-DSA not built in (needs WITH_ML_DSA + OpenSSL>=3.5)"
+
+	for v in 44 65 87; do
+		priv="${SRCDIR}/tests/keys/mldsa_key_${v}.json"
+		pub="${SRCDIR}/tests/keys/mldsa_key_${v}_pub.json"
+		token="$(./tools/jwt-generate -q -k "${priv}" -c s:sub=alice)"
+		[ -n "${token}" ]
+		./tools/jwt-verify -k "${pub}" "${token}"
+	done
+}
+
+@test "ML-DSA cross-variant verification fails" {
+	mldsa_supported || skip "ML-DSA not built in"
+
+	token="$(./tools/jwt-generate -q -k ${SRCDIR}/tests/keys/mldsa_key_44.json -c s:sub=bob)"
+	[ -n "${token}" ]
+	run ./tools/jwt-verify -k ${SRCDIR}/tests/keys/mldsa_key_87_pub.json "${token}"
+	[ "${status}" -ne 0 ]
+}
+
+@test "key2jwk converts an ML-DSA PEM to an AKP JWK" {
+	mldsa_supported || skip "ML-DSA not built in"
+
+	kty=$(./tools/key2jwk -o - \
+		${SRCDIR}/tests/keys/mldsa-pem/mldsa_key_65.pem 2>/dev/null \
+		| jq -r '.keys[0].kty')
+	[ "${kty}" = "AKP" ]
+}

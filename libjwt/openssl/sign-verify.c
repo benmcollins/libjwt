@@ -190,6 +190,24 @@ static int openssl_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 			SIGN_ERROR("Unknown EdDSA curve"); // LCOV_EXCL_LINE
 		break;
 
+#ifdef LIBJWT_HAVE_ML_DSA
+	/* ML-DSA (FIPS 204): one-shot, like EdDSA. Provider-native ML-DSA
+	 * keys have no legacy NID (EVP_PKEY_id() == -1), so the variant is
+	 * validated by name here; setting type to the key's (negative) id
+	 * makes the shared NID compatibility check below a no-op. */
+	case JWT_ALG_ML_DSA_44:
+	case JWT_ALG_ML_DSA_65:
+	case JWT_ALG_ML_DSA_87:
+		alg = EVP_md_null();
+		/* Unreachable in practice: an AKP JWK carries a required "alg"
+		 * that setkey pins to the key, so a variant mismatch is caught
+		 * before signing (cf. the EdDSA curve check above). */
+		if (!EVP_PKEY_is_a(pkey, jwt_alg_str(jwt->alg)))
+			SIGN_ERROR("Key does not match the ML-DSA algorithm"); // LCOV_EXCL_LINE
+		type = EVP_PKEY_id(pkey);
+		break;
+#endif
+
 	// LCOV_EXCL_START
 	default:
 		return 1;
@@ -336,6 +354,19 @@ static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 			VERIFY_ERROR("Unknown EdDSA curve"); // LCOV_EXCL_LINE
 		break;
 
+#ifdef LIBJWT_HAVE_ML_DSA
+	/* ML-DSA (FIPS 204): one-shot, like EdDSA. See the signing path for
+	 * why the variant is validated by name and type is the key's id. */
+	case JWT_ALG_ML_DSA_44:
+	case JWT_ALG_ML_DSA_65:
+	case JWT_ALG_ML_DSA_87:
+		alg = NULL;
+		if (!EVP_PKEY_is_a(pkey, jwt_alg_str(jwt->alg)))
+			VERIFY_ERROR("Key does not match the ML-DSA algorithm");
+		type = EVP_PKEY_id(pkey);
+		break;
+#endif
+
 	// LCOV_EXCL_START
 	default:
 		VERIFY_ERROR("Unknown algorithm");
@@ -428,6 +459,9 @@ struct jwt_crypto_ops jwt_openssl_ops = {
 
 	.jwk_implemented	= 1,
 	.process_eddsa		= openssl_process_eddsa,
+#ifdef LIBJWT_HAVE_ML_DSA
+	.process_mldsa		= openssl_process_mldsa,
+#endif
 	.process_rsa		= openssl_process_rsa,
 	.process_ec		= openssl_process_ec,
 	.process_item_free	= openssl_process_item_free,
