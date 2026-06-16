@@ -33,6 +33,10 @@ cmake -DWITH_GNUTLS=ON -DWITH_MBEDTLS=ON -DWITH_LIBCURL=ON -DWITH_JSON_C=ON ..
 # ENABLE_COVERAGE -> OFF). Re-pass all flags and `make clean` after switching,
 # since stale .gcno/.gcda from the prior backend linger.
 
+# Only `/build/**` is gitignored. Name throwaway build trees `build/...` or
+# remove them before `git add -A` — a stray `build-foo/` will otherwise be
+# staged and committed.
+
 # Run all tests
 make check
 
@@ -55,6 +59,12 @@ missing lines covered.
 # per-line coverage from build/check-code-coverage.capture (lcov DA: records).
 # In that file, jwt-common.c appears ~4x (builder/checker x lib/test-harness);
 # the real library coverage is the jwt.dir record, not the per-filename union.
+#
+# Code that is #ifdef'd out (e.g. an off-by-default feature) is invisible to
+# gcov, so it never counts as uncovered. Enabling such a feature in a
+# coverage/Codecov job makes its lines visible — only do that if a test
+# actually exercises them, or codecov/patch will drop. Genuinely unreachable
+# defensive branches use // LCOV_EXCL_LINE or // LCOV_EXCL_START/STOP.
 
 # Build documentation (requires Doxygen >= 1.9.8)
 # Docs are built automatically if Doxygen is found
@@ -73,6 +83,7 @@ missing lines covered.
 | `WITH_KCAPI_MD` | OFF | Linux Kernel Crypto API for HMAC |
 | `ENABLE_COVERAGE` | OFF | LCOV code coverage |
 | `EXCLUDE_DEPRECATED` | OFF | Exclude deprecated API |
+| `WITH_ML_DSA` | OFF | Experimental ML-DSA (FIPS 204/RFC 9964); needs OpenSSL >= 3.5 or GnuTLS >= 3.8.10 |
 
 ## Architecture
 
@@ -86,6 +97,36 @@ The library has two key abstraction interfaces that allow swapping implementatio
 
    - **json-c asserts (aborts)** where Jansson returns gracefully: e.g. `json_object_array_length()`/`_get_idx()` abort on a non-array (Jansson returns 0/NULL). Type-check in the json-c wrapper. Test any JSON handling under BOTH backends.
    - `jwt_json_obj_set`/`jwt_json_arr_append` STEAL the value reference in both backends — never free what you set/append.
+
+### Experimental & version-gated features (ML-DSA)
+
+ML-DSA (FIPS 204 / RFC 9964 post-quantum signatures `ML-DSA-44/65/87`, JWK
+`kty="AKP"`) is the template for an optional, off-by-default, version-gated
+feature:
+
+- Gated behind `WITH_ML_DSA` (default OFF). CMake sets `LIBJWT_HAVE_ML_DSA` only
+  when a *capable* backend is present (OpenSSL >= 3.5 **or** GnuTLS >= 3.8.10).
+  That macro is emitted into the public `jwt_export.h` via `#cmakedefine` in
+  `include/jwt_export.h.in`, so the same macro gates library and downstream code.
+- The `jwt_alg_t` / `jwk_key_type_t` enum values exist **unconditionally** (ABI
+  stability); only recognition (`jwt_str_alg`), dispatch, the `jwt_alg_required_kty`
+  anti-confusion gate, and backend code are gated. The CLI tools' `-l` loops skip
+  algs whose `jwt_alg_str()` returns NULL so a compiled-out alg isn't listed.
+- Each backend's ML-DSA code carries its OWN version guard in addition to the
+  macro — `#if defined(LIBJWT_HAVE_ML_DSA) && OPENSSL_VERSION_NUMBER >= 0x30500000L`
+  (OpenSSL) / `&& GNUTLS_VERSION_NUMBER >= 0x03080a` (GnuTLS) — so a multi-backend
+  build with one capable and one too-old backend still compiles.
+- AKP keys: `pub` = encoded public key, `priv` = the **32-byte FIPS-204 seed**
+  (not the expanded key), `alg` REQUIRED, no `crv`. The variant is pinned to the
+  key at sign time to prevent algorithm confusion. A private key with no seed
+  (expanded-only) cannot be a private AKP JWK; both backends downgrade it to a
+  public export rather than emit a broken key.
+- **GnuTLS** needs a build with a PQC provider (`--with-leancrypto`); a stock
+  GnuTLS returns `-106` at runtime. There is no raw ML-DSA import, so
+  `gnutls/jwk-parse.c` hand-builds SubjectPublicKeyInfo / seed-PKCS#8 DER and
+  imports that; `gnutls_x509_privkey_export2_pkcs8(..., GNUTLS_PKCS_MLDSA_SEED,
+  ...)` SEGFAULTS on a seedless key, so export probes for the seed via a plain
+  PKCS#8 export first.
 
 ### Source Organization
 
@@ -118,6 +159,26 @@ Tests use the [Check](https://libcheck.github.io/check/) C unit testing framewor
 - Test keys are in `tests/keys/` — referenced via the `KEYDIR` compile-time macro.
 - A constant timestamp `TS_CONST` (1475980545L) is used for reproducible time-based tests.
 - BATS tests in `tests/jwt-cli.bats` cover the CLI tools.
+- For features that depend on the runtime (not just compile-time) capability of a
+  backend, probe at runtime and skip incapable backends rather than hardcoding
+  which provider supports what — e.g. `mldsa_supported()` in `jwt_mldsa.c` loads a
+  known AKP key under the active ops, so the success tests run on OpenSSL and a
+  PQC-enabled GnuTLS and skip a GnuTLS without leancrypto (and MbedTLS).
+
+## Continuous Integration
+
+`.github/workflows/build-and-test.yml`:
+- `build-linux` and `build-linux-mbedtls` collect LCOV coverage and upload to
+  **Codecov**. Do NOT add compiled-but-unexercised code to these jobs (see the
+  gcov/`#ifdef` note under Build Commands) — it lowers `codecov/patch`.
+- `build-linux-combos` runs the seven backend combinations in a `debian:forky`
+  container (forky ships OpenSSL >= 3.5, GnuTLS 3.8.13, MbedTLS 3.x) and does
+  **not** collect coverage. This is the place to add extra build/test matrix rows
+  (e.g. the `WITH_ML_DSA=ON` row that exercises ML-DSA on forky's OpenSSL). forky
+  has no leancrypto, so GnuTLS's ML-DSA *success* path is not CI-tested.
+- For same-repo PRs the workflow runs from the PR branch's copy of the YAML; for
+  forks it uses the base branch's. `paths-ignore` skips runs whose changes are
+  entirely docs/`.github`/images.
 
 ## Compiler Flags
 
