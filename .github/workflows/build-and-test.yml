@@ -43,11 +43,11 @@ jobs:
   #
   # GnuTLS is OFF on every row. Every distro currently ships a GnuTLS stack
   # (<= 3.8.12) that segfaults loading Ed448 keys and fails X25519/X448 ECDH-ES
-  # in libjwt (the NIST P-curves are fine). Only the from-source GnuTLS 3.8.13
-  # stack in the build-linux-combos image is known-correct - and the exact
-  # differentiator (GnuTLS vs nettle version vs the --without-p11-kit build) is
-  # not yet pinned down. The native GnuTLS path is covered by build-linux-combos.
-  # Re-enable GnuTLS here per distro once its stack is verified working.
+  # in libjwt (the NIST P-curves are fine). A GnuTLS 3.8.13 stack is correct -
+  # verified on debian:forky (apt GnuTLS 3.8.13 + nettle 3.10.2 + p11-kit passes
+  # all of them), so it is the <= 3.8.12 -> 3.8.13 GnuTLS upgrade, NOT p11-kit.
+  # No stable distro ships 3.8.13 yet; native GnuTLS is covered by
+  # build-linux-combos (image's 3.8.13). Re-enable per distro once it ships >= 3.8.13.
   #
   # Debian has no hosted runner, so stable/oldstable run as containers.
   build-linux:
