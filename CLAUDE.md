@@ -18,6 +18,59 @@ Follow this pipeline for every piece of work:
 
 Commit messages: `git commit -s` (Signed-off-by). Don't commit/push unless asked.
 
+## Release Process
+
+A release is a distinct workflow from the per-issue pipeline above: it needs **no
+issue** (the release PR is the artifact). Mirror the most recent release
+commit/PR/tag (`git show v3.5.0`, PR #304) when in doubt.
+
+1. **Version + SONAME** — `cmake/LibJWTVersions.cmake` is the single source of truth
+   (there is no NEWS/changelog file). Bump `LIBJWT_VERSION_SET` (e.g. `3 4 0` ->
+   `3 5 0`) and the libtool SONAME triple `LIBJWT_SO_CRA` (current:revision:age). The
+   triple is **symbol-counted, not feature-counted**: per the [libtool
+   rules](http://www.gnu.org/software/libtool/manual/html_node/Updating-version-info.html),
+   build the library at the prior tag and at HEAD, `nm` each shared library, and diff
+   the exported `jwt*`/`jwk*`/`jwe*` symbol set.
+   - No symbols added/removed/changed (only source changed) -> **revision++**
+     (current/age untouched). New `jwt_alg_t`/`jwk_key_type_t` enumerators and
+     `#cmakedefine` macros are **not** linker symbols, so an enum-only addition is
+     still revision-only — v3.5.0 added `JWT_ALG_ML_DSA_*` / `JWK_KEY_TYPE_AKP` +
+     `LIBJWT_HAVE_ML_DSA` yet went `17:0:3` -> `17:1:3`.
+   - Symbols added, none removed/changed -> `current++, revision=0, age++` (v3.4.0:
+     38 new JWE/JWK symbols, `16:7:2` -> `17:0:3`).
+   - Any symbol removed or changed -> `current++, revision=0, age=0` (SONAME-major
+     break). SONAME major = `current - age`, and has stayed `14` across all of 3.x.
+
+2. **Branch + commit** — `release-X.Y.Z` off master; edit **only**
+   `LibJWTVersions.cmake` (plus any now-stale doc note, as v3.4.0 dropped the "v3
+   overhaul" warning). `git commit -s` titled `Release vX.Y.Z` with a body documenting
+   the SONAME-bump rationale. Smoke-test locally (`make check`).
+
+3. **PR + merge** — `gh pr create --base master --title "Release vX.Y.Z"` (no
+   `closes`); watch CI to green, then `gh pr merge --merge --delete-branch` (merge
+   commit; release branches are deleted after merge).
+
+4. **Tag** — annotated, on the merge commit, message = the bare version:
+   `git tag -a vX.Y.Z -m "vX.Y.Z" <merge-commit> && git push origin vX.Y.Z` (tagger is
+   `git config user.*` = `Ben Collins <bcollins@libjwt.io>`).
+
+5. **Source tarball** — built **manually**, NOT via CPack (despite
+   `cmake/CPackConfig.cmake`). Recipe: every git-tracked file at the tag **minus
+   `.github/` and `.gitignore`** (the only "repo-related artifacts" stripped; `.git/`
+   isn't tracked), rooted under `libjwt-X.Y.Z/`. `CLAUDE.md` and `images/` ARE included.
+   ```bash
+   git archive --format=tar --prefix=libjwt-X.Y.Z/ vX.Y.Z \
+     -- . ':(exclude).github' ':(exclude).gitignore' | xz -9 -c > libjwt-X.Y.Z.tar.xz
+   ```
+
+6. **GitHub Release** — one published Release per version, marked Latest, with the
+   tarball attached: `gh release create vX.Y.Z --title "vX.Y.Z" --notes-file NOTES
+   --latest --verify-tag libjwt-X.Y.Z.tar.xz`. Notes use emoji section headers and end
+   with `**Full Changelog**: https://github.com/benmcollins/libjwt/compare/vPREV...vX.Y.Z`.
+
+Tagging and publishing the GitHub Release are the maintainer's call and require CI
+green first.
+
 ## Build Commands
 
 ```bash
