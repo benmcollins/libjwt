@@ -118,8 +118,13 @@ int main(int argc, char *argv[])
 
 		case 'l':
 			printf("Algorithms supported:\n");
-			for (alg = JWT_ALG_NONE; alg < JWT_ALG_INVAL; alg++)
-				printf("    %s\n", jwt_alg_str(alg));
+			for (alg = JWT_ALG_NONE; alg < JWT_ALG_INVAL; alg++) {
+				const char *name = jwt_alg_str(alg);
+				/* An alg compiled out of this build (e.g.
+				 * ML-DSA without WITH_ML_DSA) has no name. */
+				if (name != NULL)
+					printf("    %s\n", name);
+			}
 			exit(EXIT_SUCCESS);
 			break;
 

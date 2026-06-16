@@ -46,6 +46,7 @@ option(WITH_LIBCURL "Whether to include CUrl for retrieving JWKS (default is OFF
 option(WITH_TESTS "Whether to build and run the testsuite (default is ON)" ON)
 option(WITH_KCAPI_MD "Whether to use the Linux Kernel Crypto API to offload hmac (default OFF)" OFF)
 option(WITH_OPENSSL "Whether to use OpenSSL (default is ON)" ON)
+option(WITH_ML_DSA "Whether to enable experimental ML-DSA (FIPS 204) support (default is OFF)" OFF)
 
 # Optional
 if (WITH_GNUTLS)
@@ -72,6 +73,23 @@ endif()
 # the interchangeable crypto backends, like GnuTLS and MbedTLS.
 if (WITH_OPENSSL)
 	pkg_check_modules(OPENSSL openssl>=3.0.0 IMPORTED_TARGET REQUIRED)
+endif()
+
+# Experimental ML-DSA (FIPS 204 / RFC 9964) support. Only OpenSSL >= 3.5 has a
+# real implementation today; GnuTLS and MbedTLS cleanly reject ML-DSA keys.
+# This drives the public LIBJWT_HAVE_ML_DSA macro (emitted in jwt_export.h)
+# which in turn gates every ML-DSA code path. Do NOT bump the OpenSSL floor
+# above; this is an additive capability check, not a new minimum.
+if (WITH_ML_DSA)
+	if (OPENSSL_FOUND AND OPENSSL_VERSION VERSION_GREATER_EQUAL 3.5)
+		set(LIBJWT_HAVE_ML_DSA ON)
+		message(STATUS
+			"ML-DSA (experimental) enabled via OpenSSL ${OPENSSL_VERSION}")
+	else()
+		message(WARNING
+			"WITH_ML_DSA was requested but no capable crypto backend "
+			"was found (needs OpenSSL >= 3.5); ML-DSA stays disabled")
+	endif()
 endif()
 
 add_library(jwt SHARED)
@@ -384,6 +402,10 @@ if (CHECK_FOUND)
 
 	# Checker and Builder
 	list (APPEND UNIT_TESTS jwt_builder jwt_checker jwt_flipflop)
+
+	# ML-DSA (FIPS 204 / RFC 9964). The test is a no-op unless the build
+	# enabled WITH_ML_DSA against a capable backend.
+	list (APPEND UNIT_TESTS jwt_mldsa)
 
 	# JWE
 	list (APPEND UNIT_TESTS jwe_foundation jwe_keys jwe_gcm jwe_cbc

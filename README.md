@@ -52,6 +52,15 @@ JWS Algorithm ``alg``         | OpenSSL            | GnuTLS             | MbedTL
 ``EdDSA`` using ``ED448``     | :white_check_mark: | :white_check_mark: | :x:
 ``PS256`` ``PS384`` ``PS512`` | :white_check_mark: | :white_check_mark: | :white_check_mark:
 ``ES256K``                    | :white_check_mark: | :x:                | :white_check_mark:
+``ML-DSA-44/65/87`` [^mldsa]  | :white_check_mark: | :x:                | :x:
+
+[^mldsa]: ML-DSA (FIPS 204, registered for JOSE by
+[RFC 9964](https://datatracker.ietf.org/doc/rfc9964/)) is **experimental** and
+**off by default**. Build with ``-DWITH_ML_DSA=ON``; it is only enabled when a
+backend with ML-DSA support is present (OpenSSL >= 3.5 today). When built in,
+the public header defines ``LIBJWT_HAVE_ML_DSA``. ML-DSA keys use the ``"AKP"``
+key type with a ``"pub"`` member and a ``"priv"`` member holding the 32-byte
+FIPS-204 seed. GnuTLS and MbedTLS support is not yet implemented.
 
 #### JWE
 

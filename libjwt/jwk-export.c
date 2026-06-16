@@ -77,6 +77,10 @@ static const char *kty_str(jwk_key_type_t kty)
 		return "EC";
 	case JWK_KEY_TYPE_OKP:
 		return "OKP";
+#ifdef LIBJWT_HAVE_ML_DSA
+	case JWK_KEY_TYPE_AKP:
+		return "AKP";
+#endif
 	default:
 		return NULL; // LCOV_EXCL_LINE
 	}

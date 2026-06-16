@@ -188,6 +188,20 @@ static jwk_item_t *jwk_process_one(jwk_set_t *jwk_set, jwt_json_t *jwk)
 	} else if (!strcmp(kty, "OKP")) {
 		item->kty = JWK_KEY_TYPE_OKP;
 		jwt_ops->process_eddsa(item->json, item);
+#ifdef LIBJWT_HAVE_ML_DSA
+	} else if (!strcmp(kty, "AKP")) {
+		item->kty = JWK_KEY_TYPE_AKP;
+		/* Unlike the other process_* ops, process_mldsa may be NULL:
+		 * only backends with ML-DSA support set it. Fail cleanly
+		 * rather than dereferencing a NULL pointer. */
+		if (jwt_ops->process_mldsa == NULL) {
+			jwt_write_error(item, "ML-DSA (AKP) keys are not "
+					"supported by the %s backend",
+					jwt_ops->name);
+			return item;
+		}
+		jwt_ops->process_mldsa(item->json, item);
+#endif
 	} else if (!strcmp(kty, "oct")) {
 		item->kty = JWK_KEY_TYPE_OCT;
 		process_octet(item->json, item);
@@ -698,6 +712,9 @@ static const char **jwk_priv_members(jwk_key_type_t kty)
 	static const char *ec_okp[] = { "d", NULL };
 	static const char *oct[] = { "k", NULL };
 	static const char *none[] = { NULL };
+#ifdef LIBJWT_HAVE_ML_DSA
+	static const char *akp[] = { "priv", NULL };
+#endif
 
 	switch (kty) {
 	case JWK_KEY_TYPE_RSA:
@@ -707,6 +724,10 @@ static const char **jwk_priv_members(jwk_key_type_t kty)
 		return ec_okp;
 	case JWK_KEY_TYPE_OCT:
 		return oct;
+#ifdef LIBJWT_HAVE_ML_DSA
+	case JWK_KEY_TYPE_AKP:
+		return akp;
+#endif
 	// LCOV_EXCL_START
 	default:
 		return none;

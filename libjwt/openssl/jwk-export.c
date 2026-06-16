@@ -130,6 +130,61 @@ static void add_octet(EVP_PKEY *pkey, const char *ossl_param,
 	jwk_export_add(out, name, bin, len);
 }
 
+#ifdef LIBJWT_HAVE_ML_DSA
+/* Like add_octet, but for params too large for a fixed stack buffer: an
+ * ML-DSA public key is 1312-2592 bytes. Probe the length, then heap-allocate. */
+static void add_octet_big(EVP_PKEY *pkey, const char *ossl_param,
+			  jwk_export_t *out, const char *name)
+{
+	unsigned char *bin;
+	size_t len = 0;
+
+	if (!EVP_PKEY_get_octet_string_param(pkey, ossl_param, NULL, 0, &len)
+	    || len == 0)
+		return; // LCOV_EXCL_LINE
+
+	bin = jwt_malloc(len);
+	if (bin == NULL)
+		return; // LCOV_EXCL_LINE
+
+	if (!EVP_PKEY_get_octet_string_param(pkey, ossl_param, bin, len, &len)
+	    || len == 0) {
+		// LCOV_EXCL_START
+		jwt_freemem(bin);
+		return;
+		// LCOV_EXCL_STOP
+	}
+
+	jwk_export_add(out, name, bin, len);
+}
+
+/* For ML-DSA keys (ML-DSA-44/65/87), @rfc{9964}. The public key goes in
+ * "pub"; a private key additionally carries the 32-byte FIPS-204 seed in
+ * "priv". */
+static void export_mldsa(EVP_PKEY *pkey, int priv, jwk_export_t *out)
+{
+	size_t seedlen = 0;
+
+	add_octet_big(pkey, OSSL_PKEY_PARAM_PUB_KEY, out, "pub");
+
+	if (!priv)
+		return;
+
+	/* RFC 9964 represents an ML-DSA private key solely by its 32-byte
+	 * FIPS-204 seed. A key that retains no seed (e.g. one imported from
+	 * only the expanded private key) cannot be expressed as a private AKP
+	 * JWK. Rather than emit a key that claims to be private but carries no
+	 * private material, downgrade it to a public export. */
+	if (!EVP_PKEY_get_octet_string_param(pkey, OSSL_PKEY_PARAM_ML_DSA_SEED,
+					     NULL, 0, &seedlen) || seedlen == 0) {
+		out->is_private = 0;
+		return;
+	}
+
+	add_octet(pkey, OSSL_PKEY_PARAM_ML_DSA_SEED, out, "priv");
+}
+#endif /* LIBJWT_HAVE_ML_DSA */
+
 /* For EC keys (ES256, ES384, ES512, ES256K) */
 static void export_ec(EVP_PKEY *pkey, int priv, jwk_export_t *out)
 {
@@ -221,6 +276,24 @@ int openssl_key2jwk_params(const char *key, size_t len, jwk_export_t *out)
 		return 1;
 
 	out->is_private = priv;
+
+#ifdef LIBJWT_HAVE_ML_DSA
+	/* ML-DSA keys are provider-native and report no base id (0), so they
+	 * are matched by type name rather than in the switch below. */
+	{
+		const char *tn = EVP_PKEY_get0_type_name(pkey);
+
+		if (tn != NULL && (!strcmp(tn, "ML-DSA-44") ||
+				   !strcmp(tn, "ML-DSA-65") ||
+				   !strcmp(tn, "ML-DSA-87"))) {
+			out->kty = JWK_KEY_TYPE_AKP;
+			strcpy(out->alg, tn);
+			export_mldsa(pkey, priv, out);
+			EVP_PKEY_free(pkey);
+			return 0;
+		}
+	}
+#endif
 
 	switch (EVP_PKEY_get_base_id(pkey)) {
 	case EVP_PKEY_RSA:

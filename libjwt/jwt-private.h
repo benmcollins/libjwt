@@ -287,6 +287,9 @@ struct jwt_crypto_ops {
 	int (*process_eddsa)(jwt_json_t *jwk, jwk_item_t *item);
 	int (*process_rsa)(jwt_json_t *jwk, jwk_item_t *item);
 	int (*process_ec)(jwt_json_t *jwk, jwk_item_t *item);
+	/* ML-DSA (AKP) JWK parsing; NULL on backends without ML-DSA support
+	 * (the jwks.c kty dispatch null-guards this and fails cleanly). */
+	int (*process_mldsa)(jwt_json_t *jwk, jwk_item_t *item);
 	void (*process_item_free)(jwk_item_t *item);
 
 	/* Inverse of the process_* ops: parse a native key (PEM or DER) and
@@ -531,6 +534,13 @@ static inline jwk_key_type_t jwt_alg_required_kty(jwt_alg_t alg)
 
 	case JWT_ALG_EDDSA:
 		return JWK_KEY_TYPE_OKP;
+
+#ifdef LIBJWT_HAVE_ML_DSA
+	case JWT_ALG_ML_DSA_44:
+	case JWT_ALG_ML_DSA_65:
+	case JWT_ALG_ML_DSA_87:
+		return JWK_KEY_TYPE_AKP;
+#endif
 
 	// LCOV_EXCL_START
 	default:
