@@ -36,130 +36,132 @@ jobs:
         cmake -B build -DWITH_LIBCURL=YES
         cmake --build build -- all check
 
+  # Vendor compatibility matrix: does libjwt build + pass its tests against the
+  # OpenSSL / GnuTLS that real distros actually ship? OpenSSL is enabled on every
+  # row; GnuTLS is enabled ONLY where the distro's GnuTLS clears libjwt's
+  # pkg-config floor (gnutls >= 3.8.8, CMakeLists.txt) - older distros build
+  # OpenSSL-only (still a useful old-OpenSSL/old-toolchain -Werror check).
+  # The JSON backend alternates per row so json-c (the backend that asserts where
+  # jansson is graceful) is exercised across its 0.16 / 0.17 / 0.18 vendor
+  # versions; jansson is covered here too and by the combo/macos jobs.
+  # Debian has no hosted runner, so stable/oldstable run as containers.
   build-linux:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v5
-    - uses: ConorMacBride/install-package@v1
-      with:
-        apt: gnutls-dev libssl-dev libjansson-dev pkg-config check lcov valgrind libcurl4-openssl-dev bats jq
-
-    - name: Build, Test, and Coverage
-      run: |
-        cmake -B build -DENABLE_COVERAGE=YES -DWITH_LIBCURL=YES
-        cmake --build build -- all check-code-coverage
-
-    - uses: codecov/codecov-action@v5.1.2
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        files: ${{github.workspace}}/build/check-code-coverage.info
-        disable_search: true
-        verbose: true
-
-    - name: Memcheck
-      working-directory: ${{github.workspace}}/build
-      run: ctest -T memcheck
-
-  # OpenSSL is now an optional backend, so the library must build and pass the
-  # test suite with any non-empty subset of {OpenSSL, GnuTLS, MbedTLS}. Exercise
-  # all seven combinations. forky provides all three (GnuTLS >= 3.8.4 and
-  # MbedTLS 3.x); GnuTLS >= 3.8.4 is required for the OpenSSL-less GnuTLS combos
-  # (older GnuTLS has no native JWK/JWE path and relies on the OpenSSL fallback).
-  build-linux-combos:
-    runs-on: ubuntu-latest
-    container:
-      image: debian:forky
+    name: "Compat / ${{ matrix.name }}"
+    runs-on: ${{ matrix.runs-on }}
+    container: ${{ matrix.container }}
+    # ubuntu-26.04 is still a public-preview runner image; don't fail all of CI
+    # if it hiccups.
+    continue-on-error: ${{ matrix.experimental || false }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { name: "MbedTLS",                flags: "-DWITH_OPENSSL=OFF -DWITH_GNUTLS=OFF -DWITH_MBEDTLS=ON" }
-          - { name: "GnuTLS",                 flags: "-DWITH_OPENSSL=OFF -DWITH_GNUTLS=ON -DWITH_MBEDTLS=OFF" }
-          - { name: "OpenSSL",                flags: "-DWITH_OPENSSL=ON -DWITH_GNUTLS=OFF -DWITH_MBEDTLS=OFF" }
-          - { name: "MbedTLS+GnuTLS",         flags: "-DWITH_OPENSSL=OFF -DWITH_GNUTLS=ON -DWITH_MBEDTLS=ON" }
-          - { name: "MbedTLS+OpenSSL",        flags: "-DWITH_OPENSSL=ON -DWITH_GNUTLS=OFF -DWITH_MBEDTLS=ON" }
-          - { name: "GnuTLS+OpenSSL",         flags: "-DWITH_OPENSSL=ON -DWITH_GNUTLS=ON -DWITH_MBEDTLS=OFF" }
-          - { name: "MbedTLS+GnuTLS+OpenSSL", flags: "-DWITH_OPENSSL=ON -DWITH_GNUTLS=ON -DWITH_MBEDTLS=ON" }
-          # Experimental ML-DSA (FIPS 204 / RFC 9964). forky's OpenSSL (>= 3.5)
-          # is ML-DSA-capable, so this row actually exercises the OpenSSL
-          # sign/verify/export path AND the GnuTLS/MbedTLS rejection paths (the
-          # jwt_mldsa tests probe each backend at runtime and skip the ones that
-          # cannot do ML-DSA). No coverage is collected in this job, so the
-          # GnuTLS ML-DSA lines (compiled but unexercised without leancrypto)
-          # do not affect Codecov.
-          - { name: "ML-DSA (OpenSSL 3.6.2)", flags: "-DWITH_OPENSSL=ON -DWITH_GNUTLS=ON -DWITH_MBEDTLS=ON -DWITH_ML_DSA=ON" }
+          # GnuTLS too old for libjwt's floor -> OpenSSL-only compat builds.
+          - { name: "ubuntu-22.04",     runs-on: "ubuntu-22.04",  container: "",                 gnutls: "OFF", json: "jansson" }
+          - { name: "ubuntu-24.04",     runs-on: "ubuntu-24.04",  container: "",                 gnutls: "OFF", json: "json-c"  }
+          - { name: "debian-oldstable", runs-on: "ubuntu-latest", container: "debian:oldstable", gnutls: "OFF", json: "json-c"  }
+          # GnuTLS >= 3.8.8 -> OpenSSL + GnuTLS compat builds.
+          - { name: "debian-stable",    runs-on: "ubuntu-latest", container: "debian:stable",    gnutls: "ON",  json: "jansson" }
+          - { name: "ubuntu-26.04",     runs-on: "ubuntu-26.04",  container: "",                 gnutls: "ON",  json: "json-c", experimental: true }
     steps:
-    - uses: actions/checkout@v5
-    - name: Install dependencies
-      run: |
-        apt-get update
-        apt-get install -y --no-install-recommends \
-          gcc cmake pkg-config make git curl \
-          libssl-dev gnutls-dev libmbedtls-dev libjansson-dev \
-          libcurl4-openssl-dev check bats jq ca-certificates
+      # Minimal Debian containers need git before actions/checkout can clone.
+      # Hosted ubuntu runners already have it (and aren't containers).
+      - name: Bootstrap container
+        if: ${{ matrix.container != '' }}
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends git ca-certificates sudo
 
-    - name: "Build (${{ matrix.name }})"
-      run: |
-        cmake -B build ${{ matrix.flags }} -DWITH_LIBCURL=YES
-        cmake --build build -- all
+      - uses: actions/checkout@v5
 
-    - name: "Test (${{ matrix.name }})"
-      working-directory: ${{github.workspace}}/build
-      run: ctest --output-on-failure
+      - name: Install dependencies
+        run: |
+          PKGS="build-essential cmake pkg-config libssl-dev check bats jq"
+          if [ "${{ matrix.json }}" = "json-c" ]; then
+            PKGS="$PKGS libjson-c-dev"
+          else
+            PKGS="$PKGS libjansson-dev"
+          fi
+          if [ "${{ matrix.gnutls }}" = "ON" ]; then
+            PKGS="$PKGS gnutls-dev"
+          fi
+          if [ "$(id -u)" != "0" ]; then SUDO=sudo; else SUDO=; fi
+          $SUDO apt-get update
+          $SUDO apt-get install -y --no-install-recommends $PKGS
 
-  build-linux-json-c:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v5
-    - uses: ConorMacBride/install-package@v1
-      with:
-        apt: gnutls-dev libssl-dev libjson-c-dev pkg-config check libcurl4-openssl-dev bats jq
+      - name: Build and Test
+        run: |
+          JSON_FLAG=""
+          [ "${{ matrix.json }}" = "json-c" ] && JSON_FLAG="-DWITH_JSON_C=YES"
+          cmake -B build \
+            -DWITH_OPENSSL=ON -DWITH_MBEDTLS=OFF -DWITH_GNUTLS=${{ matrix.gnutls }} \
+            $JSON_FLAG
+          cmake --build build -- all check
 
-    - name: Build and Test with json-c
-      run: |
-        cmake -B build -DWITH_JSON_C=YES -DWITH_LIBCURL=YES
-        cmake --build build -- all check
-
-  # MbedTLS requires >= 3.6.0, which Ubuntu does not package (it ships 2.28).
-  # Debian forky provides mbedtls 3.6.x, so run the MbedTLS matrix in a forky
-  # container. This validates the native MbedTLS JWS/JWK/JWE backend and the
-  # cross-backend interop tests (which loop over every compiled provider).
-  build-linux-mbedtls:
+  # OpenSSL is an optional backend, so the library must build and pass the test
+  # suite with any non-empty subset of {OpenSSL, GnuTLS, MbedTLS}. Exercise the
+  # combinations in the custom CI base image (debian:forky + GnuTLS built
+  # --with-leancrypto + latest MbedTLS 3.6.x LTS) so every backend - including
+  # the GnuTLS ML-DSA success path - is real. See .github/docker/.
+  build-linux-combos:
+    name: "Combo / ${{ matrix.name }}"
     runs-on: ubuntu-latest
     container:
-      image: debian:forky
+      image: ghcr.io/benmcollins/libjwt/gnutls-leancrypto-mbedtls:latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: "MbedTLS",         flags: "-DWITH_OPENSSL=OFF -DWITH_GNUTLS=OFF -DWITH_MBEDTLS=ON" }
+          - { name: "GnuTLS",          flags: "-DWITH_OPENSSL=OFF -DWITH_GNUTLS=ON -DWITH_MBEDTLS=OFF" }
+          - { name: "OpenSSL",         flags: "-DWITH_OPENSSL=ON -DWITH_GNUTLS=OFF -DWITH_MBEDTLS=OFF" }
+          - { name: "MbedTLS+GnuTLS",  flags: "-DWITH_OPENSSL=OFF -DWITH_GNUTLS=ON -DWITH_MBEDTLS=ON" }
+          - { name: "MbedTLS+OpenSSL", flags: "-DWITH_OPENSSL=ON -DWITH_GNUTLS=OFF -DWITH_MBEDTLS=ON" }
+          - { name: "GnuTLS+OpenSSL",  flags: "-DWITH_OPENSSL=ON -DWITH_GNUTLS=ON -DWITH_MBEDTLS=OFF" }
+          # The comprehensive row: all three backends + experimental ML-DSA. This
+          # is the ONLY row that collects coverage (-> Codecov) and runs memcheck.
+          # On this image GnuTLS is built --with-leancrypto, so WITH_ML_DSA=ON
+          # exercises the ML-DSA SUCCESS path on both OpenSSL and GnuTLS (and the
+          # rejection path on MbedTLS) - those lines are run, not just compiled,
+          # so they count toward Codecov instead of dragging codecov/patch down.
+          - { name: "all", flags: "-DWITH_OPENSSL=ON -DWITH_GNUTLS=ON -DWITH_MBEDTLS=ON -DWITH_ML_DSA=ON", coverage: true }
     steps:
     - uses: actions/checkout@v5
-    - name: Install dependencies
-      run: |
-        apt-get update
-        apt-get install -y --no-install-recommends \
-          gcc cmake pkg-config make git curl \
-          libssl-dev gnutls-dev libmbedtls-dev libjansson-dev \
-          libcurl4-openssl-dev check bats jq ca-certificates lcov
 
     # The repo is checked out as a different owner than the container user;
-    # mark it safe so the Codecov action's git calls work.
+    # mark it safe so the coverage/Codecov git calls work.
     - name: Mark workspace safe for git
       run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-    # forky ships GnuTLS >= 3.8.4 and MbedTLS 3.x, so this job exercises the
-    # native MbedTLS backend AND the native GnuTLS JWE path (RSA-OAEP-256,
-    # ECDH-ES, JWK parsing) that Ubuntu's older GnuTLS cannot. Coverage is
-    # collected here too and merged by Codecov with the OpenSSL/GnuTLS-fallback
-    # report from build-linux, so the version-gated native lines are counted.
-    - name: Build, Test, and Coverage (OpenSSL + GnuTLS + MbedTLS)
+    - name: "Build (${{ matrix.name }})"
       run: |
-        cmake -B build -DWITH_MBEDTLS=YES -DWITH_LIBCURL=YES \
-              -DENABLE_COVERAGE=YES
+        cmake -B build ${{ matrix.flags }} -DWITH_LIBCURL=YES \
+          ${{ matrix.coverage && '-DENABLE_COVERAGE=YES' || '' }}
+        cmake --build build -- all
+
+    - name: "Test (${{ matrix.name }})"
+      if: ${{ !matrix.coverage }}
+      working-directory: ${{ github.workspace }}/build
+      run: ctest --output-on-failure
+
+    # ---- comprehensive "all" row only: coverage + memcheck + upload ----
+    - name: "Coverage (${{ matrix.name }})"
+      if: ${{ matrix.coverage }}
+      run: |
         # The genhtml step of check-code-coverage exits non-zero, but the lcov
         # capture (check-code-coverage.info) is produced and is what we upload.
-        cmake --build build -- all check-code-coverage || true
+        cmake --build build -- check-code-coverage || true
         test -f build/check-code-coverage.info
 
+    - name: "Memcheck (${{ matrix.name }})"
+      if: ${{ matrix.coverage }}
+      working-directory: ${{ github.workspace }}/build
+      run: ctest -T memcheck
+
     - uses: codecov/codecov-action@v5.1.2
+      if: ${{ matrix.coverage }}
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        files: ${{github.workspace}}/build/check-code-coverage.info
+        files: ${{ github.workspace }}/build/check-code-coverage.info
         disable_search: true
         verbose: true
