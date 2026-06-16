@@ -79,6 +79,9 @@ static int gnutls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 	gnutls_digest_algorithm_t alg;
 	int pk_alg, flags = 0;
 	unsigned int adj = 0;
+	/* Non-zero selects a one-shot gnutls_sign_algorithm_t (ML-DSA), which
+	 * signs via sign_data2() instead of the digest-based sign_data(). */
+	int sign_algo = 0;
 
 	if (gnutls_privkey_init(&privkey))
 		SIGN_ERROR("Error initializing privkey"); // LCOV_EXCL_LINE
@@ -163,6 +166,27 @@ static int gnutls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 			SIGN_ERROR("Unknown EdDSA key"); // LCOV_EXCL_LINE
 		}
 		break;
+
+#if defined(LIBJWT_HAVE_ML_DSA) && GNUTLS_VERSION_NUMBER >= 0x03080a
+	/* ML-DSA (FIPS 204): one-shot via sign_data2(). pk_alg is the expected
+	 * variant so the shared check below rejects a mismatched key. */
+	case JWT_ALG_ML_DSA_44:
+		alg = GNUTLS_DIG_UNKNOWN;
+		pk_alg = GNUTLS_PK_MLDSA44;
+		sign_algo = GNUTLS_SIGN_MLDSA44;
+		break;
+	case JWT_ALG_ML_DSA_65:
+		alg = GNUTLS_DIG_UNKNOWN;
+		pk_alg = GNUTLS_PK_MLDSA65;
+		sign_algo = GNUTLS_SIGN_MLDSA65;
+		break;
+	case JWT_ALG_ML_DSA_87:
+		alg = GNUTLS_DIG_UNKNOWN;
+		pk_alg = GNUTLS_PK_MLDSA87;
+		sign_algo = GNUTLS_SIGN_MLDSA87;
+		break;
+#endif
+
 	// LCOV_EXCL_START
 	default:
 		SIGN_ERROR("Unknown signing alg");
@@ -179,9 +203,14 @@ static int gnutls_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 		SIGN_ERROR("Alg mismatch with signing key"); // LCOV_EXCL_LINE
 	}
 
-	if (gnutls_privkey_sign_data(privkey, alg, flags,
-                                &body_dat, &sig_dat))
+	if (sign_algo) {
+		if (gnutls_privkey_sign_data2(privkey, sign_algo, 0,
+					      &body_dat, &sig_dat))
+			SIGN_ERROR("Failed to sign token"); // LCOV_EXCL_LINE
+	} else if (gnutls_privkey_sign_data(privkey, alg, flags,
+                                &body_dat, &sig_dat)) {
 		SIGN_ERROR("Failed to sign token"); // LCOV_EXCL_LINE
+	}
 
 	if (pk_alg == GNUTLS_PK_EC) {
 		/* Start EC handling. */
@@ -346,6 +375,21 @@ static int gnutls_verify_sha_pem(jwt_t *jwt, const char *head,
 			VERIFY_ERROR("Unknown EdDSA key type"); // LCOV_EXCL_LINE
 		}
 		break;
+
+#if defined(LIBJWT_HAVE_ML_DSA) && GNUTLS_VERSION_NUMBER >= 0x03080a
+	/* ML-DSA (FIPS 204): one-shot; the default branch below calls
+	 * gnutls_pubkey_verify_data2() with this sign algorithm. */
+	case JWT_ALG_ML_DSA_44:
+		alg = GNUTLS_SIGN_MLDSA44;
+		break;
+	case JWT_ALG_ML_DSA_65:
+		alg = GNUTLS_SIGN_MLDSA65;
+		break;
+	case JWT_ALG_ML_DSA_87:
+		alg = GNUTLS_SIGN_MLDSA87;
+		break;
+#endif
+
 	// LCOV_EXCL_START
 	default:
 		VERIFY_ERROR("Unknown alg");
@@ -422,6 +466,9 @@ struct jwt_crypto_ops jwt_gnutls_ops = {
 	.jwk_implemented	= 1,
 	/* Native GnuTLS JWK parsing + RSA-OAEP + ECDH-ES (GnuTLS >= 3.8.4). */
 	.process_eddsa		= gnutls_process_eddsa,
+#if defined(LIBJWT_HAVE_ML_DSA) && GNUTLS_VERSION_NUMBER >= 0x03080a
+	.process_mldsa		= gnutls_process_mldsa,
+#endif
 	.process_rsa		= gnutls_process_rsa,
 	.process_ec		= gnutls_process_ec,
 	.process_item_free	= gnutls_process_item_free,

@@ -8,8 +8,9 @@
 
 /* Tests for ML-DSA (FIPS 204 / RFC 9964) signing. These only do anything in a
  * build configured with -DWITH_ML_DSA=ON against a backend that implements it
- * (OpenSSL >= 3.5); otherwise LIBJWT_HAVE_ML_DSA is undefined and the suite is
- * an intentional no-op so the test binary still builds and passes. */
+ * (OpenSSL >= 3.5, or a PQC-enabled GnuTLS >= 3.8.10); otherwise
+ * LIBJWT_HAVE_ML_DSA is undefined and the suite is an intentional no-op so the
+ * test binary still builds and passes. */
 
 #ifdef LIBJWT_HAVE_ML_DSA
 
@@ -28,16 +29,43 @@ static const struct {
 	  "eyJhbGciOiJNTC1EU0EtODciLCJ0eXAiOiJKV1QifQ" },
 };
 
-/* Build a token with the private key, verify it with the public key. ML-DSA is
- * OpenSSL-only for now, so the test is meaningful only on that backend; the
- * other backends are exercised by test_mldsa_unsupported below. */
+/* Whether the *active* crypto backend can actually use ML-DSA at runtime.
+ * Compiled-in support is necessary but not sufficient: GnuTLS only does ML-DSA
+ * when built against a PQC provider (leancrypto), so probe by loading a known
+ * AKP private key under the current ops. Lets the success tests run on every
+ * capable backend (OpenSSL and a PQC-enabled GnuTLS) and skip the rest. */
+static int mldsa_supported(void)
+{
+	jwk_set_auto_t *set = NULL;
+	const jwk_item_t *item;
+	char *path;
+	int ok;
+
+	if (asprintf(&path, KEYDIR "/mldsa_key_44.json") < 0)
+		return 0; // LCOV_EXCL_LINE
+	set = jwks_create_fromfile(path);
+	free(path);
+	if (set == NULL)
+		return 0; // LCOV_EXCL_LINE
+
+	item = jwks_item_get(set, 0);
+	ok = (item != NULL && jwks_item_error(item) == 0 &&
+	      jwks_item_kty(item) == JWK_KEY_TYPE_AKP &&
+	      jwks_item_is_private(item));
+
+	return ok;
+}
+
+/* Build a token with the private key, verify it with the public key. Runs on
+ * any backend that can do ML-DSA at runtime (probed via mldsa_supported());
+ * backends that lack it are exercised by test_mldsa_unsupported below. */
 START_TEST(test_mldsa_sign_verify)
 {
 	size_t i;
 
 	SET_OPS();
 
-	if (jwt_test_ops[_i].type != JWT_CRYPTO_OPS_OPENSSL)
+	if (!mldsa_supported())
 		return;
 
 	for (i = 0; i < ARRAY_SIZE(variants); i++) {
@@ -125,7 +153,7 @@ START_TEST(test_mldsa_cross_variant)
 
 	SET_OPS();
 
-	if (jwt_test_ops[_i].type != JWT_CRYPTO_OPS_OPENSSL)
+	if (!mldsa_supported())
 		return;
 
 	/* Sign with ML-DSA-44. */
@@ -172,7 +200,7 @@ START_TEST(test_mldsa_unsupported)
 
 	SET_OPS();
 
-	if (jwt_test_ops[_i].type == JWT_CRYPTO_OPS_OPENSSL)
+	if (mldsa_supported())
 		return;
 
 	ret = asprintf(&path, KEYDIR "/mldsa_key_44.json");
@@ -190,8 +218,8 @@ START_TEST(test_mldsa_unsupported)
 END_TEST
 #endif /* HAVE_GNUTLS || HAVE_MBEDTLS */
 
-/* Malformed AKP JWKs must be rejected with an item error (OpenSSL backend,
- * which is where process_mldsa actually runs). */
+/* Malformed AKP JWKs must be rejected with an item error (on any ML-DSA-capable
+ * backend, i.e. wherever process_mldsa actually runs). */
 START_TEST(test_mldsa_parse_errors)
 {
 	static const char *bad[] = {
@@ -207,12 +235,16 @@ START_TEST(test_mldsa_parse_errors)
 		"{\"kty\":\"AKP\",\"alg\":\"ML-DSA-44\",\"pub\":\"\"}",
 		/* undecodable "priv" (seed) */
 		"{\"kty\":\"AKP\",\"alg\":\"ML-DSA-44\",\"priv\":\"\"}",
+		/* wrong-size "pub" (valid base64url, but not the variant length) */
+		"{\"kty\":\"AKP\",\"alg\":\"ML-DSA-44\",\"pub\":\"AAAA\"}",
+		/* wrong-size "priv" seed (valid base64url, but not 32 bytes) */
+		"{\"kty\":\"AKP\",\"alg\":\"ML-DSA-44\",\"priv\":\"AAAA\"}",
 	};
 	size_t i;
 
 	SET_OPS();
 
-	if (jwt_test_ops[_i].type != JWT_CRYPTO_OPS_OPENSSL)
+	if (!mldsa_supported())
 		return;
 
 	for (i = 0; i < ARRAY_SIZE(bad); i++) {
@@ -228,7 +260,7 @@ START_TEST(test_mldsa_parse_errors)
 END_TEST
 
 /* Native key (PEM/DER) -> JWK export, public stripping, and re-import.
- * Exercises the OpenSSL key2jwk export path for ML-DSA. */
+ * Exercises the key2jwk export path for ML-DSA on any capable backend. */
 START_TEST(test_mldsa_export)
 {
 	static const char *pems[] = {
@@ -238,7 +270,7 @@ START_TEST(test_mldsa_export)
 
 	SET_OPS();
 
-	if (jwt_test_ops[_i].type != JWT_CRYPTO_OPS_OPENSSL)
+	if (!mldsa_supported())
 		return;
 
 	for (i = 0; i < ARRAY_SIZE(pems); i++) {
@@ -300,7 +332,7 @@ START_TEST(test_mldsa_export_seedless)
 
 	SET_OPS();
 
-	if (jwt_test_ops[_i].type != JWT_CRYPTO_OPS_OPENSSL)
+	if (!mldsa_supported())
 		return;
 
 	ret = asprintf(&path, KEYDIR "/mldsa-pem/mldsa_key_44_seedless.pem");
@@ -335,7 +367,7 @@ START_TEST(test_mldsa_der_matches_pem)
 
 	SET_OPS();
 
-	if (jwt_test_ops[_i].type != JWT_CRYPTO_OPS_OPENSSL)
+	if (!mldsa_supported())
 		return;
 
 	for (i = 0; i < ARRAY_SIZE(pairs); i++) {

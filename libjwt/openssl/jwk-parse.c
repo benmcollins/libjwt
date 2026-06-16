@@ -318,7 +318,7 @@ cleanup_eddsa:
 	return ret;
 }
 
-#ifdef LIBJWT_HAVE_ML_DSA
+#if defined(LIBJWT_HAVE_ML_DSA) && OPENSSL_VERSION_NUMBER >= 0x30500000L
 /* For ML-DSA keys (ML-DSA-44/65/87), @rfc{9964}. AKP keys have no curve;
  * the variant is taken from the (required) "alg" member. The public key is
  * carried raw in "pub" and the private key as the 32-byte FIPS-204 seed in

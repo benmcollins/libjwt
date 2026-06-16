@@ -130,7 +130,7 @@ static void add_octet(EVP_PKEY *pkey, const char *ossl_param,
 	jwk_export_add(out, name, bin, len);
 }
 
-#ifdef LIBJWT_HAVE_ML_DSA
+#if defined(LIBJWT_HAVE_ML_DSA) && OPENSSL_VERSION_NUMBER >= 0x30500000L
 /* Like add_octet, but for params too large for a fixed stack buffer: an
  * ML-DSA public key is 1312-2592 bytes. Probe the length, then heap-allocate. */
 static void add_octet_big(EVP_PKEY *pkey, const char *ossl_param,
@@ -277,7 +277,7 @@ int openssl_key2jwk_params(const char *key, size_t len, jwk_export_t *out)
 
 	out->is_private = priv;
 
-#ifdef LIBJWT_HAVE_ML_DSA
+#if defined(LIBJWT_HAVE_ML_DSA) && OPENSSL_VERSION_NUMBER >= 0x30500000L
 	/* ML-DSA keys are provider-native and report no base id (0), so they
 	 * are matched by type name rather than in the switch below. */
 	{
