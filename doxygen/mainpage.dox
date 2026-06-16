@@ -47,6 +47,14 @@ JWS Algorithm ``alg``         | OpenSSL                   | GnuTLS              
 ``PS256`` ``PS384`` ``PS512`` | \emoji :white_check_mark: | \emoji :white_check_mark: | \emoji :white_check_mark:
 ``ES256K``                    | \emoji :white_check_mark: | \emoji :x:                | \emoji :white_check_mark:
 
+@note On the GnuTLS backend, loading a "seed-only" OKP private JWK (an
+``Ed25519``/``Ed448`` key with ``d`` but no public coordinate ``x``) requires
+GnuTLS >= 3.8.13 — older GnuTLS crashes deriving the public key, so LibJWT
+rejects such keys. A key that carries ``x``, any public key, and PEM/DER keys
+are unaffected (as are the OpenSSL and MbedTLS backends). The version is checked
+at runtime, so upgrading the shared ``libgnutls`` lifts this without rebuilding
+LibJWT.
+
 @subsubsection jwe_support JWE
 
 LibJWT supports JWE (RFC 7516) Compact Serialization with a single recipient,
@@ -74,7 +82,8 @@ wrapping, on the EC curves P-256/384/521 and the OKP curves X25519/X448, with
 optional ``apu``/``apv`` PartyInfo. ``RSA1_5`` and ``zip`` are intentionally
 not supported. Each backend implements JWE natively. GnuTLS/Nettle cannot
 perform RSA-OAEP with SHA-1, so the GnuTLS backend does not support plain
-``RSA-OAEP`` (``RSA-OAEP-256`` is native).
+``RSA-OAEP`` (``RSA-OAEP-256`` is native). The ``X25519``/``X448`` OKP curves
+require GnuTLS >= 3.8.13 on the GnuTLS backend (checked at runtime).
 
 @subsection optional Optional
 

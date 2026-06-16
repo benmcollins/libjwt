@@ -446,6 +446,8 @@ static void okp_roundtrip(const char *keyfile, jwe_key_alg_t alg,
 START_TEST(x25519_direct)
 {
 	SET_OPS();
+	if (gnutls_okp_jwk_broken(jwt_test_ops[_i].type))
+		return;
 	okp_roundtrip("okp_x25519_enc.json", JWE_ALG_ECDH_ES, JWE_ENC_A256GCM);
 }
 END_TEST
@@ -453,6 +455,8 @@ END_TEST
 START_TEST(x25519_cbc)
 {
 	SET_OPS();
+	if (gnutls_okp_jwk_broken(jwt_test_ops[_i].type))
+		return;
 	okp_roundtrip("okp_x25519_enc.json", JWE_ALG_ECDH_ES,
 		      JWE_ENC_A128CBC_HS256);
 }
@@ -461,6 +465,8 @@ END_TEST
 START_TEST(x25519_kw)
 {
 	SET_OPS();
+	if (gnutls_okp_jwk_broken(jwt_test_ops[_i].type))
+		return;
 	okp_roundtrip("okp_x25519_enc.json", JWE_ALG_ECDH_ES_A256KW,
 		      JWE_ENC_A256GCM);
 }
@@ -469,6 +475,8 @@ END_TEST
 START_TEST(x448_direct)
 {
 	SET_OPS();
+	if (gnutls_okp_jwk_broken(jwt_test_ops[_i].type))
+		return;
 	okp_roundtrip("okp_x448_enc.json", JWE_ALG_ECDH_ES, JWE_ENC_A256GCM);
 }
 END_TEST
@@ -498,6 +506,9 @@ START_TEST(okp_curve_mismatch)
 	size_t pt_len = 0;
 
 	SET_OPS();
+
+	if (gnutls_okp_jwk_broken(jwt_test_ops[_i].type))
+		return;
 
 	/* Encrypt to an X25519 recipient... */
 	read_json("okp_x25519_enc.json");

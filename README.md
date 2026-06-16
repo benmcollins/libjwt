@@ -48,8 +48,8 @@ JWS Algorithm ``alg``         | OpenSSL            | GnuTLS             | MbedTL
 ``HS256`` ``HS384`` ``HS512`` | :white_check_mark: | :white_check_mark: | :white_check_mark:
 ``ES256`` ``ES384`` ``ES512`` | :white_check_mark: | :white_check_mark: | :white_check_mark:
 ``RS256`` ``RS384`` ``RS512`` | :white_check_mark: | :white_check_mark: | :white_check_mark:
-``EdDSA`` using ``ED25519``   | :white_check_mark: | :white_check_mark: | :x:
-``EdDSA`` using ``ED448``     | :white_check_mark: | :white_check_mark: | :x:
+``EdDSA`` using ``ED25519`` [^okp3813] | :white_check_mark: | :white_check_mark: | :x:
+``EdDSA`` using ``ED448`` [^okp3813] | :white_check_mark: | :white_check_mark: | :x:
 ``PS256`` ``PS384`` ``PS512`` | :white_check_mark: | :white_check_mark: | :white_check_mark:
 ``ES256K``                    | :white_check_mark: | :x:                | :white_check_mark:
 ``ML-DSA-44/65/87`` [^mldsa]  | :white_check_mark: | :white_check_mark: | :x:
@@ -62,6 +62,15 @@ built against a PQC provider (e.g. ``--with-leancrypto``). When built in, the
 public header defines ``LIBJWT_HAVE_ML_DSA``. ML-DSA keys use the ``"AKP"`` key
 type with a ``"pub"`` member and a ``"priv"`` member holding the 32-byte
 FIPS-204 seed. MbedTLS has no ML-DSA and rejects ``AKP`` keys.
+
+[^okp3813]: On the **GnuTLS** backend these specific cases need **GnuTLS >=
+3.8.13**: (a) loading an OKP *private* JWK supplied without its public
+coordinate ``x`` — a "seed-only" ``Ed25519``/``Ed448`` key (older GnuTLS
+crashes deriving the public key); and (b) ``ECDH-ES`` with the ``X25519`` and
+``X448`` curves. Anything that carries ``x`` (including every public key and
+every PEM/DER key) is unaffected, as are the OpenSSL and MbedTLS backends. The
+version is checked at **runtime**, so upgrading the shared ``libgnutls`` to >=
+3.8.13 lifts the restriction without rebuilding LibJWT.
 
 #### JWE
 
@@ -89,7 +98,7 @@ JWE key management ``alg``    | OpenSSL            | GnuTLS             | MbedTL
 ``A128KW`` ``A192KW`` ``A256KW`` | :white_check_mark: | :white_check_mark: | :white_check_mark:
 ``RSA-OAEP`` (SHA-1)          | :white_check_mark: | :x:                | :white_check_mark:
 ``RSA-OAEP-256``              | :white_check_mark: | :white_check_mark: | :white_check_mark:
-``ECDH-ES`` (+ ``+A128KW``/``+A192KW``/``+A256KW``) | :white_check_mark: | :white_check_mark: | :white_check_mark:
+``ECDH-ES`` (+ ``+A128KW``/``+A192KW``/``+A256KW``) [^okp3813] | :white_check_mark: | :white_check_mark: | :white_check_mark:
 
 JWE content encryption ``enc`` | OpenSSL            | GnuTLS             | MbedTLS
 :----------------------------- | :----------------- | :----------------- | :-----------------

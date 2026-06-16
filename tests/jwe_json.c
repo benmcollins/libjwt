@@ -124,6 +124,8 @@ END_TEST
 START_TEST(general_ecdh_kw)
 {
 	SET_OPS();
+	if (gnutls_okp_jwk_broken(jwt_test_ops[_i].type))
+		return;
 	roundtrip("okp_x25519_enc.json", JWE_ALG_ECDH_ES_A128KW,
 		  JWE_ENC_A256GCM, JWE_FORMAT_JSON_GENERAL);
 }

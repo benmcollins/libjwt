@@ -62,6 +62,15 @@ START_TEST(test_jwks_keyring_load)
 			continue;
 		}
 
+		/* GnuTLS < 3.8.13 cannot import a seed-only OKP private key (no 'x';
+		 * it crashes deriving the public key) and rejects X25519/X448. Such
+		 * keys load fine on GnuTLS >= 3.8.13 and on the other backends; skip
+		 * the ones this backend rejected. */
+		if (jwks_item_kty(item) == JWK_KEY_TYPE_OKP &&
+		    gnutls_okp_jwk_broken(jwt_test_ops[_i].type) &&
+		    jwks_item_error(item))
+			continue;
+
 		if (jwks_item_error(item)) {
 			fprintf(stderr, "Err KID: %s\n",
 				jwks_item_kid(item));
@@ -124,8 +133,15 @@ START_TEST(test_jwks_keyring_load)
 	 * keys. */
 	i = jwks_item_free_bad(g_jwk_set);
 	if (gnutls_native_jwk(jwt_test_ops[_i].type)) {
-		ck_assert_int_eq(i, 1);
-		ck_assert_int_eq(jwks_item_count(g_jwk_set), 25);
+		if (gnutls_okp_jwk_broken(jwt_test_ops[_i].type)) {
+			/* Plus the two seed-only OKP private keys (Ed25519, Ed448)
+			 * that GnuTLS < 3.8.13 cannot import. */
+			ck_assert_int_eq(i, 3);
+			ck_assert_int_eq(jwks_item_count(g_jwk_set), 23);
+		} else {
+			ck_assert_int_eq(i, 1);
+			ck_assert_int_eq(jwks_item_count(g_jwk_set), 25);
+		}
 	} else if (jwt_test_ops[_i].type == JWT_CRYPTO_OPS_MBEDTLS) {
 		/* The two 8192-bit RSA keys exceed the PSA RSA size limit and
 		 * were rejected at parse. */

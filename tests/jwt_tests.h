@@ -46,6 +46,27 @@ static jwt_test_op_t jwt_test_ops[] = {
 #endif
 };
 
+#ifdef HAVE_GNUTLS
+#include <gnutls/gnutls.h>
+#endif
+
+/* GnuTLS < 3.8.13 crashes importing a seed-only OKP private key (no 'x') and
+ * cannot do X25519/X448 ECDH-ES; libjwt rejects those on such versions (see
+ * libjwt/gnutls/jwk-parse.c). Tests use this to skip the affected keys when the
+ * active backend is an affected GnuTLS. Mirrors the library gate: the #if is the
+ * build-time version, gnutls_check_version() the runtime one, so an upgraded
+ * libgnutls (>= 3.8.13) makes both the library and these tests use the keys. */
+static inline int gnutls_okp_jwk_broken(jwt_crypto_provider_t type)
+{
+#if defined(HAVE_GNUTLS) && GNUTLS_VERSION_NUMBER < 0x03080d
+	return type == JWT_CRYPTO_OPS_GNUTLS &&
+	       gnutls_check_version("3.8.13") == NULL;
+#else
+	(void)type;
+	return 0;
+#endif
+}
+
 #define JWT_TEST_MAIN(__title) ({					\
 	int number_failed = 0;						\
 	SRunner *sr;							\

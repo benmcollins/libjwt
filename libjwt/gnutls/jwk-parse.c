@@ -434,6 +434,36 @@ int gnutls_process_eddsa(jwt_json_t *jwk, jwk_item_t *item)
 		goto out;
 	}
 
+#if GNUTLS_VERSION_NUMBER < 0x03080d
+	/* GnuTLS < 3.8.13 has two OKP defects; reject the affected keys here with
+	 * a clean error instead of crashing/failing downstream. Both work on
+	 * >= 3.8.13 (and on the OpenSSL/MbedTLS backends).
+	 *   1. gnutls_privkey_import_ecc_raw() SEGFAULTS deriving the public key
+	 *      for a private OKP key supplied without its public coordinate 'x'
+	 *      (a "seed-only" private key). A key that includes 'x', and any
+	 *      public key, imports fine — including the PEM/DER path, whose JWK
+	 *      export always carries 'x'.
+	 *   2. X25519/X448 ECDH-ES key agreement does not work (derive yields
+	 *      nothing), even when the key includes 'x'.
+	 * The #if is the BUILD-time GnuTLS (so this is absent when built against
+	 * >= 3.8.13); gnutls_check_version() is the RUNTIME GnuTLS, so upgrading
+	 * the shared libgnutls to >= 3.8.13 lifts these without rebuilding libjwt. */
+	if (gnutls_check_version("3.8.13") == NULL) {
+		if (curve == GNUTLS_ECC_CURVE_X25519 ||
+		    curve == GNUTLS_ECC_CURVE_X448) {
+			jwt_write_error(item,
+				"OKP curve [%s] requires GnuTLS >= 3.8.13", crv);
+			goto out;
+		}
+		if (jd != NULL && jwt_json_is_string(jd) &&
+		    (jx == NULL || !jwt_json_is_string(jx))) {
+			jwt_write_error(item, "A seed-only OKP private key "
+				"(no 'x') requires GnuTLS >= 3.8.13");
+			goto out;
+		}
+	}
+#endif
+
 	if (jx != NULL && jwt_json_is_string(jx) && decode_member(jwk, "x", &x)) {
 		jwt_write_error(item, "Error decoding OKP x"); // LCOV_EXCL_LINE
 		goto out; // LCOV_EXCL_LINE

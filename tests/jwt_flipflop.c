@@ -135,6 +135,13 @@ static void __flip_one(const char *priv, const char *pub, jwt_alg_t alg,
 		    jwt_test_ops[i].type == JWT_CRYPTO_OPS_MBEDTLS)
 			continue;
 
+		/* The eddsa_key_ed448 fixture is a seed-only OKP private key (no
+		 * 'x'); GnuTLS < 3.8.13 crashes deriving its public key, so libjwt
+		 * rejects it there. Skip generating with it (works on >= 3.8.13). */
+		if (strstr(priv, "ed448") &&
+		    gnutls_okp_jwk_broken(jwt_test_ops[i].type))
+			continue;
+
 		/* Generate on Here */
 		out = __builder(jwt_test_ops[i].name, priv, alg);
 		if (out == NULL)
@@ -145,6 +152,10 @@ static void __flip_one(const char *priv, const char *pub, jwt_alg_t alg,
 
 			if ((alg == JWT_ALG_EDDSA || mbedtls_skip) &&
 			    jwt_test_ops[c].type == JWT_CRYPTO_OPS_MBEDTLS)
+				continue;
+
+			if (strstr(pub, "ed448") &&
+			    gnutls_okp_jwk_broken(jwt_test_ops[c].type))
 				continue;
 
 			__checker(jwt_test_ops[c].name, pub, alg, out);
