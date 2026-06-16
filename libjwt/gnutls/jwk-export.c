@@ -284,6 +284,101 @@ out:
 	return ret;
 }
 
+#if defined(LIBJWT_HAVE_ML_DSA) && GNUTLS_VERSION_NUMBER >= 0x03080a
+/* ML-DSA (AKP), @rfc{9964}. GnuTLS has no raw ML-DSA export, so recover the
+ * raw public key from the SubjectPublicKeyInfo and the 32-byte seed from a
+ * seed-form PKCS#8. Both share the fixed 22-byte ASN.1 prefix that jwk-parse.c
+ * builds when importing. */
+#define MLDSA_DER_PREFIX 22
+static int export_mldsa(gnutls_privkey_t priv, gnutls_pubkey_t pub,
+			const gnutls_datum_t *raw, int is_priv,
+			jwk_export_t *out)
+{
+	gnutls_pubkey_t tmp_pub = NULL;
+	gnutls_x509_privkey_t x509 = NULL;
+	gnutls_datum_t spki = { NULL, 0 }, p8 = { NULL, 0 };
+	int ret = 1;
+
+	/* For a private key, derive the pubkey to obtain its SPKI. */
+	if (pub == NULL) {
+		if (gnutls_pubkey_init(&tmp_pub) ||
+		    gnutls_pubkey_import_privkey(tmp_pub, priv, 0, 0))
+			goto out; // LCOV_EXCL_LINE
+		pub = tmp_pub;
+	}
+
+	if (gnutls_pubkey_export2(pub, GNUTLS_X509_FMT_DER, &spki))
+		goto out; // LCOV_EXCL_LINE
+	if (spki.size <= MLDSA_DER_PREFIX)
+		goto out; // LCOV_EXCL_LINE
+	add_raw(out, "pub", spki.data + MLDSA_DER_PREFIX,
+		spki.size - MLDSA_DER_PREFIX);
+
+	if (is_priv) {
+		gnutls_datum_t plain = { NULL, 0 };
+		int has_seed;
+
+		/* Recover the 32-byte seed via a seed-form PKCS#8 export (a
+		 * 22-byte prefix + the seed). Re-import the original key bytes
+		 * directly as an x509: exporting via gnutls_privkey_export_x509()
+		 * and then a seed PKCS#8 crashes some GnuTLS/leancrypto builds. */
+		if (gnutls_x509_privkey_init(&x509))
+			goto out; // LCOV_EXCL_LINE
+		if (gnutls_x509_privkey_import(x509, raw, GNUTLS_X509_FMT_PEM) &&
+		    gnutls_x509_privkey_import(x509, raw, GNUTLS_X509_FMT_DER))
+			goto out; // LCOV_EXCL_LINE
+
+		/* The seed-form export below null-derefs inside GnuTLS on an
+		 * expanded-only private key (one carrying no FIPS-204 seed), so
+		 * first probe for the seed with a plain PKCS#8 export, which never
+		 * crashes. In the "30 82 .. 02 01 00 <algid:13> 04 82 .. <priv>"
+		 * structure the private-key content (offset 24) is a SEQUENCE/[0]
+		 * (0x30/0x80) when a seed is present, but an OCTET STRING (0x04)
+		 * for an expanded-only key. */
+		if (gnutls_x509_privkey_export2_pkcs8(x509, GNUTLS_X509_FMT_DER,
+						      NULL, GNUTLS_PKCS_PLAIN,
+						      &plain))
+			goto out; // LCOV_EXCL_LINE
+		has_seed = (plain.size > 24 && plain.data[20] == 0x04 &&
+			    plain.data[21] == 0x82 &&
+			    (plain.data[24] == 0x30 || plain.data[24] == 0x80));
+		gnutls_free(plain.data);
+
+		if (!has_seed) {
+			/* An expanded-only private key cannot be a private AKP
+			 * JWK, so downgrade to a public-only export (matching the
+			 * OpenSSL backend) rather than emit a private JWK with no
+			 * "priv" — or crash trying. */
+			out->is_private = 0;
+			ret = 0;
+			goto out;
+		}
+
+		if (gnutls_x509_privkey_export2_pkcs8(x509, GNUTLS_X509_FMT_DER,
+						      NULL, GNUTLS_PKCS_PLAIN |
+						      GNUTLS_PKCS_MLDSA_SEED,
+						      &p8))
+			goto out; // LCOV_EXCL_LINE
+		if (p8.size != MLDSA_DER_PREFIX + 32)
+			goto out; // LCOV_EXCL_LINE
+		add_raw(out, "priv", p8.data + MLDSA_DER_PREFIX, 32);
+	}
+
+	ret = 0;
+
+out:
+	if (tmp_pub)
+		gnutls_pubkey_deinit(tmp_pub);
+	if (x509)
+		gnutls_x509_privkey_deinit(x509);
+	gnutls_free(spki.data);
+	jwt_cleanse(p8.data, p8.size);
+	gnutls_free(p8.data);
+
+	return ret;
+}
+#endif /* LIBJWT_HAVE_ML_DSA && GNUTLS >= 3.8.10 */
+
 JWT_NO_EXPORT
 int gnutls_key2jwk_params(const char *key, size_t len, jwk_export_t *out)
 {
@@ -340,6 +435,24 @@ int gnutls_key2jwk_params(const char *key, size_t len, jwk_export_t *out)
 		strcpy(out->alg, "EdDSA");
 		ret = export_okp(priv, pub, is_priv, out);
 		break;
+
+#if defined(LIBJWT_HAVE_ML_DSA) && GNUTLS_VERSION_NUMBER >= 0x03080a
+	case GNUTLS_PK_MLDSA44:
+		out->kty = JWK_KEY_TYPE_AKP;
+		strcpy(out->alg, "ML-DSA-44");
+		ret = export_mldsa(priv, pub, &data, is_priv, out);
+		break;
+	case GNUTLS_PK_MLDSA65:
+		out->kty = JWK_KEY_TYPE_AKP;
+		strcpy(out->alg, "ML-DSA-65");
+		ret = export_mldsa(priv, pub, &data, is_priv, out);
+		break;
+	case GNUTLS_PK_MLDSA87:
+		out->kty = JWK_KEY_TYPE_AKP;
+		strcpy(out->alg, "ML-DSA-87");
+		ret = export_mldsa(priv, pub, &data, is_priv, out);
+		break;
+#endif
 
 	// LCOV_EXCL_START
 	default:

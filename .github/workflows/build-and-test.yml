@@ -80,6 +80,14 @@ jobs:
           - { name: "MbedTLS+OpenSSL",        flags: "-DWITH_OPENSSL=ON -DWITH_GNUTLS=OFF -DWITH_MBEDTLS=ON" }
           - { name: "GnuTLS+OpenSSL",         flags: "-DWITH_OPENSSL=ON -DWITH_GNUTLS=ON -DWITH_MBEDTLS=OFF" }
           - { name: "MbedTLS+GnuTLS+OpenSSL", flags: "-DWITH_OPENSSL=ON -DWITH_GNUTLS=ON -DWITH_MBEDTLS=ON" }
+          # Experimental ML-DSA (FIPS 204 / RFC 9964). forky's OpenSSL (>= 3.5)
+          # is ML-DSA-capable, so this row actually exercises the OpenSSL
+          # sign/verify/export path AND the GnuTLS/MbedTLS rejection paths (the
+          # jwt_mldsa tests probe each backend at runtime and skip the ones that
+          # cannot do ML-DSA). No coverage is collected in this job, so the
+          # GnuTLS ML-DSA lines (compiled but unexercised without leancrypto)
+          # do not affect Codecov.
+          - { name: "ML-DSA (OpenSSL 3.6.2)", flags: "-DWITH_OPENSSL=ON -DWITH_GNUTLS=ON -DWITH_MBEDTLS=ON -DWITH_ML_DSA=ON" }
     steps:
     - uses: actions/checkout@v5
     - name: Install dependencies

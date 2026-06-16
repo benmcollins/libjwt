@@ -190,7 +190,7 @@ static int openssl_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 			SIGN_ERROR("Unknown EdDSA curve"); // LCOV_EXCL_LINE
 		break;
 
-#ifdef LIBJWT_HAVE_ML_DSA
+#if defined(LIBJWT_HAVE_ML_DSA) && OPENSSL_VERSION_NUMBER >= 0x30500000L
 	/* ML-DSA (FIPS 204): one-shot, like EdDSA. Provider-native ML-DSA
 	 * keys have no legacy NID (EVP_PKEY_id() == -1), so the variant is
 	 * validated by name here; setting type to the key's (negative) id
@@ -354,7 +354,7 @@ static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 			VERIFY_ERROR("Unknown EdDSA curve"); // LCOV_EXCL_LINE
 		break;
 
-#ifdef LIBJWT_HAVE_ML_DSA
+#if defined(LIBJWT_HAVE_ML_DSA) && OPENSSL_VERSION_NUMBER >= 0x30500000L
 	/* ML-DSA (FIPS 204): one-shot, like EdDSA. See the signing path for
 	 * why the variant is validated by name and type is the key's id. */
 	case JWT_ALG_ML_DSA_44:
@@ -459,7 +459,7 @@ struct jwt_crypto_ops jwt_openssl_ops = {
 
 	.jwk_implemented	= 1,
 	.process_eddsa		= openssl_process_eddsa,
-#ifdef LIBJWT_HAVE_ML_DSA
+#if defined(LIBJWT_HAVE_ML_DSA) && OPENSSL_VERSION_NUMBER >= 0x30500000L
 	.process_mldsa		= openssl_process_mldsa,
 #endif
 	.process_rsa		= openssl_process_rsa,

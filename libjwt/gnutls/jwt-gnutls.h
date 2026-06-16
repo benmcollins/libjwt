@@ -25,6 +25,10 @@ typedef struct {
 /* JWK parsing: build native GnuTLS key handles into provider_data. */
 JWT_NO_EXPORT
 int gnutls_process_eddsa(jwt_json_t *jwk, jwk_item_t *item);
+#if defined(LIBJWT_HAVE_ML_DSA) && GNUTLS_VERSION_NUMBER >= 0x03080a
+JWT_NO_EXPORT
+int gnutls_process_mldsa(jwt_json_t *jwk, jwk_item_t *item);
+#endif
 JWT_NO_EXPORT
 int gnutls_process_rsa(jwt_json_t *jwk, jwk_item_t *item);
 JWT_NO_EXPORT

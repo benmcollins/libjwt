@@ -75,20 +75,29 @@ if (WITH_OPENSSL)
 	pkg_check_modules(OPENSSL openssl>=3.0.0 IMPORTED_TARGET REQUIRED)
 endif()
 
-# Experimental ML-DSA (FIPS 204 / RFC 9964) support. Only OpenSSL >= 3.5 has a
-# real implementation today; GnuTLS and MbedTLS cleanly reject ML-DSA keys.
-# This drives the public LIBJWT_HAVE_ML_DSA macro (emitted in jwt_export.h)
-# which in turn gates every ML-DSA code path. Do NOT bump the OpenSSL floor
-# above; this is an additive capability check, not a new minimum.
+# Experimental ML-DSA (FIPS 204 / RFC 9964) support. Implemented by OpenSSL
+# >= 3.5 and by GnuTLS >= 3.8.10 (the latter requires a GnuTLS built with a
+# PQC provider, e.g. --with-leancrypto); MbedTLS has no ML-DSA and cleanly
+# rejects AKP keys. This drives the public LIBJWT_HAVE_ML_DSA macro (emitted in
+# jwt_export.h) which gates the backend-independent ML-DSA code; each backend's
+# own code is additionally guarded by its own version check. Do NOT bump the
+# OpenSSL/GnuTLS floors above; these are additive capability checks.
 if (WITH_ML_DSA)
+	set(_mldsa_via "")
 	if (OPENSSL_FOUND AND OPENSSL_VERSION VERSION_GREATER_EQUAL 3.5)
+		set(_mldsa_via "${_mldsa_via} OpenSSL ${OPENSSL_VERSION}")
+	endif()
+	if (GNUTLS_FOUND AND GNUTLS_VERSION VERSION_GREATER_EQUAL 3.8.10)
+		set(_mldsa_via "${_mldsa_via} GnuTLS ${GNUTLS_VERSION}")
+	endif()
+	if (_mldsa_via)
 		set(LIBJWT_HAVE_ML_DSA ON)
-		message(STATUS
-			"ML-DSA (experimental) enabled via OpenSSL ${OPENSSL_VERSION}")
+		message(STATUS "ML-DSA (experimental) enabled via:${_mldsa_via}")
 	else()
 		message(WARNING
 			"WITH_ML_DSA was requested but no capable crypto backend "
-			"was found (needs OpenSSL >= 3.5); ML-DSA stays disabled")
+			"was found (needs OpenSSL >= 3.5 or GnuTLS >= 3.8.10); "
+			"ML-DSA stays disabled")
 	endif()
 endif()
 

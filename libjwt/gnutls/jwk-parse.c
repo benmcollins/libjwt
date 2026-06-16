@@ -162,7 +162,8 @@ static int finalize(jwk_item_t *item, gnutls_jwk_t *key, int priv)
 	 * keys (both Ed and X curves) are skipped: gnutls_pubkey_verify_params
 	 * does not support the X-curve ECDH keys, and the OKP import itself
 	 * already validates the key structure. */
-	if (key->kty != JWK_KEY_TYPE_OKP && gnutls_pubkey_verify_params(key->pub))
+	if (key->kty != JWK_KEY_TYPE_OKP && key->kty != JWK_KEY_TYPE_AKP &&
+	    gnutls_pubkey_verify_params(key->pub))
 		return 1;
 
 	item->bits = key_bits(item, key);
@@ -506,6 +507,179 @@ out:
 
 	return ret;
 }
+
+#if defined(LIBJWT_HAVE_ML_DSA) && GNUTLS_VERSION_NUMBER >= 0x03080a
+/* The three ML-DSA variants: the last byte of the id-ml-dsa-NN OID and the
+ * raw public-key length. */
+static const struct {
+	const char *alg;
+	unsigned char oid;
+	size_t publen;
+} mldsa_variants[] = {
+	{ "ML-DSA-44", 0x11, 1312 },
+	{ "ML-DSA-65", 0x12, 1952 },
+	{ "ML-DSA-87", 0x13, 2592 },
+};
+
+/* ML-DSA (FIPS 204 / RFC 9964), @rfc{9964}. GnuTLS has no raw ML-DSA import,
+ * so build the encoded key from the JWK's raw "pub" (a SubjectPublicKeyInfo)
+ * or 32-byte "priv" seed (a seed-form PKCS#8 using the [0] seed CHOICE) and
+ * import that. The DER is a fixed template per variant. */
+JWT_NO_EXPORT
+int gnutls_process_mldsa(jwt_json_t *jwk, jwk_item_t *item)
+{
+	gnutls_datum_t pub = { NULL, 0 }, seed = { NULL, 0 };
+	gnutls_datum_t spki = { NULL, 0 };
+	gnutls_jwk_t *key = NULL;
+	jwt_json_t *jalg, *jpub, *jpriv;
+	const char *alg;
+	int idx = -1, priv = 0, ret = -1;
+	size_t i;
+
+	jalg = jwt_json_obj_get(jwk, "alg");
+	jpub = jwt_json_obj_get(jwk, "pub");
+	jpriv = jwt_json_obj_get(jwk, "priv");
+
+	/* RFC 9964: "alg" is REQUIRED on AKP keys and selects the variant. */
+	if (jalg == NULL || !jwt_json_is_string(jalg)) {
+		jwt_write_error(item, "ML-DSA (AKP) key missing required 'alg'");
+		goto out;
+	}
+	alg = jwt_json_str_val(jalg);
+	for (i = 0; i < sizeof(mldsa_variants) / sizeof(mldsa_variants[0]); i++) {
+		if (!strcmp(alg, mldsa_variants[i].alg)) {
+			idx = (int)i;
+			break;
+		}
+	}
+	if (idx < 0) {
+		jwt_write_error(item, "Unsupported AKP alg [%s]", alg);
+		goto out;
+	}
+
+	if (jpub == NULL && jpriv == NULL) {
+		jwt_write_error(item,
+			"Need a 'pub' or 'priv' component and found neither");
+		goto out;
+	}
+
+	key = jwt_malloc(sizeof(*key));
+	if (key == NULL)
+		goto out; // LCOV_EXCL_LINE
+	memset(key, 0, sizeof(*key));
+	key->kty = JWK_KEY_TYPE_AKP;
+
+	if (gnutls_pubkey_init(&key->pub)) {
+		jwt_write_error(item, "Error initializing pubkey"); // LCOV_EXCL_LINE
+		goto out; // LCOV_EXCL_LINE
+	}
+
+	if (jpriv != NULL && jwt_json_is_string(jpriv)) {
+		/* Private: seed-form PKCS#8 (22-byte template + 32-byte seed). */
+		static const unsigned char tmpl[22] = {
+			0x30, 0x34, 0x02, 0x01, 0x00, 0x30, 0x0b, 0x06,
+			0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04,
+			0x03, 0x00, 0x04, 0x22, 0x80, 0x20
+		};
+		unsigned char p8[sizeof(tmpl) + 32];
+		gnutls_datum_t der;
+
+		if (decode_member(jwk, "priv", &seed)) {
+			jwt_write_error(item, "Error decoding ML-DSA priv (seed)");
+			goto out;
+		}
+		if (seed.size != 32) {
+			jwt_write_error(item, "ML-DSA priv (seed) must be 32 bytes");
+			goto out;
+		}
+		memcpy(p8, tmpl, sizeof(tmpl));
+		p8[17] = mldsa_variants[idx].oid;
+		memcpy(p8 + sizeof(tmpl), seed.data, 32);
+		der.data = p8;
+		der.size = sizeof(p8);
+
+		if (gnutls_privkey_init(&key->priv) ||
+		    gnutls_privkey_import_x509_raw(key->priv, &der,
+						   GNUTLS_X509_FMT_DER, NULL, 0)) {
+			// LCOV_EXCL_START — any 32-byte seed imports
+			jwt_cleanse(p8, sizeof(p8));
+			jwt_write_error(item, "Error importing ML-DSA private key");
+			goto out;
+			// LCOV_EXCL_STOP
+		}
+		/* The seed now lives in key->priv; wipe the stack copy. */
+		jwt_cleanse(p8, sizeof(p8));
+		if (gnutls_pubkey_import_privkey(key->pub, key->priv, 0, 0)) {
+			jwt_write_error(item, "Error deriving ML-DSA public key"); // LCOV_EXCL_LINE
+			goto out; // LCOV_EXCL_LINE
+		}
+		item->is_private_key = priv = 1;
+	} else {
+		/* Public: SubjectPublicKeyInfo from the raw public key. */
+		size_t publen, bclen, oclen, n;
+		unsigned char *b;
+
+		if (jpub == NULL || !jwt_json_is_string(jpub) ||
+		    decode_member(jwk, "pub", &pub)) {
+			jwt_write_error(item, "Error decoding ML-DSA pub");
+			goto out;
+		}
+		publen = mldsa_variants[idx].publen;
+		if (pub.size != publen) {
+			jwt_write_error(item, "ML-DSA pub has wrong size");
+			goto out;
+		}
+		bclen = publen + 1;		/* BIT STRING content (unused + key) */
+		oclen = 13 + 4 + 1 + publen;	/* algid + bitstr hdr + unused + key */
+
+		spki.data = b = jwt_malloc(4 + oclen);
+		if (b == NULL)
+			goto out; // LCOV_EXCL_LINE
+		n = 0;
+		b[n++] = 0x30; b[n++] = 0x82;
+		b[n++] = (oclen >> 8) & 0xff; b[n++] = oclen & 0xff;
+		b[n++] = 0x30; b[n++] = 0x0b; b[n++] = 0x06; b[n++] = 0x09;
+		b[n++] = 0x60; b[n++] = 0x86; b[n++] = 0x48; b[n++] = 0x01;
+		b[n++] = 0x65; b[n++] = 0x03; b[n++] = 0x04; b[n++] = 0x03;
+		b[n++] = mldsa_variants[idx].oid;
+		b[n++] = 0x03; b[n++] = 0x82;
+		b[n++] = (bclen >> 8) & 0xff; b[n++] = bclen & 0xff;
+		b[n++] = 0x00;
+		memcpy(b + n, pub.data, publen);
+		spki.size = n + publen;
+
+		if (gnutls_pubkey_import(key->pub, &spki, GNUTLS_X509_FMT_DER)) {
+			// LCOV_EXCL_START — a correct-length pub always imports
+			jwt_write_error(item, "Error importing ML-DSA public key");
+			goto out;
+			// LCOV_EXCL_STOP
+		}
+	}
+
+	if (finalize(item, key, priv)) {
+		jwt_write_error(item, "Error finalizing ML-DSA key"); // LCOV_EXCL_LINE
+		goto out; // LCOV_EXCL_LINE
+	}
+	key = NULL;
+	ret = 0;
+
+out:
+	if (key != NULL) {
+		/* key->priv is only set on the (unreachable) private-import
+		 * failure; reachable errors leave it NULL. */
+		if (key->priv)
+			gnutls_privkey_deinit(key->priv); // LCOV_EXCL_LINE
+		if (key->pub)
+			gnutls_pubkey_deinit(key->pub);
+		jwt_freemem(key);
+	}
+	jwt_freemem(spki.data);
+	jwt_freemem(pub.data);
+	jwt_scrub_and_free(seed.data, seed.size);
+
+	return ret;
+}
+#endif /* LIBJWT_HAVE_ML_DSA && GNUTLS >= 3.8.10 */
 
 JWT_NO_EXPORT
 void gnutls_process_item_free(jwk_item_t *item)
