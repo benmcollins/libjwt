@@ -41,6 +41,16 @@ commit/PR/tag (`git show v3.5.0`, PR #304) when in doubt.
    - Any symbol removed or changed -> `current++, revision=0, age=0` (SONAME-major
      break). SONAME major = `current - age`, and has stayed `14` across all of 3.x.
 
+   The **same** symbol/enum/macro diff also drives the Doxygen `@since` tags in
+   `include/jwt.h` — maintain them in this same review (the baseline
+   `@since 3.0.0`..`3.5.0` pass was PR #305). Anything new at the release — a
+   function, typedef/enum/struct, enum value, documented macro, or
+   `*_freep`/`*_auto_t` helper — must carry `@since X.Y.Z` for the version being
+   released. Note the asymmetry with the triple: new enum values and `#cmakedefine`
+   macros are **not** linker symbols (so they don't move `current`/`age`) but they
+   **still** need `@since` — e.g. v3.5.0's `JWT_ALG_ML_DSA_*` / `JWK_KEY_TYPE_AKP`
+   are `@since 3.5.0` despite the revision-only bump.
+
 2. **Branch + commit** — `release-X.Y.Z` off master; edit **only**
    `LibJWTVersions.cmake` (plus any now-stale doc note, as v3.4.0 dropped the "v3
    overhaul" warning). `git commit -s` titled `Release vX.Y.Z` with a body documenting
