@@ -191,6 +191,18 @@ START_TEST(test_b64_security)
 	ck_assert_int_eq(jwt_builder_setb64(b, 0), 0);
 	ck_assert_ptr_null(jwt_builder_generate(b));
 
+	/* An unencoded payload with an embedded NUL cannot be serialized verbatim,
+	 * so it is rejected rather than silently truncated. */
+	{
+		jwt_builder_auto_t *bn = jwt_builder_new();
+		static const unsigned char NUL_PT[] = { 'a', '\0', 'b' };
+
+		ck_assert_int_eq(jwt_builder_setkey(bn, JWT_ALG_ES256, ec), 0);
+		ck_assert_int_eq(jwt_builder_setpayload(bn, NUL_PT, 3), 0);
+		ck_assert_int_eq(jwt_builder_setb64(bn, 0), 0);
+		ck_assert_ptr_null(jwt_builder_generate(bn));
+	}
+
 	jwks_free(ks);
 }
 END_TEST

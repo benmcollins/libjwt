@@ -904,6 +904,8 @@ static char *detached_payload_part(int b64, const unsigned char *payload,
 	char *pp = NULL;
 
 	if (b64) {
+		if (len == 0)
+			return jwt_str_dup("");
 		if (len > INT_MAX ||
 		    jwt_base64uri_encode(&pp, (const char *)payload, (int)len) <= 0)
 			return NULL; // LCOV_EXCL_LINE
@@ -968,8 +970,10 @@ int jwt_checker_verify_detached(jwt_checker_t *checker, const char *token,
 
 		b64 = detached_b64(prot_b64);
 		pp = detached_payload_part(b64, payload, len);
-		if (pp == NULL)
+		if (pp == NULL) {
+			jwt_write_error(checker, "Error allocating memory"); // LCOV_EXCL_LINE
 			return 1; // LCOV_EXCL_LINE
+		}
 
 		v = jwt_json_create_str(pp);
 		if (v == NULL || jwt_json_obj_set(root, "payload", v))

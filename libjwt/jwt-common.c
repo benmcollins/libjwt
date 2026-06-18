@@ -897,6 +897,15 @@ char *FUNC(generate)(jwt_common_t *__cmd)
 				"set with jwt_builder_setpayload()");
 			return NULL;
 		}
+		/* An unencoded payload appears verbatim in the serialized token
+		 * (a C string / JSON string), which cannot carry an embedded NUL.
+		 * Reject it rather than silently truncate. */
+		if (memchr(jwt->payload_raw, '\0', jwt->payload_raw_len) != NULL) {
+			jwt_write_error(__cmd,
+				"An unencoded (b64=false) payload must not "
+				"contain a NUL byte");
+			return NULL;
+		}
 		/* @rfc{7797,6} Emit "b64":false and mark "b64" critical. */
 		if (jwt_apply_b64_header(jwt)) {
 			jwt_copy_error(__cmd, jwt);
