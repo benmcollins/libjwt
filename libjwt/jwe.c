@@ -280,6 +280,142 @@ int jwe_decrypt_content(jwe_enc_t enc, const unsigned char *cek,
 		aad, aad_len, ct, ct_len, tag, tag_len, pt, pt_len);
 }
 
+/* @rfc{7518,4.7} Is this an AES-GCM key-wrap algorithm? */
+int jwe_alg_is_gcmkw(jwe_key_alg_t alg)
+{
+	return alg == JWE_ALG_A128GCMKW || alg == JWE_ALG_A192GCMKW ||
+	       alg == JWE_ALG_A256GCMKW;
+}
+
+/* @rfc{7518,4.7} The KEK oct length a GCM-KW alg requires. */
+static size_t gcmkw_kek_len(jwe_key_alg_t alg)
+{
+	switch (alg) {
+	case JWE_ALG_A128GCMKW:
+		return 16;
+	case JWE_ALG_A192GCMKW:
+		return 24;
+	case JWE_ALG_A256GCMKW:
+		return 32;
+	// LCOV_EXCL_START
+	default:
+		return 0;
+	// LCOV_EXCL_STOP
+	}
+}
+
+/* The GCM content-encryption "enc" whose AES key size matches a GCM-KW alg, so
+ * the existing GCM code can wrap/unwrap the CEK. */
+static jwe_enc_t gcmkw_to_enc(jwe_key_alg_t alg)
+{
+	switch (alg) {
+	case JWE_ALG_A128GCMKW:
+		return JWE_ENC_A128GCM;
+	case JWE_ALG_A192GCMKW:
+		return JWE_ENC_A192GCM;
+	case JWE_ALG_A256GCMKW:
+		return JWE_ENC_A256GCM;
+	// LCOV_EXCL_START
+	default:
+		return JWE_ENC_INVAL;
+	// LCOV_EXCL_STOP
+	}
+}
+
+/* @rfc{7518,4.7} AES-GCM key wrap: GCM-encrypt the CEK under the oct KEK with a
+ * FRESH 96-bit IV and an empty AAD. The wrapped CEK is the Encrypted Key (@out);
+ * the 96-bit IV and 128-bit tag are written base64url into @hdr as "iv"/"tag".
+ * A fresh CSPRNG IV per wrap is mandatory (RFC 7518 8.7: nonce reuse under the
+ * same KEK is a catastrophic GCM break) — the IV is generated here and is never
+ * caller-supplied. Returns 0 on success. */
+int jwe_gcmkw_wrap(jwe_key_alg_t alg, const jwk_item_t *key,
+		   const unsigned char *cek, size_t cek_len,
+		   jwt_json_t *hdr, unsigned char **out, size_t *out_len)
+{
+	jwe_enc_t enc = gcmkw_to_enc(alg);
+	const unsigned char *k;
+	unsigned char iv[12], *tag = NULL;
+	char *iv_b64 = NULL, *tag_b64 = NULL;
+	size_t klen = 0, tag_len = 0;
+	int ret = 1;
+
+	if (jwks_item_key_oct(key, &k, &klen) || klen != gcmkw_kek_len(alg))
+		return 1;
+
+	if (jwt_ops->rng == NULL || jwt_ops->rng(iv, sizeof(iv)))
+		return 1; // LCOV_EXCL_LINE
+
+	if (jwe_encrypt_content(enc, k, klen, iv, sizeof(iv), NULL, 0,
+				cek, cek_len, out, out_len, &tag, &tag_len))
+		goto out; // LCOV_EXCL_LINE
+
+	if (jwt_base64uri_encode(&iv_b64, (char *)iv, (int)sizeof(iv)) <= 0 ||
+	    jwt_base64uri_encode(&tag_b64, (char *)tag, (int)tag_len) <= 0)
+		goto out; // LCOV_EXCL_LINE
+
+	if (jwt_json_obj_set(hdr, "iv", jwt_json_create_str(iv_b64)) ||
+	    jwt_json_obj_set(hdr, "tag", jwt_json_create_str(tag_b64)))
+		goto out; // LCOV_EXCL_LINE
+
+	ret = 0;
+
+out:
+	jwt_freemem(tag);
+	jwt_freemem(iv_b64);
+	jwt_freemem(tag_b64);
+	if (ret) {
+		// LCOV_EXCL_START
+		jwt_freemem(*out);
+		*out_len = 0;
+		// LCOV_EXCL_STOP
+	}
+
+	return ret;
+}
+
+/* @rfc{7518,4.7} AES-GCM key unwrap: read the "iv"/"tag" from @hdr and
+ * GCM-decrypt the Encrypted Key under the oct KEK (empty AAD) to recover the
+ * CEK. jwe_decrypt_content enforces the 96-bit IV and verifies the tag, so a
+ * bad tag fails here; per RFC 7516 11.5 the caller then substitutes a random
+ * CEK. Returns 0 on success. */
+int jwe_gcmkw_unwrap(jwe_key_alg_t alg, const jwk_item_t *key, jwt_json_t *hdr,
+		     const unsigned char *in, size_t in_len,
+		     unsigned char **cek, size_t *cek_len)
+{
+	jwe_enc_t enc = gcmkw_to_enc(alg);
+	jwt_json_t *jiv, *jtag;
+	const unsigned char *k;
+	unsigned char *iv = NULL, *tag = NULL;
+	size_t klen = 0;
+	int iv_len = 0, tag_len = 0, ret = 1;
+
+	if (jwks_item_key_oct(key, &k, &klen) || klen != gcmkw_kek_len(alg))
+		return 1;
+
+	jiv = jwt_json_obj_get(hdr, "iv");
+	jtag = jwt_json_obj_get(hdr, "tag");
+	if (jiv == NULL || !jwt_json_is_string(jiv) ||
+	    jtag == NULL || !jwt_json_is_string(jtag))
+		return 1;
+
+	iv = jwt_base64uri_decode(jwt_json_str_val(jiv), &iv_len);
+	tag = jwt_base64uri_decode(jwt_json_str_val(jtag), &tag_len);
+	if (iv == NULL || tag == NULL || iv_len <= 0 || tag_len <= 0)
+		goto out;
+
+	if (jwe_decrypt_content(enc, k, klen, iv, iv_len, NULL, 0,
+				in, in_len, tag, tag_len, cek, cek_len))
+		goto out;
+
+	ret = 0;
+
+out:
+	jwt_freemem(iv);
+	jwt_freemem(tag);
+
+	return ret;
+}
+
 /* @rfc{7516,11.4} @rfc{7517,4.2,4.3} Gate a JWK against a JWE key management
  * algorithm. */
 const char *jwe_key_usage_check(const jwk_item_t *key, jwe_key_alg_t alg,
@@ -333,6 +469,9 @@ const char *jwe_key_usage_check(const jwk_item_t *key, jwe_key_alg_t alg,
 		case JWE_ALG_A128KW:
 		case JWE_ALG_A192KW:
 		case JWE_ALG_A256KW:
+		case JWE_ALG_A128GCMKW:
+		case JWE_ALG_A192GCMKW:
+		case JWE_ALG_A256GCMKW:
 			want = for_encrypt ? JWK_KEY_OP_WRAP : JWK_KEY_OP_UNWRAP;
 			break;
 		case JWE_ALG_RSA_OAEP:

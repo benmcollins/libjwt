@@ -154,6 +154,7 @@ JWE key management ``alg``    | OpenSSL            | GnuTLS             | MbedTL
 :---------------------------- | :----------------- | :----------------- | :-----------------
 ``dir`` (Direct Encryption)   | :white_check_mark: | :white_check_mark: | :white_check_mark:
 ``A128KW`` ``A192KW`` ``A256KW`` | :white_check_mark: | :white_check_mark: | :white_check_mark:
+``A128GCMKW`` ``A192GCMKW`` ``A256GCMKW`` | :white_check_mark: | :white_check_mark: | :white_check_mark:
 ``RSA-OAEP`` (SHA-1)          | :white_check_mark: | :x:                | :white_check_mark:
 ``RSA-OAEP-256``              | :white_check_mark: | :white_check_mark: | :white_check_mark:
 ``ECDH-ES`` (+ ``+A128KW``/``+A192KW``/``+A256KW``) [^okp3813] | :white_check_mark: | :white_check_mark: | :white_check_mark:

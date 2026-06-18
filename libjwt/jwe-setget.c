@@ -37,6 +37,12 @@ const char *jwe_alg_str(jwe_key_alg_t alg)
 		return "ECDH-ES+A192KW";
 	case JWE_ALG_ECDH_ES_A256KW:
 		return "ECDH-ES+A256KW";
+	case JWE_ALG_A128GCMKW:
+		return "A128GCMKW";
+	case JWE_ALG_A192GCMKW:
+		return "A192GCMKW";
+	case JWE_ALG_A256GCMKW:
+		return "A256GCMKW";
 	default:
 		return NULL;
 	}
@@ -67,6 +73,12 @@ jwe_key_alg_t jwe_str_alg(const char *alg)
 		return JWE_ALG_ECDH_ES_A192KW;
 	else if (!strcmp(alg, "ECDH-ES+A256KW"))
 		return JWE_ALG_ECDH_ES_A256KW;
+	else if (!strcmp(alg, "A128GCMKW"))
+		return JWE_ALG_A128GCMKW;
+	else if (!strcmp(alg, "A192GCMKW"))
+		return JWE_ALG_A192GCMKW;
+	else if (!strcmp(alg, "A256GCMKW"))
+		return JWE_ALG_A256GCMKW;
 
 	return JWE_ALG_INVAL;
 }
