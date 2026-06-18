@@ -28,7 +28,7 @@
  * when JWK_KEY_GEN_KID is requested. @jwk must already carry the key's members
  * (its kty plus the type's public parameters). A no-op if the thumbprint
  * cannot be computed (e.g. a key missing a required public member). */
-static void gen_kid(jwt_json_t *jwk, jwk_key_type_t kty, unsigned int flags)
+void jwt_gen_kid(jwt_json_t *jwk, jwk_key_type_t kty, unsigned int flags)
 {
 	char_auto *tp = NULL;
 
@@ -132,7 +132,7 @@ int jwt_key2jwk(const char *key, size_t len, unsigned int flags,
 	if (r != 0) {
 		jwk_export_clear(&kp);
 		process_hmac_key(jwk, (const unsigned char *)key, len);
-		gen_kid(jwk, JWK_KEY_TYPE_OCT, flags);
+		jwt_gen_kid(jwk, JWK_KEY_TYPE_OCT, flags);
 		jwt_json_arr_append(out_array, jwk);
 		return 0;
 	}
@@ -166,7 +166,7 @@ int jwt_key2jwk(const char *key, size_t len, unsigned int flags,
 		}
 	}
 
-	gen_kid(jwk, kp.kty, flags);
+	jwt_gen_kid(jwk, kp.kty, flags);
 
 	jwk_export_clear(&kp);
 	jwt_json_arr_append(out_array, jwk);

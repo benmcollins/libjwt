@@ -737,3 +737,98 @@ void gnutls_process_item_free(jwk_item_t *item)
 	item->provider_data = NULL;
 	item->provider = JWT_CRYPTO_OPS_NONE;
 }
+
+/* Generate a fresh asymmetric key and emit it as a PKCS#8 private-key PEM.
+ * EC (NIST), RSA/RSA-PSS, OKP, and AKP (ML-DSA) are supported subject to the
+ * GnuTLS version; secp256k1 is not supported by GnuTLS. */
+int gnutls_generate_pem(jwk_key_type_t kty, const char *param, jwt_alg_t alg,
+			char **pem_out, size_t *pem_len)
+{
+	gnutls_x509_privkey_t key = NULL;
+	gnutls_datum_t out = { NULL, 0 };
+	gnutls_pk_algorithm_t pk;
+	unsigned int bits = 0;
+	int ret = 1;
+
+	switch (kty) {
+	case JWK_KEY_TYPE_EC: {
+		gnutls_ecc_curve_t curve =
+			ec_crv_to_curve((param && param[0]) ? param : "P-256");
+
+		if (curve != GNUTLS_ECC_CURVE_SECP256R1 &&
+		    curve != GNUTLS_ECC_CURVE_SECP384R1 &&
+		    curve != GNUTLS_ECC_CURVE_SECP521R1)
+			return 1;	/* incl. secp256k1: unsupported by GnuTLS */
+		pk = GNUTLS_PK_ECDSA;
+		bits = GNUTLS_CURVE_TO_BITS(curve);
+		break;
+	}
+	case JWK_KEY_TYPE_OKP: {
+		const char *crv = (param && param[0]) ? param : "Ed25519";
+
+		/* GnuTLS < 3.8.13 has OKP generation/import defects (see #320). */
+		if (gnutls_check_version("3.8.13") == NULL)
+			return 1;
+		if (!strcmp(crv, "Ed25519"))
+			pk = GNUTLS_PK_EDDSA_ED25519;
+		else if (!strcmp(crv, "Ed448"))
+			pk = GNUTLS_PK_EDDSA_ED448;
+		else if (!strcmp(crv, "X25519"))
+			pk = GNUTLS_PK_ECDH_X25519;
+		else if (!strcmp(crv, "X448"))
+			pk = GNUTLS_PK_ECDH_X448;
+		else
+			return 1;
+		bits = GNUTLS_CURVE_TO_BITS(ec_crv_to_curve(crv));
+		break;
+	}
+	case JWK_KEY_TYPE_RSA: {
+		long b = (param && param[0]) ? strtol(param, NULL, 10) : 2048;
+
+		if (b < 2048)
+			return 1;
+		pk = (alg == JWT_ALG_PS256 || alg == JWT_ALG_PS384 ||
+		      alg == JWT_ALG_PS512) ? GNUTLS_PK_RSA_PSS : GNUTLS_PK_RSA;
+		bits = (unsigned int)b;
+		break;
+	}
+#if defined(LIBJWT_HAVE_ML_DSA) && GNUTLS_VERSION_NUMBER >= 0x03080a
+	case JWK_KEY_TYPE_AKP:
+		if (gnutls_check_version("3.8.10") == NULL)
+			return 1;
+		pk = (alg == JWT_ALG_ML_DSA_44) ? GNUTLS_PK_MLDSA44 :
+		     (alg == JWT_ALG_ML_DSA_65) ? GNUTLS_PK_MLDSA65 :
+		     (alg == JWT_ALG_ML_DSA_87) ? GNUTLS_PK_MLDSA87 :
+		     GNUTLS_PK_UNKNOWN;
+		if (pk == GNUTLS_PK_UNKNOWN)
+			return 1;
+		break;
+#endif
+	default:
+		return 1;
+	}
+
+	if (gnutls_x509_privkey_init(&key))
+		return 1; // LCOV_EXCL_LINE
+	if (gnutls_x509_privkey_generate(key, pk, bits, 0))
+		goto out;
+	if (gnutls_x509_privkey_export2_pkcs8(key, GNUTLS_X509_FMT_PEM, NULL,
+					      0, &out))
+		goto out; // LCOV_EXCL_LINE
+
+	*pem_out = jwt_malloc((size_t)out.size + 1);
+	if (*pem_out == NULL)
+		goto out; // LCOV_EXCL_LINE
+	memcpy(*pem_out, out.data, out.size);
+	(*pem_out)[out.size] = '\0';
+	*pem_len = out.size;
+	ret = 0;
+
+out:
+	if (out.data != NULL)
+		gnutls_free(out.data);
+	if (key != NULL)
+		gnutls_x509_privkey_deinit(key);
+
+	return ret;
+}

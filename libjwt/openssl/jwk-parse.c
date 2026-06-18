@@ -669,3 +669,110 @@ void openssl_process_item_free(jwk_item_t *item)
 	item->provider_data = NULL;
 	item->provider = JWT_CRYPTO_OPS_NONE;
 }
+
+/* @rfc — Generate a fresh asymmetric key of @kty/@param/@alg and emit it as an
+ * unencrypted PKCS#8 private-key PEM. EC/RSA/RSA-PSS/OKP supported; AKP (ML-DSA)
+ * generation is not yet implemented here (returns non-zero -> clean error). */
+int openssl_generate_pem(jwk_key_type_t kty, const char *param, jwt_alg_t alg,
+			 char **pem_out, size_t *pem_len)
+{
+	EVP_PKEY_CTX *ctx = NULL;
+	EVP_PKEY *pkey = NULL;
+	BIO *bio = NULL;
+	char *data;
+	long n;
+	int ret = 1;
+
+	switch (kty) {
+	case JWK_KEY_TYPE_EC: {
+		const char *crv = (param && param[0]) ? param : "P-256";
+		const char *ossl;
+
+		if (!strcmp(crv, "P-256"))		ossl = "prime256v1";
+		else if (!strcmp(crv, "P-384"))		ossl = "secp384r1";
+		else if (!strcmp(crv, "P-521"))		ossl = "secp521r1";
+		else if (!strcmp(crv, "secp256k1"))	ossl = "secp256k1";
+		else return 1;
+
+		ctx = EVP_PKEY_CTX_new_from_name(NULL, "EC", NULL);
+		if (ctx == NULL || EVP_PKEY_keygen_init(ctx) <= 0)
+			goto out; // LCOV_EXCL_LINE
+		if (EVP_PKEY_CTX_set_group_name(ctx, ossl) <= 0)
+			goto out; // LCOV_EXCL_LINE
+		break;
+	}
+	case JWK_KEY_TYPE_OKP: {
+		const char *crv = (param && param[0]) ? param : "Ed25519";
+
+		if (strcmp(crv, "Ed25519") && strcmp(crv, "Ed448") &&
+		    strcmp(crv, "X25519") && strcmp(crv, "X448"))
+			return 1;
+		ctx = EVP_PKEY_CTX_new_from_name(NULL, crv, NULL);
+		if (ctx == NULL || EVP_PKEY_keygen_init(ctx) <= 0)
+			goto out; // LCOV_EXCL_LINE
+		break;
+	}
+	case JWK_KEY_TYPE_RSA: {
+		int is_pss = (alg == JWT_ALG_PS256 || alg == JWT_ALG_PS384 ||
+			      alg == JWT_ALG_PS512);
+		long bits = (param && param[0]) ? strtol(param, NULL, 10) : 2048;
+
+		if (bits < 2048)
+			return 1;
+		ctx = EVP_PKEY_CTX_new_from_name(NULL, is_pss ? "RSA-PSS" : "RSA",
+						 NULL);
+		if (ctx == NULL || EVP_PKEY_keygen_init(ctx) <= 0)
+			goto out; // LCOV_EXCL_LINE
+		if (EVP_PKEY_CTX_set_rsa_keygen_bits(ctx, (int)bits) <= 0)
+			goto out; // LCOV_EXCL_LINE
+		break;
+	}
+#if defined(LIBJWT_HAVE_ML_DSA) && OPENSSL_VERSION_NUMBER >= 0x30500000L
+	case JWK_KEY_TYPE_AKP: {
+		const char *name = (alg == JWT_ALG_ML_DSA_44) ? "ML-DSA-44" :
+				   (alg == JWT_ALG_ML_DSA_65) ? "ML-DSA-65" :
+				   (alg == JWT_ALG_ML_DSA_87) ? "ML-DSA-87" : NULL;
+
+		if (name == NULL)
+			return 1;
+		ctx = EVP_PKEY_CTX_new_from_name(NULL, name, NULL);
+		if (ctx == NULL || EVP_PKEY_keygen_init(ctx) <= 0)
+			goto out; // LCOV_EXCL_LINE
+		break;
+	}
+#endif
+	default:
+		return 1;
+	}
+
+	if (EVP_PKEY_keygen(ctx, &pkey) <= 0)
+		goto out; // LCOV_EXCL_LINE
+
+	bio = BIO_new(BIO_s_mem());
+	if (bio == NULL)
+		goto out; // LCOV_EXCL_LINE
+	if (!PEM_write_bio_PKCS8PrivateKey(bio, pkey, NULL, NULL, 0, NULL, NULL))
+		goto out; // LCOV_EXCL_LINE
+
+	n = BIO_get_mem_data(bio, &data);
+	if (n <= 0)
+		goto out; // LCOV_EXCL_LINE
+
+	*pem_out = jwt_malloc((size_t)n + 1);
+	if (*pem_out == NULL)
+		goto out; // LCOV_EXCL_LINE
+	memcpy(*pem_out, data, (size_t)n);
+	(*pem_out)[n] = '\0';
+	*pem_len = (size_t)n;
+	ret = 0;
+
+out:
+	if (bio != NULL)
+		BIO_free(bio);
+	if (pkey != NULL)
+		EVP_PKEY_free(pkey);
+	if (ctx != NULL)
+		EVP_PKEY_CTX_free(ctx);
+
+	return ret;
+}

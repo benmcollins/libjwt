@@ -18,6 +18,9 @@ int openssl_process_ec(jwt_json_t *jwk, jwk_item_t *item);
 void openssl_process_item_free(jwk_item_t *item);
 JWT_NO_EXPORT
 int openssl_key2jwk_params(const char *key, size_t len, jwk_export_t *out);
+JWT_NO_EXPORT
+int openssl_generate_pem(jwk_key_type_t kty, const char *param, jwt_alg_t alg,
+			 char **pem_out, size_t *pem_len);
 
 /* JWE (RFC 7516/7518). These are backend internals reached only through the
  * jwt_crypto_ops table, so they must stay out of the shared library's ABI. */
