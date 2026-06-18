@@ -271,6 +271,7 @@ struct jwt_crypto_ops jwt_mbedtls_ops = {
 	.process_item_free	= mbedtls_process_item_free,
 	/* Native-key -> JWK conversion, done natively by MbedTLS. */
 	.key2jwk_params		= mbedtls_key2jwk_params,
+	.generate_pem		= mbedtls_generate_pem,
 
 	.sha			= mbedtls_sha,
 

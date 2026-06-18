@@ -39,6 +39,8 @@ void gnutls_process_item_free(jwk_item_t *item);
 /* Native-key -> JWK conversion (the key2jwk_params op); see jwk-export.c. */
 JWT_NO_EXPORT
 int gnutls_key2jwk_params(const char *key, size_t len, jwk_export_t *out);
+JWT_NO_EXPORT
+int gnutls_generate_pem(jwk_key_type_t kty, const char *param, jwt_alg_t alg, char **pem_out, size_t *pem_len);
 
 /* JWE (RFC 7516/7518) — native GnuTLS implementations. Backend internals
  * reached only through the jwt_crypto_ops table; keep out of ABI. */

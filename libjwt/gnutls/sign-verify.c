@@ -502,6 +502,7 @@ struct jwt_crypto_ops jwt_gnutls_ops = {
 	.process_item_free	= gnutls_process_item_free,
 	/* Native-key -> JWK conversion, done natively by GnuTLS. */
 	.key2jwk_params		= gnutls_key2jwk_params,
+	.generate_pem		= gnutls_generate_pem,
 
 	.sha			= gnutls_sha,
 

@@ -369,6 +369,16 @@ struct jwt_crypto_ops {
 	 * native keys at all. */
 	int (*key2jwk_params)(const char *key, size_t len, jwk_export_t *out);
 
+	/* Generate a fresh ASYMMETRIC key (EC/RSA/RSA-PSS/OKP/AKP) of type @kty
+	 * with the geometry in @param and the discriminator @alg, emitting an
+	 * unencrypted PKCS#8 private-key PEM into *@pem_out (jwt_malloc'd; the
+	 * common jwks_generate() scrubs+frees it and runs it through jwt_key2jwk).
+	 * Returns 0 on success, non-zero on an unsupported type/param/curve or a
+	 * runtime-incapable backend. NULL if the backend cannot generate keys.
+	 * "oct" is generated in common code (jwt_ops->rng), not here. */
+	int (*generate_pem)(jwk_key_type_t kty, const char *param, jwt_alg_t alg,
+			    char **pem_out, size_t *pem_len);
+
 	/* One-shot SHA-2 digest. @sha_bits selects the hash (256/384/512).
 	 * Writes the raw digest into @out (the caller provides a buffer of at
 	 * least 64 bytes) and sets *@out_len. Returns 0 on success. Backed by
@@ -522,6 +532,11 @@ static inline void jwk_export_add(jwk_export_t *out, const char *name,
 JWT_NO_EXPORT
 int jwt_key2jwk(const char *key, size_t len, unsigned int flags,
 		jwt_json_t *out_array);
+
+/* @rfc{7638} Stamp the thumbprint "kid" on @jwk when JWK_KEY_GEN_KID is in
+ * @flags (used by jwt_key2jwk and the oct path of jwks_generate). */
+JWT_NO_EXPORT
+void jwt_gen_kid(jwt_json_t *jwk, jwk_key_type_t kty, unsigned int flags);
 
 /* Core @rfc{7638} JWK thumbprint: base64url(SHA-@bits) over the canonical JWK
  * assembled from @jwk's required members for key type @kty. @bits is 256/384/512.

@@ -715,3 +715,85 @@ void mbedtls_process_item_free(jwk_item_t *item)
 	item->provider_data = NULL;
 	item->provider = JWT_CRYPTO_OPS_NONE;
 }
+
+/* Generate a fresh EC or RSA key via PSA and emit it as a PKCS#8 private-key
+ * PEM (via mbedtls_pk). MbedTLS has no EdDSA (OKP) or ML-DSA (AKP), so those
+ * return non-zero -> a clean "not supported" error. */
+int mbedtls_generate_pem(jwk_key_type_t kty, const char *param, jwt_alg_t alg,
+			 char **pem_out, size_t *pem_len)
+{
+	psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
+	mbedtls_svc_key_id_t kid = MBEDTLS_SVC_KEY_ID_INIT;
+	mbedtls_pk_context pk;
+	unsigned char buf[8192];
+	psa_status_t st;
+	int ret = 1;
+
+	(void)alg;
+
+	if (psa_crypto_init() != PSA_SUCCESS)
+		return 1; // LCOV_EXCL_LINE
+
+	switch (kty) {
+	case JWK_KEY_TYPE_EC: {
+		const char *crv = (param && param[0]) ? param : "P-256";
+		psa_ecc_family_t fam = PSA_ECC_FAMILY_SECP_R1;
+		size_t bits;
+
+		if (!strcmp(crv, "P-256"))		bits = 256;
+		else if (!strcmp(crv, "P-384"))		bits = 384;
+		else if (!strcmp(crv, "P-521"))		bits = 521;
+		else if (!strcmp(crv, "secp256k1")) {
+			fam = PSA_ECC_FAMILY_SECP_K1;
+			bits = 256;
+		} else
+			return 1;
+
+		psa_set_key_type(&attr, PSA_KEY_TYPE_ECC_KEY_PAIR(fam));
+		psa_set_key_bits(&attr, bits);
+		psa_set_key_algorithm(&attr, PSA_ALG_ECDSA(PSA_ALG_ANY_HASH));
+		break;
+	}
+	case JWK_KEY_TYPE_RSA: {
+		long bits = (param && param[0]) ? strtol(param, NULL, 10) : 2048;
+
+		if (bits < 2048)
+			return 1;
+		psa_set_key_type(&attr, PSA_KEY_TYPE_RSA_KEY_PAIR);
+		psa_set_key_bits(&attr, (size_t)bits);
+		psa_set_key_algorithm(&attr, PSA_ALG_RSA_PSS(PSA_ALG_ANY_HASH));
+		break;
+	}
+	default:
+		return 1;
+	}
+
+	psa_set_key_usage_flags(&attr, PSA_KEY_USAGE_EXPORT |
+				PSA_KEY_USAGE_SIGN_HASH | PSA_KEY_USAGE_VERIFY_HASH);
+
+	st = psa_generate_key(&attr, &kid);
+	psa_reset_key_attributes(&attr);
+	if (st != PSA_SUCCESS)
+		return 1;
+
+	mbedtls_pk_init(&pk);
+	if (mbedtls_pk_copy_from_psa(kid, &pk) == 0 &&
+	    mbedtls_pk_write_key_pem(&pk, buf, sizeof(buf)) == 0) {
+		size_t len = strlen((char *)buf);
+
+		*pem_out = jwt_malloc(len + 1);
+		if (*pem_out != NULL) {
+			memcpy(*pem_out, buf, len + 1);
+			*pem_len = len;
+			ret = 0;
+		}
+	}
+
+	/* The buffer held an unencrypted private key; scrub it (see the same
+	 * convention in set_pem_best_effort()). */
+	mbedtls_platform_zeroize(buf, sizeof(buf));
+	mbedtls_pk_free(&pk);
+	psa_destroy_key(kid);
+
+	return ret;
+}

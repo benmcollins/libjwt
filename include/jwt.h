@@ -2662,6 +2662,54 @@ JWT_EXPORT
 jwk_set_t *jwks_create_fromkey_file(const char *file_name, unsigned int flags);
 
 /**
+ * @brief Generate a new key and add it to a keyring as a JWK
+ *
+ * Generates a fresh key of type @p kty and appends it to @p jwk_set as a new
+ * ::jwk_item_t (a private JWK), returning the set. Pass NULL for @p jwk_set to
+ * create a new keyring. The generated key is bound to the active crypto backend,
+ * so it can be used directly for signing/verifying or JWE.
+ *
+ * @p param selects the key geometry, interpreted by @p kty (NULL or "" picks a
+ * sensible default):
+ *  - EC: the curve — ``"P-256"`` (default), ``"P-384"``, ``"P-521"``, ``"secp256k1"``
+ *  - OKP: the curve — ``"Ed25519"`` (default), ``"Ed448"``, ``"X25519"``, ``"X448"``
+ *  - RSA: the modulus size in bits — ``"2048"`` (default), ``"3072"``, ``"4096"``
+ *  - oct: the key size in bits — ``"256"`` (default), ``"384"``, ``"512"``
+ *  - AKP (ML-DSA): ignored (the variant comes from @p alg)
+ *
+ * @p alg is the JWA discriminator. It is optional for EC/OKP/oct (it stamps the
+ * JWK ``"alg"``), distinguishes RSA (``RS*``) from RSA-PSS (``PS*``) for
+ * ``kty=RSA``, and is REQUIRED for AKP to pin the ML-DSA variant
+ * (``JWT_ALG_ML_DSA_44/65/87``). Pass ::JWT_ALG_NONE for none. It must be
+ * compatible with @p kty.
+ *
+ * @p flags is a bitwise OR of ::jwk_key_flags_t; ::JWK_KEY_GEN_KID stamps the
+ * RFC 7638 thumbprint as the ``"kid"``.
+ *
+ * A backend that cannot generate the requested key (e.g. MbedTLS has no EdDSA)
+ * does not crash: the appended item carries an error (jwks_item_error()).
+ *
+ * @param jwk_set A keyring to append to, or NULL to create a new one
+ * @param kty The key type to generate
+ * @param param The key geometry selector (see above), or NULL for the default
+ * @param alg The JWA algorithm discriminator, or ::JWT_ALG_NONE
+ * @param flags A bitwise OR of ::jwk_key_flags_t values (or ::JWK_KEY_NONE)
+ * @return The keyring with the new key appended, or NULL on allocation failure
+ * @since 3.6.0
+ */
+JWT_EXPORT
+jwk_set_t *jwks_generate(jwk_set_t *jwk_set, jwk_key_type_t kty,
+			 const char *param, jwt_alg_t alg, unsigned int flags);
+
+/**
+ * @brief Wrapper around jwks_generate() that explicitly creates a new keyring
+ * @since 3.6.0
+ */
+JWT_EXPORT
+jwk_set_t *jwks_create_generate(jwk_key_type_t kty, const char *param,
+				jwt_alg_t alg, unsigned int flags);
+
+/**
  * @brief Check if there is an error with a jwk_set
  *
  * An Error in a jwk_set is usually passive and generally means there was an

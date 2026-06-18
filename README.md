@@ -113,6 +113,23 @@ A detached token is verified with `jwt_checker_verify_detached()`, supplying the
 payload out-of-band. As mandated by RFC 7797 §6, the checker rejects a
 `"b64":false` token unless `"b64"` appears in `"crit"`.
 
+#### Key generation
+
+`jwks_generate()` produces a fresh key as a JWK, ready to sign/verify with:
+
+```c
+jwk_set_t *set = jwks_create_generate(JWK_KEY_TYPE_EC, "P-256",
+                                      JWT_ALG_ES256, JWK_KEY_GEN_KID);
+const jwk_item_t *key = jwks_item_get(set, 0);
+```
+
+It covers EC (incl. `secp256k1`), RSA / RSA-PSS, OKP (Ed25519/Ed448/X25519/X448),
+`oct`, and AKP (ML-DSA), bound to the active crypto backend. `JWK_KEY_GEN_KID`
+stamps the RFC 7638 thumbprint as the `kid`. Each backend generates what it
+supports (OpenSSL: all; GnuTLS: all but `secp256k1`/X-curves; MbedTLS: EC/RSA;
+`oct` everywhere); an unsupported request returns a clean error rather than a
+weak or partial key.
+
 #### JWE
 
 LibJWT supports JWE (RFC 7516) in both the Compact Serialization and the JSON

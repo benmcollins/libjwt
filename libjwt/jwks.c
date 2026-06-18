@@ -712,6 +712,150 @@ jwk_set_t *jwks_create_fromkey_file(const char *file_name, unsigned int flags)
 	return jwks_load_fromkey_file(NULL, file_name, flags);
 }
 
+/* Set a string member (helper for the generated-oct JWK). 0 on success. */
+static int jwk_set_str(jwt_json_t *obj, const char *key, const char *val)
+{
+	jwt_json_t *v = jwt_json_create_str(val);
+
+	if (v == NULL || jwt_json_obj_set(obj, key, v))
+		return 1; // LCOV_EXCL_LINE
+
+	return 0;
+}
+
+/* Generate a symmetric "oct" key: CSPRNG bytes -> {kty:oct, k, [alg]} -> the
+ * normal load path (process_octet, provider=ANY). Bits from @param or @alg. */
+static void jwks_generate_oct(jwk_set_t *jwk_set, const char *param,
+			      jwt_alg_t alg, unsigned int flags)
+{
+	jwt_json_auto_t *arr = NULL;
+	jwt_json_t *jwk;
+	unsigned char *buf = NULL;
+	char_auto *b64 = NULL;
+	long bits;
+	int blen;
+
+	if (param != NULL && param[0] != '\0') {
+		char *end;
+
+		bits = strtol(param, &end, 10);
+		if (*end != '\0') {
+			jwt_write_error(jwk_set, "Invalid oct key size [%s]", param);
+			return;
+		}
+	} else {
+		bits = (alg == JWT_ALG_HS384) ? 384 :
+		       (alg == JWT_ALG_HS512) ? 512 : 256;
+	}
+
+	if (bits < 112 || bits % 8) {
+		jwt_write_error(jwk_set,
+			"oct key size must be a multiple of 8 and >= 112");
+		return;
+	}
+
+	buf = jwt_malloc((size_t)bits / 8);
+	if (buf == NULL)
+		return; // LCOV_EXCL_LINE
+	if (jwt_ops->rng == NULL || jwt_ops->rng(buf, (size_t)bits / 8)) {
+		// LCOV_EXCL_START
+		jwt_scrub_and_free(buf, (size_t)bits / 8);
+		jwt_write_error(jwk_set, "Random generation failed");
+		return;
+		// LCOV_EXCL_STOP
+	}
+
+	blen = jwt_base64uri_encode(&b64, (char *)buf, (int)(bits / 8));
+	jwt_scrub_and_free(buf, (size_t)bits / 8);
+	if (blen <= 0)
+		return; // LCOV_EXCL_LINE
+
+	arr = jwt_json_create_arr();
+	jwk = jwt_json_create();
+	if (arr == NULL || jwk == NULL || jwt_json_arr_append(arr, jwk))
+		return; // LCOV_EXCL_LINE
+
+	if (jwk_set_str(jwk, "kty", "oct") || jwk_set_str(jwk, "k", b64) ||
+	    (alg != JWT_ALG_NONE && jwk_set_str(jwk, "alg", jwt_alg_str(alg))))
+		return; // LCOV_EXCL_LINE
+
+	jwt_gen_kid(jwk, JWK_KEY_TYPE_OCT, flags);
+	jwks_process_array(jwk_set, arr);
+}
+
+jwk_set_t *jwks_generate(jwk_set_t *jwk_set, jwk_key_type_t kty,
+			 const char *param, jwt_alg_t alg, unsigned int flags)
+{
+	jwt_json_auto_t *arr = NULL;
+	char *pem = NULL;
+	size_t pem_len = 0;
+
+	if (jwk_set == NULL)
+		jwk_set = jwks_new();
+	if (jwk_set == NULL)
+		return NULL; // LCOV_EXCL_LINE
+
+	/* Anti-confusion: a stated alg must match the key type (GHSA-q843...). */
+	if (alg != JWT_ALG_NONE && jwt_alg_required_kty(alg) != kty) {
+		jwt_write_error(jwk_set,
+			"Algorithm does not match the requested key type");
+		return jwk_set;
+	}
+
+	if (kty == JWK_KEY_TYPE_OCT) {
+		jwks_generate_oct(jwk_set, param, alg, flags);
+		return jwk_set;
+	}
+
+	/* Asymmetric: generate a native key (PEM) via the active backend, then
+	 * run the existing key2jwk -> load pipeline (binds provider_data). */
+	if (jwt_ops->generate_pem == NULL) {
+		jwt_write_error(jwk_set,
+			"Key generation is not supported by the %s backend",
+			jwt_ops->name);
+		return jwk_set;
+	}
+
+	if (jwt_ops->generate_pem(kty, param, alg, &pem, &pem_len) || pem == NULL) {
+		jwt_write_error(jwk_set,
+			"Could not generate a key for the requested type");
+		jwt_scrub_and_free(pem, pem_len);
+		return jwk_set;
+	}
+
+	arr = jwt_json_create_arr();
+	if (arr == NULL) {
+		jwt_scrub_and_free(pem, pem_len); // LCOV_EXCL_LINE
+		return jwk_set; // LCOV_EXCL_LINE
+	}
+
+	if (jwt_key2jwk(pem, pem_len, flags, arr)) {
+		jwt_write_error(jwk_set, "Could not export the generated key");
+		jwt_scrub_and_free(pem, pem_len);
+		return jwk_set;
+	}
+	jwt_scrub_and_free(pem, pem_len);
+
+	/* Record the caller's alg (the in-key PEM cannot encode PS384/PS512 vs
+	 * PS256, and pins the ML-DSA variant) before parsing it into an item. */
+	if (alg != JWT_ALG_NONE) {
+		jwt_json_t *jwk0 = jwt_json_arr_get(arr, 0);
+
+		if (jwk0 != NULL && jwk_set_str(jwk0, "alg", jwt_alg_str(alg)))
+			return jwk_set; // LCOV_EXCL_LINE
+	}
+
+	jwks_process_array(jwk_set, arr);
+
+	return jwk_set;
+}
+
+jwk_set_t *jwks_create_generate(jwk_key_type_t kty, const char *param,
+				jwt_alg_t alg, unsigned int flags)
+{
+	return jwks_generate(NULL, kty, param, alg, flags);
+}
+
 /* The private members for each key type, used to strip a JWK down to its
  * public form. The returned array is NULL-terminated. */
 static const char **jwk_priv_members(jwk_key_type_t kty)

@@ -421,6 +421,9 @@ if (CHECK_FOUND)
 	# RFC 8725 typ helper + algorithm allowlist
 	list (APPEND UNIT_TESTS jwt_typ_alg)
 
+	# Key generation (jwks_generate)
+	list (APPEND UNIT_TESTS jwt_generate)
+
 	# ML-DSA (FIPS 204 / RFC 9964). The test is a no-op unless the build
 	# enabled WITH_ML_DSA against a capable backend.
 	list (APPEND UNIT_TESTS jwt_mldsa)
