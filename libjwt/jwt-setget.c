@@ -320,3 +320,121 @@ jwt_value_error_t jwt_claim_del(jwt_t *jwt, const char *claim)
                 return JWT_VALUE_ERR_INVALID;
 	return __deleter(jwt->claims, claim);
 }
+
+/* @rfc{7800} "cnf" (confirmation) claim helpers.
+ *
+ * cnf is a JSON object carrying a single proof-of-possession confirmation. The
+ * issuer sets it on a builder; a verifier reads a member from the jwt_t handed
+ * to its jwt_checker_setcb() callback (see jwt_get_cnf()). Each setter REPLACES
+ * any existing cnf, so the object always holds exactly one member. */
+
+/* Serialize the single-member object @cnf and set it as the builder's "cnf". */
+static int builder_set_cnf(jwt_builder_t *builder, jwt_json_t *cnf)
+{
+	char_auto *json = NULL;
+	jwt_value_t jval;
+
+	json = jwt_json_serialize(cnf, JWT_JSON_COMPACT);
+	if (json == NULL)
+		return 1; // LCOV_EXCL_LINE
+
+	jwt_set_SET_JSON(&jval, "cnf", json);
+	jval.replace = 1;
+
+	return jwt_builder_claim_set(builder, &jval) != JWT_VALUE_ERR_NONE;
+}
+
+int jwt_builder_setcnf(jwt_builder_t *builder, const char *member,
+		       const char *value)
+{
+	jwt_json_auto_t *cnf = NULL;
+
+	if (builder == NULL || member == NULL || !strlen(member) ||
+	    value == NULL)
+		return 1;
+
+	cnf = jwt_json_create();
+	if (cnf == NULL)
+		return 1; // LCOV_EXCL_LINE
+
+	if (jwt_json_obj_set(cnf, member, jwt_json_create_str(value)))
+		return 1; // LCOV_EXCL_LINE
+
+	return builder_set_cnf(builder, cnf);
+}
+
+int jwt_builder_setcnf_jkt(jwt_builder_t *builder, const jwk_item_t *key)
+{
+	char_auto *tp = NULL;
+
+	if (builder == NULL || key == NULL)
+		return 1;
+
+	tp = jwks_item_thumbprint(key, JWK_THUMBPRINT_SHA256);
+	if (tp == NULL)
+		return 1;
+
+	return jwt_builder_setcnf(builder, "jkt", tp);
+}
+
+int jwt_builder_setcnf_jwk(jwt_builder_t *builder, const jwk_item_t *key)
+{
+	jwt_json_auto_t *cnf = NULL;
+	char_auto *jwk_json = NULL;
+	jwt_json_t *jwk;
+
+	if (builder == NULL || key == NULL)
+		return 1;
+
+	cnf = jwt_json_create();
+	if (cnf == NULL)
+		return 1; // LCOV_EXCL_LINE
+
+	/* Embed the PUBLIC JWK only (@rfc{7800,3.2}). */
+	jwk_json = jwks_item_export(key, 0);
+	if (jwk_json == NULL)
+		return 1; // LCOV_EXCL_LINE
+
+	jwk = jwt_json_parse(jwk_json, 0, NULL);
+	if (jwk == NULL)
+		return 1; // LCOV_EXCL_LINE
+
+	/* obj_set steals the jwk reference into cnf. */
+	if (jwt_json_obj_set(cnf, "jwk", jwk))
+		return 1; // LCOV_EXCL_LINE
+
+	return builder_set_cnf(builder, cnf);
+}
+
+char *jwt_get_cnf(const jwt_t *jwt, const char *member)
+{
+	jwt_json_t *cnf, *val;
+	const char *str;
+	char *out;
+	size_t len;
+
+	if (jwt == NULL || jwt->claims == NULL || member == NULL)
+		return NULL;
+
+	cnf = jwt_json_obj_get(jwt->claims, "cnf");
+	if (cnf == NULL || !jwt_json_is_object(cnf))
+		return NULL;
+
+	val = jwt_json_obj_get(cnf, member);
+	if (val == NULL || !jwt_json_is_string(val))
+		return NULL;
+
+	str = jwt_json_str_val(val);
+	if (str == NULL)
+		return NULL; // LCOV_EXCL_LINE
+
+	/* Return a copy: the borrowed value would dangle once the jwt_t (e.g. a
+	 * verify callback's token) is freed. */
+	len = strlen(str) + 1;
+	out = jwt_malloc(len);
+	if (out == NULL)
+		return NULL; // LCOV_EXCL_LINE
+	memcpy(out, str, len);
+
+	return out;
+}
