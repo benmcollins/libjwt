@@ -141,6 +141,35 @@ START_TEST(test_xbackend_jwe_ecdh)
 }
 END_TEST
 
+/* Free a key while a DIFFERENT backend is active than the one that parsed it.
+ * Only the origin backend can release the key's provider_data, so this must not
+ * leak (issue #327, completing #320). The leak is proven absent by the
+ * memcheck CI row; here we just exercise every (parse, free) backend pair. */
+START_TEST(test_xbackend_free)
+{
+	static const char *files[] = {
+		"ec_key_prime256v1.json",	/* EC: EVP_PKEY / PSA / gnutls key */
+		"rsa_key_2048.json",		/* RSA */
+		"oct_key_256.json",		/* oct: backend-agnostic (ANY) */
+	};
+	size_t k, p;
+
+	SET_OPS(); /* the active ("free") backend = jwt_test_ops[_i] */
+
+	for (k = 0; k < ARRAY_SIZE(files); k++) {
+		for (p = 0; p < ARRAY_SIZE(jwt_test_ops); p++) {
+			/* Parse under backend p ... */
+			jwk_set_t *set = load_under(p, files[k]);
+
+			/* ... then free while the use backend (_i) is active. */
+			ck_assert_int_eq(jwt_set_crypto_ops(
+				jwt_test_ops[_i].name), 0);
+			jwks_free(set);
+		}
+	}
+}
+END_TEST
+
 static Suite *libjwt_suite(const char *title)
 {
 	Suite *s;
@@ -154,6 +183,7 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, test_xbackend_sign_verify, 0, i);
 	tcase_add_loop_test(tc_core, test_xbackend_jwe_rsa, 0, i);
 	tcase_add_loop_test(tc_core, test_xbackend_jwe_ecdh, 0, i);
+	tcase_add_loop_test(tc_core, test_xbackend_free, 0, i);
 
 	tcase_set_timeout(tc_core, 60);
 

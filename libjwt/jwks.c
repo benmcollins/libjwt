@@ -364,10 +364,18 @@ jwk_item_t *jwks_find_bykid(jwk_set_t *jwk_set, const char *kid)
 
 static void __item_free(jwk_item_t *todel)
 {
-	if (todel->provider == JWT_CRYPTO_OPS_ANY)
+	if (todel->provider == JWT_CRYPTO_OPS_ANY) {
 		jwt_scrub_and_free(todel->oct.key, todel->oct.len);
-	else
-		jwt_ops->process_item_free(todel);
+	} else {
+		/* Free the provider_data via the backend that PARSED the key, not
+		 * the active ops (#327, completing #320): a key parsed under one
+		 * backend may be freed while another is active, and only its origin
+		 * backend can release its EVP_PKEY / GnuTLS key / PSA handle. */
+		struct jwt_crypto_ops *ops = jwt_item_ops(todel);
+
+		if (ops != NULL)
+			ops->process_item_free(todel);
+	}
 
 	/* A few non-crypto specific things. */
 	jwt_freemem(todel->kid);
