@@ -99,6 +99,18 @@ signature naming a `kid` is matched to that key; a keyless one is tried against
 every compatible key, always under the usual algorithm/key-type binding.
 `jwt_checker_verify()` auto-detects Compact vs JSON input.
 
+##### Unencoded and detached payloads (RFC 7797)
+
+For a generic JWS over an opaque (non-claims) payload — e.g. HTTP message
+signatures or JAdES/eIDAS detached signatures — set the payload bytes with
+`jwt_builder_setpayload()`. `jwt_builder_setb64(b, 0)` selects the
+[RFC 7797](https://datatracker.ietf.org/doc/html/rfc7797) unencoded form
+(`"b64":false`, with `"b64"` marked critical and the signature computed over the
+raw payload), and `jwt_builder_set_detached()` omits the payload from the output.
+A detached token is verified with `jwt_checker_verify_detached()`, supplying the
+payload out-of-band. As mandated by RFC 7797 §6, the checker rejects a
+`"b64":false` token unless `"b64"` appears in `"crit"`.
+
 #### JWE
 
 LibJWT supports JWE (RFC 7516) in both the Compact Serialization and the JSON

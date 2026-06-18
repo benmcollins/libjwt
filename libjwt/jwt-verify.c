@@ -135,8 +135,13 @@ int jwt_check_crit(jwt_t *jwt, char * const *understood)
 			return 1;
 		}
 
+		/* @rfc{7797} The library handles "b64" itself, so it is always
+		 * understood (and is enforced separately during parsing). */
+		if (!strcmp(name, "b64"))
+			found = 1;
+
 		/* Must be understood by the application. */
-		if (understood) {
+		if (!found && understood) {
 			size_t j;
 
 			for (j = 0; understood[j] != NULL; j++) {
@@ -157,54 +162,123 @@ int jwt_check_crit(jwt_t *jwt, char * const *understood)
 	return 0;
 }
 
+/* @rfc{7797,6} Read the "b64" header (default true). A false value is the
+ * RFC 7797 unencoded payload option and is ONLY accepted if "b64" is also
+ * present in "crit" (else an attacker could flip the signing-input meaning).
+ * Sets *b64; returns 1 on the crit violation or a non-boolean "b64". */
+static int jwt_payload_b64(jwt_t *jwt, int *b64)
+{
+	jwt_json_t *jb64, *crit, *ent;
+	size_t i;
+	int found = 0;
+
+	*b64 = 1;
+
+	jb64 = jwt_json_obj_get(jwt->headers, "b64");
+	if (jb64 == NULL)
+		return 0;
+
+	if (!jwt_json_is_bool(jb64)) {
+		jwt_write_error(jwt, "\"b64\" header must be a boolean");
+		return 1;
+	}
+
+	if (jwt_json_is_true(jb64))
+		return 0;
+
+	*b64 = 0;
+
+	crit = jwt_json_obj_get(jwt->headers, "crit");
+	if (crit != NULL && jwt_json_is_array(crit)) {
+		jwt_json_arr_foreach(crit, i, ent) {
+			if (jwt_json_is_string(ent) &&
+			    !strcmp(jwt_json_str_val(ent), "b64")) {
+				found = 1;
+				break;
+			}
+		}
+	}
+	if (!found) {
+		jwt_write_error(jwt,
+			"\"b64\":false requires \"b64\" in \"crit\" (RFC 7797)");
+		return 1;
+	}
+
+	return 0;
+}
+
 int jwt_parse(jwt_t *jwt, const char *token, unsigned int *len)
 {
-	char_auto *head = NULL;
-	char *payload, *sig;
-	int head_len = strlen(token) + 1;
+	char_auto *buf = NULL;
+	char *payload, *sig, *dot, *lastdot = NULL;
+	int buf_len = strlen(token) + 1;
+	int b64;
 
-	head = jwt_malloc(head_len);
-	if (!head) {
+	buf = jwt_malloc(buf_len);
+	if (!buf) {
 		// LCOV_EXCL_START
 		jwt_write_error(jwt, "Error allocating memory");
 		return 1;
 		// LCOV_EXCL_STOP
 	}
 
-	/* head_len includes nil */
-	memcpy(head, token, head_len);
+	/* buf_len includes nil */
+	memcpy(buf, token, buf_len);
 
-	/* Find the components. */
-	for (payload = head; payload[0] != '.'; payload++) {
+	/* Header: everything up to the first '.'. */
+	for (payload = buf; payload[0] != '.'; payload++) {
 		if (payload[0] == '\0') {
 			jwt_write_error(jwt,
 				"No dot found looking for end of header");
 			return 1;
 		}
 	}
-
 	payload[0] = '\0';
 	payload++;
 
-	for (sig = payload; sig[0] != '.'; sig++) {
-		if (sig[0] == '\0') {
+	/* Parse the header now so we know the "b64" setting. */
+	if (jwt_parse_head(jwt, buf))
+		return 1;
+
+	/* @rfc{7797} Determine the payload encoding (and enforce crit). */
+	if (jwt_payload_b64(jwt, &b64))
+		return 1;
+	jwt->b64 = b64;
+
+	if (b64) {
+		/* Standard: the payload is between the 1st and 2nd '.'. */
+		for (sig = payload; sig[0] != '.'; sig++) {
+			if (sig[0] == '\0') {
+				jwt_write_error(jwt,
+					"No dot found looking for end of payload");
+				return 1;
+			}
+		}
+		sig[0] = '\0';
+		sig++;	/* point past the dot, as the b64=false branch does */
+
+		if (jwt_parse_payload(jwt, payload))
+			return 1;
+	} else {
+		/* @rfc{7797,5.2} Unencoded: the signature is after the LAST '.'
+		 * and the raw payload (which may itself contain '.') is between
+		 * the 1st and last '.'. The raw payload is not JSON claims. */
+		for (dot = payload; dot[0] != '\0'; dot++) {
+			if (dot[0] == '.')
+				lastdot = dot;
+		}
+		if (lastdot == NULL) {
 			jwt_write_error(jwt,
-				"No dot found looking for end of payload");
+				"No dot found looking for signature");
 			return 1;
 		}
+		*lastdot = '\0';
+		sig = lastdot + 1;
 	}
 
-	sig[0] = '\0';
-
-	/* Now that we have everything split up, let's check out the
-	 * header. */
-	if (jwt_parse_head(jwt, head))
-		return 1;
-
-	if (jwt_parse_payload(jwt, payload))
-		return 1;
-
-	*len = sig - head;
+	/* @rfc{7515,5.1}/@rfc{7797,3} The signing input is buf[0 .. sig's dot],
+	 * i.e. BASE64URL(header) "." (base64url or raw) payload. */
+	*len = (sig - 1) - buf;
 
 	return 0;
 }
@@ -349,8 +423,9 @@ static jwt_claims_t __verify_jti(jwt_t *jwt)
 static int __verify_config_post(jwt_t *jwt, const jwt_config_t *config,
 				unsigned int sig_len)
 {
-	/* Yes, we do this before checking a signature. */
-	if (__verify_claims(jwt)) {
+	/* Yes, we do this before checking a signature. @rfc{7797} An unencoded
+	 * (b64=false) payload is opaque, not JSON claims, so skip claim checks. */
+	if (jwt->b64 && __verify_claims(jwt)) {
 		/* TODO Pass back the ORd list of claims failed. */
 		jwt_write_error(jwt, "Failed one or more claims");
 		return 1;
@@ -609,6 +684,17 @@ static int verify_entry(jwt_checker_t *checker, jwt_t *jwt,
 		return 1;
 	}
 
+	/* @rfc{7797,6} Enforce "b64" in "crit" if this signature is unencoded. */
+	{
+		int eb64;
+
+		if (jwt_payload_b64(jwt, &eb64)) {
+			jwt_copy_error(checker, jwt);
+			jwt->headers = NULL;
+			return 1;
+		}
+	}
+
 	/* Seed the candidate: a kid-named keyring key (a binding assertion, no
 	 * fallback), or the checker's single key. A keyless keyring entry scans. */
 	kid = json_str(s->protected, "kid");
@@ -657,7 +743,7 @@ int jwt_verify_json(jwt_checker_t *checker, const char *token)
 	jwt_auto_t *jwt = NULL;
 	const char *payload_b64;
 	struct jwt_signature *s;
-	int n_verified = 0, sig_ok, payload_len;
+	int n_verified = 0, sig_ok, payload_len, pb64 = 1;
 	size_t n_entries;
 
 	/* Reset for a reused checker. */
@@ -720,6 +806,18 @@ int jwt_verify_json(jwt_checker_t *checker, const char *token)
 		return 1;
 	}
 
+	/* @rfc{7797} The shared payload's encoding comes from the (shared)
+	 * signatures; read it from the first one. An unencoded payload is opaque
+	 * (not JSON claims), so it is neither base64-decoded nor claim-checked. */
+	{
+		struct jwt_signature *first = jwt_signature_first(&checker->c);
+		jwt_json_t *jb = first ?
+			jwt_json_obj_get(first->protected, "b64") : NULL;
+
+		if (jb != NULL && jwt_json_is_bool(jb) && !jwt_json_is_true(jb))
+			pb64 = 0;
+	}
+
 	/* A transient JWT carrying the shared payload for the per-signature
 	 * verify and the read-only claim checks. */
 	jwt = jwt_new();
@@ -728,14 +826,21 @@ int jwt_verify_json(jwt_checker_t *checker, const char *token)
 		return 1; // LCOV_EXCL_LINE
 	}
 	jwt->checker = checker;
+	jwt->b64 = pb64;
 	jwt_json_releasep(&jwt->claims);
 	/* Release the empty header object jwt_new() allocated: from here on
 	 * jwt->headers only ever borrows each signature's protected header. */
 	jwt_json_releasep(&jwt->headers);
-	jwt->claims = jwt_base64uri_decode_to_json((char *)payload_b64);
-	if (jwt->claims == NULL) {
-		jwt_write_error(checker, "Error parsing payload");
-		return 1;
+	if (pb64) {
+		jwt->claims = jwt_base64uri_decode_to_json((char *)payload_b64);
+		if (jwt->claims == NULL) {
+			jwt_write_error(checker, "Error parsing payload");
+			return 1;
+		}
+	} else {
+		jwt->claims = jwt_json_create();
+		if (jwt->claims == NULL)
+			return 1; // LCOV_EXCL_LINE
 	}
 
 	list_for_each_entry(s, &checker->c.signatures, node) {
@@ -759,7 +864,7 @@ int jwt_verify_json(jwt_checker_t *checker, const char *token)
 		jwt_write_error(checker,
 			"Signature policy not met (%d of %zu verified)",
 			n_verified, n_entries);
-	} else if (__verify_claims(jwt)) {
+	} else if (jwt->b64 && __verify_claims(jwt)) {
 		jwt_write_error(checker, "Failed one or more claims");
 	} else if (__verify_jti(jwt)) {
 		/* jti runs only after signature + claims succeed. */
@@ -767,4 +872,148 @@ int jwt_verify_json(jwt_checker_t *checker, const char *token)
 	}
 
 	return checker->error;
+}
+
+/* Read the "b64" flag from a base64url-encoded protected header. Default 1. */
+static int detached_b64(const char *prot_b64)
+{
+	jwt_json_auto_t *hdr = NULL;
+	char_auto *copy = NULL;
+	jwt_json_t *jb;
+
+	if (prot_b64 == NULL)
+		return 1;
+	copy = jwt_str_dup(prot_b64);
+	if (copy == NULL)
+		return 1; // LCOV_EXCL_LINE
+	hdr = jwt_base64uri_decode_to_json(copy);
+	if (hdr == NULL)
+		return 1;
+	jb = jwt_json_obj_get(hdr, "b64");
+	if (jb != NULL && jwt_json_is_bool(jb) && !jwt_json_is_true(jb))
+		return 0;
+
+	return 1;
+}
+
+/* @rfc{7797,3} The payload as it appears in the signing input: base64url(@payload)
+ * when b64, else the raw bytes. Returns a malloc'd NUL-terminated string. */
+static char *detached_payload_part(int b64, const unsigned char *payload,
+				   size_t len)
+{
+	char *pp = NULL;
+
+	if (b64) {
+		if (len > INT_MAX ||
+		    jwt_base64uri_encode(&pp, (const char *)payload, (int)len) <= 0)
+			return NULL; // LCOV_EXCL_LINE
+		return pp;
+	}
+
+	pp = jwt_malloc(len + 1);
+	if (pp == NULL)
+		return NULL; // LCOV_EXCL_LINE
+	if (len)
+		memcpy(pp, payload, len);
+	pp[len] = '\0';
+
+	return pp;
+}
+
+int jwt_checker_verify_detached(jwt_checker_t *checker, const char *token,
+				const unsigned char *payload, size_t len)
+{
+	char_auto *pp = NULL, *recon = NULL;
+	const char *p;
+	int b64, ret;
+
+	if (checker == NULL)
+		return 1;
+
+	if (token == NULL || !strlen(token)) {
+		jwt_write_error(checker, "Must pass a token");
+		return 1;
+	}
+	if (payload == NULL && len > 0) {
+		jwt_write_error(checker, "Must pass a payload");
+		return 1;
+	}
+
+	p = token;
+	while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r')
+		p++;
+
+	if (*p == '{') {
+		/* @rfc{7515,7.2} JSON: insert the out-of-band "payload" and verify
+		 * the now-attached token. */
+		jwt_json_auto_t *root = NULL;
+		jwt_json_t *sigs, *prot_j, *v;
+		const char *prot_b64;
+
+		root = jwt_json_parse(token, JWT_JSON_REJECT_DUPLICATES, NULL);
+		if (root == NULL || !jwt_json_is_object(root)) {
+			jwt_write_error(checker, "Invalid JWS JSON Serialization");
+			return 1;
+		}
+
+		sigs = jwt_json_obj_get(root, "signatures");
+		if (sigs != NULL && jwt_json_is_array(sigs) &&
+		    jwt_json_arr_size(sigs) > 0)
+			prot_j = jwt_json_obj_get(jwt_json_arr_get(sigs, 0),
+						  "protected");
+		else
+			prot_j = jwt_json_obj_get(root, "protected");
+		prot_b64 = (prot_j && jwt_json_is_string(prot_j))
+			? jwt_json_str_val(prot_j) : NULL;
+
+		b64 = detached_b64(prot_b64);
+		pp = detached_payload_part(b64, payload, len);
+		if (pp == NULL)
+			return 1; // LCOV_EXCL_LINE
+
+		v = jwt_json_create_str(pp);
+		if (v == NULL || jwt_json_obj_set(root, "payload", v))
+			return 1; // LCOV_EXCL_LINE
+
+		recon = jwt_json_serialize(root, JWT_JSON_COMPACT);
+		if (recon == NULL)
+			return 1; // LCOV_EXCL_LINE
+	} else {
+		/* @rfc{7515,7.1} Compact: rebuild header "." payload "." signature. */
+		const char *firstdot = strchr(token, '.');
+		const char *lastdot = strrchr(token, '.');
+		char_auto *head_b64 = NULL;
+		size_t head_len, sig_len, recon_len;
+		const char *sig;
+
+		if (firstdot == NULL || lastdot == firstdot) {
+			jwt_write_error(checker,
+				"Not a detached Compact Serialization");
+			return 1;
+		}
+		head_len = (size_t)(firstdot - token);
+		sig = lastdot + 1;
+		sig_len = strlen(sig);
+
+		head_b64 = jwt_malloc(head_len + 1);
+		if (head_b64 == NULL)
+			return 1; // LCOV_EXCL_LINE
+		memcpy(head_b64, token, head_len);
+		head_b64[head_len] = '\0';
+
+		b64 = detached_b64(head_b64);
+		pp = detached_payload_part(b64, payload, len);
+		if (pp == NULL)
+			return 1; // LCOV_EXCL_LINE
+
+		recon_len = head_len + 1 + strlen(pp) + 1 + sig_len;
+		recon = jwt_malloc(recon_len + 1);
+		if (recon == NULL)
+			return 1; // LCOV_EXCL_LINE
+		sprintf(recon, "%s.%s.%s", head_b64, pp, sig);
+	}
+
+	ret = jwt_checker_verify(checker, recon);
+
+	return ret;
 }

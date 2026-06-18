@@ -606,6 +606,59 @@ int jwt_signature_add_header_json(jwt_signature_t *signature,
 				  const char *key, const char *value_json);
 
 /**
+ * @brief Sign an opaque (non-claims) payload
+ *
+ * Sets a raw payload to be signed verbatim instead of JSON claims, for a
+ * generic JWS (RFC 7515) — for example RFC 7797 unencoded payloads or a
+ * detached signature over an arbitrary document (JAdES). This is mutually
+ * exclusive with claims: when a raw payload is set it is used and any claims
+ * are ignored. Pass @p data as NULL (or @p len 0) to clear it and return to
+ * the claims model. The bytes are copied.
+ *
+ * @param builder Pointer to a builder object
+ * @param data The payload bytes (copied), or NULL to clear
+ * @param len The payload length in bytes
+ * @return 0 on success, non-zero otherwise with error set in the builder
+ * @since 3.6.0
+ */
+JWT_EXPORT
+int jwt_builder_setpayload(jwt_builder_t *builder, const unsigned char *data,
+			   size_t len);
+
+/**
+ * @brief Select base64url or unencoded payload (RFC 7797)
+ *
+ * With @p b64 nonzero (the default) the payload is base64url-encoded as usual.
+ * With @p b64 zero, @rfc{7797} unencoded payloads are produced: ``"b64":false``
+ * is emitted in the protected header, ``"b64"`` is added to ``"crit"``, and the
+ * signature is computed over the **raw** payload bytes. Requires a raw payload
+ * (jwt_builder_setpayload()), since RFC 7797 forbids the option for JWTs.
+ *
+ * @param builder Pointer to a builder object
+ * @param b64 Nonzero for base64url (default), zero for an unencoded payload
+ * @return 0 on success, non-zero otherwise with error set in the builder
+ * @since 3.6.0
+ */
+JWT_EXPORT
+int jwt_builder_setb64(jwt_builder_t *builder, int b64);
+
+/**
+ * @brief Detach the payload from the output
+ *
+ * With @p detached nonzero, the produced token omits the payload (an empty
+ * payload part in the Compact form, no ``"payload"`` member in the JSON forms).
+ * The verifier must supply the payload out-of-band with
+ * jwt_checker_verify_detached(). Orthogonal to jwt_builder_setb64().
+ *
+ * @param builder Pointer to a builder object
+ * @param detached Nonzero to omit the payload from the output
+ * @return 0 on success, non-zero otherwise with error set in the builder
+ * @since 3.6.0
+ */
+JWT_EXPORT
+int jwt_builder_set_detached(jwt_builder_t *builder, int detached);
+
+/**
  * @brief Set IssuedAt usage on builder
  *
  * By default, the builder will set the ``iat`` claim to all tokens. You can
@@ -1075,6 +1128,27 @@ int jwt_checker_sig_verified(const jwt_checker_t *checker, unsigned int index);
 JWT_EXPORT
 const jwk_item_t *jwt_checker_sig_key(const jwt_checker_t *checker,
 				      unsigned int index);
+
+/**
+ * @brief Verify a token whose payload was detached
+ *
+ * Verifies a token produced with jwt_builder_set_detached() (or any JWS with a
+ * detached payload), supplying the payload out-of-band. Works for both
+ * base64url and @rfc{7797} unencoded (``"b64":false``) payloads; the signing
+ * input is reconstructed from @p payload according to the token's ``"b64"``
+ * header. As with jwt_checker_verify(), an unencoded payload is accepted only
+ * if ``"b64"`` is present in the token's ``"crit"`` header (RFC 7797 §6).
+ *
+ * @param checker Pointer to a checker object
+ * @param token A string containing the (detached) token to verify
+ * @param payload The out-of-band payload bytes
+ * @param len The payload length in bytes
+ * @return 0 on success, non-zero otherwise with error set in the checker
+ * @since 3.6.0
+ */
+JWT_EXPORT
+int jwt_checker_verify_detached(jwt_checker_t *checker, const char *token,
+				const unsigned char *payload, size_t len);
 
 /**
  * @}

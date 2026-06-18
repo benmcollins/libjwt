@@ -415,6 +415,9 @@ if (CHECK_FOUND)
 	# JWS JSON Serialization (multi-signature)
 	list (APPEND UNIT_TESTS jws_json)
 
+	# RFC 7797 unencoded / detached payload
+	list (APPEND UNIT_TESTS jws_b64)
+
 	# ML-DSA (FIPS 204 / RFC 9964). The test is a no-op unless the build
 	# enabled WITH_ML_DSA against a capable backend.
 	list (APPEND UNIT_TESTS jwt_mldsa)
