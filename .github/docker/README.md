@@ -12,7 +12,7 @@ packages provide.
 | OpenSSL | forky apt (`libssl-dev`) | 3.6.x >= 3.5, so the OpenSSL ML-DSA path works |
 | GnuTLS | **from source** `--with-leancrypto` | ML-DSA (FIPS 204 / RFC 9964, `kty="AKP"`) success path; stock GnuTLS returns `-106` |
 | leancrypto | **from source** | the PQC provider GnuTLS statically links against |
-| MbedTLS | **from source**, 3.6.x LTS | **not** 4.x (PSA rewrite drops the legacy `mbedtls_pk_*` API libjwt uses) |
+| MbedTLS | **from source**, 3.6.x LTS | the tested baseline; the PSA-based backend also builds against MbedTLS 4.x |
 | jansson + json-c | forky apt | both JSON backends installed, either selectable |
 | libcurl, check, bats, jq, lcov, valgrind | forky apt | build + test + coverage + memcheck tooling |
 
@@ -29,7 +29,7 @@ Set via `ARG` in the [`Dockerfile`](./Dockerfile) - bump these for a respin:
 ARG LEANCRYPTO_VERSION=v1.7.2
 ARG GNUTLS_VERSION=3.8.13     # >= 3.8.10 enables ML-DSA
 ARG GNUTLS_SERIES=v3.8        # keep in sync with GNUTLS_VERSION's major.minor
-ARG MBEDTLS_VERSION=3.6.6     # 3.6.x LTS only
+ARG MBEDTLS_VERSION=3.6.6     # 3.6.x LTS baseline (4.x also builds)
 ```
 
 The final layer of the Dockerfile asserts these guarantees (pkg-config floors,

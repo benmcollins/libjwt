@@ -6,8 +6,8 @@
 #   * GnuTLS           - built FROM SOURCE --with-leancrypto so the ML-DSA
 #                        (FIPS 204 / RFC 9964, kty="AKP") SUCCESS path works
 #   * leancrypto       - built FROM SOURCE; the PQC provider GnuTLS links against
-#   * MbedTLS          - built FROM SOURCE (3.6.x LTS, NOT the 4.x PSA rewrite,
-#                        which drops the legacy mbedtls_pk_* API libjwt uses)
+#   * MbedTLS          - built FROM SOURCE (3.6.x LTS, the tested baseline; the
+#                        PSA-based backend also builds against MbedTLS 4.x)
 #   * jansson + json-c - both JSON backends, from apt
 #   * libcurl, check, bats, jq, lcov, valgrind - from apt
 #
