@@ -43,6 +43,12 @@ const char *jwe_alg_str(jwe_key_alg_t alg)
 		return "A192GCMKW";
 	case JWE_ALG_A256GCMKW:
 		return "A256GCMKW";
+	case JWE_ALG_PBES2_HS256_A128KW:
+		return "PBES2-HS256+A128KW";
+	case JWE_ALG_PBES2_HS384_A192KW:
+		return "PBES2-HS384+A192KW";
+	case JWE_ALG_PBES2_HS512_A256KW:
+		return "PBES2-HS512+A256KW";
 	default:
 		return NULL;
 	}
@@ -79,6 +85,12 @@ jwe_key_alg_t jwe_str_alg(const char *alg)
 		return JWE_ALG_A192GCMKW;
 	else if (!strcmp(alg, "A256GCMKW"))
 		return JWE_ALG_A256GCMKW;
+	else if (!strcmp(alg, "PBES2-HS256+A128KW"))
+		return JWE_ALG_PBES2_HS256_A128KW;
+	else if (!strcmp(alg, "PBES2-HS384+A192KW"))
+		return JWE_ALG_PBES2_HS384_A192KW;
+	else if (!strcmp(alg, "PBES2-HS512+A256KW"))
+		return JWE_ALG_PBES2_HS512_A256KW;
 
 	return JWE_ALG_INVAL;
 }

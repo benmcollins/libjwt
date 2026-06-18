@@ -155,6 +155,7 @@ JWE key management ``alg``    | OpenSSL            | GnuTLS             | MbedTL
 ``dir`` (Direct Encryption)   | :white_check_mark: | :white_check_mark: | :white_check_mark:
 ``A128KW`` ``A192KW`` ``A256KW`` | :white_check_mark: | :white_check_mark: | :white_check_mark:
 ``A128GCMKW`` ``A192GCMKW`` ``A256GCMKW`` | :white_check_mark: | :white_check_mark: | :white_check_mark:
+``PBES2-HS256+A128KW`` ``PBES2-HS384+A192KW`` ``PBES2-HS512+A256KW`` | :white_check_mark: | :white_check_mark: | :white_check_mark:
 ``RSA-OAEP`` (SHA-1)          | :white_check_mark: | :x:                | :white_check_mark:
 ``RSA-OAEP-256``              | :white_check_mark: | :white_check_mark: | :white_check_mark:
 ``ECDH-ES`` (+ ``+A128KW``/``+A192KW``/``+A256KW``) [^okp3813] | :white_check_mark: | :white_check_mark: | :white_check_mark:
@@ -172,6 +173,14 @@ JWE content encryption ``enc`` | OpenSSL            | GnuTLS             | MbedT
 > implements JWE natively. GnuTLS/Nettle cannot perform RSA-OAEP with SHA-1,
 > so the GnuTLS backend does not support plain ``RSA-OAEP`` (``RSA-OAEP-256``
 > is native).
+
+> [!NOTE]
+> ``PBES2-*`` derive a key-wrapping key from a passphrase (the ``oct`` key's
+> octets) with PBKDF2 over a fresh random salt. The iteration count is set with
+> @ref jwe_builder_setpbes2 (a sensible default is used otherwise). On decrypt
+> the ``p2c`` iteration count is attacker-controlled, so libjwt enforces a hard
+> maximum and a minimum salt length and rejects anything outside them before
+> doing any PBKDF2 work — a deliberate DoS guard, like the omission of ``zip``.
 
 ### Optional
 

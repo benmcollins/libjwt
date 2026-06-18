@@ -207,6 +207,10 @@ struct jwe_common {
 	/* @rfc{7516,4.1.4} Serialization to emit (builder). */
 	jwe_serialization_t format;
 
+	/* @rfc{7518,4.8} PBES2 iteration count for the builder; 0 = the library
+	 * default. Set via jwe_builder_setpbes2(). */
+	unsigned int pbes2_p2c;
+
 	/* @rfc{7516,5.1} step 14 The application-supplied JWE AAD (the "aad"
 	 * member of the JSON serializations). @aad_b64 is its base64url form,
 	 * which is also what is concatenated into the AEAD AAD. */
@@ -386,6 +390,14 @@ struct jwt_crypto_ops {
 	 * every backend provides it (it is not gated by jwe_implemented). */
 	int (*sha)(int sha_bits, const unsigned char *in, size_t in_len,
 		   unsigned char *out, unsigned int *out_len);
+
+	/* @rfc{8018} PBKDF2-HMAC-SHA{256,384,512}: derive @dk_len octets into
+	 * @out from the password @pw and @salt over @iter iterations. Used by the
+	 * PBES2 (RFC 7518 4.8) JWE key-management algorithms. Returns 0 on
+	 * success. NULL on a backend that cannot derive (PBES2 then fails cleanly). */
+	int (*pbkdf2)(int sha_bits, const unsigned char *pw, size_t pw_len,
+		      const unsigned char *salt, size_t salt_len,
+		      unsigned int iter, unsigned char *out, size_t dk_len);
 
 	/* JWE (RFC 7516/7518). A backend may implement JWE crypto ops even if
 	 * it does not parse JWKs (JWK parsing always falls back to OpenSSL).
@@ -742,6 +754,9 @@ static inline jwk_key_type_t jwe_alg_required_kty(jwe_key_alg_t alg)
 	case JWE_ALG_A128GCMKW:
 	case JWE_ALG_A192GCMKW:
 	case JWE_ALG_A256GCMKW:
+	case JWE_ALG_PBES2_HS256_A128KW:
+	case JWE_ALG_PBES2_HS384_A192KW:
+	case JWE_ALG_PBES2_HS512_A256KW:
 		return JWK_KEY_TYPE_OCT;
 
 	case JWE_ALG_RSA_OAEP:
@@ -806,6 +821,21 @@ int jwe_gcmkw_wrap(jwe_key_alg_t alg, const jwk_item_t *key,
 		   jwt_json_t *hdr, unsigned char **out, size_t *out_len);
 JWT_NO_EXPORT
 int jwe_gcmkw_unwrap(jwe_key_alg_t alg, const jwk_item_t *key, jwt_json_t *hdr,
+		     const unsigned char *in, size_t in_len,
+		     unsigned char **cek, size_t *cek_len);
+
+/* PBES2 password-based key management (RFC 7518 4.8). PBKDF2 (over a fresh salt)
+ * derives a KEK from the oct key's octets (the password); the CEK is AES-KW
+ * wrapped. "p2s" (salt) and "p2c" (iterations) ride in the per-recipient header;
+ * @p2c on wrap is 0 for the default. The decrypt side caps p2c and the salt. */
+JWT_NO_EXPORT
+int jwe_alg_is_pbes2(jwe_key_alg_t alg);
+JWT_NO_EXPORT
+int jwe_pbes2_wrap(jwe_key_alg_t alg, const jwk_item_t *key,
+		   const unsigned char *cek, size_t cek_len, unsigned int p2c,
+		   jwt_json_t *hdr, unsigned char **out, size_t *out_len);
+JWT_NO_EXPORT
+int jwe_pbes2_unwrap(jwe_key_alg_t alg, const jwk_item_t *key, jwt_json_t *hdr,
 		     const unsigned char *in, size_t in_len,
 		     unsigned char **cek, size_t *cek_len);
 

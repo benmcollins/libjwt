@@ -116,6 +116,9 @@ typedef enum {
 	JWE_ALG_A128GCMKW,	/**< Key wrapping with AES GCM using a 128-bit key @since 3.6.0 */
 	JWE_ALG_A192GCMKW,	/**< Key wrapping with AES GCM using a 192-bit key @since 3.6.0 */
 	JWE_ALG_A256GCMKW,	/**< Key wrapping with AES GCM using a 256-bit key @since 3.6.0 */
+	JWE_ALG_PBES2_HS256_A128KW,	/**< PBES2 with HMAC SHA-256 and A128KW wrapping @since 3.6.0 */
+	JWE_ALG_PBES2_HS384_A192KW,	/**< PBES2 with HMAC SHA-384 and A192KW wrapping @since 3.6.0 */
+	JWE_ALG_PBES2_HS512_A256KW,	/**< PBES2 with HMAC SHA-512 and A256KW wrapping @since 3.6.0 */
 	JWE_ALG_INVAL,		/**< An invalid algorithm from the caller or the token */
 } jwe_key_alg_t;
 
@@ -2218,6 +2221,24 @@ int jwe_builder_add_unprotected_json(jwe_builder_t *builder, const char *key,
 JWT_EXPORT
 int jwe_builder_set_aad(jwe_builder_t *builder, const unsigned char *aad,
 			size_t aad_len);
+
+/**
+ * @brief Set the PBES2 iteration count
+ *
+ * Sets the PBKDF2 iteration count (the ``p2c`` header parameter) used by the
+ * ``PBES2-*`` password-based key-management algorithms. Pass 0 to use the
+ * library default. A higher count increases resistance to password guessing at
+ * the cost of more work per encrypt/decrypt; it has no effect on non-PBES2
+ * algorithms. On decrypt the library enforces a hard maximum on an
+ * attacker-supplied ``p2c`` regardless of this setting.
+ *
+ * @param builder Pointer to a JWE builder object
+ * @param p2c The PBKDF2 iteration count, or 0 for the library default
+ * @return 0 on success, non-zero otherwise
+ * @since 3.6.0
+ */
+JWT_EXPORT
+int jwe_builder_setpbes2(jwe_builder_t *builder, unsigned int p2c);
 
 /**
  * @brief Encrypt a plaintext into a JWE
