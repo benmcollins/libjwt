@@ -130,6 +130,17 @@ supports (OpenSSL: all; GnuTLS: all but `secp256k1`/X-curves; MbedTLS: EC/RSA;
 `oct` everywhere); an unsupported request returns a clean error rather than a
 weak or partial key.
 
+#### X.509 in JWKs
+
+A JWK's X.509 parameters are parsed and exposed: `jwks_item_x5c_count()` /
+`jwks_item_x5c()` give the DER certificates of the `x5c` chain (the leaf at
+index 0), and `jwks_item_x5t()` / `jwks_item_x5t_s256()` return the `x5t` /
+`x5t#S256` thumbprints. When a JWK carries both `x5c` and `x5t#S256`, the
+thumbprint is verified against the leaf certificate at parse time
+(`base64url(SHA-256(DER))`, RFC 7517 §4.9) and a mismatch is rejected.
+Certificate-chain validation and `x5u` fetching are intentionally left to the
+caller for now (chain/trust policy and SSRF are security-critical).
+
 #### JWE
 
 LibJWT supports JWE (RFC 7516) in both the Compact Serialization and the JSON

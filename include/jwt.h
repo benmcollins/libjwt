@@ -2976,6 +2976,62 @@ JWT_EXPORT
 const char *jwks_item_pem(const jwk_item_t *item);
 
 /**
+ * @brief Number of certificates in the JWK ``x5c`` chain
+ *
+ * @param item A JWK Item
+ * @return The number of X.509 certificates in the ``x5c`` chain, or 0 if the
+ *  JWK has none (RFC 7517 §4.7).
+ * @since 3.6.0
+ */
+JWT_EXPORT
+size_t jwks_item_x5c_count(const jwk_item_t *item);
+
+/**
+ * @brief Get a certificate from the JWK ``x5c`` chain (DER)
+ *
+ * Returns the raw DER bytes of the certificate at @p index in the ``x5c``
+ * chain (index 0 is the leaf, which holds the public key matching the JWK).
+ * The bytes are owned by the JWK item and remain valid until it is freed; the
+ * caller must not free them. Certificate-chain validation is the caller's
+ * responsibility (libjwt does not build or verify the trust chain).
+ *
+ * @param item A JWK Item
+ * @param index The certificate index (0 is the leaf)
+ * @param len If not NULL, set to the length of the DER in bytes
+ * @return The DER bytes, or NULL if @p index is out of range
+ * @since 3.6.0
+ */
+JWT_EXPORT
+const unsigned char *jwks_item_x5c(const jwk_item_t *item, size_t index,
+				   size_t *len);
+
+/**
+ * @brief The JWK ``x5t`` (SHA-1 certificate thumbprint)
+ *
+ * @param item A JWK Item
+ * @return The base64url ``x5t`` value (RFC 7517 §4.8), or NULL if absent. The
+ *  legacy SHA-1 thumbprint is exposed as-is and not recomputed.
+ * @since 3.6.0
+ */
+JWT_EXPORT
+const char *jwks_item_x5t(const jwk_item_t *item);
+
+/**
+ * @brief The JWK ``x5t#S256`` (SHA-256 certificate thumbprint)
+ *
+ * If the JWK also carries an ``x5c`` chain, this value was verified at parse
+ * time to equal ``base64url(SHA-256(DER(leaf)))`` (RFC 7517 §4.9); a JWK whose
+ * ``x5t#S256`` disagrees with its ``x5c`` leaf is rejected (the item carries an
+ * error).
+ *
+ * @param item A JWK Item
+ * @return The base64url ``x5t#S256`` value, or NULL if absent
+ * @since 3.6.0
+ */
+JWT_EXPORT
+const char *jwks_item_x5t_s256(const jwk_item_t *item);
+
+/**
  * @brief Serialize a single JWK item to a JWK JSON string
  *
  * Produces the JSON Web Key representation of this item. This is the

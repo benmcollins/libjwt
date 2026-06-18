@@ -289,6 +289,13 @@ struct jwk_set {
  * string of the key. The underlying crypto algorithm may or may not support
  * this. It's provided as a convenience.
  */
+
+/* @rfc{7517,4.7} One decoded ("x5c") certificate: the raw DER octets. */
+struct jwk_cert {
+	unsigned char *der;
+	size_t len;
+};
+
 struct jwk_item {
 	ll_t node;
 	char *pem;		/**< If not NULL, contains PEM string of this key	*/
@@ -310,6 +317,8 @@ struct jwk_item {
 	jwk_key_op_t key_ops;	/**< @rfc{7517,4.3} Key operations supported		*/
 	jwt_alg_t alg;		/**< @rfc{7517,4.4} JWA Algorithm supported		*/
 	char *kid;		/**< @rfc{7517,4.5} Key ID				*/
+	struct jwk_cert *x5c;	/**< @rfc{7517,4.7} decoded DER cert chain (or NULL)	*/
+	size_t x5c_count;	/**< Number of certificates in @ref jwk_item.x5c	*/
 	jwt_json_t *json;	/**< The jwt_json_t for this key			*/
 };
 
@@ -579,6 +588,16 @@ JWT_NO_EXPORT
 int jwt_base64uri_encode(char **_dst, const char *plain, int plain_len);
 JWT_NO_EXPORT
 void *jwt_base64uri_decode(const char *src, int *ret_len);
+
+/* Standard (non-URL) base64, used for the @rfc{7517,4.7} "x5c" certificate
+ * chain. @out must hold at least 4*((inlen+2)/3) (encode) or 3*(inlen/4)
+ * (decode) octets; both return the number of octets written. */
+JWT_NO_EXPORT
+unsigned int base64_encode(const unsigned char *in, unsigned int inlen,
+			   char *out);
+JWT_NO_EXPORT
+unsigned int base64_decode(const char *in, unsigned int inlen,
+			   unsigned char *out);
 
 JWT_NO_EXPORT
 jwt_t *jwt_verify_sig(jwt_t *jwt, const char *head, unsigned int head_len,
