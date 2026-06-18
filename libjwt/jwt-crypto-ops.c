@@ -71,6 +71,27 @@ int jwt_set_crypto_ops_t(jwt_crypto_provider_t opname)
 	return 1;
 }
 
+struct jwt_crypto_ops *jwt_item_ops(const jwk_item_t *item)
+{
+	int i;
+
+	/* Cross-compatible keys (oct) and NULL/error keys use the active ops. */
+	if (item == NULL || item->provider == JWT_CRYPTO_OPS_ANY ||
+	    item->provider == JWT_CRYPTO_OPS_NONE)
+		return jwt_ops;
+
+	/* Otherwise route to the backend that parsed the key, regardless of the
+	 * currently selected ops. */
+	for (i = 0; jwt_ops_available[i] != NULL; i++) {
+		if (jwt_ops_available[i]->provider == item->provider)
+			return jwt_ops_available[i];
+	}
+
+	/* A successfully-parsed asymmetric key's backend is always compiled in,
+	 * so this is unreachable in practice. */
+	return NULL; // LCOV_EXCL_LINE
+}
+
 int jwt_set_crypto_ops(const char *opname)
 {
 	int i;

@@ -150,9 +150,11 @@ int jwe_ecdh_derive(jwe_key_alg_t alg, jwe_enc_t enc, const jwk_item_t *key,
 		    int for_encrypt, jwt_json_t *hdr,
 		    unsigned char **dk, size_t *dk_len)
 {
-	if (jwt_ops->ecdh_derive == NULL)
+	struct jwt_crypto_ops *ops = jwt_item_ops(key);
+
+	if (ops == NULL || ops->ecdh_derive == NULL)
 		return 1; // LCOV_EXCL_LINE
-	return jwt_ops->ecdh_derive(alg, enc, key, for_encrypt, hdr, dk, dk_len);
+	return ops->ecdh_derive(alg, enc, key, for_encrypt, hdr, dk, dk_len);
 }
 
 /* @rfc{7518,4.4} AES Key Wrap / Unwrap with a raw KEK (the ECDH-ES agreed
@@ -185,10 +187,12 @@ int jwe_encrypt_cek(jwe_key_alg_t alg, const jwk_item_t *key,
 		return jwe_wrap_cek(alg, key, cek, cek_len, out, out_len);
 
 	if (alg_is_rsa(alg)) {
-		if (jwt_ops->encrypt_cek_rsa == NULL)
+		struct jwt_crypto_ops *ops = jwt_item_ops(key);
+
+		if (ops == NULL || ops->encrypt_cek_rsa == NULL)
 			return 1; // LCOV_EXCL_LINE
-		return jwt_ops->encrypt_cek_rsa(alg, key, cek, cek_len,
-						out, out_len);
+		return ops->encrypt_cek_rsa(alg, key, cek, cek_len,
+					    out, out_len);
 	}
 
 	return 1; // LCOV_EXCL_LINE
@@ -205,10 +209,12 @@ int jwe_decrypt_cek(jwe_key_alg_t alg, const jwk_item_t *key,
 		return jwe_unwrap_cek(alg, key, in, in_len, cek, cek_len);
 
 	if (alg_is_rsa(alg)) {
-		if (jwt_ops->decrypt_cek_rsa == NULL)
+		struct jwt_crypto_ops *ops = jwt_item_ops(key);
+
+		if (ops == NULL || ops->decrypt_cek_rsa == NULL)
 			return 1; // LCOV_EXCL_LINE
-		return jwt_ops->decrypt_cek_rsa(alg, key, in, in_len,
-						cek, cek_len);
+		return ops->decrypt_cek_rsa(alg, key, in, in_len,
+					    cek, cek_len);
 	}
 
 	return 1; // LCOV_EXCL_LINE

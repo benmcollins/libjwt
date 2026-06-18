@@ -44,6 +44,14 @@
 JWT_NO_EXPORT
 extern struct jwt_crypto_ops *jwt_ops;
 
+/* The crypto ops to use for operations on @item. A jwk_item is bound to the
+ * backend that parsed it (item->provider); route key operations through that
+ * backend regardless of the active jwt_ops. Cross-compatible keys (oct, i.e.
+ * JWT_CRYPTO_OPS_ANY) and a NULL/error item use the active ops. Returns NULL
+ * only if the origin backend is not compiled into this build. */
+JWT_NO_EXPORT
+struct jwt_crypto_ops *jwt_item_ops(const jwk_item_t *item);
+
 /* This can be used on anything with an error and error_msg field */
 #define jwt_write_error(__obj, __fmt, __args...)	\
 ({							\
