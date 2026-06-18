@@ -659,6 +659,22 @@ JWT_EXPORT
 int jwt_builder_set_detached(jwt_builder_t *builder, int detached);
 
 /**
+ * @brief Set the token media type ("typ" header)
+ *
+ * A convenience setter for the ``"typ"`` header parameter, naming the token's
+ * media type — e.g. ``"at+jwt"`` (RFC 9068), ``"dpop+jwt"``, ``"secevent+jwt"``.
+ * Equivalent to setting the ``"typ"`` header directly. Pair it with
+ * jwt_checker_expect_typ() on the verifying side.
+ *
+ * @param builder Pointer to a builder object
+ * @param typ The media type string, or NULL to clear it
+ * @return 0 on success, non-zero otherwise with error set in the builder
+ * @since 3.6.0
+ */
+JWT_EXPORT
+int jwt_builder_settyp(jwt_builder_t *builder, const char *typ);
+
+/**
  * @brief Set IssuedAt usage on builder
  *
  * By default, the builder will set the ``iat`` claim to all tokens. You can
@@ -984,6 +1000,42 @@ typedef enum {
 JWT_EXPORT
 int jwt_checker_setkeyring(jwt_checker_t *checker, const jwk_set_t *keyring,
 			   jwt_verify_policy_t policy);
+
+/**
+ * @brief Require a specific token media type ("typ" header)
+ *
+ * When set, jwt_checker_verify() rejects a token whose ``"typ"`` header does not
+ * match @p typ. The comparison is case-insensitive and tolerates the optional
+ * ``application/`` prefix (RFC 6838), so ``expect_typ(c, "at+jwt")`` accepts both
+ * ``"at+jwt"`` and ``"application/at+jwt"``. This is the standardized
+ * cross-JWT-confusion defense (@rfc{8725} §3.11).
+ *
+ * @param checker Pointer to a checker object
+ * @param typ The required media type, or NULL to clear the requirement
+ * @return 0 on success, non-zero otherwise with error set in the checker
+ * @since 3.6.0
+ */
+JWT_EXPORT
+int jwt_checker_expect_typ(jwt_checker_t *checker, const char *typ);
+
+/**
+ * @brief Set an allowlist of acceptable algorithms
+ *
+ * Restricts the algorithms jwt_checker_verify() will accept to the given set,
+ * checked before any signature work (@rfc{8725}). Useful when verifying against
+ * a keyring (jwt_checker_setkeyring()) where several algorithms are acceptable,
+ * e.g. ``{JWT_ALG_RS256, JWT_ALG_ES256}``. A token whose ``"alg"`` is not in the
+ * set is rejected, which also blocks an ``alg:none`` downgrade. Passing @p n as
+ * 0 (or @p algs as NULL) clears the allowlist.
+ *
+ * @param checker Pointer to a checker object
+ * @param algs An array of acceptable ::jwt_alg_t values (copied)
+ * @param n The number of entries in @p algs
+ * @return 0 on success, non-zero otherwise with error set in the checker
+ * @since 3.6.0
+ */
+JWT_EXPORT
+int jwt_checker_setalgs(jwt_checker_t *checker, const jwt_alg_t *algs, size_t n);
 
 /**
  * @brief Set a callback for generating tokens
