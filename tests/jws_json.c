@@ -227,11 +227,14 @@ START_TEST(test_tamper)
 	jwt_builder_auto_t *builder = NULL;
 	jwt_checker_auto_t *checker = NULL;
 	char_auto *tok = NULL;
-	jwk_set_t *eks = load_one("ec_key_prime256v1.json");
-	const jwk_item_t *ec = jwks_item_get(eks, 0);
+	jwk_set_t *eks;
+	const jwk_item_t *ec;
 	char *p;
 
 	SET_OPS();
+
+	eks = load_one("ec_key_prime256v1.json");
+	ec = jwks_item_get(eks, 0);
 
 	builder = jwt_builder_new();
 	ck_assert_int_eq(jwt_builder_setkey(builder, JWT_ALG_ES256, ec), 0);
@@ -273,11 +276,14 @@ START_TEST(test_malformed)
 			"\"signature\":\"\"}",
 		"{ this is not json",
 	};
-	jwk_set_t *eks = load_one("ec_key_prime256v1.json");
-	const jwk_item_t *ec = jwks_item_get(eks, 0);
+	jwk_set_t *eks;
+	const jwk_item_t *ec;
 	size_t i;
 
 	SET_OPS();
+
+	eks = load_one("ec_key_prime256v1.json");
+	ec = jwks_item_get(eks, 0);
 
 	for (i = 0; i < ARRAY_SIZE(bad); i++) {
 		jwt_checker_auto_t *checker = jwt_checker_new();
@@ -322,10 +328,13 @@ START_TEST(test_edges)
 	jwt_checker_auto_t *c1 = NULL, *c2 = NULL, *c3 = NULL;
 	jwt_signature_t *sig;
 	char_auto *tok = NULL;
-	jwk_set_t *eks = load_one("ec_key_prime256v1.json");
-	const jwk_item_t *ec = jwks_item_get(eks, 0);
+	jwk_set_t *eks;
+	const jwk_item_t *ec;
 
 	SET_OPS();
+
+	eks = load_one("ec_key_prime256v1.json");
+	ec = jwks_item_get(eks, 0);
 
 	/* (a) An unprotected per-signature "header" round-trips and verifies. */
 	b1 = jwt_builder_new();

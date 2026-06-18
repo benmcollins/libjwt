@@ -729,10 +729,12 @@ int jwt_verify_json(jwt_checker_t *checker, const char *token)
 	}
 	jwt->checker = checker;
 	jwt_json_releasep(&jwt->claims);
+	/* Release the empty header object jwt_new() allocated: from here on
+	 * jwt->headers only ever borrows each signature's protected header. */
+	jwt_json_releasep(&jwt->headers);
 	jwt->claims = jwt_base64uri_decode_to_json((char *)payload_b64);
 	if (jwt->claims == NULL) {
 		jwt_write_error(checker, "Error parsing payload");
-		jwt->headers = NULL;
 		return 1;
 	}
 
