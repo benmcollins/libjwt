@@ -35,16 +35,20 @@ START_TEST(three_recipients)
 	jwe_builder_auto_t *builder = NULL;
 	jwe_recipient_t *r;
 	char_auto *tok = NULL;
-	jwk_set_auto_t *ks_rsa = NULL, *ks_ec = NULL;
-	const jwk_item_t *k_rsa, *k_ec;
+	jwk_set_auto_t *ks_oct = NULL, *ks_rsa = NULL, *ks_ec = NULL;
+	const jwk_item_t *k_oct, *k_rsa, *k_ec;
 
 	SET_OPS();
 
-	/* Recipient 0 via setkey (oct A256KW). */
-	read_json("oct_key_256_enc.json");
+	/* Recipient 0 via setkey (oct A256KW). The builder references the key, so
+	 * it must outlive generate(); keep it in an auto-freed set, not the global
+	 * read_json() slot that the decrypt_ok() calls below reuse. */
+	ks_oct = jwks_create_fromfile(KEYDIR "/oct_key_256_enc.json");
+	ck_assert_ptr_nonnull(ks_oct);
+	k_oct = jwks_item_get(ks_oct, 0);
 	builder = jwe_builder_new();
 	ck_assert_int_eq(jwe_builder_setkey(builder, JWE_ALG_A256KW,
-					    JWE_ENC_A256GCM, g_item), 0);
+					    JWE_ENC_A256GCM, k_oct), 0);
 
 	/* Recipients 1 and 2 via add_recipient. */
 	ks_rsa = jwks_create_fromfile(KEYDIR "/rsa_key_2048_enc.json");
@@ -85,15 +89,17 @@ START_TEST(second_recipient_matches)
 {
 	jwe_builder_auto_t *builder = NULL;
 	char_auto *tok = NULL;
-	jwk_set_auto_t *ks_rsa = NULL;
-	const jwk_item_t *k_rsa;
+	jwk_set_auto_t *ks_oct = NULL, *ks_rsa = NULL;
+	const jwk_item_t *k_oct, *k_rsa;
 
 	SET_OPS();
 
-	read_json("oct_key_256_enc.json");
+	ks_oct = jwks_create_fromfile(KEYDIR "/oct_key_256_enc.json");
+	ck_assert_ptr_nonnull(ks_oct);
+	k_oct = jwks_item_get(ks_oct, 0);
 	builder = jwe_builder_new();
 	ck_assert_int_eq(jwe_builder_setkey(builder, JWE_ALG_A256KW,
-					    JWE_ENC_A256GCM, g_item), 0);
+					    JWE_ENC_A256GCM, k_oct), 0);
 	ks_rsa = jwks_create_fromfile(KEYDIR "/rsa_key_2048_enc.json");
 	k_rsa = jwks_item_get(ks_rsa, 0);
 	ck_assert_ptr_nonnull(jwe_builder_add_recipient(builder,
@@ -105,8 +111,6 @@ START_TEST(second_recipient_matches)
 	/* Our key is recipient #2 (RSA), not #1 (A256KW). */
 	decrypt_ok(tok, "rsa_key_2048_enc.json", JWE_ALG_RSA_OAEP_256,
 		   JWE_ENC_A256GCM);
-
-	free_key();
 }
 END_TEST
 
@@ -117,20 +121,28 @@ START_TEST(recipient_header_and_partyinfo)
 	jwe_builder_auto_t *builder = NULL;
 	jwe_recipient_t *r;
 	char_auto *tok = NULL;
+	jwk_set_auto_t *ks_oct = NULL, *ks_ec = NULL;
+	const jwk_item_t *k_oct, *k_ec;
 
 	SET_OPS();
 
-	read_json("oct_key_256_enc.json");
+	ks_oct = jwks_create_fromfile(KEYDIR "/oct_key_256_enc.json");
+	ck_assert_ptr_nonnull(ks_oct);
+	k_oct = jwks_item_get(ks_oct, 0);
 	builder = jwe_builder_new();
 	ck_assert_int_eq(jwe_builder_setkey(builder, JWE_ALG_A256KW,
-					    JWE_ENC_A256GCM, g_item), 0);
+					    JWE_ENC_A256GCM, k_oct), 0);
 	ck_assert_int_eq(jwe_builder_set_format(builder,
 						JWE_FORMAT_JSON_GENERAL), 0);
 
 	/* setkey configures recipient 0 (no handle); add a second recipient
-	 * whose handle we use for per-recipient partyinfo/header. */
-	read_json("ec_key_secp521r1_enc.json");
-	r = jwe_builder_add_recipient(builder, JWE_ALG_ECDH_ES_A256KW, g_item);
+	 * whose handle we use for per-recipient partyinfo/header. Both keys are
+	 * referenced by the builder until generate(), so keep them alive in
+	 * auto-freed sets rather than the single global read_json() slot. */
+	ks_ec = jwks_create_fromfile(KEYDIR "/ec_key_secp521r1_enc.json");
+	ck_assert_ptr_nonnull(ks_ec);
+	k_ec = jwks_item_get(ks_ec, 0);
+	r = jwe_builder_add_recipient(builder, JWE_ALG_ECDH_ES_A256KW, k_ec);
 	ck_assert_ptr_nonnull(r);
 	ck_assert_int_eq(jwe_recipient_set_partyinfo(r,
 				(const unsigned char *)"Alice", 5,
@@ -210,19 +222,21 @@ END_TEST
 START_TEST(dir_rejects_multi)
 {
 	jwe_builder_auto_t *b1 = NULL, *b2 = NULL;
-	jwk_set_auto_t *ks_rsa = NULL;
-	const jwk_item_t *k_rsa;
+	jwk_set_auto_t *ks_rsa = NULL, *ks_dir = NULL;
+	const jwk_item_t *k_rsa, *k_dir;
 
 	SET_OPS();
 
 	ks_rsa = jwks_create_fromfile(KEYDIR "/rsa_key_2048_enc.json");
 	k_rsa = jwks_item_get(ks_rsa, 0);
+	ks_dir = jwks_create_fromfile(KEYDIR "/oct_dir_256.json");
+	ck_assert_ptr_nonnull(ks_dir);
+	k_dir = jwks_item_get(ks_dir, 0);
 
 	/* dir first, then add another recipient -> rejected. */
-	read_json("oct_dir_256.json");
 	b1 = jwe_builder_new();
 	ck_assert_int_eq(jwe_builder_setkey(b1, JWE_ALG_DIR,
-					    JWE_ENC_A256GCM, g_item), 0);
+					    JWE_ENC_A256GCM, k_dir), 0);
 	ck_assert_ptr_null(jwe_builder_add_recipient(b1, JWE_ALG_RSA_OAEP_256,
 						     k_rsa));
 	ck_assert_int_eq(jwe_builder_error(b1), 1);
@@ -231,11 +245,8 @@ START_TEST(dir_rejects_multi)
 	b2 = jwe_builder_new();
 	ck_assert_int_eq(jwe_builder_setkey(b2, JWE_ALG_RSA_OAEP_256,
 					    JWE_ENC_A256GCM, k_rsa), 0);
-	read_json("oct_dir_256.json");
-	ck_assert_ptr_null(jwe_builder_add_recipient(b2, JWE_ALG_DIR, g_item));
+	ck_assert_ptr_null(jwe_builder_add_recipient(b2, JWE_ALG_DIR, k_dir));
 	ck_assert_int_eq(jwe_builder_error(b2), 1);
-
-	free_key();
 }
 END_TEST
 
@@ -267,20 +278,22 @@ END_TEST
 START_TEST(flat_compact_reject_multi)
 {
 	jwe_builder_auto_t *bf = NULL, *bc = NULL;
-	jwk_set_auto_t *ks_rsa = NULL;
-	const jwk_item_t *k_rsa;
+	jwk_set_auto_t *ks_rsa = NULL, *ks_oct = NULL;
+	const jwk_item_t *k_rsa, *k_oct;
 	char *tok;
 
 	SET_OPS();
 
 	ks_rsa = jwks_create_fromfile(KEYDIR "/rsa_key_2048_enc.json");
 	k_rsa = jwks_item_get(ks_rsa, 0);
+	ks_oct = jwks_create_fromfile(KEYDIR "/oct_key_256_enc.json");
+	ck_assert_ptr_nonnull(ks_oct);
+	k_oct = jwks_item_get(ks_oct, 0);
 
 	/* Flattened + 2 recipients -> generate fails. */
-	read_json("oct_key_256_enc.json");
 	bf = jwe_builder_new();
 	ck_assert_int_eq(jwe_builder_setkey(bf, JWE_ALG_A256KW,
-					    JWE_ENC_A256GCM, g_item), 0);
+					    JWE_ENC_A256GCM, k_oct), 0);
 	ck_assert_ptr_nonnull(jwe_builder_add_recipient(bf, JWE_ALG_RSA_OAEP_256,
 							k_rsa));
 	/* add_recipient forced GENERAL; force it back to FLAT to trip the gate. */
@@ -290,18 +303,15 @@ START_TEST(flat_compact_reject_multi)
 	ck_assert_int_eq(jwe_builder_error(bf), 1);
 
 	/* Compact + 2 recipients -> generate fails. */
-	read_json("oct_key_256_enc.json");
 	bc = jwe_builder_new();
 	ck_assert_int_eq(jwe_builder_setkey(bc, JWE_ALG_A256KW,
-					    JWE_ENC_A256GCM, g_item), 0);
+					    JWE_ENC_A256GCM, k_oct), 0);
 	ck_assert_ptr_nonnull(jwe_builder_add_recipient(bc, JWE_ALG_RSA_OAEP_256,
 							k_rsa));
 	ck_assert_int_eq(jwe_builder_set_format(bc, JWE_FORMAT_COMPACT), 0);
 	tok = jwe_builder_generate(bc, (const unsigned char *)PT, strlen(PT));
 	ck_assert_ptr_null(tok);
 	ck_assert_int_eq(jwe_builder_error(bc), 1);
-
-	free_key();
 }
 END_TEST
 
