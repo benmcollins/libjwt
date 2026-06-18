@@ -417,7 +417,7 @@ jwt_builder_t *jwt_builder_new(void);
 JWT_EXPORT
 void jwt_builder_free(jwt_builder_t *builder);
 
-#if defined(__GNUC__) || defined(__clang__)
+#if defined(__GNUC__) || defined(__clang__) || defined(_DOXYGEN)
 /**
  * @brief Helper function to free a builder and set the pointer to NULL
  *
@@ -432,6 +432,15 @@ static inline void jwt_builder_freep(jwt_builder_t **builder) {
 		*builder = NULL;
 	}
 }
+/**
+ * @brief A jwt_builder_t pointer that is freed automatically at scope exit
+ *
+ * Declares a jwt_builder_t pointer carrying the GCC/Clang ``cleanup``
+ * attribute so jwt_builder_free() is invoked on it automatically when the
+ * variable goes out of scope. Initialize it where you declare it.
+ *
+ * @since 3.0.0
+ */
 #define jwt_builder_auto_t jwt_builder_t \
 	__attribute__((cleanup(jwt_builder_freep)))
 #endif
@@ -699,11 +708,11 @@ jwt_checker_t *jwt_checker_new(void);
 JWT_EXPORT
 void jwt_checker_free(jwt_checker_t *checker);
 
-#if defined(__GNUC__) || defined(__clang__)
+#if defined(__GNUC__) || defined(__clang__) || defined(_DOXYGEN)
 /**
  * @brief Helper function to free a checker and set the pointer to NULL
  *
- * This is mainly to use with the jwt checker_auto_t type. Example usage:
+ * This is mainly to use with the jwt_checker_auto_t type. Example usage:
  *
  * @code
  * int run_check (const char *token)
@@ -717,7 +726,7 @@ void jwt_checker_free(jwt_checker_t *checker);
  * }
  * @endcode
  *
- * @param Pointer to a pointer for a jwt checker_t object
+ * @param Pointer to a pointer for a jwt_checker_t object
  * @since 3.0.0
  */
 static inline void jwt_checker_freep(jwt_checker_t **checker) {
@@ -726,6 +735,15 @@ static inline void jwt_checker_freep(jwt_checker_t **checker) {
                 *checker = NULL;
         }
 }
+/**
+ * @brief A jwt_checker_t pointer that is freed automatically at scope exit
+ *
+ * Declares a jwt_checker_t pointer carrying the GCC/Clang ``cleanup``
+ * attribute so jwt_checker_free() is invoked on it automatically when the
+ * variable goes out of scope. Initialize it where you declare it.
+ *
+ * @since 3.0.0
+ */
 #define jwt_checker_auto_t jwt_checker_t \
         __attribute__((cleanup(jwt_checker_freep)))
 #endif
@@ -1578,7 +1596,7 @@ jwe_builder_t *jwe_builder_new(void);
 JWT_EXPORT
 void jwe_builder_free(jwe_builder_t *builder);
 
-#if defined(__GNUC__) || defined(__clang__)
+#if defined(__GNUC__) || defined(__clang__) || defined(_DOXYGEN)
 /**
  * @brief Helper to free a JWE builder and set the pointer to NULL
  * @param builder Pointer to a pointer for a jwe_builder_t object
@@ -1590,6 +1608,15 @@ static inline void jwe_builder_freep(jwe_builder_t **builder) {
 		*builder = NULL;
 	}
 }
+/**
+ * @brief A jwe_builder_t pointer that is freed automatically at scope exit
+ *
+ * Declares a jwe_builder_t pointer carrying the GCC/Clang ``cleanup``
+ * attribute so jwe_builder_free() is invoked on it automatically when the
+ * variable goes out of scope. Initialize it where you declare it.
+ *
+ * @since 3.4.0
+ */
 #define jwe_builder_auto_t jwe_builder_t \
 	__attribute__((cleanup(jwe_builder_freep)))
 #endif
@@ -1868,7 +1895,7 @@ jwe_checker_t *jwe_checker_new(void);
 JWT_EXPORT
 void jwe_checker_free(jwe_checker_t *checker);
 
-#if defined(__GNUC__) || defined(__clang__)
+#if defined(__GNUC__) || defined(__clang__) || defined(_DOXYGEN)
 /**
  * @brief Helper to free a JWE checker and set the pointer to NULL
  * @param checker Pointer to a pointer for a jwe_checker_t object
@@ -1880,6 +1907,15 @@ static inline void jwe_checker_freep(jwe_checker_t **checker) {
 		*checker = NULL;
 	}
 }
+/**
+ * @brief A jwe_checker_t pointer that is freed automatically at scope exit
+ *
+ * Declares a jwe_checker_t pointer carrying the GCC/Clang ``cleanup``
+ * attribute so jwe_checker_free() is invoked on it automatically when the
+ * variable goes out of scope. Initialize it where you declare it.
+ *
+ * @since 3.4.0
+ */
 #define jwe_checker_auto_t jwe_checker_t \
 	__attribute__((cleanup(jwe_checker_freep)))
 #endif
@@ -2301,13 +2337,13 @@ void jwks_error_clear(jwk_set_t *jwk_set);
 JWT_EXPORT
 void jwks_free(jwk_set_t *jwk_set);
 
-#if defined(__GNUC__) || defined(__clang__)
+#if defined(__GNUC__) || defined(__clang__) || defined(_DOXYGEN)
 /**
  * @brief Helper function to free a JWK Set and set the pointer to NULL
  *
- * This is mainly to use with the jwt_set_auto_t type.
+ * This is mainly to use with the jwk_set_auto_t type.
  *
- * @param Pointer to a pointer for a jwt_set_t object
+ * @param Pointer to a pointer for a jwk_set_t object
  * @since 3.0.0
  */
 static inline void jwks_freep(jwk_set_t **jwks) {
@@ -2316,6 +2352,15 @@ static inline void jwks_freep(jwk_set_t **jwks) {
 		*jwks = NULL;
 	}
 }
+/**
+ * @brief A jwk_set_t pointer that is freed automatically at scope exit
+ *
+ * Declares a jwk_set_t pointer carrying the GCC/Clang ``cleanup`` attribute
+ * so jwks_free() is invoked on it automatically when the variable goes out
+ * of scope. Initialize it where you declare it.
+ *
+ * @since 3.0.0
+ */
 #define jwk_set_auto_t jwk_set_t __attribute__((cleanup(jwks_freep)))
 #endif
 
