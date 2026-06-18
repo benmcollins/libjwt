@@ -2605,6 +2605,65 @@ JWT_EXPORT
 jwk_set_t *jwks_create_fromurl(const char *url, int verify);
 
 /**
+ * @brief Configuration for a cached remote JWKS source
+ *
+ * Passed to jwks_load_fromurl_cached(). All fields may be 0 to take the
+ * defaults. @since 3.6.0
+ */
+typedef struct {
+	int verify;	/**< TLS verification: peer + host (0 = insecure)	*/
+	int ttl;	/**< Fallback cache lifetime in seconds when the
+			 *   server sends no ``Cache-Control: max-age``
+			 *   (<= 0 = a built-in default)			*/
+	int cooldown;	/**< Minimum seconds between forced (kid-miss)
+			 *   refreshes (< 0 = a built-in default)		*/
+} jwks_url_config_t;
+
+/**
+ * @brief Load a JWKS from a URL with caching, TTL, and conditional refresh
+ *
+ * A caching wrapper around the network fetch (only with libcurl). The keyring
+ * @p jwk_set holds the cache: on the first call it is fetched and stored; on a
+ * later call with the same @p jwk_set and @p url the cached keys are returned
+ * without a network request while they are still fresh. Freshness comes from
+ * the response ``Cache-Control: max-age`` if present, otherwise
+ * @ref jwks_url_config_t.ttl. Once stale, a conditional GET (``If-None-Match``
+ * with the stored ``ETag``) refreshes the cache; a ``304 Not Modified`` keeps
+ * the existing keys.
+ *
+ * Only ``http`` and ``https`` URLs are accepted (an SSRF guard; unlike
+ * jwks_load_fromurl(), which also allows ``file://``). On a refresh failure the
+ * previously cached keys are retained and the error is set on the keyring.
+ *
+ * @param jwk_set An existing cached keyring to reuse, or NULL to create one
+ * @param url The JWKS URL (``http``/``https``)
+ * @param config Cache configuration, or NULL for the defaults
+ * @return The keyring (cached or refreshed), or NULL on allocation failure or
+ *  when built without libcurl
+ * @since 3.6.0
+ */
+JWT_EXPORT
+jwk_set_t *jwks_load_fromurl_cached(jwk_set_t *jwk_set, const char *url,
+				    const jwks_url_config_t *config);
+
+/**
+ * @brief Force a refresh of a cached JWKS source (key rotation)
+ *
+ * Intended for an unknown-``kid`` (key rotation) miss: re-fetch the JWKS even if
+ * the cache is still fresh. The refresh is rate-limited by the cooldown
+ * configured in jwks_load_fromurl_cached() — within the cooldown window this is
+ * a no-op, which bounds outbound requests an attacker could trigger by
+ * presenting random ``kid`` values.
+ *
+ * @param jwk_set A keyring previously populated by jwks_load_fromurl_cached()
+ * @return The keyring (possibly refreshed); a keyring with no cache is returned
+ *  unchanged
+ * @since 3.6.0
+ */
+JWT_EXPORT
+jwk_set_t *jwks_refresh_fromurl(jwk_set_t *jwk_set);
+
+/**
  * @brief Flags controlling how a native key is imported into a keyring
  *
  * Used with the jwks_load_fromkey() and jwks_create_fromkey() family. The

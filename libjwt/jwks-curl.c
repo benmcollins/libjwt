@@ -13,6 +13,7 @@
 #include "jwt-private.h"
 
 #ifdef HAVE_LIBCURL
+#include <strings.h>
 #include <curl/curl.h>
 
 struct jwks_data {
@@ -23,6 +24,20 @@ struct jwks_data {
 
 /* Maximum size we will accept for a JWKS response (1 MiB). */
 #define JWKS_MAX_RESPONSE_SIZE	(1024 * 1024)
+
+/* @rfc{7517} Cached-source defaults (issue #313): cache for 5 minutes when the
+ * server gives no max-age, and refresh on a kid-miss at most once a minute. */
+#define JWKS_DEFAULT_TTL	300
+#define JWKS_DEFAULT_COOLDOWN	60
+
+/* A fetch result: the body plus the caching metadata from the response. */
+struct curl_result {
+	char *body;		/* jwt_malloc'd body (or NULL)			*/
+	size_t len;
+	long status;		/* HTTP status code (0 for non-HTTP, e.g. file)	*/
+	long max_age;		/* Cache-Control max-age seconds, or -1		*/
+	char *etag;		/* jwt_malloc'd ETag value, or NULL		*/
+};
 
 /* Grow the response buffer to hold at least need bytes plus a NUL. The caller
  * has already bounded need by JWKS_MAX_RESPONSE_SIZE, so need + 1 cannot
@@ -88,27 +103,91 @@ static size_t write_cb(void *contents, size_t size, size_t nmemb, void *ctx)
 	return total_size;
 }
 
-static char *__curl_get(jwk_set_t *jwk_set, const char *url, size_t *len,
-			int verify)
+/* Case-insensitive search for @needle within @hay[0..hlen). */
+static const char *ci_find(const char *hay, size_t hlen, const char *needle)
 {
-	CURL *curl;
-	CURLcode res;
+	size_t nlen = strlen(needle), i;
+
+	if (nlen == 0 || hlen < nlen)
+		return NULL; // LCOV_EXCL_LINE
+
+	for (i = 0; i + nlen <= hlen; i++)
+		if (!strncasecmp(hay + i, needle, nlen))
+			return hay + i;
+
+	return NULL;
+}
+
+/* Capture "Cache-Control: max-age" and "ETag" from the response headers. */
+static size_t header_cb(char *buf, size_t size, size_t nitems, void *ctx)
+{
+	struct curl_result *out = ctx;
+	size_t len = size * nitems;
+
+	if (len >= 14 && !strncasecmp(buf, "Cache-Control:", 14)) {
+		const char *p = ci_find(buf, len, "max-age=");
+
+		if (p != NULL)
+			out->max_age = strtol(p + 8, NULL, 10);
+	} else if (len >= 5 && !strncasecmp(buf, "ETag:", 5)) {
+		const char *v = buf + 5;
+		size_t vlen;
+
+		while (v < buf + len && (*v == ' ' || *v == '\t'))
+			v++;
+		vlen = (size_t)(buf + len - v);
+		while (vlen > 0 && (v[vlen - 1] == '\r' || v[vlen - 1] == '\n' ||
+				    v[vlen - 1] == ' ' || v[vlen - 1] == '\t'))
+			vlen--;
+
+		if (vlen > 0) {
+			char *e = jwt_malloc(vlen + 1);
+
+			if (e != NULL) {
+				memcpy(e, v, vlen);
+				e[vlen] = '\0';
+				jwt_freemem(out->etag);	/* last wins */
+				out->etag = e;
+			}
+		}
+	}
+
+	return len;
+}
+
+/* Fetch @url, capturing the body and the response's caching metadata. When
+ * @if_none_match is set it is sent as a conditional GET (so a 304 is possible).
+ * Returns 0 on a completed request (out->status carries the HTTP code). */
+static int __curl_fetch(jwk_set_t *jwk_set, const char *url, int verify,
+			const char *if_none_match, struct curl_result *out)
+{
+	static int curl_inited;
+	struct curl_slist *hdrs = NULL;
 	struct jwks_data data;
+	char *inm = NULL;
+	CURLcode res;
+	CURL *curl;
 
 	memset(&data, 0, sizeof(data));
- 
-	curl_global_init(CURL_GLOBAL_DEFAULT);
-	curl = curl_easy_init();
-	if (curl == NULL) {
-		// LCOV_EXCL_START
-		curl_global_cleanup();
-		return NULL;
-		// LCOV_EXCL_STOP
+	memset(out, 0, sizeof(*out));
+	out->max_age = -1;
+
+	/* curl_global_init() must run once. Doing it per request and pairing it
+	 * with curl_global_cleanup() tears down and rebuilds libcurl's global
+	 * state on every cached fetch; init once and let it be released at exit. */
+	if (!curl_inited) {
+		curl_global_init(CURL_GLOBAL_DEFAULT);
+		curl_inited = 1;
 	}
+	curl = curl_easy_init();
+	if (curl == NULL)
+		return 1; // LCOV_EXCL_LINE
 
 	curl_easy_setopt(curl, CURLOPT_URL, url);
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_cb);
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&data);
+	curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, header_cb);
+	curl_easy_setopt(curl, CURLOPT_HEADERDATA, (void *)out);
 
 	/* Belt to the write_cb cap: let libcurl abort early when the server
 	 * advertises an oversized body via Content-Length. */
@@ -116,28 +195,51 @@ static char *__curl_get(jwk_set_t *jwk_set, const char *url, size_t *len,
 			 (long)JWKS_MAX_RESPONSE_SIZE);
 
 	/* Hostname verification is meaningless without peer (CA chain)
-	 * verification: anyone can present a self-signed certificate bearing
-	 * the target hostname, so VERIFYHOST without VERIFYPEER provides no
-	 * protection against an active MITM. Tie the two together: any
-	 * verify >= 1 enables full verification; only verify == 0 (explicitly
-	 * insecure) disables it. */
+	 * verification, so tie the two together: any verify >= 1 enables full
+	 * verification; only verify == 0 (explicitly insecure) disables it. */
 	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, (verify > 0) ? 2L : 0L);
 	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, (verify > 0) ? 1L : 0L);
 
-        res = curl_easy_perform(curl);
+	if (if_none_match != NULL &&
+	    asprintf(&inm, "If-None-Match: %s", if_none_match) > 0) {
+		hdrs = curl_slist_append(NULL, inm);
+		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, hdrs);
+	}
 
+	res = curl_easy_perform(curl);
+	curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &out->status);
+
+	if (hdrs != NULL)
+		curl_slist_free_all(hdrs);
+	free(inm);
 	curl_easy_cleanup(curl);
-	curl_global_cleanup();
 
 	if (res != CURLE_OK) {
 		jwt_write_error(jwk_set, "%s", curl_easy_strerror(res));
 		jwt_freemem(data.buf);
-		return NULL;
+		jwt_freemem(out->etag);
+		out->etag = NULL;
+		return 1;
 	}
 
-	*len = data.size;
+	out->body = data.buf;
+	out->len = data.size;
 
-	return data.buf;
+	return 0;
+}
+
+static char *__curl_get(jwk_set_t *jwk_set, const char *url, size_t *len,
+			int verify)
+{
+	struct curl_result r;
+
+	if (__curl_fetch(jwk_set, url, verify, NULL, &r))
+		return NULL;
+
+	jwt_freemem(r.etag);	/* the one-shot loader ignores caching headers */
+	*len = r.len;
+
+	return r.body;
 }
 
 jwk_set_t *jwks_load_fromurl(jwk_set_t *jwk_set, const char *url, int verify)
@@ -162,6 +264,140 @@ jwk_set_t *jwks_load_fromurl(jwk_set_t *jwk_set, const char *url, int verify)
 	return jwk_set;
 }
 
+/* @rfc{8725} Only http(s) is allowed for a cached source, to avoid an SSRF /
+ * local-file-read vector (the one-shot jwks_load_fromurl still allows file://). */
+static int url_scheme_ok(const char *url)
+{
+	return !strncasecmp(url, "http://", 7) ||
+	       !strncasecmp(url, "https://", 8);
+}
+
+static char *cache_strdup(const char *s)
+{
+	size_t n = strlen(s) + 1;
+	char *d = jwt_malloc(n);
+
+	if (d != NULL)
+		memcpy(d, s, n);
+
+	return d;
+}
+
+/* Apply a completed fetch to the cached set: on a 304 keep the keys, otherwise
+ * replace them; refresh the ETag and the expiry (from max-age or the TTL). */
+static void cache_apply(jwk_set_t *jwk_set, struct curl_result *r)
+{
+	struct jwks_url_cache *c = jwk_set->cache;
+	time_t now = time(NULL);
+	long age;
+
+	if (r->status != 304) {
+		jwks_item_free_all(jwk_set);
+		if (r->body != NULL)
+			jwks_load_strn(jwk_set, r->body, r->len);
+	}
+
+	if (r->etag != NULL) {
+		jwt_freemem(c->etag);
+		c->etag = r->etag;
+		r->etag = NULL;
+	}
+
+	age = (r->max_age >= 0) ? r->max_age : c->ttl;
+	c->expiry = now + (age > 0 ? age : 0);
+	c->last_fetch = now;
+}
+
+jwk_set_t *jwks_load_fromurl_cached(jwk_set_t *jwk_set, const char *url,
+				    const jwks_url_config_t *config)
+{
+	struct jwks_url_cache *c;
+	struct curl_result r;
+
+	if (url == NULL)
+		return NULL;
+
+	if (jwk_set == NULL)
+		jwk_set = jwks_create(NULL);
+	if (jwk_set == NULL)
+		return NULL; // LCOV_EXCL_LINE
+
+	if (!url_scheme_ok(url)) {
+		jwt_write_error(jwk_set,
+			"Only http(s) URLs are allowed for a cached JWKS source");
+		return jwk_set;
+	}
+
+	c = jwk_set->cache;
+
+	/* First use, or the URL changed: (re)initialize the cache and fetch. */
+	if (c == NULL || c->url == NULL || strcmp(c->url, url)) {
+		if (c == NULL) {
+			c = jwt_malloc(sizeof(*c));
+			if (c == NULL)
+				return jwk_set; // LCOV_EXCL_LINE
+			memset(c, 0, sizeof(*c));
+			jwk_set->cache = c;
+		} else {
+			jwt_freemem(c->url);
+			jwt_freemem(c->etag);
+			c->etag = NULL;
+			jwks_item_free_all(jwk_set);
+		}
+		c->url = cache_strdup(url);
+		c->verify = config ? config->verify : 1;
+		c->ttl = (config && config->ttl > 0) ? config->ttl
+						     : JWKS_DEFAULT_TTL;
+		c->cooldown = (config && config->cooldown >= 0) ? config->cooldown
+								: JWKS_DEFAULT_COOLDOWN;
+
+		if (__curl_fetch(jwk_set, url, c->verify, NULL, &r))
+			return jwk_set;	/* error set; no keys yet */
+		cache_apply(jwk_set, &r);
+		jwt_freemem(r.body);
+		jwt_freemem(r.etag);
+		return jwk_set;
+	}
+
+	/* Fresh: serve from cache with no network request. */
+	if (time(NULL) < c->expiry)
+		return jwk_set;
+
+	/* Stale: conditional GET. On failure keep the (stale) keys + set error. */
+	if (__curl_fetch(jwk_set, url, c->verify, c->etag, &r))
+		return jwk_set;
+	cache_apply(jwk_set, &r);
+	jwt_freemem(r.body);
+	jwt_freemem(r.etag);
+
+	return jwk_set;
+}
+
+jwk_set_t *jwks_refresh_fromurl(jwk_set_t *jwk_set)
+{
+	struct jwks_url_cache *c;
+	struct curl_result r;
+
+	if (jwk_set == NULL || jwk_set->cache == NULL ||
+	    jwk_set->cache->url == NULL)
+		return jwk_set;
+
+	c = jwk_set->cache;
+
+	/* @rfc{8725} Cooldown: bound how often a kid-miss can force an outbound
+	 * fetch, so random unknown kids cannot amplify into a request flood. */
+	if (time(NULL) - c->last_fetch < c->cooldown)
+		return jwk_set;
+
+	if (__curl_fetch(jwk_set, c->url, c->verify, c->etag, &r))
+		return jwk_set;
+	cache_apply(jwk_set, &r);
+	jwt_freemem(r.body);
+	jwt_freemem(r.etag);
+
+	return jwk_set;
+}
+
 #else
 
 jwk_set_t *jwks_load_fromurl(jwk_set_t *jwk_set, const char *url, int verify)
@@ -170,6 +406,20 @@ jwk_set_t *jwks_load_fromurl(jwk_set_t *jwk_set, const char *url, int verify)
 	(void)url;
 	(void)verify;
 	return NULL;
+}
+
+jwk_set_t *jwks_load_fromurl_cached(jwk_set_t *jwk_set, const char *url,
+				    const jwks_url_config_t *config)
+{
+	(void)jwk_set;
+	(void)url;
+	(void)config;
+	return NULL;
+}
+
+jwk_set_t *jwks_refresh_fromurl(jwk_set_t *jwk_set)
+{
+	return jwk_set;
 }
 
 #endif

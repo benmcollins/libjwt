@@ -272,10 +272,23 @@ struct jwt {
 	};
 };
 
+/* @rfc{7517} Remote-fetch cache state for a JWKS URL source (issue #313, only
+ * meaningful with libcurl). Lives on the jwk_set; NULL for a non-URL set. */
+struct jwks_url_cache {
+	char *url;		/* The source URL (http/https)			*/
+	char *etag;		/* Last ETag, for conditional GET (or NULL)	*/
+	int verify;		/* TLS verification (peer+host)			*/
+	int ttl;		/* Fallback cache lifetime if no max-age (s)	*/
+	int cooldown;		/* Min seconds between kid-miss refreshes	*/
+	time_t expiry;		/* Cache valid until this wall-clock time	*/
+	time_t last_fetch;	/* Time of the last network fetch (cooldown)	*/
+};
+
 struct jwk_set {
 	ll_t head;
 	int error;
 	char error_msg[JWT_ERR_LEN];
+	struct jwks_url_cache *cache;	/* @rfc{7517} URL cache, or NULL	*/
 };
 
 /**
