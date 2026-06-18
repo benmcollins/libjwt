@@ -42,6 +42,16 @@ void FUNC(free)(jwt_common_t *__cmd)
 		jwt_freemem(__cmd->c.understood);
 	}
 
+	/* @rfc{7515,7.2} Drain the signature list (empty on the compact path). */
+	if (__cmd->c.signatures.next != NULL) {
+		struct jwt_signature *s, *tmp;
+
+		list_for_each_entry_safe(s, tmp, &__cmd->c.signatures, node) {
+			list_del(&s->node);
+			jwt_signature_free(s);
+		}
+	}
+
 	memset(__cmd, 0, sizeof(*__cmd));
 
 	jwt_freemem(__cmd);
@@ -55,6 +65,10 @@ jwt_common_t *FUNC(new)(void)
 		return NULL; // LCOV_EXCL_LINE
 
 	memset(__cmd, 0, sizeof(*__cmd));
+
+	/* @rfc{7515,7.2} The signature list is empty until setkey/add_signature
+	 * (builder) or the JSON parse (checker) materializes it. */
+	INIT_LIST_HEAD(&__cmd->c.signatures);
 
 	__cmd->c.payload = jwt_json_create();
 	__cmd->c.headers = jwt_json_create();
@@ -129,6 +143,29 @@ int FUNC(setkey)(jwt_common_t *__cmd, const jwt_alg_t alg,
 
 	__cmd->c.alg = alg;
 	__cmd->c.key = key;
+
+#ifdef JWT_CHECKER
+	/* Setting a single key clears any keyring; the last call wins. */
+	__cmd->c.keyring = NULL;
+#endif
+
+#ifdef JWT_BUILDER
+	/* @rfc{7515,7.2} Mirror the primary signer into the first signature, so
+	 * a JSON-format build (and any later add_signature) sees it in the list.
+	 * Repeated setkey() updates that same first node rather than appending. */
+	{
+		struct jwt_signature *s = jwt_signature_first_or_add(&__cmd->c);
+
+		if (s == NULL) {
+			// LCOV_EXCL_START
+			jwt_write_error(__cmd, "Error allocating memory");
+			return 1;
+			// LCOV_EXCL_STOP
+		}
+		s->alg = alg;
+		s->key = key;
+	}
+#endif
 
 	return 0;
 }
@@ -511,6 +548,29 @@ int FUNC(verify)(jwt_common_t *__cmd, const char *token)
 		return 1;
 	}
 
+	/* Clear any signature state from a prior verify (checker reuse). */
+	{
+		struct jwt_signature *s, *tmp;
+
+		list_for_each_entry_safe(s, tmp, &__cmd->c.signatures, node) {
+			list_del(&s->node);
+			jwt_signature_free(s);
+		}
+		__cmd->c.n_signatures = 0;
+		__cmd->c.last_sig_count = 0;
+	}
+
+	/* @rfc{7515,7.2} A token whose first non-whitespace byte is '{' is a
+	 * JWS JSON Serialization; otherwise it is the Compact form. */
+	{
+		const char *p = token;
+
+		while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r')
+			p++;
+		if (*p == '{')
+			return jwt_verify_json(__cmd, token);
+	}
+
 	jwt = jwt_new();
 	if (jwt == NULL) {
 		// LCOV_EXCL_START
@@ -556,11 +616,140 @@ int FUNC(verify)(jwt_common_t *__cmd, const char *token)
 	/* Copy any errors back */
 	jwt_copy_error(__cmd, jwt);
 
+	/* Record the single verified signature so the introspection API
+	 * (sig_count/sig_verified/sig_key) works for a Compact token too. */
+	if (__cmd->error == 0) {
+		struct jwt_signature *s = jwt_signature_append(&__cmd->c);
+
+		if (s != NULL) {
+			s->verified = 1;
+			s->key = jwt->key;
+			s->alg = jwt->alg;
+		}
+		__cmd->c.last_sig_count = 1;
+	}
+
 	return __cmd->error;
+}
+
+int jwt_checker_setkeyring(jwt_checker_t *checker, const jwk_set_t *keyring,
+			   jwt_verify_policy_t policy)
+{
+	if (checker == NULL)
+		return 1;
+
+	if (keyring == NULL) {
+		jwt_write_error(checker, "A keyring is required");
+		return 1;
+	}
+
+	if (policy != JWT_VERIFY_POLICY_ANY && policy != JWT_VERIFY_POLICY_ALL) {
+		jwt_write_error(checker, "Invalid verification policy");
+		return 1;
+	}
+
+	/* Mutually exclusive with a single key; the last call wins. */
+	checker->c.key = NULL;
+	checker->c.alg = JWT_ALG_NONE;
+	checker->c.keyring = keyring;
+	checker->c.policy = policy;
+
+	return 0;
+}
+
+static const struct jwt_signature *checker_sig_at(const jwt_checker_t *checker,
+						  unsigned int index)
+{
+	const struct jwt_signature *s;
+	unsigned int i = 0;
+
+	if (checker == NULL || checker->c.signatures.next == NULL)
+		return NULL;
+
+	list_for_each_entry(s, &checker->c.signatures, node) {
+		if (i++ == index)
+			return s;
+	}
+
+	return NULL;
+}
+
+unsigned int jwt_checker_sig_count(const jwt_checker_t *checker)
+{
+	if (checker == NULL)
+		return 0;
+
+	return checker->c.last_sig_count;
+}
+
+int jwt_checker_sig_verified(const jwt_checker_t *checker, unsigned int index)
+{
+	const struct jwt_signature *s = checker_sig_at(checker, index);
+
+	return (s != NULL && s->verified) ? 1 : 0;
+}
+
+const jwk_item_t *jwt_checker_sig_key(const jwt_checker_t *checker,
+				      unsigned int index)
+{
+	const struct jwt_signature *s = checker_sig_at(checker, index);
+
+	return (s != NULL && s->verified) ? s->key : NULL;
 }
 #endif
 
 #ifdef JWT_BUILDER
+int jwt_builder_set_format(jwt_builder_t *builder, jwt_serialization_t format)
+{
+	if (builder == NULL)
+		return 1;
+
+	if (format != JWT_FORMAT_COMPACT && format != JWT_FORMAT_JSON_FLAT &&
+	    format != JWT_FORMAT_JSON_GENERAL) {
+		jwt_write_error(builder, "Invalid serialization format");
+		return 1;
+	}
+
+	builder->c.format = format;
+
+	return 0;
+}
+
+jwt_signature_t *jwt_builder_add_signature(jwt_builder_t *builder,
+					   jwt_alg_t alg, const jwk_item_t *key)
+{
+	struct jwt_signature *s;
+
+	if (builder == NULL)
+		return NULL;
+
+	if (alg == JWT_ALG_NONE) {
+		jwt_write_error(builder,
+			"A signature requires an algorithm (not \"none\")");
+		return NULL;
+	}
+
+	/* Same alg/key validation as setkey (private key, alg<->kty binding,
+	 * alg<->key match). */
+	if (__setkey_check(builder, alg, key))
+		return NULL;
+
+	s = jwt_signature_append(&builder->c);
+	if (s == NULL) {
+		jwt_write_error(builder, "Error allocating memory"); // LCOV_EXCL_LINE
+		return NULL; // LCOV_EXCL_LINE
+	}
+
+	s->alg = alg;
+	s->key = key;
+
+	/* @rfc{7515,7.2.1} A second signature requires the General JSON form. */
+	if (builder->c.n_signatures > 1)
+		builder->c.format = JWT_FORMAT_JSON_GENERAL;
+
+	return s;
+}
+
 char *FUNC(generate)(jwt_common_t *__cmd)
 {
 	JWT_CONFIG_DECLARE(config);
@@ -646,6 +835,31 @@ char *FUNC(generate)(jwt_common_t *__cmd)
 	 * Done after the callback so it can add the headers being marked. */
 	if (jwt_write_crit(jwt, __cmd->c.understood)) {
 		jwt_copy_error(__cmd, jwt);
+		return NULL;
+	}
+
+	/* @rfc{7515,7.2} JSON Serialization (one or more signatures). */
+	if (__cmd->c.format != JWT_FORMAT_COMPACT) {
+		if (__cmd->c.n_signatures == 0) {
+			jwt_write_error(__cmd, "No key set for JSON serialization");
+			return NULL;
+		}
+		if (__cmd->c.format == JWT_FORMAT_JSON_FLAT &&
+		    __cmd->c.n_signatures > 1) {
+			jwt_write_error(__cmd,
+				"Flattened serialization allows only one signature");
+			return NULL;
+		}
+
+		out = jwt_encode_json(jwt, &__cmd->c);
+		jwt_copy_error(__cmd, jwt);
+		return out;
+	}
+
+	/* @rfc{7515,7.1} Compact Serialization carries exactly one signature. */
+	if (__cmd->c.n_signatures > 1) {
+		jwt_write_error(__cmd,
+			"Compact serialization cannot carry multiple signatures");
 		return NULL;
 	}
 

@@ -64,7 +64,16 @@ exit status from the program will cause generating the token to fail.
 **\-k** _FILE_, **\-\-key**=_FILE_
   ~ Path to a file containing a key in JSON Web Key format. If your keys are
   in PEM or DER (or some other common format that _OpenSSL_ understands), then
-  you can convert it to a JWK with the **key2jwk(1)** tool.
+  you can convert it to a JWK with the **key2jwk(1)** tool. May be given more
+  than once: the first key is the primary signer and each additional **-k**
+  adds a signature, producing a multi-signature JWS JSON Serialization
+  (RFC 7515 §7.2). Each additional key's algorithm comes from its own **alg**.
+
+**\-F** _FORMAT_, **\-\-format**=_FORMAT_
+  ~ Serialization to emit: **compact** (the default, a single
+  _header.payload.signature_ string), **flat** (the JSON Flattened form), or
+  **general** (the JSON General form with a **signatures** array). Supplying
+  more than one **-k** implies **general**.
 
 **\-c** _CLAIM_, **\-\-claim**=_CLAIM_
   ~ Add a claim to the JWT. The format of _CLAIM_ is **t**:**key**=**value**

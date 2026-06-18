@@ -507,6 +507,105 @@ int jwt_builder_setkey(jwt_builder_t *builder, const jwt_alg_t alg,
 		       const jwk_item_t *key);
 
 /**
+ * @brief JWS serialization formats
+ *
+ * Selects what jwt_builder_generate() emits and is auto-detected by
+ * jwt_checker_verify() on input. The Compact Serialization (the default and
+ * historic behavior) is a single ``header.payload.signature`` string. The
+ * two JSON Serializations (@rfc{7515,7.2}) wrap one or more signatures in a
+ * JSON object and are the only forms that can carry multiple signatures or a
+ * per-signature unprotected header.
+ *
+ * @since 3.6.0
+ */
+typedef enum {
+	JWT_FORMAT_COMPACT = 0,	/**< @rfc{7515,7.1} Compact (default)		*/
+	JWT_FORMAT_JSON_FLAT,	/**< @rfc{7515,7.2.2} Flattened (single sig)	*/
+	JWT_FORMAT_JSON_GENERAL,/**< @rfc{7515,7.2.1} General ("signatures":[])	*/
+} jwt_serialization_t;
+
+/**
+ * @brief An additional signer on a builder
+ *
+ * An opaque handle returned by jwt_builder_add_signature(), used to attach a
+ * per-signature protected or unprotected header. It is owned by the builder
+ * and is valid until jwt_builder_free(); the caller must not free it.
+ *
+ * @since 3.6.0
+ */
+typedef struct jwt_signature jwt_signature_t;
+
+/**
+ * @brief Select the serialization a builder emits
+ *
+ * The default is ::JWT_FORMAT_COMPACT. Selecting a JSON form makes
+ * jwt_builder_generate() emit the JWS JSON Serialization. Adding a second
+ * signer with jwt_builder_add_signature() also forces ::JWT_FORMAT_JSON_GENERAL.
+ *
+ * @param builder Pointer to a builder object
+ * @param format A ::jwt_serialization_t value
+ * @return 0 on success, non-zero otherwise with error set in the builder
+ * @since 3.6.0
+ */
+JWT_EXPORT
+int jwt_builder_set_format(jwt_builder_t *builder, jwt_serialization_t format);
+
+/**
+ * @brief Add an additional signer to a builder
+ *
+ * The first signer is set with jwt_builder_setkey(); this adds further ones for
+ * a multi-signature JWS JSON Serialization. The second signer automatically
+ * promotes the format to ::JWT_FORMAT_JSON_GENERAL. Each signature signs over
+ * its own protected header and the shared payload, so signers may use different
+ * algorithms (e.g. RS256 and ES256). ``alg`` must not be ::JWT_ALG_NONE.
+ *
+ * @param builder Pointer to a builder object
+ * @param alg A valid ::jwt_alg_t type (not ::JWT_ALG_NONE)
+ * @param key A JWK private key matching @p alg
+ * @return A borrowed ::jwt_signature_t handle (owned by the builder), or NULL
+ *  on error with the error set in the builder
+ * @since 3.6.0
+ */
+JWT_EXPORT
+jwt_signature_t *jwt_builder_add_signature(jwt_builder_t *builder, jwt_alg_t alg,
+					   const jwk_item_t *key);
+
+/**
+ * @brief Add a member to a signature's protected header
+ *
+ * The value is parsed as JSON. The member is integrity-protected (it is part
+ * of the bytes this signature signs over) and is the right place for a
+ * per-signer ``kid``. Library-managed names (``alg``) and duplicates are
+ * rejected.
+ *
+ * @param signature A handle from jwt_builder_add_signature()
+ * @param key The header parameter name
+ * @param value_json The value as a JSON string
+ * @return 0 on success, non-zero otherwise
+ * @since 3.6.0
+ */
+JWT_EXPORT
+int jwt_signature_add_protected_json(jwt_signature_t *signature,
+				     const char *key, const char *value_json);
+
+/**
+ * @brief Add a member to a signature's unprotected header
+ *
+ * The value is parsed as JSON. The member is NOT integrity-protected and is
+ * only emitted in the JSON serializations (@rfc{7515,7.2.1}). It must be
+ * disjoint from this signature's protected header.
+ *
+ * @param signature A handle from jwt_builder_add_signature()
+ * @param key The header parameter name
+ * @param value_json The value as a JSON string
+ * @return 0 on success, non-zero otherwise
+ * @since 3.6.0
+ */
+JWT_EXPORT
+int jwt_signature_add_header_json(jwt_signature_t *signature,
+				  const char *key, const char *value_json);
+
+/**
  * @brief Set IssuedAt usage on builder
  *
  * By default, the builder will set the ``iat`` claim to all tokens. You can
@@ -794,6 +893,46 @@ int jwt_checker_setkey(jwt_checker_t *checker, const jwt_alg_t alg, const
 		       jwk_item_t *key);
 
 /**
+ * @brief Multi-signature verification policy
+ *
+ * Governs how jwt_checker_verify() decides on a JWS JSON Serialization that
+ * carries more than one signature (@rfc{7515,7.2} leaves this to the
+ * application). It has no effect on a Compact or single-signature token.
+ *
+ * @since 3.6.0
+ */
+typedef enum {
+	JWT_VERIFY_POLICY_ANY = 0,	/**< Accept if >=1 signature verifies	*/
+	JWT_VERIFY_POLICY_ALL,		/**< Accept only if every signature does	*/
+} jwt_verify_policy_t;
+
+/**
+ * @brief Set a keyring and policy for multi-signature verification
+ *
+ * Supplies a set of candidate keys (a JWKS) instead of the single key set by
+ * jwt_checker_setkey(), so a JWS JSON Serialization with multiple signatures
+ * can be verified. A signature naming a ``kid`` is matched to that key in the
+ * ring; a keyless signature is tried against every compatible key. Each
+ * candidate is held to the usual algorithm/key-type binding.
+ *
+ * Under ::JWT_VERIFY_POLICY_ANY (the default and the generalization of the
+ * single-key behavior) the token is accepted if at least one signature
+ * verifies; under ::JWT_VERIFY_POLICY_ALL every signature in the token must
+ * verify. The keyring is borrowed: the caller retains ownership and must keep
+ * it valid for the lifetime of the checker. Setting a keyring and setting a
+ * single key are mutually exclusive; the last call wins.
+ *
+ * @param checker Pointer to a checker object
+ * @param keyring A JWKS of candidate keys (borrowed, not freed by the checker)
+ * @param policy A ::jwt_verify_policy_t value
+ * @return 0 on success, non-zero otherwise with error set in the checker
+ * @since 3.6.0
+ */
+JWT_EXPORT
+int jwt_checker_setkeyring(jwt_checker_t *checker, const jwk_set_t *keyring,
+			   jwt_verify_policy_t policy);
+
+/**
  * @brief Set a callback for generating tokens
  *
  * When verifying a token, this callback will be run after jwt_t has been
@@ -893,6 +1032,49 @@ int jwt_checker_understands(jwt_checker_t *checker, const char *header);
  */
 JWT_EXPORT
 int jwt_checker_verify(jwt_checker_t *checker, const char *token);
+
+/**
+ * @brief Number of signatures in the last verified token
+ *
+ * After jwt_checker_verify(), returns how many signatures the token carried
+ * (1 for a Compact or Flattened token, N for a General one, 0 if verification
+ * failed before the signatures were parsed).
+ *
+ * @param checker Pointer to a checker object
+ * @return The signature count of the last token
+ * @since 3.6.0
+ */
+JWT_EXPORT
+unsigned int jwt_checker_sig_count(const jwt_checker_t *checker);
+
+/**
+ * @brief Whether a given signature of the last token verified
+ *
+ * After jwt_checker_verify(), reports per-signature results. Useful under
+ * ::JWT_VERIFY_POLICY_ANY to learn which signature(s) passed.
+ *
+ * @param checker Pointer to a checker object
+ * @param index A signature index in ``[0, jwt_checker_sig_count())``
+ * @return 1 if signature @p index verified against a keyring key, 0 otherwise
+ *  (including an out-of-range index)
+ * @since 3.6.0
+ */
+JWT_EXPORT
+int jwt_checker_sig_verified(const jwt_checker_t *checker, unsigned int index);
+
+/**
+ * @brief The key a given signature of the last token verified against
+ *
+ * @param checker Pointer to a checker object
+ * @param index A signature index in ``[0, jwt_checker_sig_count())``
+ * @return The keyring key that verified signature @p index, or NULL if it did
+ *  not verify or the index is out of range. Borrowed from the keyring; do not
+ *  free.
+ * @since 3.6.0
+ */
+JWT_EXPORT
+const jwk_item_t *jwt_checker_sig_key(const jwt_checker_t *checker,
+				      unsigned int index);
 
 /**
  * @}
