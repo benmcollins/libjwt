@@ -82,7 +82,7 @@ typedef enum {
 	JWT_ALG_PS384,		/**< RSASSA-PSS using SHA-384 and MGF1 with SHA-384 */
 	JWT_ALG_PS512,		/**< RSASSA-PSS using SHA-512 and MGF1 with SHA-512 */
 	JWT_ALG_ES256K,		/**< ECDSA using secp256k1 and SHA-256 */
-	JWT_ALG_EDDSA,		/**< EdDSA using Ed25519 */
+	JWT_ALG_EDDSA,		/**< EdDSA using Ed25519 or Ed448 */
 	JWT_ALG_ML_DSA_44,	/**< ML-DSA-44 (FIPS 204, RFC 9964) (experimental) @since 3.5.0 */
 	JWT_ALG_ML_DSA_65,	/**< ML-DSA-65 (FIPS 204, RFC 9964) (experimental) @since 3.5.0 */
 	JWT_ALG_ML_DSA_87,	/**< ML-DSA-87 (FIPS 204, RFC 9964) (experimental) @since 3.5.0 */
