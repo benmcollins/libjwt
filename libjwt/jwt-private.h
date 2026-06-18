@@ -112,6 +112,16 @@ struct jwt_common {
 	const jwk_set_t *keyring;
 	jwt_verify_policy_t policy;
 	unsigned int last_sig_count;	/* signatures in the last JSON token	*/
+
+	/* --- @rfc{7797} Unencoded payload / detached payload ---
+	 * An opaque payload set via jwt_builder_setpayload() (mutually exclusive
+	 * with JSON claims); signed as-is. @b64 (default 1) selects base64url vs
+	 * the RFC 7797 unencoded ("b64":false) signing input; @detached omits the
+	 * payload from the output (supplied out-of-band on verify). */
+	unsigned char *payload_raw;
+	size_t payload_raw_len;
+	int b64;
+	int detached;
 };
 
 struct jwt_builder {
@@ -235,6 +245,15 @@ struct jwt {
 	jwt_alg_t alg;
 	int error;
 	char error_msg[JWT_ERR_LEN];
+
+	/* @rfc{7797} An opaque payload (instead of JSON @claims), and the b64 /
+	 * detached flags, threaded from the builder/checker into encode/verify.
+	 * @payload_raw is borrowed (owned by jwt_common or the caller). */
+	const unsigned char *payload_raw;
+	size_t payload_raw_len;
+	int b64;
+	int detached;
+
 	union {
 		struct jwt_checker *checker;
 		struct jwt_builder *builder;
@@ -573,6 +592,17 @@ void jwt_signature_free(struct jwt_signature *s);
  * JWS JSON Serialization (Flattened or General). Returns a malloc'd string. */
 JWT_NO_EXPORT
 char *jwt_encode_json(jwt_t *jwt, struct jwt_common *cmd);
+
+/* @rfc{7797} The payload as it appears after the first '.': raw bytes or
+ * serialized claims, base64url-encoded unless jwt->b64 is false. Malloc'd,
+ * NUL-terminated, binary-safe via @out_len. 0 on success. */
+JWT_NO_EXPORT
+int jwt_build_payload_part(jwt_t *jwt, char **out, size_t *out_len);
+
+/* @rfc{7797,6} Inject "b64":false + "b64" in "crit" into jwt->headers (for an
+ * unencoded payload). 0 on success. */
+JWT_NO_EXPORT
+int jwt_apply_b64_header(jwt_t *jwt);
 
 /* Checker: parse + verify a JWS JSON Serialization against the checker's
  * key/keyring and policy. Returns 0 if the policy is satisfied. */

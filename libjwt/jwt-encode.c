@@ -216,17 +216,13 @@ char *jwt_encode_json(jwt_t *jwt, struct jwt_common *cmd)
 {
 	char_auto *payload = NULL;
 	char *buf = NULL;
-	int payload_len;
+	size_t payload_len;
 	struct jwt_signature *s;
 	jwt_json_auto_t *out_obj = NULL;
 	jwt_json_t *sig_arr = NULL, *v;
 
-	/* Shared payload, encoded once. */
-	if (write_js(jwt->claims, &buf))
-		return NULL; // LCOV_EXCL_LINE
-	payload_len = jwt_base64uri_encode(&payload, buf, (int)strlen(buf));
-	jwt_freemem(buf);
-	if (payload_len <= 0) {
+	/* @rfc{7797} Shared payload (base64url or raw), encoded once. */
+	if (jwt_build_payload_part(jwt, &payload, &payload_len)) {
 		jwt_write_error(jwt, "Error encoding payload"); // LCOV_EXCL_LINE
 		return NULL; // LCOV_EXCL_LINE
 	}
@@ -235,9 +231,12 @@ char *jwt_encode_json(jwt_t *jwt, struct jwt_common *cmd)
 	if (out_obj == NULL)
 		return NULL; // LCOV_EXCL_LINE
 
-	v = jwt_json_create_str(payload);
-	if (v == NULL || jwt_json_obj_set(out_obj, "payload", v))
-		return NULL; // LCOV_EXCL_LINE
+	/* @rfc{7515,7.2.1} Detached: omit "payload" (supplied out-of-band). */
+	if (!jwt->detached) {
+		v = jwt_json_create_str(payload);
+		if (v == NULL || jwt_json_obj_set(out_obj, "payload", v))
+			return NULL; // LCOV_EXCL_LINE
+	}
 
 	if (cmd->format == JWT_FORMAT_JSON_GENERAL) {
 		sig_arr = jwt_json_create_arr();
@@ -251,6 +250,7 @@ char *jwt_encode_json(jwt_t *jwt, struct jwt_common *cmd)
 		char_auto *prot_b64 = NULL, *sig_b64 = NULL, *input = NULL;
 		char *rawsig = NULL;
 		unsigned int rawsig_len = 0;
+		size_t input_len;
 		int prot_len, enc;
 		jwt_alg_t alg;
 
@@ -282,16 +282,23 @@ char *jwt_encode_json(jwt_t *jwt, struct jwt_common *cmd)
 			jwt_write_error(jwt, "Error encoding protected header"); // LCOV_EXCL_LINE
 			return NULL; // LCOV_EXCL_LINE
 		}
+		/* The return counts stripped '=' padding; use the true length. */
+		prot_len = (int)strlen(prot_b64);
 
-		/* Signing input: BASE64URL(protected) "." BASE64URL(payload). */
-		input = jwt_malloc((size_t)prot_len + payload_len + 2);
+		/* @rfc{7797,3} Signing input: BASE64URL(protected) "." payload
+		 * (payload is base64url or raw per b64; binary-safe). */
+		input_len = (size_t)prot_len + 1 + payload_len;
+		input = jwt_malloc(input_len + 1);
 		if (input == NULL)
 			return NULL; // LCOV_EXCL_LINE
-		sprintf(input, "%s.%s", prot_b64, payload);
+		memcpy(input, prot_b64, prot_len);
+		input[prot_len] = '.';
+		memcpy(input + prot_len + 1, payload, payload_len);
+		input[input_len] = '\0';
 
 		jwt->alg = alg;
 		jwt->key = s->key;
-		if (jwt_sign(jwt, &rawsig, &rawsig_len, input, strlen(input)))
+		if (jwt_sign(jwt, &rawsig, &rawsig_len, input, input_len))
 			return NULL;
 
 		enc = jwt_base64uri_encode(&sig_b64, rawsig, (int)rawsig_len);
@@ -510,11 +517,96 @@ int jwt_head_setup(jwt_t *jwt)
 	return 0;
 }
 
+/* @rfc{7797} Build the payload as it appears after the first '.': the raw
+ * payload bytes (jwt_builder_setpayload()) or the serialized claims, then
+ * base64url-encoded unless b64 is false. Returns a malloc'd, NUL-terminated
+ * buffer (binary-safe via @out_len). 0 on success. */
+int jwt_build_payload_part(jwt_t *jwt, char **out, size_t *out_len)
+{
+	const unsigned char *bytes;
+	char_auto *claims_str = NULL;
+	size_t len;
+
+	if (jwt->payload_raw != NULL) {
+		bytes = jwt->payload_raw;
+		len = jwt->payload_raw_len;
+	} else {
+		if (write_js(jwt->claims, &claims_str))
+			return 1; // LCOV_EXCL_LINE
+		bytes = (const unsigned char *)claims_str;
+		len = strlen(claims_str);
+	}
+
+	if (jwt->b64) {
+		int n;
+
+		if (len > INT_MAX)
+			return 1; // LCOV_EXCL_LINE
+		n = jwt_base64uri_encode(out, (const char *)bytes, (int)len);
+		if (n <= 0)
+			return 1; // LCOV_EXCL_LINE
+		/* The return counts stripped '=' padding; the string is shorter. */
+		*out_len = strlen(*out);
+	} else {
+		char *copy = jwt_malloc(len + 1);
+
+		if (copy == NULL)
+			return 1; // LCOV_EXCL_LINE
+		memcpy(copy, bytes, len);
+		copy[len] = '\0';
+		*out = copy;
+		*out_len = len;
+	}
+
+	return 0;
+}
+
+/* @rfc{7797,6} For an unencoded payload, the protected header must carry
+ * "b64":false and "b64" MUST be marked critical. Inject both into @jwt->headers
+ * (the shared base, which the compact path signs directly and the JSON path
+ * clones into each signature). */
+int jwt_apply_b64_header(jwt_t *jwt)
+{
+	jwt_json_t *crit, *ent, *v;
+	size_t i;
+	int found = 0;
+
+	v = jwt_json_create_bool(0);
+	if (v == NULL || jwt_json_obj_set(jwt->headers, "b64", v))
+		return 1; // LCOV_EXCL_LINE
+
+	crit = jwt_json_obj_get(jwt->headers, "crit");
+	if (crit == NULL) {
+		crit = jwt_json_create_arr();
+		if (crit == NULL || jwt_json_obj_set(jwt->headers, "crit", crit))
+			return 1; // LCOV_EXCL_LINE
+	} else if (!jwt_json_is_array(crit)) {
+		jwt_write_error(jwt, "\"crit\" header must be an array");
+		return 1;
+	}
+
+	jwt_json_arr_foreach(crit, i, ent) {
+		if (jwt_json_is_string(ent) &&
+		    !strcmp(jwt_json_str_val(ent), "b64")) {
+			found = 1;
+			break;
+		}
+	}
+	if (!found) {
+		v = jwt_json_create_str("b64");
+		if (v == NULL || jwt_json_arr_append(crit, v))
+			return 1; // LCOV_EXCL_LINE
+	}
+
+	return 0;
+}
+
 static int jwt_encode(jwt_t *jwt, char **out)
 {
-	char_auto *head = NULL, *payload = NULL, *sig = NULL;
-	char *buf = NULL;
-	int ret, head_len, payload_len;
+	char_auto *head = NULL, *payload = NULL, *sig_b64 = NULL;
+	char *buf = NULL, *si = NULL, *token = NULL, *p;
+	int head_len, ret;
+	size_t payload_len, si_len, pout_len, token_len, sb_len;
 	unsigned int sig_len;
 
 	if (out == NULL) {
@@ -525,110 +617,95 @@ static int jwt_encode(jwt_t *jwt, char **out)
 	}
 	*out = NULL;
 
-	/* First the header. */
-	ret = write_js(jwt->headers, &buf);
-	if (ret)
+	/* Header. */
+	if (write_js(jwt->headers, &buf))
 		return 1; // LCOV_EXCL_LINE
-	/* Encode it */
 	head_len = jwt_base64uri_encode(&head, buf, (int)strlen(buf));
 	jwt_freemem(buf);
-
 	if (head_len <= 0) {
 		// LCOV_EXCL_START
 		jwt_write_error(jwt, "Error encoding header");
 		return 1;
 		// LCOV_EXCL_STOP
 	}
+	/* The return counts stripped '=' padding; use the true string length. */
+	head_len = (int)strlen(head);
 
-	/* Now the payload. */
-	ret = write_js(jwt->claims, &buf);
-	if (ret) {
-		// LCOV_EXCL_START
-		jwt_write_error(jwt, "Error writing payload");
-		return 1;
-		// LCOV_EXCL_STOP
+	/* @rfc{7797} Payload part (base64url or raw). */
+	if (jwt_build_payload_part(jwt, &payload, &payload_len)) {
+		jwt_write_error(jwt, "Error encoding payload"); // LCOV_EXCL_LINE
+		return 1; // LCOV_EXCL_LINE
 	}
 
-	payload_len = jwt_base64uri_encode(&payload, buf, (int)strlen(buf));
-	jwt_freemem(buf);
-
-	if (payload_len <= 0) {
-		// LCOV_EXCL_START
-		jwt_write_error(jwt, "Error encoding payload");
-		return 1;
-		// LCOV_EXCL_STOP
+	if ((size_t)head_len > SIZE_MAX - payload_len - 2) {
+		jwt_write_error(jwt, "Encoded token too large"); // LCOV_EXCL_LINE
+		return 1; // LCOV_EXCL_LINE
 	}
 
-	/* head_len and payload_len are each bounded by jwt_base64uri_encode to
-	 * encode within INT_MAX, but guard their sum so head_len + payload_len + 3
-	 * cannot overflow the int allocation size below. */
-	if (head_len > INT_MAX - payload_len - 3) {
-		// LCOV_EXCL_START
-		jwt_write_error(jwt, "Encoded token too large");
-		return 1;
-		// LCOV_EXCL_STOP
+	/* Signing input: BASE64URL(header) "." payload (binary-safe). */
+	si_len = (size_t)head_len + 1 + payload_len;
+	si = jwt_malloc(si_len + 1);
+	if (si == NULL) {
+		jwt_write_error(jwt, "Error allocating memory"); // LCOV_EXCL_LINE
+		return 1; // LCOV_EXCL_LINE
 	}
+	memcpy(si, head, head_len);
+	si[head_len] = '.';
+	memcpy(si + head_len + 1, payload, payload_len);
+	si[si_len] = '\0';
 
-	/* The part we need to sign, but add space for 2 dots and a nil */
-	buf = jwt_malloc(head_len + payload_len + 3);
-	if (buf == NULL) {
-		// LCOV_EXCL_START
-		jwt_write_error(jwt, "Error allocating memory");
-		return 1;
-		// LCOV_EXCL_STOP
-	}
-
-	strcpy(buf, head);
-	strcat(buf, ".");
-	strcat(buf, payload);
-
+	/* Signature (empty for an unsecured "none" token). */
 	if (jwt->alg == JWT_ALG_NONE) {
-		/* Add the trailing dot, and send it back */
-		strcat(buf, ".");
-		*out = buf;
-		return 0;
-	}
-
-	/* At this point buf has "head.payload" */
-
-	/* Now the signature. */
-	ret = jwt_sign(jwt, &sig, &sig_len, buf, strlen(buf));
-	jwt_freemem(buf);
-	if (ret) {
-		// LCOV_EXCL_START
-		jwt_write_error(jwt, "Error allocating memory");
-		return ret;
-		// LCOV_EXCL_STOP
-	}
-
-	ret = jwt_base64uri_encode(&buf, sig, sig_len);
-	/* At this point buf has b64 of sig and ret is size of it */
-
-	if (ret < 0) {
-		// LCOV_EXCL_START
-		jwt_write_error(jwt, "Error allocating memory");
-		return 1;
-		// LCOV_EXCL_STOP
-	}
-
-	/* plus 2 dots and a nil */
-	ret = strlen(head) + strlen(payload) + strlen(buf) + 3;
-
-	/* We're good, so let's get it all together */
-	*out = jwt_malloc(ret);
-	// LCOV_EXCL_START
-	if (*out == NULL) {
-		jwt_write_error(jwt, "Error allocating memory");
-		ret = 1;
+		sig_b64 = jwt_malloc(1);
+		if (sig_b64 != NULL)
+			sig_b64[0] = '\0';
 	} else {
-		sprintf(*out, "%s.%s.%s", head, payload, buf);
-		ret = 0;
+		char *rawsig = NULL;
+
+		ret = jwt_sign(jwt, &rawsig, &sig_len, si, si_len);
+		if (ret) {
+			jwt_freemem(si);
+			return ret;
+		}
+		ret = jwt_base64uri_encode(&sig_b64, rawsig, sig_len);
+		jwt_freemem(rawsig);
+		if (ret < 0) {
+			jwt_write_error(jwt, "Error encoding signature"); // LCOV_EXCL_LINE
+			jwt_freemem(si); // LCOV_EXCL_LINE
+			return 1; // LCOV_EXCL_LINE
+		}
 	}
-	// LCOV_EXCL_STOP
+	jwt_freemem(si);
 
-	jwt_freemem(buf);
+	if (sig_b64 == NULL) {
+		jwt_write_error(jwt, "Error allocating memory"); // LCOV_EXCL_LINE
+		return 1; // LCOV_EXCL_LINE
+	}
 
-	return ret;
+	/* @rfc{7797} Assemble: header "." (detached ? "" : payload) "." sig. */
+	sb_len = strlen(sig_b64);
+	pout_len = jwt->detached ? 0 : payload_len;
+	token_len = (size_t)head_len + 1 + pout_len + 1 + sb_len;	token = jwt_malloc(token_len + 1);
+	if (token == NULL) {
+		jwt_write_error(jwt, "Error allocating memory"); // LCOV_EXCL_LINE
+		return 1; // LCOV_EXCL_LINE
+	}
+	p = token;
+	memcpy(p, head, head_len);
+	p += head_len;
+	*p++ = '.';
+	if (pout_len) {
+		memcpy(p, payload, pout_len);
+		p += pout_len;
+	}
+	*p++ = '.';
+	memcpy(p, sig_b64, sb_len);
+	p += sb_len;
+	*p = '\0';
+
+	*out = token;
+
+	return 0;
 }
 
 char *jwt_encode_str(jwt_t *jwt)

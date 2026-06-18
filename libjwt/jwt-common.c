@@ -52,6 +52,9 @@ void FUNC(free)(jwt_common_t *__cmd)
 		}
 	}
 
+	/* @rfc{7797} Free any raw payload (jwt_builder_setpayload()). */
+	jwt_scrub_and_free(__cmd->c.payload_raw, __cmd->c.payload_raw_len);
+
 	memset(__cmd, 0, sizeof(*__cmd));
 
 	jwt_freemem(__cmd);
@@ -69,6 +72,9 @@ jwt_common_t *FUNC(new)(void)
 	/* @rfc{7515,7.2} The signature list is empty until setkey/add_signature
 	 * (builder) or the JSON parse (checker) materializes it. */
 	INIT_LIST_HEAD(&__cmd->c.signatures);
+
+	/* @rfc{7797} base64url payloads by default (b64=true). */
+	__cmd->c.b64 = 1;
 
 	__cmd->c.payload = jwt_json_create();
 	__cmd->c.headers = jwt_json_create();
@@ -715,6 +721,51 @@ int jwt_builder_set_format(jwt_builder_t *builder, jwt_serialization_t format)
 	return 0;
 }
 
+int jwt_builder_setpayload(jwt_builder_t *builder, const unsigned char *data,
+			   size_t len)
+{
+	unsigned char *copy = NULL;
+
+	if (builder == NULL)
+		return 1;
+
+	if (data != NULL && len > 0) {
+		copy = jwt_malloc(len);
+		if (copy == NULL) {
+			jwt_write_error(builder, "Error allocating memory"); // LCOV_EXCL_LINE
+			return 1; // LCOV_EXCL_LINE
+		}
+		memcpy(copy, data, len);
+	}
+
+	/* Replace any previous raw payload (NULL/0 clears it). */
+	jwt_scrub_and_free(builder->c.payload_raw, builder->c.payload_raw_len);
+	builder->c.payload_raw = copy;
+	builder->c.payload_raw_len = copy ? len : 0;
+
+	return 0;
+}
+
+int jwt_builder_setb64(jwt_builder_t *builder, int b64)
+{
+	if (builder == NULL)
+		return 1;
+
+	builder->c.b64 = b64 ? 1 : 0;
+
+	return 0;
+}
+
+int jwt_builder_set_detached(jwt_builder_t *builder, int detached)
+{
+	if (builder == NULL)
+		return 1;
+
+	builder->c.detached = detached ? 1 : 0;
+
+	return 0;
+}
+
 jwt_signature_t *jwt_builder_add_signature(jwt_builder_t *builder,
 					   jwt_alg_t alg, const jwk_item_t *key)
 {
@@ -830,6 +881,37 @@ char *FUNC(generate)(jwt_common_t *__cmd)
 
 	jwt->alg = config.alg;
 	jwt->key = config.key;
+
+	/* @rfc{7797} Thread the unencoded/detached options onto the token. */
+	jwt->b64 = __cmd->c.b64;
+	jwt->detached = __cmd->c.detached;
+	jwt->payload_raw = __cmd->c.payload_raw;
+	jwt->payload_raw_len = __cmd->c.payload_raw_len;
+
+	if (!jwt->b64) {
+		/* RFC 7797 forbids b64=false for JWTs (JSON claim sets), so it
+		 * is only valid over a raw payload. */
+		if (jwt->payload_raw == NULL) {
+			jwt_write_error(__cmd,
+				"b64=false (RFC 7797) requires a raw payload "
+				"set with jwt_builder_setpayload()");
+			return NULL;
+		}
+		/* An unencoded payload appears verbatim in the serialized token
+		 * (a C string / JSON string), which cannot carry an embedded NUL.
+		 * Reject it rather than silently truncate. */
+		if (memchr(jwt->payload_raw, '\0', jwt->payload_raw_len) != NULL) {
+			jwt_write_error(__cmd,
+				"An unencoded (b64=false) payload must not "
+				"contain a NUL byte");
+			return NULL;
+		}
+		/* @rfc{7797,6} Emit "b64":false and mark "b64" critical. */
+		if (jwt_apply_b64_header(jwt)) {
+			jwt_copy_error(__cmd, jwt);
+			return NULL;
+		}
+	}
 
 	/* @rfc{7515,4.1.11} Emit the "crit" header if any were registered.
 	 * Done after the callback so it can add the headers being marked. */
