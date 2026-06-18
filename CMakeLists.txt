@@ -422,7 +422,7 @@ if (CHECK_FOUND)
 		jwe_json_neg)
 
 	# Claims
-	list (APPEND UNIT_TESTS jwt_claims)
+	list (APPEND UNIT_TESTS jwt_claims jwt_cnf)
 
 	# Security
 	list (APPEND UNIT_TESTS jwt_security)

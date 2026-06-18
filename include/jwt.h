@@ -1415,6 +1415,78 @@ JWT_EXPORT
 jwt_value_error_t jwt_claim_del(jwt_t *jwt, const char *claim);
 
 /**
+ * @brief Set the "cnf" (confirmation) claim to a key thumbprint
+ *
+ * @rfc{7800} @rfc{9449,6}
+ *
+ * Sets @c "cnf" to a single @c "jkt" member holding the RFC 7638 SHA-256 JWK
+ * thumbprint of @p key (the DPoP confirmation method). Any existing @c "cnf"
+ * is replaced, so the object always carries exactly one confirmation member.
+ *
+ * @param builder Pointer to a builder object
+ * @param key The proof-of-possession public key to bind the token to
+ * @return 0 on success, non-zero on error
+ * @since 3.6.0
+ */
+JWT_EXPORT
+int jwt_builder_setcnf_jkt(jwt_builder_t *builder, const jwk_item_t *key);
+
+/**
+ * @brief Set the "cnf" (confirmation) claim to an embedded JWK
+ *
+ * @rfc{7800,3.2}
+ *
+ * Sets @c "cnf" to a single @c "jwk" member holding the public JWK of @p key.
+ * Only public parameters are embedded. Any existing @c "cnf" is replaced.
+ *
+ * @param builder Pointer to a builder object
+ * @param key The proof-of-possession public key to embed
+ * @return 0 on success, non-zero on error
+ * @since 3.6.0
+ */
+JWT_EXPORT
+int jwt_builder_setcnf_jwk(jwt_builder_t *builder, const jwk_item_t *key);
+
+/**
+ * @brief Set the "cnf" (confirmation) claim to a single string member
+ *
+ * @rfc{7800}
+ *
+ * Sets @c "cnf" to a single member named @p member with string value @p value
+ * -- e.g. @c "kid" (RFC 7800), @c "x5t#S256" (RFC 8705 mTLS), or @c "jku". Any
+ * existing @c "cnf" is replaced, so the object always carries exactly one
+ * confirmation member.
+ *
+ * @param builder Pointer to a builder object
+ * @param member The confirmation member name (e.g. @c "kid", @c "x5t#S256")
+ * @param value The member's string value
+ * @return 0 on success, non-zero on error
+ * @since 3.6.0
+ */
+JWT_EXPORT
+int jwt_builder_setcnf(jwt_builder_t *builder, const char *member,
+		       const char *value);
+
+/**
+ * @brief Read a string-valued "cnf" (confirmation) member from a token
+ *
+ * @rfc{7800}
+ *
+ * Returns the value of @c cnf.@p member (e.g. @c "jkt", @c "kid",
+ * @c "x5t#S256") for a verified token. Because a verifier obtains the @ref
+ * jwt_t inside its jwt_checker_setcb() callback, this is where you call it to
+ * confirm a presented proof-of-possession key.
+ *
+ * @param jwt Pointer to a jwt_t token
+ * @param member The confirmation member name to read
+ * @return A newly allocated, nil-terminated string the caller must free with
+ *   free(), or NULL if @c cnf or the member is absent or not a string
+ * @since 3.6.0
+ */
+JWT_EXPORT
+char *jwt_get_cnf(const jwt_t *jwt, const char *member);
+
+/**
  * @}
  * @noop jwt_object_grp
  */
