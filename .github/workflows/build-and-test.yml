@@ -164,8 +164,10 @@ jobs:
         cmake --build build -- check-code-coverage || true
         test -f build/check-code-coverage.info
 
+    # Valgrind is slow; run it on PRs (to catch leaks before merge) but skip it
+    # on pushes to master, where the same commit already passed it as a PR.
     - name: "Memcheck (${{ matrix.name }})"
-      if: ${{ matrix.coverage }}
+      if: ${{ matrix.coverage && github.event_name == 'pull_request' }}
       working-directory: ${{ github.workspace }}/build
       run: ctest -T memcheck
 
