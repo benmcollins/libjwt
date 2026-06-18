@@ -196,13 +196,17 @@ static void export_ec(EVP_PKEY *pkey, int priv, jwk_export_t *out)
 		add_bn(pkey, OSSL_PKEY_PARAM_PRIV_KEY, out, "d");
 }
 
-/* For EdDSA keys (Ed25519, Ed448) */
+/* For OKP keys (Ed25519, Ed448, X25519, X448). Per RFC 8037 a private OKP JWK
+ * carries BOTH the public "x" and the private "d", so always export "x" (the
+ * GnuTLS backend already does) and add "d" only for a private key. Emitting "x"
+ * for private keys also lets every OKP key get a deterministic RFC 7638
+ * thumbprint / "kid", and keeps the re-imported JWK off the seed-only path that
+ * crashes GnuTLS < 3.8.13. */
 static void export_eddsa(EVP_PKEY *pkey, int priv, jwk_export_t *out)
 {
+	add_octet(pkey, OSSL_PKEY_PARAM_PUB_KEY, out, "x");
 	if (priv)
 		add_octet(pkey, OSSL_PKEY_PARAM_PRIV_KEY, out, "d");
-	else
-		add_octet(pkey, OSSL_PKEY_PARAM_PUB_KEY, out, "x");
 }
 
 /* For RSA keys (RS256, RS384, RS512). Also works for RSA-PSS (PS256, PS384,
