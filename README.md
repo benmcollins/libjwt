@@ -14,6 +14,7 @@ Standard | RFC                                                                  
 ``JWK``  | :page_facing_up: [RFC-7517](https://datatracker.ietf.org/doc/html/rfc7517) | JSON Web Keys and Sets
 ``JWA``  | :page_facing_up: [RFC-7518](https://datatracker.ietf.org/doc/html/rfc7518) | JSON Web Algorithms
 ``JWT``  | :page_facing_up: [RFC-7519](https://datatracker.ietf.org/doc/html/rfc7519) | JSON Web Token
+``JWK Thumbprint`` | :page_facing_up: [RFC-7638](https://datatracker.ietf.org/doc/html/rfc7638) / [RFC-9278](https://datatracker.ietf.org/doc/html/rfc9278) | JWK Thumbprint and Thumbprint URI
 
 > [!NOTE]
 > Throughout this documentation you will see links such as the ones

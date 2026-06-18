@@ -2211,8 +2211,10 @@ jwk_set_t *jwks_create_fromurl(const char *url, int verify);
  */
 typedef enum {
 	JWK_KEY_NONE		= 0x0000,	/**< No options */
-	JWK_KEY_GEN_KID		= 0x0001,	/**< Generate a random (uuidv4)
-						     "kid" for each imported key */
+	JWK_KEY_GEN_KID		= 0x0001,	/**< Generate a deterministic
+						     "kid" (the @rfc{7638} JWK
+						     SHA-256 thumbprint) for each
+						     imported key */
 	JWK_KEY_TRY_HMAC	= 0x0002,	/**< If the input does not parse
 						     as a PEM/DER key, treat the
 						     raw bytes as an "oct" (HMAC)
@@ -2552,6 +2554,103 @@ char *jwks_item_export(const jwk_item_t *item, int priv);
  */
 JWT_EXPORT
 char *jwks_export(const jwk_set_t *jwk_set, int priv);
+
+/**
+ * @brief Hash algorithm for a JWK Thumbprint
+ *
+ * Selects the digest used by jwks_item_thumbprint() and
+ * jwks_item_thumbprint_uri(). SHA-256 is the value 0, so it is the default for
+ * a zero-initialized argument and is what virtually all deployments use.
+ *
+ * @since 3.6.0
+ */
+typedef enum {
+	JWK_THUMBPRINT_SHA256 = 0,	/**< SHA-256 (default) */
+	JWK_THUMBPRINT_SHA384,		/**< SHA-384 */
+	JWK_THUMBPRINT_SHA512,		/**< SHA-512 */
+} jwk_thumbprint_alg_t;
+
+/**
+ * @brief Compute the JWK Thumbprint of a key
+ *
+ * @rfc{7638,3}
+ *
+ * Produces the base64url-encoded SHA-2 digest of the key's canonical JWK form:
+ * a JSON object containing only the members required for the key type, with no
+ * whitespace and the member names in lexicographic order. The result is a
+ * stable, deterministic fingerprint of the (public) key parameters, commonly
+ * used as a key id (@c "kid") or as the @c "jkt" confirmation value.
+ *
+ * The thumbprint is computed over public parameters and is identical whether
+ * the item was loaded from a JWK or from a PEM/DER key.
+ *
+ * @param item A JWK Item
+ * @param alg The thumbprint hash algorithm (see @ref jwk_thumbprint_alg_t);
+ *   @ref JWK_THUMBPRINT_SHA256 is the default.
+ * @return A newly allocated, nil-terminated base64url string the caller must
+ *   free with free(), or NULL on error (an unusable key, a missing required
+ *   member, or an invalid @p alg).
+ * @since 3.6.0
+ */
+JWT_EXPORT
+char *jwks_item_thumbprint(const jwk_item_t *item, jwk_thumbprint_alg_t alg);
+
+/**
+ * @brief Compute the JWK Thumbprint URI of a key
+ *
+ * @rfc{9278}
+ *
+ * As jwks_item_thumbprint(), but returns the RFC 9278 URI form:
+ * @c "urn:ietf:params:oauth:jwk-thumbprint:sha-256:<thumbprint>" (or
+ * @c sha-384 / @c sha-512 to match @p alg).
+ *
+ * @param item A JWK Item
+ * @param alg The thumbprint hash algorithm (see @ref jwk_thumbprint_alg_t);
+ *   @ref JWK_THUMBPRINT_SHA256 is the default.
+ * @return A newly allocated, nil-terminated URI string the caller must free
+ *   with free(), or NULL on error.
+ * @since 3.6.0
+ */
+JWT_EXPORT
+char *jwks_item_thumbprint_uri(const jwk_item_t *item, jwk_thumbprint_alg_t alg);
+
+/**
+ * @brief Find a key in a set by its JWK Thumbprint
+ *
+ * @rfc{7638}
+ *
+ * Returns the first item in @p jwk_set whose thumbprint (for the given hash)
+ * equals @p thumbprint. Unlike jwks_find_bykid(), this matches on the key's
+ * canonical, deterministic identity rather than the advisory @c "kid", so it
+ * works even when keys carry no (or an inconsistent) @c "kid" — e.g. matching a
+ * proof-of-possession @c "cnf"/@c "jkt" value against a set of known keys.
+ *
+ * @param jwk_set An existing jwk_set_t
+ * @param alg The hash used to produce @p thumbprint (see @ref jwk_thumbprint_alg_t)
+ * @param thumbprint A base64url JWK thumbprint, as from jwks_item_thumbprint()
+ * @return The matching jwk_item_t, or NULL if none matches or on bad input
+ * @since 3.6.0
+ */
+JWT_EXPORT
+jwk_item_t *jwks_find_bythumbprint(jwk_set_t *jwk_set, jwk_thumbprint_alg_t alg,
+				   const char *thumbprint);
+
+/**
+ * @brief Find a key in a set by its JWK Thumbprint URI
+ *
+ * @rfc{9278}
+ *
+ * As jwks_find_bythumbprint(), but takes the RFC 9278 URI form
+ * (@c "urn:ietf:params:oauth:jwk-thumbprint:sha-256:<thumbprint>"); the hash
+ * is taken from the URI's @c sha-NNN label.
+ *
+ * @param jwk_set An existing jwk_set_t
+ * @param uri A JWK Thumbprint URI, as from jwks_item_thumbprint_uri()
+ * @return The matching jwk_item_t, or NULL if none matches or on bad input
+ * @since 3.6.0
+ */
+JWT_EXPORT
+jwk_item_t *jwks_find_bythumbprint_uri(jwk_set_t *jwk_set, const char *uri);
 
 /**
  * @brief Retrieve binary octet data of a key

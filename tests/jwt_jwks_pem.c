@@ -297,8 +297,17 @@ START_TEST(test_gen_kid)
 	item = jwks_item_get(with, 0);
 	kid = jwks_item_kid(item);
 	ck_assert_ptr_nonnull(kid);
-	/* uuidv4 string form: 8-4-4-4-12 = 36 chars. */
-	ck_assert_int_eq((int)strlen(kid), 36);
+
+	/* The generated kid is the deterministic RFC 7638 SHA-256 thumbprint:
+	 * base64url of a 32-byte digest, i.e. 43 chars, and equal to what
+	 * jwks_item_thumbprint() computes for the same key. */
+	{
+		char_auto *tp = jwks_item_thumbprint(item, JWK_THUMBPRINT_SHA256);
+
+		ck_assert_int_eq((int)strlen(kid), 43);
+		ck_assert_ptr_nonnull(tp);
+		ck_assert_str_eq(kid, tp);
+	}
 }
 END_TEST
 

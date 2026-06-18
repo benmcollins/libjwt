@@ -798,3 +798,201 @@ char *jwks_export(const jwk_set_t *jwk_set, int priv)
 
 	return jwt_json_serialize(root, JWT_JSON_INDENT(2));
 }
+
+/* @rfc{7638,3} The required members for the JWK thumbprint, per key type. The
+ * thumbprint is the hash of a JSON object containing ONLY these members, with
+ * no whitespace and the member names in lexicographic order. The array is
+ * NULL-terminated; an unknown kty returns an empty list (a hard error). */
+static const char **jwk_thumbprint_members(jwk_key_type_t kty)
+{
+	static const char *ec[]  = { "crv", "kty", "x", "y", NULL };
+	static const char *rsa[] = { "e", "kty", "n", NULL };
+	static const char *okp[] = { "crv", "kty", "x", NULL };
+	static const char *oct[] = { "k", "kty", NULL };
+	static const char *none[] = { NULL };
+#ifdef LIBJWT_HAVE_ML_DSA
+	static const char *akp[] = { "alg", "kty", "pub", NULL };
+#endif
+
+	switch (kty) {
+	case JWK_KEY_TYPE_EC:
+		return ec;
+	case JWK_KEY_TYPE_RSA:
+		return rsa;
+	case JWK_KEY_TYPE_OKP:
+		return okp;
+	case JWK_KEY_TYPE_OCT:
+		return oct;
+#ifdef LIBJWT_HAVE_ML_DSA
+	case JWK_KEY_TYPE_AKP:
+		return akp;
+#endif
+	default:
+		return none; // LCOV_EXCL_LINE
+	}
+}
+
+char *jwt_jwk_thumbprint(const jwt_json_t *jwk, jwk_key_type_t kty, int bits)
+{
+	jwt_json_auto_t *canon = NULL;
+	char_auto *json = NULL;
+	const char **members;
+	unsigned char dig[64];
+	unsigned int dig_len = 0;
+	char *out = NULL;
+	size_t i;
+
+	if (jwk == NULL)
+		return NULL;
+
+	/* A valid key always has a supported kty, so the member list is never
+	 * empty here; guard defensively anyway. */
+	members = jwk_thumbprint_members(kty);
+	if (members[0] == NULL)
+		return NULL; // LCOV_EXCL_LINE
+
+	/* Build a fresh object with ONLY the required members, cloned from the
+	 * key, then serialize it sorted + compact. This reuses the exact
+	 * canonicalization the library already trusts for signing (and is
+	 * identical across the Jansson and json-c backends), so we neither
+	 * hand-order keys nor hand-escape values. */
+	canon = jwt_json_create();
+	if (canon == NULL)
+		return NULL; // LCOV_EXCL_LINE
+
+	for (i = 0; members[i] != NULL; i++) {
+		jwt_json_t *val = jwt_json_obj_get(jwk, members[i]);
+		jwt_json_t *cval;
+
+		if (val == NULL || !jwt_json_is_string(val))
+			return NULL;
+
+		cval = jwt_json_clone(val);
+		if (cval == NULL)
+			return NULL; // LCOV_EXCL_LINE
+
+		/* obj_set steals the reference to cval. */
+		jwt_json_obj_set(canon, members[i], cval);
+	}
+
+	json = jwt_json_serialize(canon, JWT_JSON_SORT_KEYS | JWT_JSON_COMPACT);
+	if (json == NULL)
+		return NULL; // LCOV_EXCL_LINE
+
+	if (jwt_ops->sha == NULL ||
+	    jwt_ops->sha(bits, (const unsigned char *)json, strlen(json),
+			 dig, &dig_len))
+		return NULL; // LCOV_EXCL_LINE
+
+	if (jwt_base64uri_encode(&out, (const char *)dig, (int)dig_len) <= 0)
+		return NULL; // LCOV_EXCL_LINE
+
+	return out;
+}
+
+char *jwks_item_thumbprint(const jwk_item_t *item, jwk_thumbprint_alg_t alg)
+{
+	int bits;
+
+	if (item == NULL || item->error || item->json == NULL)
+		return NULL;
+
+	switch (alg) {
+	case JWK_THUMBPRINT_SHA256:
+		bits = 256;
+		break;
+	case JWK_THUMBPRINT_SHA384:
+		bits = 384;
+		break;
+	case JWK_THUMBPRINT_SHA512:
+		bits = 512;
+		break;
+	default:
+		return NULL;
+	}
+
+	return jwt_jwk_thumbprint(item->json, item->kty, bits);
+}
+
+char *jwks_item_thumbprint_uri(const jwk_item_t *item, jwk_thumbprint_alg_t alg)
+{
+	char_auto *tp = NULL;
+	const char *label;
+	char *out = NULL;
+	size_t len;
+
+	/* @rfc{9278} maps the hash to a "sha-NNN" name from the RFC 6920
+	 * Named Information Hash Algorithm registry. */
+	switch (alg) {
+	case JWK_THUMBPRINT_SHA256:
+		label = "sha-256";
+		break;
+	case JWK_THUMBPRINT_SHA384:
+		label = "sha-384";
+		break;
+	case JWK_THUMBPRINT_SHA512:
+		label = "sha-512";
+		break;
+	default:
+		return NULL;
+	}
+
+	tp = jwks_item_thumbprint(item, alg);
+	if (tp == NULL)
+		return NULL;
+
+	len = strlen("urn:ietf:params:oauth:jwk-thumbprint:") + strlen(label)
+	      + 1 + strlen(tp) + 1;
+	out = jwt_malloc(len);
+	if (out == NULL)
+		return NULL; // LCOV_EXCL_LINE
+
+	snprintf(out, len, "urn:ietf:params:oauth:jwk-thumbprint:%s:%s",
+		 label, tp);
+
+	return out;
+}
+
+jwk_item_t *jwks_find_bythumbprint(jwk_set_t *jwk_set, jwk_thumbprint_alg_t alg,
+				   const char *thumbprint)
+{
+	jwk_item_t *item;
+
+	if (jwk_set == NULL || thumbprint == NULL)
+		return NULL;
+
+	list_for_each_entry(item, &jwk_set->head, node) {
+		char_auto *tp = jwks_item_thumbprint(item, alg);
+
+		if (tp != NULL && !strcmp(tp, thumbprint))
+			return item;
+	}
+
+	return NULL;
+}
+
+jwk_item_t *jwks_find_bythumbprint_uri(jwk_set_t *jwk_set, const char *uri)
+{
+	static const char prefix[] = "urn:ietf:params:oauth:jwk-thumbprint:";
+	jwk_thumbprint_alg_t alg;
+
+	if (jwk_set == NULL || uri == NULL)
+		return NULL;
+
+	/* @rfc{9278}: urn:ietf:params:oauth:jwk-thumbprint:sha-NNN:<thumbprint> */
+	if (strncmp(uri, prefix, strlen(prefix)))
+		return NULL;
+	uri += strlen(prefix);
+
+	if (!strncmp(uri, "sha-256:", 8))
+		alg = JWK_THUMBPRINT_SHA256;
+	else if (!strncmp(uri, "sha-384:", 8))
+		alg = JWK_THUMBPRINT_SHA384;
+	else if (!strncmp(uri, "sha-512:", 8))
+		alg = JWK_THUMBPRINT_SHA512;
+	else
+		return NULL;
+	uri += 8;
+
+	return jwks_find_bythumbprint(jwk_set, alg, uri);
+}

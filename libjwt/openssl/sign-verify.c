@@ -448,6 +448,32 @@ jwt_verify_sha_pem_done:
 	return jwt->error;
 }
 
+/* @rfc{7638} One-shot SHA-2 digest used by the JWK thumbprint. */
+static int openssl_sha(int sha_bits, const unsigned char *in, size_t in_len,
+		       unsigned char *out, unsigned int *out_len)
+{
+	const EVP_MD *md;
+
+	switch (sha_bits) {
+	case 256:
+		md = EVP_sha256();
+		break;
+	case 384:
+		md = EVP_sha384();
+		break;
+	case 512:
+		md = EVP_sha512();
+		break;
+	default:
+		return 1; // LCOV_EXCL_LINE
+	}
+
+	if (EVP_Digest(in, in_len, out, out_len, md, NULL) != 1)
+		return 1; // LCOV_EXCL_LINE
+
+	return 0;
+}
+
 /* Export our ops */
 struct jwt_crypto_ops jwt_openssl_ops = {
 	.name			= "openssl",
@@ -466,6 +492,8 @@ struct jwt_crypto_ops jwt_openssl_ops = {
 	.process_ec		= openssl_process_ec,
 	.process_item_free	= openssl_process_item_free,
 	.key2jwk_params		= openssl_key2jwk_params,
+
+	.sha			= openssl_sha,
 
 	.jwe_implemented	= 1,
 	.rng			= openssl_rng,
