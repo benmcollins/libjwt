@@ -55,6 +55,10 @@ void FUNC(free)(jwt_common_t *__cmd)
 	/* @rfc{7797} Free any raw payload (jwt_builder_setpayload()). */
 	jwt_scrub_and_free(__cmd->c.payload_raw, __cmd->c.payload_raw_len);
 
+	/* @rfc{8725} Free the checker's typ expectation / algorithm allowlist. */
+	jwt_freemem(__cmd->c.expected_typ);
+	jwt_freemem(__cmd->c.alg_allowlist);
+
 	memset(__cmd, 0, sizeof(*__cmd));
 
 	jwt_freemem(__cmd);
@@ -663,6 +667,61 @@ int jwt_checker_setkeyring(jwt_checker_t *checker, const jwk_set_t *keyring,
 	return 0;
 }
 
+int jwt_checker_expect_typ(jwt_checker_t *checker, const char *typ)
+{
+	char *copy = NULL;
+
+	if (checker == NULL)
+		return 1;
+
+	if (typ != NULL) {
+		size_t n = strlen(typ) + 1;
+
+		copy = jwt_malloc(n);
+		if (copy == NULL) {
+			jwt_write_error(checker, "Error allocating memory"); // LCOV_EXCL_LINE
+			return 1; // LCOV_EXCL_LINE
+		}
+		memcpy(copy, typ, n);
+	}
+
+	jwt_freemem(checker->c.expected_typ);
+	checker->c.expected_typ = copy;
+
+	return 0;
+}
+
+int jwt_checker_setalgs(jwt_checker_t *checker, const jwt_alg_t *algs, size_t n)
+{
+	jwt_alg_t *copy = NULL;
+	size_t i;
+
+	if (checker == NULL)
+		return 1;
+
+	if (algs != NULL && n > 0) {
+		for (i = 0; i < n; i++) {
+			if (algs[i] >= JWT_ALG_INVAL) {
+				jwt_write_error(checker,
+					"Invalid algorithm in allowlist");
+				return 1;
+			}
+		}
+		copy = jwt_malloc(n * sizeof(jwt_alg_t));
+		if (copy == NULL) {
+			jwt_write_error(checker, "Error allocating memory"); // LCOV_EXCL_LINE
+			return 1; // LCOV_EXCL_LINE
+		}
+		memcpy(copy, algs, n * sizeof(jwt_alg_t));
+	}
+
+	jwt_freemem(checker->c.alg_allowlist);
+	checker->c.alg_allowlist = copy;
+	checker->c.n_alg_allowlist = copy ? n : 0;
+
+	return 0;
+}
+
 static const struct jwt_signature *checker_sig_at(const jwt_checker_t *checker,
 						  unsigned int index)
 {
@@ -762,6 +821,27 @@ int jwt_builder_set_detached(jwt_builder_t *builder, int detached)
 		return 1;
 
 	builder->c.detached = detached ? 1 : 0;
+
+	return 0;
+}
+
+int jwt_builder_settyp(jwt_builder_t *builder, const char *typ)
+{
+	jwt_json_t *v;
+
+	if (builder == NULL)
+		return 1;
+
+	if (typ == NULL) {
+		jwt_json_obj_del(builder->c.headers, "typ");
+		return 0;
+	}
+
+	v = jwt_json_create_str(typ);
+	if (v == NULL || jwt_json_obj_set(builder->c.headers, "typ", v)) {
+		jwt_write_error(builder, "Error setting \"typ\" header"); // LCOV_EXCL_LINE
+		return 1; // LCOV_EXCL_LINE
+	}
 
 	return 0;
 }

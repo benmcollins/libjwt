@@ -122,6 +122,14 @@ struct jwt_common {
 	size_t payload_raw_len;
 	int b64;
 	int detached;
+
+	/* --- @rfc{8725} Checker ergonomics ---
+	 * @expected_typ: if set, the token's "typ" must match it (case-insensitive,
+	 * optional "application/" prefix). @alg_allowlist: if non-empty, the token's
+	 * "alg" must be one of these (checked before the signature). */
+	char *expected_typ;
+	jwt_alg_t *alg_allowlist;
+	size_t n_alg_allowlist;
 };
 
 struct jwt_builder {

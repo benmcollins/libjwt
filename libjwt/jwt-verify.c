@@ -8,6 +8,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <stdio.h>
 
 #include <jwt.h>
@@ -420,9 +421,58 @@ static jwt_claims_t __verify_jti(jwt_t *jwt)
 }
 
 /* This is after parsing and possibly a user callback. */
+/* @rfc{8725,3.11} Compare a media type ignoring case and an optional
+ * "application/" prefix (RFC 6838), so "at+jwt" matches "application/at+jwt". */
+static int jwt_typ_matches(const char *want, const char *got)
+{
+	if (!strncasecmp(want, "application/", 12))
+		want += 12;
+	if (!strncasecmp(got, "application/", 12))
+		got += 12;
+
+	return !strcasecmp(want, got);
+}
+
+/* @rfc{8725} Does the parsed header (@jwt->headers) and algorithm (@jwt->alg)
+ * satisfy the checker's "typ" expectation and algorithm allowlist? Returns 1 if
+ * acceptable (or nothing is configured), 0 if it should be rejected. */
+static int jwt_typ_alg_ok(jwt_t *jwt)
+{
+	jwt_checker_t *checker = jwt->checker;
+	size_t i;
+
+	if (checker == NULL)
+		return 1; // LCOV_EXCL_LINE
+
+	if (checker->c.expected_typ != NULL) {
+		jwt_json_t *t = jwt_json_obj_get(jwt->headers, "typ");
+		const char *got = (t && jwt_json_is_string(t))
+			? jwt_json_str_val(t) : NULL;
+
+		if (got == NULL || !jwt_typ_matches(checker->c.expected_typ, got))
+			return 0;
+	}
+
+	if (checker->c.n_alg_allowlist > 0) {
+		for (i = 0; i < checker->c.n_alg_allowlist; i++)
+			if (checker->c.alg_allowlist[i] == jwt->alg)
+				return 1;
+		return 0;
+	}
+
+	return 1;
+}
+
 static int __verify_config_post(jwt_t *jwt, const jwt_config_t *config,
 				unsigned int sig_len)
 {
+	/* @rfc{8725} Enforce the typ expectation / algorithm allowlist first. */
+	if (!jwt_typ_alg_ok(jwt)) {
+		jwt_write_error(jwt,
+			"Token rejected by \"typ\" or algorithm policy");
+		return 1;
+	}
+
 	/* Yes, we do this before checking a signature. @rfc{7797} An unencoded
 	 * (b64=false) payload is opaque, not JSON claims, so skip claim checks. */
 	if (jwt->b64 && __verify_claims(jwt)) {
@@ -693,6 +743,13 @@ static int verify_entry(jwt_checker_t *checker, jwt_t *jwt,
 			jwt->headers = NULL;
 			return 1;
 		}
+	}
+
+	/* @rfc{8725} A signature whose "typ"/alg does not meet the checker's
+	 * expectation is simply not accepted (skipped), so the policy decides. */
+	if (!jwt_typ_alg_ok(jwt)) {
+		jwt->headers = NULL;
+		return 0;
 	}
 
 	/* Seed the candidate: a kid-named keyring key (a binding assertion, no

@@ -418,6 +418,9 @@ if (CHECK_FOUND)
 	# RFC 7797 unencoded / detached payload
 	list (APPEND UNIT_TESTS jws_b64)
 
+	# RFC 8725 typ helper + algorithm allowlist
+	list (APPEND UNIT_TESTS jwt_typ_alg)
+
 	# ML-DSA (FIPS 204 / RFC 9964). The test is a no-op unless the build
 	# enabled WITH_ML_DSA against a capable backend.
 	list (APPEND UNIT_TESTS jwt_mldsa)

@@ -16,6 +16,8 @@ Standard | RFC                                                                  
 ``JWT``  | :page_facing_up: [RFC-7519](https://datatracker.ietf.org/doc/html/rfc7519) | JSON Web Token
 ``JWK Thumbprint`` | :page_facing_up: [RFC-7638](https://datatracker.ietf.org/doc/html/rfc7638) / [RFC-9278](https://datatracker.ietf.org/doc/html/rfc9278) | JWK Thumbprint and Thumbprint URI
 ``cnf``  | :page_facing_up: [RFC-7800](https://datatracker.ietf.org/doc/html/rfc7800) | Proof-of-Possession (confirmation) claim helpers
+``Unencoded Payload`` | :page_facing_up: [RFC-7797](https://datatracker.ietf.org/doc/html/rfc7797) | JWS unencoded (``b64=false``) and detached payloads
+``BCP 225`` | :page_facing_up: [RFC-8725](https://datatracker.ietf.org/doc/html/rfc8725) | JWT Best Current Practices (``typ`` check, algorithm allowlist)
 
 > [!NOTE]
 > Throughout this documentation you will see links such as the ones
