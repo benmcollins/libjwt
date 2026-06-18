@@ -789,6 +789,9 @@ int mbedtls_generate_pem(jwk_key_type_t kty, const char *param, jwt_alg_t alg,
 		}
 	}
 
+	/* The buffer held an unencrypted private key; scrub it (see the same
+	 * convention in set_pem_best_effort()). */
+	mbedtls_platform_zeroize(buf, sizeof(buf));
 	mbedtls_pk_free(&pk);
 	psa_destroy_key(kid);
 
