@@ -6,8 +6,17 @@
    License, v. 2.0. If a copy of the MPL was not distributed with this
    file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+#include <mbedtls/build_info.h>	/* MBEDTLS_VERSION_MAJOR */
 #include <psa/crypto.h>
 #include <string.h>
+
+/* PBKDF2: MbedTLS 4.x exposes it only via PSA; the 3.6.x PSA build in our CI
+ * image does not enable PSA PBKDF2 at runtime, so use the public PKCS#5 API
+ * there (mbedtls/pkcs5.h is public in 3.6.x but private in 4.x). */
+#if MBEDTLS_VERSION_MAJOR < 4
+#include <mbedtls/pkcs5.h>
+#include <mbedtls/md.h>
+#endif
 
 #include <jwt.h>
 
@@ -255,6 +264,84 @@ static int mbedtls_sha(int sha_bits, const unsigned char *in, size_t in_len,
 	return 0;
 }
 
+#if MBEDTLS_VERSION_MAJOR >= 4
+static int mbedtls_pbkdf2(int sha_bits, const unsigned char *pw, size_t pw_len,
+			  const unsigned char *salt, size_t salt_len,
+			  unsigned int iter, unsigned char *out, size_t dk_len)
+{
+	psa_key_derivation_operation_t op = PSA_KEY_DERIVATION_OPERATION_INIT;
+	psa_key_attributes_t attr = PSA_KEY_ATTRIBUTES_INIT;
+	mbedtls_svc_key_id_t pwkey = MBEDTLS_SVC_KEY_ID_INIT;
+	psa_algorithm_t alg;
+	int ret = 1;
+
+	switch (sha_bits) {
+	case 256:
+		alg = PSA_ALG_PBKDF2_HMAC(PSA_ALG_SHA_256);
+		break;
+	case 384:
+		alg = PSA_ALG_PBKDF2_HMAC(PSA_ALG_SHA_384);
+		break;
+	case 512:
+		alg = PSA_ALG_PBKDF2_HMAC(PSA_ALG_SHA_512);
+		break;
+	default:
+		return 1; // LCOV_EXCL_LINE
+	}
+
+	if (psa_crypto_init() != PSA_SUCCESS)
+		return 1; // LCOV_EXCL_LINE
+
+	/* The PBKDF2 password is imported as a PSA key (PSA_KEY_TYPE_PASSWORD);
+	 * MbedTLS requires the PASSWORD input via a key, not raw bytes. */
+	psa_set_key_usage_flags(&attr, PSA_KEY_USAGE_DERIVE);
+	psa_set_key_algorithm(&attr, alg);
+	psa_set_key_type(&attr, PSA_KEY_TYPE_PASSWORD);
+	if (psa_import_key(&attr, pw, pw_len, &pwkey) != PSA_SUCCESS)
+		return 1; // LCOV_EXCL_LINE
+
+	/* PSA PBKDF2 input order: cost, salt, password. */
+	if (psa_key_derivation_setup(&op, alg) == PSA_SUCCESS &&
+	    psa_key_derivation_input_integer(&op, PSA_KEY_DERIVATION_INPUT_COST,
+					     iter) == PSA_SUCCESS &&
+	    psa_key_derivation_input_bytes(&op, PSA_KEY_DERIVATION_INPUT_SALT,
+					   salt, salt_len) == PSA_SUCCESS &&
+	    psa_key_derivation_input_key(&op, PSA_KEY_DERIVATION_INPUT_PASSWORD,
+					 pwkey) == PSA_SUCCESS &&
+	    psa_key_derivation_output_bytes(&op, out, dk_len) == PSA_SUCCESS)
+		ret = 0;
+
+	psa_key_derivation_abort(&op);
+	psa_destroy_key(pwkey);
+
+	return ret;
+}
+#else
+static int mbedtls_pbkdf2(int sha_bits, const unsigned char *pw, size_t pw_len,
+			  const unsigned char *salt, size_t salt_len,
+			  unsigned int iter, unsigned char *out, size_t dk_len)
+{
+	mbedtls_md_type_t md;
+
+	switch (sha_bits) {
+	case 256:
+		md = MBEDTLS_MD_SHA256;
+		break;
+	case 384:
+		md = MBEDTLS_MD_SHA384;
+		break;
+	case 512:
+		md = MBEDTLS_MD_SHA512;
+		break;
+	default:
+		return 1; // LCOV_EXCL_LINE
+	}
+
+	return mbedtls_pkcs5_pbkdf2_hmac_ext(md, pw, pw_len, salt, salt_len,
+					     iter, (uint32_t)dk_len, out) ? 1 : 0;
+}
+#endif
+
 /* Export our ops */
 struct jwt_crypto_ops jwt_mbedtls_ops = {
 	.name			= "mbedtls",
@@ -263,6 +350,7 @@ struct jwt_crypto_ops jwt_mbedtls_ops = {
 	.sign_sha_hmac		= mbedtls_sign_sha_hmac,
 	.sign_sha_pem		= mbedtls_sign_sha_pem,
 	.verify_sha_pem		= mbedtls_verify_sha_pem,
+	.pbkdf2			= mbedtls_pbkdf2,
 
 	.jwk_implemented	= 1,
 	.process_eddsa		= mbedtls_process_eddsa,

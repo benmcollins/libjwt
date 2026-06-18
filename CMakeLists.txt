@@ -430,8 +430,8 @@ if (CHECK_FOUND)
 
 	# JWE
 	list (APPEND UNIT_TESTS jwe_foundation jwe_keys jwe_gcm jwe_cbc
-		jwe_aeskw jwe_gcmkw jwe_rsa jwe_ecdh jwe_json jwe_aad jwe_multi
-		jwe_json_neg)
+		jwe_aeskw jwe_gcmkw jwe_pbes2 jwe_rsa jwe_ecdh jwe_json jwe_aad
+		jwe_multi jwe_json_neg)
 
 	# Claims
 	list (APPEND UNIT_TESTS jwt_claims jwt_cnf)

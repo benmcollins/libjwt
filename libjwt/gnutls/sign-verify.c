@@ -482,6 +482,39 @@ static int gnutls_sha(int sha_bits, const unsigned char *in, size_t in_len,
 	return 0;
 }
 
+/* Named _op to avoid colliding with the library function gnutls_pbkdf2(). */
+static int gnutls_pbkdf2_op(int sha_bits, const unsigned char *pw, size_t pw_len,
+			    const unsigned char *salt, size_t salt_len,
+			    unsigned int iter, unsigned char *out, size_t dk_len)
+{
+	gnutls_datum_t key, slt;
+	gnutls_mac_algorithm_t mac;
+
+	switch (sha_bits) {
+	case 256:
+		mac = GNUTLS_MAC_SHA256;
+		break;
+	case 384:
+		mac = GNUTLS_MAC_SHA384;
+		break;
+	case 512:
+		mac = GNUTLS_MAC_SHA512;
+		break;
+	default:
+		return 1; // LCOV_EXCL_LINE
+	}
+
+	key.data = (unsigned char *)pw;
+	key.size = (unsigned int)pw_len;
+	slt.data = (unsigned char *)salt;
+	slt.size = (unsigned int)salt_len;
+
+	if (gnutls_pbkdf2(mac, &key, &slt, iter, out, dk_len))
+		return 1; // LCOV_EXCL_LINE
+
+	return 0;
+}
+
 /* Export our ops */
 struct jwt_crypto_ops jwt_gnutls_ops = {
 	.name			= "gnutls",
@@ -505,6 +538,7 @@ struct jwt_crypto_ops jwt_gnutls_ops = {
 	.generate_pem		= gnutls_generate_pem,
 
 	.sha			= gnutls_sha,
+	.pbkdf2			= gnutls_pbkdf2_op,
 
 	.jwe_implemented	= 1,
 	.rng			= gnutls_rng,
