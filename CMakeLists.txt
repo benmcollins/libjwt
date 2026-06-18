@@ -412,6 +412,9 @@ if (CHECK_FOUND)
 	# Checker and Builder
 	list (APPEND UNIT_TESTS jwt_builder jwt_checker jwt_flipflop jwt_xbackend)
 
+	# JWS JSON Serialization (multi-signature)
+	list (APPEND UNIT_TESTS jws_json)
+
 	# ML-DSA (FIPS 204 / RFC 9964). The test is a no-op unless the build
 	# enabled WITH_ML_DSA against a capable backend.
 	list (APPEND UNIT_TESTS jwt_mldsa)

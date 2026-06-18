@@ -34,7 +34,11 @@ Generate and (optionally) sign a JSON Web Token\n\
 			attribute\n\
   -p, --print=CMD       When printing JSON, pipe through CMD\n\
   -n, --no-iat          Disable adding iat (Issued-At) to token\n\
-  -k, --key=FILE        Filename containing a JSON Web Key\n\
+  -k, --key=FILE        Filename containing a JSON Web Key. May be given more\n\
+                        than once; the first is the primary signer and each\n\
+                        additional key adds a signature (JWS JSON, RFC 7515)\n\
+  -F, --format=FORMAT   Serialization: compact (default), flat, or general.\n\
+                        Multiple keys imply general\n\
   -c, --claim=t:k=v     Add a claim to the JWT\n\
       t                 One of i, s, or b for integer, string or boolean\n\
       k                 The key for this claim\n\
@@ -62,23 +66,29 @@ key2jwk(1).\n", get_progname());
 int main(int argc, char *argv[])
 {
 	char *t = NULL, *k = NULL, *v = NULL;
-        jwk_set_auto_t *jwk_set = NULL;
 	const jwk_item_t *item = NULL;
 	char* json = NULL;
 	jwt_builder_auto_t *builder = NULL;
 	jwt_value_t jval;
 	char *token;
+#define MAX_KEYS 16
+	char *key_files[MAX_KEYS];
+	int n_keys = 0;
+	jwk_set_t *sets[MAX_KEYS] = { NULL };
 	char *key_file = NULL;
 	jwt_alg_t alg = JWT_ALG_NONE;
+	jwt_serialization_t fmt = JWT_FORMAT_COMPACT;
 	int oc = 0;
 	int verbose = 0;
 	int quiet = 0;
 	int emit_iat = 1;
+	int i;
 
-	char *optstr = "a:c:b:hj:k:lnp:qv";
+	char *optstr = "a:c:b:F:hj:k:lnp:qv";
 	struct option opttbl[] = {
 		{ "algorithm",  required_argument,	NULL, 'a' },
 		{ "claim",      required_argument,	NULL, 'c' },
+		{ "format",     required_argument,	NULL, 'F' },
 		{ "help",       no_argument,		NULL, 'h' },
 		{ "json",       required_argument,	NULL, 'j' },
 		{ "key",        required_argument,	NULL, 'k' },
@@ -129,7 +139,21 @@ int main(int argc, char *argv[])
 			break;
 
 		case 'k':
-			key_file = optarg;
+			if (n_keys >= MAX_KEYS)
+				usage("Too many --key options", EXIT_FAILURE);
+			key_files[n_keys++] = optarg;
+			break;
+
+		case 'F':
+			if (!strcmp(optarg, "compact"))
+				fmt = JWT_FORMAT_COMPACT;
+			else if (!strcmp(optarg, "flat"))
+				fmt = JWT_FORMAT_JSON_FLAT;
+			else if (!strcmp(optarg, "general"))
+				fmt = JWT_FORMAT_JSON_GENERAL;
+			else
+				usage("Unknown --format (compact|flat|general)",
+				      EXIT_FAILURE);
 			break;
 
 		case 'n':
@@ -206,41 +230,56 @@ int main(int argc, char *argv[])
 	if (argc)
 		usage("Unknown extra arguments", EXIT_FAILURE);
 
-	if (key_file == NULL && alg != JWT_ALG_NONE)
+	if (n_keys == 0 && alg != JWT_ALG_NONE)
 		usage("An algorithm other than 'none' requires a key",
 		      EXIT_FAILURE);
 
-	if (alg != JWT_ALG_NONE && key_file == NULL)
-		usage("Algorithm requires --key",
-				EXIT_FAILURE);
+	if (n_keys > 1 && fmt == JWT_FORMAT_COMPACT)
+		fmt = JWT_FORMAT_JSON_GENERAL;
 
 	jwt_builder_enable_iat(builder, emit_iat);
 
-	if (key_file) {
-		jwk_set = jwks_create_fromfile(key_file);
-		if (jwk_set == NULL || jwks_error(jwk_set)) {
+	if (jwt_builder_set_format(builder, fmt)) {
+		fprintf(stderr, "ERR: %s\n", jwt_builder_error_msg(builder));
+		exit(EXIT_FAILURE);
+	}
+
+	/* The first key is the primary signer (setkey); each additional --key is
+	 * an extra signature in the JSON Serialization (alg from its own JWK). */
+	for (i = 0; i < n_keys; i++) {
+		const jwk_item_t *it;
+
+		sets[i] = jwks_create_fromfile(key_files[i]);
+		if (sets[i] == NULL || jwks_error(sets[i])) {
 			fprintf(stderr, "ERR: Could not read JWK: %s\n",
-				jwks_error_msg(jwk_set));
+				jwks_error_msg(sets[i]));
 			exit(EXIT_FAILURE);
 		}
 
-		/* Get the first key */
-		item = jwks_item_get(jwk_set, 0);
-		if (jwks_item_error(item)) {
+		it = jwks_item_get(sets[i], 0);
+		if (jwks_item_error(it)) {
 			fprintf(stderr, "ERR: Could not read JWK: %s\n",
-				jwks_item_error_msg(item));
+				jwks_item_error_msg(it));
 			exit(EXIT_FAILURE);
 		}
 
-		if (jwks_item_alg(item) == JWT_ALG_NONE &&
-		    alg == JWT_ALG_NONE) {
-			usage("No \"alg\" attribute in key and --alg not given",
-			      EXIT_FAILURE);
-		}
-
-		if (jwt_builder_setkey(builder, alg, item)) {
-			fprintf(stderr, "ERR Loading key: %s\n",
-				jwt_builder_error_msg(builder));
+		if (i == 0) {
+			if (jwks_item_alg(it) == JWT_ALG_NONE &&
+			    alg == JWT_ALG_NONE && n_keys == 1) {
+				usage("No \"alg\" attribute in key and --alg not given",
+				      EXIT_FAILURE);
+			}
+			item = it;
+			key_file = key_files[0];
+			if (jwt_builder_setkey(builder, alg, it)) {
+				fprintf(stderr, "ERR Loading key: %s\n",
+					jwt_builder_error_msg(builder));
+				exit(EXIT_FAILURE);
+			}
+		} else if (jwt_builder_add_signature(builder,
+				jwks_item_alg(it), it) == NULL) {
+			fprintf(stderr, "ERR adding signer (key %d): %s\n",
+				i + 1, jwt_builder_error_msg(builder));
 			exit(EXIT_FAILURE);
 		}
 	}

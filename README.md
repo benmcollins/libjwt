@@ -74,6 +74,31 @@ every PEM/DER key) is unaffected, as are the OpenSSL and MbedTLS backends. The
 version is checked at **runtime**, so upgrading the shared ``libgnutls`` to >=
 3.8.13 lifts the restriction without rebuilding LibJWT.
 
+#### JWS serialization
+
+LibJWT produces and verifies JWS (RFC 7515) in the Compact Serialization (the
+default) and the JSON Serialization — both the Flattened form and the General
+form with one or more signatures.
+
+| JWS serialization | Signatures | Supported |
+| :---------------- | :--------- | :-------- |
+| Compact (RFC 7515 §7.1)          | one         | :white_check_mark: |
+| JSON Flattened (RFC 7515 §7.2.2) | one         | :white_check_mark: |
+| JSON General (RFC 7515 §7.2.1)   | one or more | :white_check_mark: |
+
+Select the form with `jwt_builder_set_format()`; add extra signers (each with
+its own algorithm and per-signature protected/unprotected header) with
+`jwt_builder_add_signature()`. The same payload is signed independently by each
+signer, so signatures may use different algorithms (e.g. RS256 + ES256).
+
+To verify a multi-signature token, supply a set of candidate keys (a JWKS) with
+`jwt_checker_setkeyring()` and a policy: `JWT_VERIFY_POLICY_ANY` (the default —
+accept if at least one signature verifies, e.g. multi-issuer or key rotation) or
+`JWT_VERIFY_POLICY_ALL` (every signature must verify, e.g. co-signing). A
+signature naming a `kid` is matched to that key; a keyless one is tried against
+every compatible key, always under the usual algorithm/key-type binding.
+`jwt_checker_verify()` auto-detects Compact vs JSON input.
+
 #### JWE
 
 LibJWT supports JWE (RFC 7516) in both the Compact Serialization and the JSON

@@ -65,6 +65,17 @@ exit status from the program will cause verification to fail.
   in PEM or DER (or some other common format that _OpenSSL_ understands), then
   you can convert it to a JWK with the **key2jwk(1)** tool.
 
+**\-r** _FILE_, **\-\-keyring**=_FILE_
+  ~ Path to a file containing a JWK Set (JWKS) of candidate keys, used to verify
+  a multi-signature JWS JSON Serialization (RFC 7515 §7.2). A signature naming a
+  **kid** is matched to that key; a keyless signature is tried against every
+  compatible key. Mutually exclusive with **\-\-key**.
+
+**\-P** _POLICY_, **\-\-policy**=_POLICY_
+  ~ Multi-signature acceptance policy when a keyring is used: **any** (the
+  default — accept if at least one signature verifies) or **all** (every
+  signature in the token must verify).
+
 **\-p** _CMD_, **\-\-print**=_CMD_
   ~ Pipe JSON of header and payload to _CMD_ through its **stdin**. This option
   only makes sense with **\-\-verbose**.

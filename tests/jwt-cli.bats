@@ -286,3 +286,44 @@ mldsa_supported() {
 		| jq -r '.keys[0].kty')
 	[ "${kty}" = "AKP" ]
 }
+
+# JWS JSON Serialization (multi-signature, RFC 7515 7.2) — issue #308
+EC_KEY="../tests/keys/ec_key_prime256v1.json"
+RS_KEY="../tests/keys/rsa_key_2048.json"
+JWS_RING="../tests/keys/jwks_jws_pair.json"
+
+@test "Generate a Flattened JWS and verify it" {
+	token="$(./tools/jwt-generate -q -n -F flat -k ${EC_KEY})"
+	[ "${token:0:1}" = "{" ]
+	echo "${token}" | jq -e '.protected and .signature and (.signatures | not)'
+	./tools/jwt-verify -q -k ${EC_KEY} "${token}"
+}
+
+@test "Generate a General multi-signature JWS (RS256 + ES256)" {
+	token="$(./tools/jwt-generate -q -n -k ${RS_KEY} -k ${EC_KEY})"
+	echo "${token}" | jq -e '.signatures | length == 2'
+}
+
+@test "Verify a multi-signature JWS against a keyring (policy any)" {
+	token="$(./tools/jwt-generate -q -n -k ${RS_KEY} -k ${EC_KEY})"
+	./tools/jwt-verify -q -r ${JWS_RING} -P any "${token}"
+}
+
+@test "Verify a multi-signature JWS against a keyring (policy all)" {
+	token="$(./tools/jwt-generate -q -n -k ${RS_KEY} -k ${EC_KEY})"
+	./tools/jwt-verify -q -r ${JWS_RING} -P all "${token}"
+}
+
+@test "Policy all fails when the keyring lacks a signer's key" {
+	token="$(./tools/jwt-generate -q -n -k ${RS_KEY} -k ${EC_KEY})"
+	# A ring with only the EC key: ES256 verifies, RS256 does not.
+	run ./tools/jwt-verify -q -r ${EC_KEY} -P all "${token}"
+	[ "${status}" -ne 0 ]
+	run ./tools/jwt-verify -q -r ${EC_KEY} -P any "${token}"
+	[ "${status}" -eq 0 ]
+}
+
+@test "key and keyring are mutually exclusive" {
+	run ./tools/jwt-verify -k ${EC_KEY} -r ${JWS_RING} "x.y.z"
+	[ "${status}" -ne 0 ]
+}

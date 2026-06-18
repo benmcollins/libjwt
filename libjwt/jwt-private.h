@@ -97,6 +97,21 @@ struct jwt_common {
 	 * Both are in seconds. */
 	time_t exp;
 	time_t nbf;
+
+	/* --- @rfc{7515,7.2} JSON Serialization (multi-signature) ---
+	 * The single-signature Compact path uses .alg/.key above and an empty
+	 * list, keeping its behavior byte-identical. The signature list is
+	 * materialized by jwt_builder_setkey()/add_signature() (builder) or the
+	 * JSON parse (checker); it is iterated only for the JSON serializations. */
+	jwt_serialization_t format;	/* builder: emit form; default COMPACT (0) */
+	ll_t signatures;		/* list of struct jwt_signature		*/
+	int n_signatures;
+
+	/* checker: a borrowed multi-key set (JWKS) and the multi-signature
+	 * verification policy. NULL keyring => the single .key above is used. */
+	const jwk_set_t *keyring;
+	jwt_verify_policy_t policy;
+	unsigned int last_sig_count;	/* signatures in the last JSON token	*/
 };
 
 struct jwt_builder {
@@ -109,6 +124,24 @@ struct jwt_checker {
 	struct jwt_common c;
 	int error;
 	char error_msg[JWT_ERR_LEN];
+};
+
+/* @rfc{7515,7.2.1} One JWS signature: its own "alg" and PROTECTED header (the
+ * exact bytes it signs over), an optional per-signature UNPROTECTED "header"
+ * (JSON serializations only), the signing key (builder) or matched key
+ * (checker), and the verbatim base64url protected header + signature. Linked
+ * via ll.h: a Compact/Flattened JWS is a one-element list, General is N.
+ * Owned by the enclosing struct jwt_common. */
+struct jwt_signature {
+	ll_t node;
+	jwt_alg_t alg;		/* this signature's algorithm			*/
+	const jwk_item_t *key;	/* builder: signing key; checker: matched key	*/
+	jwt_json_t *protected;	/* per-signature protected header (builder)	*/
+	jwt_json_t *header;	/* optional per-signature unprotected header	*/
+	char *protected_b64;	/* VERBATIM base64url(protected); the signing	*/
+				/* input reuses these bytes, never re-encoded	*/
+	char *sig_b64;		/* base64url(signature)				*/
+	int verified;		/* checker: 1 if this signature verified	*/
 };
 
 /******************************/
@@ -522,6 +555,35 @@ char *jwt_encode_str(jwt_t *jwt);
 
 JWT_NO_EXPORT
 int jwt_head_setup(jwt_t *jwt);
+
+/* @rfc{7515,7.2} JWS JSON Serialization (multi-signature) helpers.
+ *
+ * The jwt_signature list helpers mirror the jwe_recipient ones: a Compact/
+ * Flattened JWS is a one-element list, General is N. Owned by jwt_common. */
+JWT_NO_EXPORT
+struct jwt_signature *jwt_signature_first(struct jwt_common *cmd);
+JWT_NO_EXPORT
+struct jwt_signature *jwt_signature_append(struct jwt_common *cmd);
+JWT_NO_EXPORT
+struct jwt_signature *jwt_signature_first_or_add(struct jwt_common *cmd);
+JWT_NO_EXPORT
+void jwt_signature_free(struct jwt_signature *s);
+
+/* Builder: serialize @cmd's signatures + finalized claims (@jwt->claims) into a
+ * JWS JSON Serialization (Flattened or General). Returns a malloc'd string. */
+JWT_NO_EXPORT
+char *jwt_encode_json(jwt_t *jwt, struct jwt_common *cmd);
+
+/* Checker: parse + verify a JWS JSON Serialization against the checker's
+ * key/keyring and policy. Returns 0 if the policy is satisfied. */
+JWT_NO_EXPORT
+int jwt_verify_json(jwt_checker_t *checker, const char *token);
+
+/* @rfc{7515,7.2.1} Non-zero if any member of @header also appears in
+ * @protected (a parameter must not be in both). */
+JWT_NO_EXPORT
+int jwt_header_params_overlap(const jwt_json_t *protected,
+			      const jwt_json_t *header);
 
 /* JWE alg/enc <-> string maps (jwe-setget.c). These are exported as part of
  * the public API (jwe_alg_str etc.), declared in jwt.h. */

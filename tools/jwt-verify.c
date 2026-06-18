@@ -34,6 +34,11 @@ Decode and (optionally) verify the signature for a JSON Web Token\n\
                         provided with -k does not have an \"alg\" attribute\n\
   -p, --print=CMD       When printing JSON, pipe through CMD\n\
   -k, --key=FILE        Filename containing a JSON Web Key\n\
+  -r, --keyring=FILE    Filename containing a JWKS to verify a multi-signature\n\
+                        JWS JSON Serialization against (RFC 7515). Exclusive\n\
+                        with --key\n\
+  -P, --policy=POLICY   Multi-signature policy: any (default, accept if one\n\
+                        signature verifies) or all (every signature must)\n\
   -q, --quiet           No output. Exit value is number of errors\n\
   -v, --verbose         Show decoded header and payload while verifying\n\
 \nThis program will decode and validate each token on the command line.\n\
@@ -95,16 +100,21 @@ int main(int argc, char *argv[])
 {
 	jwt_checker_auto_t *checker = NULL;
 	const char *key_file = NULL;
+	const char *keyring_file = NULL;
 	jwt_alg_t alg = JWT_ALG_NONE;
+	jwt_verify_policy_t policy = JWT_VERIFY_POLICY_ANY;
 	jwk_set_auto_t *jwk_set = NULL;
+	jwk_set_auto_t *keyring = NULL;
 	const jwk_item_t *item = NULL;
 	int oc, err, verbose = 0;
 	int quiet = 0;
 
-	char *optstr = "hk:alvqp:";
+	char *optstr = "hk:r:P:alvqp:";
 	struct option opttbl[] = {
 		{ "help",	no_argument,		NULL, 'h' },
 		{ "key",	required_argument,	NULL, 'k' },
+		{ "keyring",	required_argument,	NULL, 'r' },
+		{ "policy",	required_argument,	NULL, 'P' },
 		{ "algorithm",	required_argument,	NULL, 'a' },
 		{ "print",	required_argument,	NULL, 'p' },
 		{ "list",	no_argument,		NULL, 'l' },
@@ -158,6 +168,19 @@ int main(int argc, char *argv[])
 			key_file = optarg;
 			break;
 
+		case 'r':
+			keyring_file = optarg;
+			break;
+
+		case 'P':
+			if (!strcmp(optarg, "any"))
+				policy = JWT_VERIFY_POLICY_ANY;
+			else if (!strcmp(optarg, "all"))
+				policy = JWT_VERIFY_POLICY_ALL;
+			else
+				usage("Unknown --policy (any|all)", EXIT_FAILURE);
+			break;
+
 		case 'a':
 			alg = jwt_str_alg(optarg);
 			if (alg >= JWT_ALG_INVAL) {
@@ -183,6 +206,29 @@ int main(int argc, char *argv[])
 	if (key_file == NULL && alg != JWT_ALG_NONE)
 		usage("An algorithm other than 'none' requires a key",
 		      EXIT_FAILURE);
+
+	if (key_file && keyring_file)
+		usage("--key and --keyring are mutually exclusive",
+		      EXIT_FAILURE);
+
+	/* Load a keyring (a JWKS) for multi-signature verification. */
+	if (keyring_file) {
+		keyring = jwks_create_fromfile(keyring_file);
+		if (keyring == NULL || jwks_error(keyring)) {
+			fprintf(stderr, "ERR: Could not read keyring: %s\n",
+				jwks_error_msg(keyring));
+			exit(EXIT_FAILURE);
+		}
+		if (jwt_checker_setkeyring(checker, keyring, policy)) {
+			fprintf(stderr, "ERR setting keyring: %s\n",
+				jwt_checker_error_msg(checker));
+			exit(EXIT_FAILURE);
+		}
+		if (!quiet)
+			printf("\xF0\x9F\x94\x91 \033[0;92m[RING]\033[0m %s "
+			       "(policy=%s)\n", keyring_file,
+			       policy == JWT_VERIFY_POLICY_ALL ? "all" : "any");
+	}
 
 	/* Load JWK key */
 	if (key_file) {
