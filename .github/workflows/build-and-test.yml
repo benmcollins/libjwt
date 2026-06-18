@@ -23,17 +23,18 @@ permissions:
   contents: read
 
 jobs:
+  # This is, currently, the only place we test MbedTLS 4.1
   build-macos:
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v5
     - uses: ConorMacBride/install-package@v1
       with:
-        brew: gnutls openssl@3 jansson pkgconf cmake check curl bats-core jq
+        brew: gnutls openssl@3 jansson pkgconf cmake check curl bats-core jq mbedtls
 
     - name: Build and Test
       run: |
-        cmake -B build -DWITH_LIBCURL=YES
+        cmake -B build -DWITH_LIBCURL=YES -DWITH_MBEDTLS=YES
         cmake --build build -- all check
 
   # Vendor compatibility matrix: does libjwt build + pass its tests against the
