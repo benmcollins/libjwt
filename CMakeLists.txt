@@ -410,7 +410,7 @@ if (CHECK_FOUND)
 		jwt_ec jwt_rsa jwt_hs jwt_jwks_pem jwt_thumbprint)
 
 	# Checker and Builder
-	list (APPEND UNIT_TESTS jwt_builder jwt_checker jwt_flipflop)
+	list (APPEND UNIT_TESTS jwt_builder jwt_checker jwt_flipflop jwt_xbackend)
 
 	# ML-DSA (FIPS 204 / RFC 9964). The test is a no-op unless the build
 	# enabled WITH_ML_DSA against a capable backend.

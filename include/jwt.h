@@ -2912,6 +2912,12 @@ jwt_crypto_provider_t jwt_get_crypto_ops_t(void);
  * The opname is one of the available operators in the compiled version
  * of LibJWT. Most times, this is either "openssl" or "gnutls".
  *
+ * @note A key (@ref jwk_item_t) remains bound to the backend that parsed it:
+ *  signing, verifying, and JWE operations on that key always route to its
+ *  origin backend, regardless of the backend selected here. So changing the
+ *  active backend after loading keys is safe — each key keeps working. (Keys
+ *  with no backend-specific material, i.e. @c "oct", use the active backend.)
+ *
  * @param opname the name of the crypto operation to set
  * @return 0 on success, 1 for error
  * @since 3.0.0
