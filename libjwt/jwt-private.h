@@ -739,6 +739,9 @@ static inline jwk_key_type_t jwe_alg_required_kty(jwe_key_alg_t alg)
 	case JWE_ALG_A128KW:
 	case JWE_ALG_A192KW:
 	case JWE_ALG_A256KW:
+	case JWE_ALG_A128GCMKW:
+	case JWE_ALG_A192GCMKW:
+	case JWE_ALG_A256GCMKW:
 		return JWK_KEY_TYPE_OCT;
 
 	case JWE_ALG_RSA_OAEP:
@@ -791,6 +794,20 @@ JWT_NO_EXPORT
 int jwe_decrypt_cek(jwe_key_alg_t alg, const jwk_item_t *key,
 		    const unsigned char *in, size_t in_len,
 		    unsigned char **cek, size_t *cek_len);
+
+/* AES-GCM Key Wrap (RFC 7518 4.7). Wrap/unwrap the CEK by GCM-encrypting it
+ * under the oct KEK with a fresh 96-bit IV (mandatory) and empty AAD; the IV
+ * and tag are carried in the per-recipient header (@hdr) as "iv"/"tag". */
+JWT_NO_EXPORT
+int jwe_alg_is_gcmkw(jwe_key_alg_t alg);
+JWT_NO_EXPORT
+int jwe_gcmkw_wrap(jwe_key_alg_t alg, const jwk_item_t *key,
+		   const unsigned char *cek, size_t cek_len,
+		   jwt_json_t *hdr, unsigned char **out, size_t *out_len);
+JWT_NO_EXPORT
+int jwe_gcmkw_unwrap(jwe_key_alg_t alg, const jwk_item_t *key, jwt_json_t *hdr,
+		     const unsigned char *in, size_t in_len,
+		     unsigned char **cek, size_t *cek_len);
 
 /* ECDH-ES (RFC 7518 4.6). Direct mode derives the CEK directly. */
 JWT_NO_EXPORT

@@ -113,6 +113,9 @@ typedef enum {
 	JWE_ALG_ECDH_ES_A128KW,	/**< ECDH-ES using Concat KDF and CEK wrapped with A128KW */
 	JWE_ALG_ECDH_ES_A192KW,	/**< ECDH-ES using Concat KDF and CEK wrapped with A192KW */
 	JWE_ALG_ECDH_ES_A256KW,	/**< ECDH-ES using Concat KDF and CEK wrapped with A256KW */
+	JWE_ALG_A128GCMKW,	/**< Key wrapping with AES GCM using a 128-bit key @since 3.6.0 */
+	JWE_ALG_A192GCMKW,	/**< Key wrapping with AES GCM using a 192-bit key @since 3.6.0 */
+	JWE_ALG_A256GCMKW,	/**< Key wrapping with AES GCM using a 256-bit key @since 3.6.0 */
 	JWE_ALG_INVAL,		/**< An invalid algorithm from the caller or the token */
 } jwe_key_alg_t;
 
