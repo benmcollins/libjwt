@@ -593,7 +593,7 @@ static const unsigned char base64de[] = {
 	    49,  50,  51, 255, 255, 255, 255, 255
 };
 
-static unsigned int
+unsigned int
 base64_encode(const unsigned char *in, unsigned int inlen, char *out)
 {
 	int s;
@@ -642,7 +642,7 @@ base64_encode(const unsigned char *in, unsigned int inlen, char *out)
 	return j;
 }
 
-static unsigned int
+unsigned int
 base64_decode(const char *in, unsigned int inlen, unsigned char *out)
 {
 	unsigned int i;

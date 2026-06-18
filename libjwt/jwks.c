@@ -47,6 +47,87 @@ static jwk_key_op_t jwk_key_op_j(jwt_json_t *j_op)
 	return JWK_KEY_OP_NONE;
 }
 
+/* @rfc{7517,4.9} base64url(SHA-256(@der)) — the "x5t#S256" thumbprint of a
+ * certificate. Returns a malloc'd string the caller frees, or NULL on error. */
+static char *cert_x5t_s256(const unsigned char *der, size_t der_len)
+{
+	unsigned char hash[32];
+	unsigned int hlen = 0;
+	char *b64 = NULL;
+
+	if (jwt_ops->sha == NULL ||
+	    jwt_ops->sha(256, der, der_len, hash, &hlen) || hlen != sizeof(hash))
+		return NULL; // LCOV_EXCL_LINE
+
+	if (jwt_base64uri_encode(&b64, (char *)hash, (int)hlen) <= 0)
+		return NULL; // LCOV_EXCL_LINE
+
+	return b64;
+}
+
+/* @rfc{7517,4.7} Decode the "x5c" certificate chain (standard base64 DER) into
+ * item->x5c. If "x5t#S256" is also present it MUST match the leaf cert's SHA-256
+ * thumbprint (@rfc{7517,4.9}); a mismatch marks the item in error. */
+static void jwk_process_x5c(jwt_json_t *jwk, jwk_item_t *item)
+{
+	jwt_json_t *j_x5c, *j_cert, *j_x5t256;
+	size_t i, count;
+
+	j_x5c = jwt_json_obj_get(jwk, "x5c");
+	if (j_x5c == NULL)
+		return;
+	if (!jwt_json_is_array(j_x5c)) {
+		jwt_write_error(item, "Invalid JWK: \"x5c\" is not an array");
+		return;
+	}
+
+	count = jwt_json_arr_size(j_x5c);
+	if (count == 0)
+		return;
+
+	item->x5c = jwt_malloc(count * sizeof(struct jwk_cert));
+	if (item->x5c == NULL)
+		return; // LCOV_EXCL_LINE
+	memset(item->x5c, 0, count * sizeof(struct jwk_cert));
+
+	jwt_json_arr_foreach(j_x5c, i, j_cert) {
+		const char *b64;
+		size_t blen;
+
+		if (!jwt_json_is_string(j_cert)) {
+			jwt_write_error(item,
+				"Invalid JWK: \"x5c\" entry is not a string");
+			return;
+		}
+
+		b64 = jwt_json_str_val(j_cert);
+		blen = strlen(b64);
+		/* Decoded DER is at most 3/4 of the base64 length. */
+		item->x5c[i].der = jwt_malloc(blen ? blen : 1);
+		if (item->x5c[i].der == NULL)
+			return; // LCOV_EXCL_LINE
+		item->x5c_count = i + 1;
+		item->x5c[i].len = base64_decode(b64, (unsigned int)blen,
+						 item->x5c[i].der);
+		if (item->x5c[i].len == 0) {
+			jwt_write_error(item,
+				"Invalid JWK: \"x5c\" entry is not valid base64");
+			return;
+		}
+	}
+
+	j_x5t256 = jwt_json_obj_get(jwk, "x5t#S256");
+	if (j_x5t256 != NULL && jwt_json_is_string(j_x5t256)) {
+		char_auto *computed =
+			cert_x5t_s256(item->x5c[0].der, item->x5c[0].len);
+		const char *stated = jwt_json_str_val(j_x5t256);
+
+		if (computed == NULL || strcmp(computed, stated))
+			jwt_write_error(item,
+				"\"x5t#S256\" does not match the \"x5c\" leaf certificate");
+	}
+}
+
 static void jwk_process_values(jwt_json_t *jwk, jwk_item_t *item)
 {
 	jwt_json_t *j_use, *j_ops_a, *j_kid, *j_alg;
@@ -99,6 +180,9 @@ static void jwk_process_values(jwt_json_t *jwk, jwk_item_t *item)
 			}
 		}
 	}
+
+	/* @rfc{7517,4.7,4.9} X.509 certificate chain + thumbprint check. */
+	jwk_process_x5c(jwk, item);
 }
 
 static int process_octet(jwt_json_t *jwk, jwk_item_t *item)
@@ -300,6 +384,38 @@ const char *jwks_item_pem(const jwk_item_t *item)
 	return item->pem;
 }
 
+size_t jwks_item_x5c_count(const jwk_item_t *item)
+{
+	return item->x5c_count;
+}
+
+const unsigned char *jwks_item_x5c(const jwk_item_t *item, size_t index,
+				   size_t *len)
+{
+	if (item->x5c == NULL || index >= item->x5c_count)
+		return NULL;
+
+	if (len != NULL)
+		*len = item->x5c[index].len;
+
+	return item->x5c[index].der;
+}
+
+const char *jwks_item_x5t(const jwk_item_t *item)
+{
+	jwt_json_t *j = item->json ? jwt_json_obj_get(item->json, "x5t") : NULL;
+
+	return (j != NULL && jwt_json_is_string(j)) ? jwt_json_str_val(j) : NULL;
+}
+
+const char *jwks_item_x5t_s256(const jwk_item_t *item)
+{
+	jwt_json_t *j = item->json ? jwt_json_obj_get(item->json, "x5t#S256")
+				   : NULL;
+
+	return (j != NULL && jwt_json_is_string(j)) ? jwt_json_str_val(j) : NULL;
+}
+
 int jwks_item_key_bits(const jwk_item_t *item)
 {
 	return item->bits;
@@ -379,6 +495,13 @@ static void __item_free(jwk_item_t *todel)
 
 	/* A few non-crypto specific things. */
 	jwt_freemem(todel->kid);
+	if (todel->x5c != NULL) {
+		size_t i;
+
+		for (i = 0; i < todel->x5c_count; i++)
+			jwt_freemem(todel->x5c[i].der);
+		jwt_freemem(todel->x5c);
+	}
 	jwt_json_releasep(&todel->json);
 	list_del(&todel->node);
 
