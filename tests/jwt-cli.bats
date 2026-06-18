@@ -111,9 +111,11 @@ EOF
 }
 
 @test "Convert JWK to PEM - OCT" {
-	rm -f oct_384.bin
+	rm -f oct_384*.bin
 	./tools/jwk2key -d . ${SRCDIR}/tests/keys/oct_key_384.json
-	cmp oct_384.bin ${SRCDIR}/tests/cli/oct_384.bin
+	# oct_key_384.json carries no "kid", so jwk2key names the file by the
+	# key's RFC 7638 thumbprint: oct_384_<thumbprint>.bin
+	cmp oct_384_*.bin ${SRCDIR}/tests/cli/oct_384.bin
 }
 
 # JWE tools
@@ -221,8 +223,9 @@ ECENC="../tests/keys/ec_key_prime256v1_enc.json"
 # A crash is not a reliable signal (the overflow lands in adjacent stack
 # memory and often doesn't fault), so instead assert the *observable*
 # outcome: with the fix, bits is safely truncated and a correctly named
-# oct_1050000.bin is written. Without the fix, the overflow corrupts the
-# output path and that file is never created.
+# oct_1050000_<thumbprint>.bin is written (the JWK has no "kid", so jwk2key
+# names it by thumbprint). Without the fix, the overflow corrupts the output
+# path and that file is never created.
 @test "jwk2key handles oversized oct key without buffer overflow (#264)" {
 	dir="${BATS_TMPDIR:-/tmp}/jwk2key264_$$"
 	mkdir -p "${dir}"
@@ -236,7 +239,7 @@ ECENC="../tests/keys/ec_key_prime256v1_enc.json"
 
 	status_was="${status}"
 	have_out=0
-	[ -f "${dir}/oct_1050000.bin" ] && have_out=1
+	ls "${dir}"/oct_1050000_*.bin >/dev/null 2>&1 && have_out=1
 	rm -rf "${dir}"
 
 	# Must not crash (128+signal) and must produce the correctly named file.

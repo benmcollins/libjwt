@@ -36,7 +36,9 @@ Output file naming is based on (hopefully) unique characteristics, including:
 - **Bits** in the key. E.g. 2048 for an _RSA_ key, or 384 for an _EC_ key.
 - **Private** vs **Public**. Public keys will have **\_pub** added to the end
   of the filename (before the extension).
-- Most importantly, the **kid** attribute, which is supposed to be unique.
+- Most importantly, a stable per-key identifier: the **kid** attribute if the
+  key has one, otherwise its RFC 7638 JWK thumbprint. This keeps multiple keys
+  of the same type that carry no **kid** from colliding on one file name.
 
 ## Options
 

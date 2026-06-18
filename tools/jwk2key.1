@@ -44,8 +44,10 @@ E.g.
 Public keys will have \f[B]_pub\f[R] added to the end of the filename
 (before the extension).
 .IP \[bu] 2
-Most importantly, the \f[B]kid\f[R] attribute, which is supposed to be
-unique.
+Most importantly, a stable per\-key identifier: the \f[B]kid\f[R] attribute
+if the key has one, otherwise its RFC 7638 JWK thumbprint.
+This keeps multiple keys of the same type that carry no \f[B]kid\f[R] from
+colliding on one file name.
 .SS Options
 .TP
 \f[B]\-h\f[R], \f[B]\-\-help\f[R]

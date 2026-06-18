@@ -43,8 +43,9 @@ Private keys will have \f[B]sign\f[R] added to the \f[B]key_ops\f[R]
 array while public keys will have the \f[B]use\f[R] attribute set to
 \f[B]sig\f[R].
 .PP
-All keys will get a generated randomized uuidv4 \f[B]kid\f[R] attribute
-unless you use the \f[B]\-k\f[R] option.
+All keys will get a generated \f[B]kid\f[R] attribute (the RFC 7638 JWK
+SHA\-256 thumbprint, which is deterministic) unless you use the
+\f[B]\-k\f[R] option.
 .PP
 Example output:
 .IP
@@ -59,11 +60,12 @@ $ key2jwk \-q \-o \- eddsa_key_ed25519.pem
       \[dq]key_ops\[dq]: [
         \[dq]sign\[dq]
       ],
-      \[dq]kid\[dq]: \[dq]d74a55b0\-631a\-4dfb\-8842\-cecfcb50e728\[dq],
       \[dq]kty\[dq]: \[dq]OKP\[dq],
       \[dq]crv\[dq]: \[dq]Ed25519\[dq],
       \[dq]alg\[dq]: \[dq]EdDSA\[dq],
-      \[dq]d\[dq]: \[dq]XY5oUZqGWVZhX7J09hG\-rRnAKXiw1g_aBh\-Bc52KZ_Y\[dq]
+      \[dq]x\[dq]: \[dq]HUj\-14kN6N4i5qNVkfEhwKiCf\-tSrvRHstQdtV8a5QM\[dq],
+      \[dq]d\[dq]: \[dq]XY5oUZqGWVZhX7J09hG\-rRnAKXiw1g_aBh\-Bc52KZ_Y\[dq],
+      \[dq]kid\[dq]: \[dq]yP8YONwTmFovdfeOfp9y5u_lxzP7Y3JAmpUgeNnXFS8\[dq]
     }
   ]
 }

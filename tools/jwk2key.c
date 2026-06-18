@@ -103,17 +103,34 @@ static void write_key_file(const jwk_item_t *item)
 		return;
 	}
 
-	if (jwks_item_kid(item) == NULL) {
-		snprintf(file_name, sizeof(file_name), "%s/%s_%s%s%s",
-			 out_dir, pre, name, priv ? "" : "_pub", ext);
-	} else if (!is_safe_filename_part(jwks_item_kid(item))) {
-		fprintf(stderr, "Skipping key with unsafe kid: %s\n",
-			jwks_item_kid(item));
-		return;
-	} else {
-		snprintf(file_name, sizeof(file_name), "%s/%s_%s_%s%s%s",
-			 out_dir, pre, name, jwks_item_kid(item),
-			 priv ? "" : "_pub", ext);
+	{
+		const char *kid = jwks_item_kid(item);
+		char *tp = NULL;
+		const char *id = kid;
+
+		/* Name files by a stable per-key id: the "kid" if present, else
+		 * the deterministic RFC 7638 thumbprint. This disambiguates
+		 * multiple keys of the same type that carry no "kid" (which would
+		 * otherwise collide on the same file name). */
+		if (id == NULL) {
+			tp = jwks_item_thumbprint(item, JWK_THUMBPRINT_SHA256);
+			id = tp;
+		}
+
+		if (id != NULL && !is_safe_filename_part(id)) {
+			fprintf(stderr, "Skipping key with unsafe id: %s\n", id);
+			free(tp);
+			return;
+		}
+
+		if (id == NULL)
+			snprintf(file_name, sizeof(file_name), "%s/%s_%s%s%s",
+				 out_dir, pre, name, priv ? "" : "_pub", ext);
+		else
+			snprintf(file_name, sizeof(file_name), "%s/%s_%s_%s%s%s",
+				 out_dir, pre, name, id, priv ? "" : "_pub", ext);
+
+		free(tp);
 	}
 
 	for (i = 0; i < 10; i++) {

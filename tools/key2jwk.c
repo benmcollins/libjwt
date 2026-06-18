@@ -54,8 +54,9 @@ and RS512. RSA keys must be at least 1024 bits.\n\
 RSA-PSS keys will be set to PS256, otherwise they will look no different\n\
 than an RSA key.\n\
 \n\
-All keys will get a generated randomized uuidv4 \"kid\" attribute unless you\n\
-use the -k option..\n", get_progname());
+All keys will get a generated \"kid\" attribute (the RFC 7638 JWK SHA-256\n\
+thumbprint, which is deterministic) unless you use the -k option.\n",
+		get_progname());
 
 	exit(exit_state);
 }

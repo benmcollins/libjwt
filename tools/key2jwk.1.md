@@ -38,8 +38,8 @@ will look no different than an RSA key. RSA keys must be at least 1024 bits.
 Private keys will have **sign** added to the **key_ops** array while public
 keys will have the **use** attribute set to **sig**.
 
-All keys will get a generated randomized uuidv4 **kid** attribute unless you
-use the **-k** option.
+All keys will get a generated **kid** attribute (the RFC 7638 JWK SHA-256
+thumbprint, which is deterministic) unless you use the **-k** option.
 
 Example output:
 
@@ -53,11 +53,12 @@ Example output:
           "key_ops": [
             "sign"
           ],
-          "kid": "d74a55b0-631a-4dfb-8842-cecfcb50e728",
           "kty": "OKP",
           "crv": "Ed25519",
           "alg": "EdDSA",
-          "d": "XY5oUZqGWVZhX7J09hG-rRnAKXiw1g_aBh-Bc52KZ_Y"
+          "x": "HUj-14kN6N4i5qNVkfEhwKiCf-tSrvRHstQdtV8a5QM",
+          "d": "XY5oUZqGWVZhX7J09hG-rRnAKXiw1g_aBh-Bc52KZ_Y",
+          "kid": "yP8YONwTmFovdfeOfp9y5u_lxzP7Y3JAmpUgeNnXFS8"
         }
       ]
     }

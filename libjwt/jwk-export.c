@@ -24,26 +24,20 @@
 #include <jwt.h>
 #include "jwt-private.h"
 
-/* Generate an RFC 4122 version 4 UUID string into the caller's buffer (which
- * must be at least 37 bytes), using the active backend's CSPRNG. Returns 0 on
- * success. */
-static int uuidv4(char out[37])
+/* Set a deterministic @rfc{7638} "kid" (the SHA-256 JWK thumbprint) on @jwk
+ * when JWK_KEY_GEN_KID is requested. @jwk must already carry the key's members
+ * (its kty plus the type's public parameters). A no-op if the thumbprint
+ * cannot be computed (e.g. a key missing a required public member). */
+static void gen_kid(jwt_json_t *jwk, jwk_key_type_t kty, unsigned int flags)
 {
-	uint8_t b[16];
+	char_auto *tp = NULL;
 
-	if (jwt_ops->rng == NULL || jwt_ops->rng(b, sizeof(b)))
-		return -1; // LCOV_EXCL_LINE
+	if (!(flags & JWK_KEY_GEN_KID))
+		return;
 
-	/* version 4 and RFC 4122 variant */
-	b[6] = (b[6] & 0x0F) | 0x40;
-	b[8] = (b[8] & 0x3F) | 0x80;
-
-	snprintf(out, 37,
-		"%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
-		b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7],
-		b[8], b[9], b[10], b[11], b[12], b[13], b[14], b[15]);
-
-	return 0;
+	tp = jwt_jwk_thumbprint(jwk, kty, 256);
+	if (tp != NULL)
+		jwt_json_obj_set(jwk, "kid", jwt_json_create_str(tp));
 }
 
 /* For HMAC keys: treat the raw bytes as an "oct" key, guessing the alg from the
@@ -103,7 +97,6 @@ int jwt_key2jwk(const char *key, size_t len, unsigned int flags,
 	jwk_export_t kp;
 	jwt_json_t *jwk, *ops;
 	const char *kty;
-	char kid[37];
 	int r, i;
 
 	memset(&kp, 0, sizeof(kp));
@@ -135,13 +128,11 @@ int jwt_key2jwk(const char *key, size_t len, unsigned int flags,
 		jwt_json_obj_set(jwk, "key_ops", ops);
 	}
 
-	if ((flags & JWK_KEY_GEN_KID) && uuidv4(kid) == 0)
-		jwt_json_obj_set(jwk, "kid", jwt_json_create_str(kid));
-
 	/* HMAC fallback for unparseable input. */
 	if (r != 0) {
 		jwk_export_clear(&kp);
 		process_hmac_key(jwk, (const unsigned char *)key, len);
+		gen_kid(jwk, JWK_KEY_TYPE_OCT, flags);
 		jwt_json_arr_append(out_array, jwk);
 		return 0;
 	}
@@ -174,6 +165,8 @@ int jwt_key2jwk(const char *key, size_t len, unsigned int flags,
 			jwt_freemem(b64);
 		}
 	}
+
+	gen_kid(jwk, kp.kty, flags);
 
 	jwk_export_clear(&kp);
 	jwt_json_arr_append(out_array, jwk);
