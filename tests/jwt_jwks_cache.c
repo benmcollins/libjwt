@@ -30,6 +30,7 @@ static struct {
 	int requests;		/* total GETs served			*/
 	int conditional;	/* GETs that carried If-None-Match	*/
 	int max_age;		/* Cache-Control: max-age to advertise	*/
+	int fail;		/* when set, respond 500			*/
 	pthread_t thread;
 	pthread_mutex_t lock;
 	volatile int stop;
@@ -63,7 +64,11 @@ static void *server_thread(void *arg)
 			srv.conditional++;
 		pthread_mutex_unlock(&srv.lock);
 
-		if (cond) {
+		if (srv.fail) {
+			const char *e = "HTTP/1.1 500 Internal Server Error\r\n"
+					"Content-Length: 0\r\n\r\n";
+			(void)write(fd, e, strlen(e));
+		} else if (cond) {
 			char hdr[256];
 			int hlen = snprintf(hdr, sizeof(hdr),
 				"HTTP/1.1 304 Not Modified\r\n"
@@ -233,6 +238,35 @@ START_TEST(test_cooldown)
 }
 END_TEST
 
+/* On an HTTP error during refresh, the previously cached keys are retained
+ * (a transient 5xx must not wipe a good cache). */
+START_TEST(test_refresh_keeps_keys_on_error)
+{
+	jwk_set_t *set = NULL;
+	jwks_url_config_t cfg = { .verify = 0, .ttl = 100, .cooldown = 0 };
+	char *url = make_url();
+	int n;
+
+	srv.max_age = 300;
+	srv.fail = 0;
+	req_reset();
+
+	set = jwks_load_fromurl_cached(NULL, url, &cfg);
+	n = (int)jwks_item_count(set);
+	ck_assert_int_gt(n, 0);
+
+	/* The origin now errors; a forced refresh must keep the cached keys. */
+	srv.fail = 1;
+	jwks_refresh_fromurl(set);
+	ck_assert_int_ne(jwks_error(set), 0);
+	ck_assert_int_eq((int)jwks_item_count(set), n);
+	srv.fail = 0;
+
+	jwks_free(set);
+	free(url);
+}
+END_TEST
+
 /* Only http(s) is accepted; file:// is rejected (SSRF guard). */
 START_TEST(test_scheme_guard)
 {
@@ -269,6 +303,7 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_test(tc_core, test_cache_hit);
 	tcase_add_test(tc_core, test_cache_ttl);
 	tcase_add_test(tc_core, test_cooldown);
+	tcase_add_test(tc_core, test_refresh_keeps_keys_on_error);
 	tcase_add_test(tc_core, test_scheme_guard);
 #else
 	tcase_add_test(tc_core, test_no_libcurl);

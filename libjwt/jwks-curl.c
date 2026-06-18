@@ -29,6 +29,10 @@ struct jwks_data {
  * server gives no max-age, and refresh on a kid-miss at most once a minute. */
 #define JWKS_DEFAULT_TTL	300
 #define JWKS_DEFAULT_COOLDOWN	60
+/* Upper bound on a cache lifetime (a server max-age or a configured TTL): caps
+ * how long a key set is trusted without revalidation and guards now + age from
+ * overflowing time_t. One week. */
+#define JWKS_MAX_TTL		(7 * 24 * 60 * 60)
 
 /* A fetch result: the body plus the caching metadata from the response. */
 struct curl_result {
@@ -283,18 +287,41 @@ static char *cache_strdup(const char *s)
 	return d;
 }
 
-/* Apply a completed fetch to the cached set: on a 304 keep the keys, otherwise
- * replace them; refresh the ETag and the expiry (from max-age or the TTL). */
+/* Apply a completed fetch to the cached set. Only a 2xx replaces the keys (and
+ * only when the body is a usable JWKS); a 304 keeps them; any other HTTP status
+ * keeps the previously cached keys and sets an error (so a transient 4xx/5xx or
+ * an unfollowed redirect does not wipe a good cache). On a successful refresh
+ * the ETag and expiry are updated; @last_fetch is stamped by the caller on every
+ * attempt (so a failed attempt still consumes the cooldown). */
 static void cache_apply(jwk_set_t *jwk_set, struct curl_result *r)
 {
 	struct jwks_url_cache *c = jwk_set->cache;
 	time_t now = time(NULL);
 	long age;
 
-	if (r->status != 304) {
+	if (r->status == 304) {
+		/* Not Modified: keep the existing keys. */
+	} else if (r->status >= 200 && r->status < 300) {
+		/* Replace, but only if the new body is a usable JWKS; a 2xx with
+		 * a garbage/empty body must not wipe a previously good cache. */
+		jwk_set_t *tmp = jwks_create(r->body);
+		int ok = (tmp != NULL && !jwks_error(tmp) &&
+			  jwks_item_count(tmp) > 0);
+
+		jwks_free(tmp);
+		if (!ok) {
+			jwt_write_error(jwk_set,
+				"JWKS refresh returned no usable keys");
+			return;	/* keep the previously cached keys */
+		}
 		jwks_item_free_all(jwk_set);
-		if (r->body != NULL)
-			jwks_load_strn(jwk_set, r->body, r->len);
+		jwks_load_strn(jwk_set, r->body, r->len);
+	} else {
+		/* HTTP error (e.g. 4xx/5xx, or an unfollowed 3xx): retain the
+		 * previously cached keys per the documented contract. */
+		jwt_write_error(jwk_set,
+			"JWKS refresh failed (HTTP status %ld)", r->status);
+		return;
 	}
 
 	if (r->etag != NULL) {
@@ -303,9 +330,14 @@ static void cache_apply(jwk_set_t *jwk_set, struct curl_result *r)
 		r->etag = NULL;
 	}
 
+	/* Clamp the (possibly server-controlled) max-age so it cannot pin the
+	 * cache forever or overflow time_t in the expiry computation. */
 	age = (r->max_age >= 0) ? r->max_age : c->ttl;
-	c->expiry = now + (age > 0 ? age : 0);
-	c->last_fetch = now;
+	if (age < 0)
+		age = 0;
+	if (age > JWKS_MAX_TTL)
+		age = JWKS_MAX_TTL;
+	c->expiry = now + age;
 }
 
 jwk_set_t *jwks_load_fromurl_cached(jwk_set_t *jwk_set, const char *url,
@@ -351,6 +383,7 @@ jwk_set_t *jwks_load_fromurl_cached(jwk_set_t *jwk_set, const char *url,
 		c->cooldown = (config && config->cooldown >= 0) ? config->cooldown
 								: JWKS_DEFAULT_COOLDOWN;
 
+		c->last_fetch = time(NULL);
 		if (__curl_fetch(jwk_set, url, c->verify, NULL, &r))
 			return jwk_set;	/* error set; no keys yet */
 		cache_apply(jwk_set, &r);
@@ -364,6 +397,7 @@ jwk_set_t *jwks_load_fromurl_cached(jwk_set_t *jwk_set, const char *url,
 		return jwk_set;
 
 	/* Stale: conditional GET. On failure keep the (stale) keys + set error. */
+	c->last_fetch = time(NULL);
 	if (__curl_fetch(jwk_set, url, c->verify, c->etag, &r))
 		return jwk_set;
 	cache_apply(jwk_set, &r);
@@ -385,10 +419,14 @@ jwk_set_t *jwks_refresh_fromurl(jwk_set_t *jwk_set)
 	c = jwk_set->cache;
 
 	/* @rfc{8725} Cooldown: bound how often a kid-miss can force an outbound
-	 * fetch, so random unknown kids cannot amplify into a request flood. */
+	 * fetch, so random unknown kids cannot amplify into a request flood. The
+	 * attempt is stamped BEFORE the fetch so that a failing/unreachable origin
+	 * still consumes the cooldown window (otherwise the throttle never
+	 * engages while the endpoint is down). */
 	if (time(NULL) - c->last_fetch < c->cooldown)
 		return jwk_set;
 
+	c->last_fetch = time(NULL);
 	if (__curl_fetch(jwk_set, c->url, c->verify, c->etag, &r))
 		return jwk_set;
 	cache_apply(jwk_set, &r);
