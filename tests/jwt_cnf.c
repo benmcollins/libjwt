@@ -9,15 +9,21 @@
 /* Tests for the RFC 7800 "cnf" (confirmation) claim helpers:
  * jwt_builder_setcnf_jkt() / _jwk() / jwt_builder_setcnf() and jwt_get_cnf().
  * The token is signed and verified with one EC P-256 key (ES256 works on every
- * backend); the same key's public thumbprint is the proof-of-possession value. */
+ * backend); the same key's public thumbprint is the proof-of-possession value.
+ *
+ * NOTE: SET_OPS() is called BEFORE loading any key. A jwk_item is bound to the
+ * crypto backend that parsed it, so a key must be loaded under the backend it
+ * will be used with (see jwt_flipflop.c, and issue about per-key backend
+ * affinity). Loading first and switching backends after would bind the key to
+ * the wrong backend and fail signing on MbedTLS. */
 
-static jwk_set_t *load_named(const char *file)
+static jwk_set_t *load_key(void)
 {
 	char *path;
 	jwk_set_t *set;
 	int ret;
 
-	ret = asprintf(&path, KEYDIR "/%s", file);
+	ret = asprintf(&path, KEYDIR "/ec_key_prime256v1.json");
 	ck_assert_int_gt(ret, 0);
 
 	set = jwks_create_fromfile(path);
@@ -25,20 +31,6 @@ static jwk_set_t *load_named(const char *file)
 	ck_assert_ptr_nonnull(set);
 
 	return set;
-}
-
-/* The proof-of-possession key bound via cnf (its thumbprint/export are used). */
-static jwk_set_t *load_key(void)
-{
-	return load_named("ec_key_prime256v1.json");
-}
-
-/* A symmetric key used only to sign the test tokens. HS256 works on every
- * backend, so the cnf round-trip tests don't depend on a particular signing
- * algorithm (the cnf helpers are signature-agnostic). */
-static jwk_set_t *load_signer(void)
-{
-	return load_named("oct_key_256.json");
 }
 
 /* Get the builder's current "cnf" claim as a serialized JSON string. */
@@ -55,14 +47,17 @@ static char *get_builder_cnf(jwt_builder_t *builder)
 
 START_TEST(test_setcnf_jkt)
 {
-	jwk_set_t *set = load_key();
-	const jwk_item_t *key = jwks_item_get(set, 0);
+	jwk_set_t *set;
+	const jwk_item_t *key;
 	jwt_builder_auto_t *builder = NULL;
 	char_auto *tp = NULL;
 	char_auto *cnf = NULL;
 	char expected[128];
 
 	SET_OPS();
+
+	set = load_key();
+	key = jwks_item_get(set, 0);
 
 	tp = jwks_item_thumbprint(key, JWK_THUMBPRINT_SHA256);
 	ck_assert_ptr_nonnull(tp);
@@ -83,12 +78,15 @@ END_TEST
 
 START_TEST(test_setcnf_generic_and_single_member)
 {
-	jwk_set_t *set = load_key();
-	const jwk_item_t *key = jwks_item_get(set, 0);
+	jwk_set_t *set;
+	const jwk_item_t *key;
 	jwt_builder_auto_t *builder = NULL;
 	char_auto *c1 = NULL, *c2 = NULL, *c3 = NULL;
 
 	SET_OPS();
+
+	set = load_key();
+	key = jwks_item_get(set, 0);
 
 	builder = jwt_builder_new();
 	ck_assert_ptr_nonnull(builder);
@@ -116,12 +114,15 @@ END_TEST
 
 START_TEST(test_setcnf_jwk)
 {
-	jwk_set_t *set = load_key();
-	const jwk_item_t *key = jwks_item_get(set, 0);
+	jwk_set_t *set;
+	const jwk_item_t *key;
 	jwt_builder_auto_t *builder = NULL;
 	char_auto *cnf = NULL;
 
 	SET_OPS();
+
+	set = load_key();
+	key = jwks_item_get(set, 0);
 
 	builder = jwt_builder_new();
 	ck_assert_ptr_nonnull(builder);
@@ -182,10 +183,8 @@ static int verify_nocnf_cb(jwt_t *jwt, jwt_config_t *config)
 
 START_TEST(test_get_cnf_roundtrip)
 {
-	jwk_set_t *set = load_key();
-	jwk_set_t *sset = load_signer();
-	const jwk_item_t *key = jwks_item_get(set, 0);
-	const jwk_item_t *skey = jwks_item_get(sset, 0);
+	jwk_set_t *set;
+	const jwk_item_t *key;
 	jwt_builder_auto_t *builder = NULL;
 	jwt_checker_auto_t *checker = NULL;
 	char_auto *tp = NULL;
@@ -194,12 +193,15 @@ START_TEST(test_get_cnf_roundtrip)
 
 	SET_OPS();
 
+	set = load_key();
+	key = jwks_item_get(set, 0);
+
 	tp = jwks_item_thumbprint(key, JWK_THUMBPRINT_SHA256);
 	ck_assert_ptr_nonnull(tp);
 
-	/* Issue an HS256 token bound to the EC key via cnf.jkt. */
+	/* Issue a token bound to the key via cnf.jkt. */
 	builder = jwt_builder_new();
-	ck_assert_int_eq(jwt_builder_setkey(builder, JWT_ALG_HS256, skey), 0);
+	ck_assert_int_eq(jwt_builder_setkey(builder, JWT_ALG_ES256, key), 0);
 	ck_assert_int_eq(jwt_builder_setcnf_jkt(builder, key), 0);
 	token = jwt_builder_generate(builder);
 	ck_assert_ptr_nonnull(token);
@@ -207,7 +209,7 @@ START_TEST(test_get_cnf_roundtrip)
 	/* Verify and read cnf.jkt from the callback's jwt_t. */
 	memset(&seen, 0, sizeof(seen));
 	checker = jwt_checker_new();
-	ck_assert_int_eq(jwt_checker_setkey(checker, JWT_ALG_HS256, skey), 0);
+	ck_assert_int_eq(jwt_checker_setkey(checker, JWT_ALG_ES256, key), 0);
 	ck_assert_int_eq(jwt_checker_setcb(checker, verify_jkt_cb, &seen), 0);
 	ck_assert_int_eq(jwt_checker_verify(checker, token), 0);
 
@@ -217,17 +219,14 @@ START_TEST(test_get_cnf_roundtrip)
 	ck_assert_int_eq(seen.missing_is_null, 1);
 	free(seen.jkt);
 
-	jwks_free(sset);
 	jwks_free(set);
 }
 END_TEST
 
 START_TEST(test_get_cnf_object_member)
 {
-	jwk_set_t *set = load_key();
-	jwk_set_t *sset = load_signer();
-	const jwk_item_t *key = jwks_item_get(set, 0);
-	const jwk_item_t *skey = jwks_item_get(sset, 0);
+	jwk_set_t *set;
+	const jwk_item_t *key;
 	jwt_builder_auto_t *builder = NULL;
 	jwt_checker_auto_t *checker = NULL;
 	char_auto *token = NULL;
@@ -235,30 +234,32 @@ START_TEST(test_get_cnf_object_member)
 
 	SET_OPS();
 
+	set = load_key();
+	key = jwks_item_get(set, 0);
+
 	builder = jwt_builder_new();
-	ck_assert_int_eq(jwt_builder_setkey(builder, JWT_ALG_HS256, skey), 0);
+	ck_assert_int_eq(jwt_builder_setkey(builder, JWT_ALG_ES256, key), 0);
 	ck_assert_int_eq(jwt_builder_setcnf_jwk(builder, key), 0);
 	token = jwt_builder_generate(builder);
 	ck_assert_ptr_nonnull(token);
 
 	memset(&seen, 0, sizeof(seen));
 	checker = jwt_checker_new();
-	ck_assert_int_eq(jwt_checker_setkey(checker, JWT_ALG_HS256, skey), 0);
+	ck_assert_int_eq(jwt_checker_setkey(checker, JWT_ALG_ES256, key), 0);
 	ck_assert_int_eq(jwt_checker_setcb(checker, verify_jwk_cb, &seen), 0);
 	ck_assert_int_eq(jwt_checker_verify(checker, token), 0);
 
 	ck_assert_int_eq(seen.ran, 1);
 	ck_assert_int_eq(seen.object_is_null, 1);
 
-	jwks_free(sset);
 	jwks_free(set);
 }
 END_TEST
 
 START_TEST(test_get_cnf_absent)
 {
-	jwk_set_t *sset = load_signer();
-	const jwk_item_t *skey = jwks_item_get(sset, 0);
+	jwk_set_t *set;
+	const jwk_item_t *key;
 	jwt_builder_auto_t *builder = NULL;
 	jwt_checker_auto_t *checker = NULL;
 	char_auto *token = NULL;
@@ -266,29 +267,32 @@ START_TEST(test_get_cnf_absent)
 
 	SET_OPS();
 
+	set = load_key();
+	key = jwks_item_get(set, 0);
+
 	/* A token with no "cnf" at all. */
 	builder = jwt_builder_new();
-	ck_assert_int_eq(jwt_builder_setkey(builder, JWT_ALG_HS256, skey), 0);
+	ck_assert_int_eq(jwt_builder_setkey(builder, JWT_ALG_ES256, key), 0);
 	token = jwt_builder_generate(builder);
 	ck_assert_ptr_nonnull(token);
 
 	memset(&seen, 0, sizeof(seen));
 	checker = jwt_checker_new();
-	ck_assert_int_eq(jwt_checker_setkey(checker, JWT_ALG_HS256, skey), 0);
+	ck_assert_int_eq(jwt_checker_setkey(checker, JWT_ALG_ES256, key), 0);
 	ck_assert_int_eq(jwt_checker_setcb(checker, verify_nocnf_cb, &seen), 0);
 	ck_assert_int_eq(jwt_checker_verify(checker, token), 0);
 
 	ck_assert_int_eq(seen.ran, 1);
 	ck_assert_int_eq(seen.missing_is_null, 1);
 
-	jwks_free(sset);
+	jwks_free(set);
 }
 END_TEST
 
 START_TEST(test_errors)
 {
-	jwk_set_t *set = load_key();
-	const jwk_item_t *key = jwks_item_get(set, 0);
+	jwk_set_t *set;
+	const jwk_item_t *key;
 	jwt_builder_auto_t *builder = NULL;
 	jwk_set_t *seed_set;
 	const jwk_item_t *seed_key;
@@ -296,6 +300,9 @@ START_TEST(test_errors)
 	int ret;
 
 	SET_OPS();
+
+	set = load_key();
+	key = jwks_item_get(set, 0);
 
 	builder = jwt_builder_new();
 	ck_assert_ptr_nonnull(builder);
