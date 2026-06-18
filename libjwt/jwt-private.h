@@ -301,6 +301,14 @@ struct jwt_crypto_ops {
 	 * native keys at all. */
 	int (*key2jwk_params)(const char *key, size_t len, jwk_export_t *out);
 
+	/* One-shot SHA-2 digest. @sha_bits selects the hash (256/384/512).
+	 * Writes the raw digest into @out (the caller provides a buffer of at
+	 * least 64 bytes) and sets *@out_len. Returns 0 on success. Backed by
+	 * each backend's native digest. Used by the @rfc{7638} JWK thumbprint;
+	 * every backend provides it (it is not gated by jwe_implemented). */
+	int (*sha)(int sha_bits, const unsigned char *in, size_t in_len,
+		   unsigned char *out, unsigned int *out_len);
+
 	/* JWE (RFC 7516/7518). A backend may implement JWE crypto ops even if
 	 * it does not parse JWKs (JWK parsing always falls back to OpenSSL).
 	 * jwe_implemented is set once a backend provides the ops below; until
@@ -446,6 +454,13 @@ static inline void jwk_export_add(jwk_export_t *out, const char *name,
 JWT_NO_EXPORT
 int jwt_key2jwk(const char *key, size_t len, unsigned int flags,
 		jwt_json_t *out_array);
+
+/* Core @rfc{7638} JWK thumbprint: base64url(SHA-@bits) over the canonical JWK
+ * assembled from @jwk's required members for key type @kty. @bits is 256/384/512.
+ * Returns a malloc'd string (caller frees) or NULL. Shared by the public
+ * jwks_item_thumbprint() and the key2jwk "kid" generator. */
+JWT_NO_EXPORT
+char *jwt_jwk_thumbprint(const jwt_json_t *jwk, jwk_key_type_t kty, int bits);
 
 static inline void jwt_freememp(char **mem) {
 	jwt_freemem(*mem);
