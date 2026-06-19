@@ -93,6 +93,10 @@ require GnuTLS >= 3.8.13 on the GnuTLS backend (checked at runtime).
 
 @section docs \emoji :open_book: Docs and Source
 
+Guides: @ref examples "Usage Examples" walks the API from the simplest token up;
+@ref profiles "Application Profiles" composes the primitives into real-world
+recipes (at+jwt, VAPID, PASSporT, OpenID4VCI, DPoP, mTLS, JAdES).
+
 \emoji :link: [Current Docs](https://libjwt.io)
 
 \emoji :link: [Legacy Docs v2.1.1](https://libjwt.io/stable)

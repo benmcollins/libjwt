@@ -12,6 +12,7 @@
  *
  * @include{doc} mainpage.dox
  * @include{doc} examples.dox
+ * @include{doc} profiles.dox
  */
 
 #ifndef JWT_H
@@ -88,6 +89,23 @@ typedef enum {
 	JWT_ALG_ML_DSA_87,	/**< ML-DSA-87 (FIPS 204, RFC 9964) (experimental) @since 3.5.0 */
 	JWT_ALG_INVAL,		/**< An invalid algorithm from the caller or the token */
 } jwt_alg_t;
+
+/** @ingroup jwt_alg_grp
+ * @brief Hash algorithm for a JWK Thumbprint and related digests
+ *
+ * Selects the digest used by jwks_item_thumbprint() /
+ * jwks_item_thumbprint_uri(), the embedded-JWK pin
+ * (jwt_checker_enable_embedded_jwk()), and jwt_token_hash(). SHA-256 is the
+ * value 0, so it is the default for a zero-initialized argument and is what
+ * virtually all deployments use.
+ *
+ * @since 3.6.0
+ */
+typedef enum {
+	JWK_THUMBPRINT_SHA256 = 0,	/**< SHA-256 (default) */
+	JWK_THUMBPRINT_SHA384,		/**< SHA-384 */
+	JWK_THUMBPRINT_SHA512,		/**< SHA-512 */
+} jwk_thumbprint_alg_t;
 
 /** @ingroup jwt_alg_grp
  * @brief JWE key management algorithm types
@@ -1044,6 +1062,85 @@ JWT_EXPORT
 int jwt_checker_setalgs(jwt_checker_t *checker, const jwt_alg_t *algs, size_t n);
 
 /**
+ * @brief Require that a set of claims is present
+ *
+ * @rfc{9068,4}
+ *
+ * When set, jwt_checker_verify() rejects a token that is missing any of the
+ * named claims, independent of any value match (a value check is a separate
+ * concern -- see jwt_checker_claim_set()). LibJWT otherwise validates only the
+ * claims it is told to compare, and silently tolerates an absent one; this
+ * asserts the mandatory-claims discipline that profiles such as RFC 9068
+ * (@c at+jwt) require -- e.g. @c {"iss","exp","aud","sub","client_id","jti"}.
+ * The names are copied. Passing @p count as 0 (or @p claims as NULL) clears the
+ * requirement.
+ *
+ * @param checker Pointer to a checker object
+ * @param claims An array of claim names that must be present (copied)
+ * @param count The number of names in @p claims
+ * @return 0 on success, non-zero otherwise with error set in the checker
+ * @since 3.6.0
+ */
+JWT_EXPORT
+int jwt_checker_require(jwt_checker_t *checker, const char **claims,
+			unsigned int count);
+
+/**
+ * @brief Verify using the key embedded in the header, pinned by thumbprint
+ *
+ * @rfc{7515,4.1.3} @rfc{9449}
+ *
+ * Enables taking the verification key from the token's protected-header @c "jwk"
+ * (a self-contained token, as used by DPoP and OpenID4VCI key proofs). Because
+ * that key is supplied by whoever made the token, it is **never trusted on its
+ * own**: it is accepted only if its JWK Thumbprint (@p alg) equals @p
+ * expected_jkt -- the value you obtained out of band and are pinning to, such as
+ * the @c cnf.jkt of a presented access token (read with jwt_get_cnf()). The
+ * confirmed key is still held to the usual key-type/algorithm binding. Combine
+ * with jwt_checker_setalgs() to bound the acceptable algorithms.
+ *
+ * Passing a NULL or empty @p expected_jkt fails: there is no "trust whatever is
+ * embedded" mode. Applies to the Compact Serialization (what DPoP/OpenID4VCI
+ * use). Mutually exclusive with the keyring form; the last call wins.
+ *
+ * @param checker Pointer to a checker object
+ * @param alg The hash for the thumbprint comparison (see @ref jwk_thumbprint_alg_t)
+ * @param expected_jkt The pinned base64url JWK Thumbprint the embedded key must match
+ * @return 0 on success, non-zero otherwise with error set in the checker
+ * @since 3.6.0
+ */
+JWT_EXPORT
+int jwt_checker_enable_embedded_jwk(jwt_checker_t *checker,
+				    jwk_thumbprint_alg_t alg,
+				    const char *expected_jkt);
+
+/**
+ * @brief Verify using the key embedded in the header, allowed by a keyring
+ *
+ * @rfc{7515,4.1.3}
+ *
+ * As jwt_checker_enable_embedded_jwk(), but the protected-header @c "jwk" is
+ * accepted only if its JWK Thumbprint (@p alg) matches that of some key in @p
+ * allowed (via jwks_find_bythumbprint()). Use this when the set of acceptable
+ * holder keys is known in advance rather than pinned per token. The keyring is
+ * borrowed: the caller retains ownership and must keep it valid for the
+ * lifetime of the checker.
+ *
+ * Passing a NULL @p allowed fails. Mutually exclusive with the pinned form; the
+ * last call wins.
+ *
+ * @param checker Pointer to a checker object
+ * @param alg The hash for the thumbprint comparison (see @ref jwk_thumbprint_alg_t)
+ * @param allowed A JWKS of acceptable keys (borrowed, not freed by the checker)
+ * @return 0 on success, non-zero otherwise with error set in the checker
+ * @since 3.6.0
+ */
+JWT_EXPORT
+int jwt_checker_enable_embedded_jwk_keyring(jwt_checker_t *checker,
+					    jwk_thumbprint_alg_t alg,
+					    const jwk_set_t *allowed);
+
+/**
  * @brief Set a callback for generating tokens
  *
  * When verifying a token, this callback will be run after jwt_t has been
@@ -1799,6 +1896,46 @@ int jwt_builder_setcnf(jwt_builder_t *builder, const char *member,
  */
 JWT_EXPORT
 char *jwt_get_cnf(const jwt_t *jwt, const char *member);
+
+/**
+ * @brief Compute a base64url token hash (full digest)
+ *
+ * @rfc{9449,4.1}
+ *
+ * Returns @c base64url(SHA-x(@p value)) over the @em full digest. This is the
+ * DPoP @c "ath" (access token hash): bind a DPoP proof to an access token with
+ * @c jwt_token_hash(access_token, ::JWK_THUMBPRINT_SHA256) and set the result as
+ * the proof's @c "ath" claim (RFC 9449 pins SHA-256). It is also the generic
+ * "hash this string and base64url it" helper.
+ *
+ * @param value The string to hash (e.g. the access token), nil-terminated
+ * @param alg The digest to use (see @ref jwk_thumbprint_alg_t); RFC 9449 @c ath
+ *   uses @ref JWK_THUMBPRINT_SHA256
+ * @return A newly allocated, nil-terminated base64url string the caller must
+ *   free with free(), or NULL on error
+ * @since 3.6.0
+ */
+JWT_EXPORT
+char *jwt_token_hash(const char *value, jwk_thumbprint_alg_t alg);
+
+/**
+ * @brief Compute a base64url token hash (left half of the digest)
+ *
+ * Returns @c base64url(left-half(SHA-x(@p value))), where the digest width is
+ * the one the JWS algorithm @p alg signs with (HS/RS/ES/PS-256 -> SHA-256, -384
+ * -> SHA-384, -512 and EdDSA -> SHA-512). This is the OpenID Connect @c "at_hash"
+ * and @c "c_hash" construction (OIDC Core 3.1.3.6 / 3.3.2.11): take the
+ * left-most half of the hash @em bytes before base64url. Distinct from
+ * jwt_token_hash(), which uses the full digest and is keyed to a hash selector.
+ *
+ * @param value The string to hash (an access token or authorization code)
+ * @param alg The signing ::jwt_alg_t whose hash width is used
+ * @return A newly allocated, nil-terminated base64url string the caller must
+ *   free with free(), or NULL on error (including an @p alg with no SHA-2 width)
+ * @since 3.6.0
+ */
+JWT_EXPORT
+char *jwt_token_hash_half(const char *value, jwt_alg_t alg);
 
 /**
  * @}
@@ -3121,21 +3258,6 @@ char *jwks_item_export(const jwk_item_t *item, int priv);
  */
 JWT_EXPORT
 char *jwks_export(const jwk_set_t *jwk_set, int priv);
-
-/**
- * @brief Hash algorithm for a JWK Thumbprint
- *
- * Selects the digest used by jwks_item_thumbprint() and
- * jwks_item_thumbprint_uri(). SHA-256 is the value 0, so it is the default for
- * a zero-initialized argument and is what virtually all deployments use.
- *
- * @since 3.6.0
- */
-typedef enum {
-	JWK_THUMBPRINT_SHA256 = 0,	/**< SHA-256 (default) */
-	JWK_THUMBPRINT_SHA384,		/**< SHA-384 */
-	JWK_THUMBPRINT_SHA512,		/**< SHA-512 */
-} jwk_thumbprint_alg_t;
 
 /**
  * @brief Compute the JWK Thumbprint of a key

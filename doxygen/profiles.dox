@@ -1,0 +1,187 @@
+@page profiles \emoji :id: Application Profiles
+
+Many real-world specifications are not new cryptography — they are **application
+profiles**: an ordinary signed JWT with a particular media type (@c "typ"), a
+required set of claims, and a key-binding convention. LibJWT's job is to expose
+the primitives; this page shows how to compose them into each profile. Every
+recipe below builds @em and verifies a token with the public API only, and is
+mirrored by a test in @c tests/jwt_profiles.c.
+
+The reusable pieces are:
+
+Primitive | Function(s) | Used by
+:-------- | :---------- | :------
+Media-type pinning | @ref jwt_checker_expect_typ, @ref jwt_builder_settyp | all `typ`-bearing profiles
+Algorithm allowlist | @ref jwt_checker_setalgs | all (blocks `alg` confusion)
+Required claims | @ref jwt_checker_require | at+jwt, VAPID, PASSporT
+Confirmation (`cnf`) | @ref jwt_builder_setcnf_jkt, @ref jwt_builder_setcnf, @ref jwt_get_cnf | DPoP, mTLS
+Embedded-key verify | @ref jwt_checker_enable_embedded_jwk | DPoP, OpenID4VCI
+Token hash | @ref jwt_token_hash | DPoP `ath`
+JWK Thumbprint | @ref jwks_item_thumbprint | DPoP, OpenID4VCI
+X.509 (`x5c`/`x5t#S256`) | @ref jwks_item_x5c, @ref jwks_item_x5t_s256 | PASSporT, JAdES, mTLS
+Detached payload | @ref jwt_builder_set_detached, @ref jwt_checker_verify_detached | JAdES
+
+@note These profiles layer on a signed JWT only. LibJWT is offline: it does not
+implement the HTTP/TLS exchanges of DPoP, mTLS, or OpenID4VCI — only the JWT
+touchpoints. Pair these with the BCP 240 / RFC 8725 hardening guidance.
+
+@tableofcontents
+
+@section prof_atjwt \emoji :ticket: OAuth 2.0 access tokens — `at+jwt` (RFC 9068)
+
+@rfc{9068} profiles a JWT access token: the header @c "typ" is @c "at+jwt" and a
+fixed set of claims (@c iss, @c exp, @c aud, @c sub, @c client_id, @c iat, @c jti)
+is **mandatory**. Pin the type and algorithm, and use @ref jwt_checker_require to
+assert the mandatory claims are present (LibJWT otherwise validates only the
+claims you ask it to compare).
+
+@code{.c}
+/* Issue */
+jwt_builder_settyp(builder, "at+jwt");
+jwt_builder_setkey(builder, JWT_ALG_ES256, signing_key);
+/* ...set iss/sub/aud/client_id/jti and an exp offset... */
+
+/* Verify */
+const char *must[] = { "iss","sub","aud","exp","iat","jti","client_id" };
+const jwt_alg_t algs[] = { JWT_ALG_ES256 };
+
+jwt_checker_expect_typ(checker, "at+jwt");
+jwt_checker_setalgs(checker, algs, 1);
+jwt_checker_require(checker, must, 7);
+jwt_checker_claim_set(checker, JWT_CLAIM_AUD, "https://rs.example");
+jwt_checker_setkey(checker, JWT_ALG_ES256, as_key);
+if (jwt_checker_verify(checker, token) == 0)
+    /* a well-formed RFC 9068 access token */;
+@endcode
+
+@section prof_vapid \emoji :inbox_tray: Web Push — VAPID (RFC 8292)
+
+@rfc{8292} (VAPID) is the most widely deployed plain JWS-over-P-256 profile on
+the web: an @c ES256 token whose @c aud is the push service origin, @c sub a
+contact URI, and @c exp at most 24 hours out. There is no special @c "typ"; the
+discipline is the fixed algorithm and the required claims.
+
+@code{.c}
+const char *must[] = { "aud", "exp", "sub" };
+const jwt_alg_t es256[] = { JWT_ALG_ES256 };
+
+jwt_checker_setalgs(checker, es256, 1);    /* ES256 only */
+jwt_checker_require(checker, must, 3);
+jwt_checker_setkey(checker, JWT_ALG_ES256, app_server_pubkey);
+jwt_checker_verify(checker, token);
+@endcode
+
+@section prof_passport \emoji :telephone_receiver: Caller ID — PASSporT (RFC 8225)
+
+@rfc{8225} PASSporT (the token behind STIR/SHAKEN) signs caller-identity claims
+(@c orig, @c dest, @c iat, @c attest) with @c "typ":"passport", typically ES256,
+and carries the signing certificate via @c "x5u" or @c "x5c". Validate the type,
+algorithm, and required claims here; read the certificate chain with
+@ref jwks_item_x5c (chain/trust validation against the SHAKEN CA is the caller's
+PKI policy — see @ref prof_jades for reading `x5c`).
+
+@code{.c}
+const char *must[] = { "iat", "orig", "dest" };
+const jwt_alg_t es256[] = { JWT_ALG_ES256 };
+
+jwt_checker_expect_typ(checker, "passport");
+jwt_checker_setalgs(checker, es256, 1);
+jwt_checker_require(checker, must, 3);
+jwt_checker_setkey(checker, JWT_ALG_ES256, shaken_leaf_key);
+jwt_checker_verify(checker, token);
+@endcode
+
+@section prof_oid4vci \emoji :credit_card: OpenID4VCI key proof
+
+An OpenID4VCI key proof (`"typ":"openid4vci-proof+jwt"`) is **self-contained**:
+the signing key travels in the protected-header @c "jwk" (@rfc{7515,4.1.3}) and
+the issuer binds the credential to that key. Because the header key is supplied
+by the presenter, it must be confirmed — here against the holder-key thumbprint
+the issuer recorded for the request — with @ref jwt_checker_enable_embedded_jwk,
+which refuses to trust an embedded key without a pin.
+
+@code{.c}
+/* jkt is the thumbprint the issuer bound the credential request to. */
+char *jkt = jwks_item_thumbprint(expected_holder_key, JWK_THUMBPRINT_SHA256);
+const jwt_alg_t algs[] = { JWT_ALG_ES256 };
+
+jwt_checker_expect_typ(checker, "openid4vci-proof+jwt");
+jwt_checker_setalgs(checker, algs, 1);
+jwt_checker_enable_embedded_jwk(checker, JWK_THUMBPRINT_SHA256, jkt);
+jwt_checker_verify(checker, proof);   /* key is the confirmed header "jwk" */
+free(jkt);
+@endcode
+
+@section prof_dpop \emoji :hand: Proof-of-possession — DPoP (RFC 9449)
+
+@rfc{9449} DPoP binds an access token to a client key. The access token carries a
+@c cnf.jkt (set with @ref jwt_builder_setcnf_jkt); each request is accompanied by
+a @c "dpop+jwt" proof that carries the client's public key in its header @c "jwk"
+and an @c "ath" claim hashing the access token. To verify a proof: pin the
+embedded key to the access token's @c cnf.jkt, then check that @c ath matches
+@ref jwt_token_hash of the presented access token (and that @c htm/@c htu match
+the request).
+
+@code{.c}
+/* The access token was bound to the client key: */
+jwt_builder_setcnf_jkt(at_builder, client_key);   /* -> cnf.jkt */
+
+/* The proof carries the client key in its header and hashes the AT: */
+char *ath = jwt_token_hash(access_token, JWK_THUMBPRINT_SHA256);
+/* ...set proof header "jwk", claims htm/htu/jti/ath, sign with client_key... */
+
+/* Verify the proof at the resource server: */
+char *jkt = jwt_get_cnf(verified_access_token, "jkt");   /* the binding */
+jwt_checker_expect_typ(checker, "dpop+jwt");
+jwt_checker_enable_embedded_jwk(checker, JWK_THUMBPRINT_SHA256, jkt);
+jwt_checker_verify(checker, proof);
+/* In a jwt_checker_setcb() callback, compare the proof's "ath" to
+ * jwt_token_hash(access_token, JWK_THUMBPRINT_SHA256) and check htm/htu. */
+free(ath); free(jkt);
+@endcode
+
+@note The confirmation is not a shortcut around the signature: even when the
+embedded key's thumbprint matches the pin, the proof's signature must still
+verify against that key, so a proof that embeds the victim's key but is signed by
+another is rejected.
+
+@section prof_mtls \emoji :lock_with_ink_pen: mTLS-bound tokens (RFC 8705)
+
+@rfc{8705} binds an access token to a client TLS certificate via a @c cnf
+@c "x5t#S256" member (the certificate's SHA-256 thumbprint). Set it with
+@ref jwt_builder_setcnf; at the resource server, read it with @ref jwt_get_cnf
+and compare against the thumbprint of the certificate presented in the TLS
+handshake (which your TLS terminator provides).
+
+@code{.c}
+/* Issue: bind to the client certificate thumbprint. */
+jwt_builder_setcnf(builder, "x5t#S256", client_cert_sha256_b64url);
+
+/* Verify (inside a jwt_checker_setcb() callback): */
+char *bound = jwt_get_cnf(jwt, "x5t#S256");
+if (bound && !strcmp(bound, presented_cert_thumbprint))
+    /* the token is being used over the bound mTLS connection */;
+free(bound);
+@endcode
+
+@section prof_jades \emoji :pen: Detached signatures — JAdES (ETSI 119 182-1)
+
+JAdES (the eIDAS JWS profile) commonly signs a **detached** document — the
+payload is conveyed out of band, not inside the token — with the signing
+certificate chain in the @c "x5c" header. Sign opaque bytes unencoded
+(@rfc{7797}) and detached, then verify with @ref jwt_checker_verify_detached,
+supplying the document. Read the chain with @ref jwks_item_x5c (parsed from a
+JWK's @c x5c); certificate-path validation is the caller's PKI policy.
+
+@code{.c}
+/* Sign a detached, unencoded document with the cert chain in x5c. */
+jwt_builder_setpayload(builder, document, document_len);
+jwt_builder_setb64(builder, 0);          /* opaque bytes, not JSON claims */
+jwt_builder_set_detached(builder, 1);    /* payload conveyed out of band */
+/* ...set the "x5c" header to the certificate chain array... */
+token = jwt_builder_generate(builder);
+
+/* Verify with the document supplied out of band. */
+jwt_checker_setkey(checker, JWT_ALG_ES256, signer_key);
+jwt_checker_verify_detached(checker, token, document, document_len);
+@endcode

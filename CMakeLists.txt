@@ -430,6 +430,9 @@ if (CHECK_FOUND)
 	# Cached remote JWKS source (TTL/ETag/cooldown)
 	list (APPEND UNIT_TESTS jwt_jwks_cache)
 
+	# Application profiles (#317): the small primitives + worked recipes
+	list (APPEND UNIT_TESTS jwt_hash jwt_require jwt_embedded_jwk jwt_profiles)
+
 	# ML-DSA (FIPS 204 / RFC 9964). The test is a no-op unless the build
 	# enabled WITH_ML_DSA against a capable backend.
 	list (APPEND UNIT_TESTS jwt_mldsa)

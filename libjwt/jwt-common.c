@@ -59,6 +59,19 @@ void FUNC(free)(jwt_common_t *__cmd)
 	jwt_freemem(__cmd->c.expected_typ);
 	jwt_freemem(__cmd->c.alg_allowlist);
 
+	/* @rfc{9068} Free the required-claims list (the embedded_keyring is
+	 * borrowed, like the verify keyring, so it is never freed here). */
+	if (__cmd->c.require != NULL) {
+		size_t i;
+
+		for (i = 0; i < __cmd->c.n_require; i++)
+			jwt_freemem(__cmd->c.require[i]);
+		jwt_freemem(__cmd->c.require);
+	}
+	jwt_freemem(__cmd->c.embedded_jkt);
+	if (__cmd->c.embedded_owned != NULL)
+		jwks_free(__cmd->c.embedded_owned);
+
 	memset(__cmd, 0, sizeof(*__cmd));
 
 	jwt_freemem(__cmd);
@@ -568,6 +581,13 @@ int FUNC(verify)(jwt_common_t *__cmd, const char *token)
 		}
 		__cmd->c.n_signatures = 0;
 		__cmd->c.last_sig_count = 0;
+
+		/* @rfc{7515,4.1.3} Drop a confirmed embedded key from a prior
+		 * verify before it can be borrowed by this one. */
+		if (__cmd->c.embedded_owned != NULL) {
+			jwks_free(__cmd->c.embedded_owned);
+			__cmd->c.embedded_owned = NULL;
+		}
 	}
 
 	/* @rfc{7515,7.2} A token whose first non-whitespace byte is '{' is a
@@ -598,6 +618,25 @@ int FUNC(verify)(jwt_common_t *__cmd, const char *token)
 	config.key = __cmd->c.key;
 	config.alg = __cmd->c.alg;
 	config.ctx = __cmd->c.cb_ctx;
+
+	/* @rfc{7515,4.1.3} Embedded-JWK verify: seed the key from the protected
+	 * header "jwk", but only after confirming it against the pinned
+	 * thumbprint or the allowlist. The callback (below) still sees and may
+	 * override it. The owning keyring lives on the checker (freed next verify
+	 * or at checker free) so jwt_checker_sig_key() can borrow the key. */
+	if (__cmd->c.embedded_jwk) {
+		const jwk_item_t *ek = NULL;
+
+		__cmd->c.embedded_owned =
+			jwt_embedded_jwk_key(&__cmd->c, jwt->headers, &ek);
+		if (ek == NULL) {
+			jwt_write_error(__cmd,
+				"Embedded JWK is missing or not confirmed");
+			return 1;
+		}
+		config.key = ek;
+		config.alg = jwt->alg;
+	}
 
 	/* Let the user handle this and update config */
         if (__cmd->c.cb && __cmd->c.cb(jwt, &config)) {
@@ -718,6 +757,137 @@ int jwt_checker_setalgs(jwt_checker_t *checker, const jwt_alg_t *algs, size_t n)
 	jwt_freemem(checker->c.alg_allowlist);
 	checker->c.alg_allowlist = copy;
 	checker->c.n_alg_allowlist = copy ? n : 0;
+
+	return 0;
+}
+
+int jwt_checker_require(jwt_checker_t *checker, const char **claims,
+			unsigned int count)
+{
+	char **copy = NULL;
+	unsigned int i;
+
+	if (checker == NULL)
+		return 1;
+
+	if (claims != NULL && count > 0) {
+		for (i = 0; i < count; i++) {
+			if (claims[i] == NULL || claims[i][0] == '\0') {
+				jwt_write_error(checker,
+					"A required claim name is empty");
+				return 1;
+			}
+		}
+
+		copy = jwt_malloc(count * sizeof(char *));
+		if (copy == NULL) {
+			jwt_write_error(checker, "Error allocating memory"); // LCOV_EXCL_LINE
+			return 1; // LCOV_EXCL_LINE
+		}
+
+		for (i = 0; i < count; i++) {
+			size_t len = strlen(claims[i]) + 1;
+
+			copy[i] = jwt_malloc(len);
+			if (copy[i] == NULL) {
+				// LCOV_EXCL_START
+				while (i-- > 0)
+					jwt_freemem(copy[i]);
+				jwt_freemem(copy);
+				jwt_write_error(checker, "Error allocating memory");
+				return 1;
+				// LCOV_EXCL_STOP
+			}
+			memcpy(copy[i], claims[i], len);
+		}
+	}
+
+	/* Replace any previous requirement set. */
+	if (checker->c.require != NULL) {
+		for (i = 0; i < checker->c.n_require; i++)
+			jwt_freemem(checker->c.require[i]);
+		jwt_freemem(checker->c.require);
+	}
+	checker->c.require = copy;
+	checker->c.n_require = copy ? count : 0;
+
+	return 0;
+}
+
+/* Reject an out-of-range thumbprint selector at configure time (jwks_item_thumbprint
+ * also rejects it later, but failing here gives a clearer error). */
+static int thumbprint_alg_ok(jwt_checker_t *checker, jwk_thumbprint_alg_t alg)
+{
+	if (alg != JWK_THUMBPRINT_SHA256 && alg != JWK_THUMBPRINT_SHA384 &&
+	    alg != JWK_THUMBPRINT_SHA512) {
+		jwt_write_error(checker, "Invalid thumbprint algorithm");
+		return 0;
+	}
+	return 1;
+}
+
+int jwt_checker_enable_embedded_jwk(jwt_checker_t *checker,
+				    jwk_thumbprint_alg_t alg,
+				    const char *expected_jkt)
+{
+	char *copy;
+	size_t n;
+
+	if (checker == NULL)
+		return 1;
+
+	if (!thumbprint_alg_ok(checker, alg))
+		return 1;
+
+	/* @rfc{7515,4.1.3} The header "jwk" is attacker-supplied, so a key
+	 * confirmation is mandatory: refuse to enable a "trust whatever is
+	 * embedded" mode. */
+	if (expected_jkt == NULL || expected_jkt[0] == '\0') {
+		jwt_write_error(checker,
+			"A pinned thumbprint is required to trust an embedded JWK");
+		return 1;
+	}
+
+	n = strlen(expected_jkt) + 1;
+	copy = jwt_malloc(n);
+	if (copy == NULL) {
+		jwt_write_error(checker, "Error allocating memory"); // LCOV_EXCL_LINE
+		return 1; // LCOV_EXCL_LINE
+	}
+	memcpy(copy, expected_jkt, n);
+
+	jwt_freemem(checker->c.embedded_jkt);
+	checker->c.embedded_jkt = copy;
+	checker->c.embedded_keyring = NULL;
+	checker->c.embedded_alg = alg;
+	checker->c.embedded_jwk = 1;
+
+	return 0;
+}
+
+int jwt_checker_enable_embedded_jwk_keyring(jwt_checker_t *checker,
+					    jwk_thumbprint_alg_t alg,
+					    const jwk_set_t *allowed)
+{
+	if (checker == NULL)
+		return 1;
+
+	if (!thumbprint_alg_ok(checker, alg))
+		return 1;
+
+	if (allowed == NULL) {
+		jwt_write_error(checker,
+			"An allowlist keyring is required to trust an embedded JWK");
+		return 1;
+	}
+
+	/* The keyring is borrowed (like the verify keyring); the caller keeps
+	 * ownership and must keep it valid for the checker's lifetime. */
+	jwt_freemem(checker->c.embedded_jkt);
+	checker->c.embedded_jkt = NULL;
+	checker->c.embedded_keyring = allowed;
+	checker->c.embedded_alg = alg;
+	checker->c.embedded_jwk = 1;
 
 	return 0;
 }

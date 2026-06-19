@@ -130,6 +130,28 @@ struct jwt_common {
 	char *expected_typ;
 	jwt_alg_t *alg_allowlist;
 	size_t n_alg_allowlist;
+
+	/* --- @rfc{9068} Required-claims-present (checker) ---
+	 * @require: a copied array of claim names (e.g. "iss","exp","jti") that
+	 * must be PRESENT in the token, independent of any value match. */
+	char **require;
+	size_t n_require;
+
+	/* --- @rfc{7515,4.1.3} Embedded-JWK header verify (checker) ---
+	 * When @embedded_jwk is set, the verification key is taken from the
+	 * token's protected-header "jwk" — but only after the key is CONFIRMED
+	 * against either @embedded_jkt (a pinned thumbprint) or @embedded_keyring
+	 * (a borrowed allowlist), using @embedded_alg as the thumbprint hash.
+	 * Exactly one of @embedded_jkt / @embedded_keyring is set. The header key
+	 * is attacker-supplied, so it is never trusted without this confirmation. */
+	int embedded_jwk;
+	jwk_thumbprint_alg_t embedded_alg;
+	char *embedded_jkt;
+	const jwk_set_t *embedded_keyring;
+	/* The confirmed header key is parsed into a keyring this checker OWNS;
+	 * it must outlive the verify (jwt_checker_sig_key() borrows it), so it is
+	 * reset at the start of each verify and freed at checker free. */
+	jwk_set_t *embedded_owned;
 };
 
 struct jwt_builder {
@@ -675,6 +697,14 @@ int jwt_apply_b64_header(jwt_t *jwt);
  * key/keyring and policy. Returns 0 if the policy is satisfied. */
 JWT_NO_EXPORT
 int jwt_verify_json(jwt_checker_t *checker, const char *token);
+
+/* @rfc{7515,4.1.3} Build + confirm a verification key from the protected
+ * header's "jwk" (embedded-JWK verify). Returns an owned jwk_set_t (caller
+ * frees) with *out set to the contained item, or NULL if disabled/absent/
+ * unconfirmed. See jwt-verify.c. */
+JWT_NO_EXPORT
+jwk_set_t *jwt_embedded_jwk_key(struct jwt_common *c, jwt_json_t *headers,
+				const jwk_item_t **out);
 
 /* @rfc{7515,7.2.1} Non-zero if any member of @header also appears in
  * @protected (a parameter must not be in both). */

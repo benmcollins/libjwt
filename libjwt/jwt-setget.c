@@ -438,3 +438,79 @@ char *jwt_get_cnf(const jwt_t *jwt, const char *member)
 
 	return out;
 }
+
+/* Map a thumbprint-hash selector to its SHA-2 bit width. */
+static int thumbprint_sha_bits(jwk_thumbprint_alg_t alg)
+{
+	switch (alg) {
+	case JWK_THUMBPRINT_SHA256:
+		return 256;
+	case JWK_THUMBPRINT_SHA384:
+		return 384;
+	case JWK_THUMBPRINT_SHA512:
+		return 512;
+	default:
+		return 0;
+	}
+}
+
+/* The SHA-2 width a JWS algorithm's signature is built on -- the hash an OIDC
+ * at_hash/c_hash is keyed to. 0 for an algorithm with no defined width. */
+static int alg_sha_bits(jwt_alg_t alg)
+{
+	switch (alg) {
+	case JWT_ALG_HS256:
+	case JWT_ALG_RS256:
+	case JWT_ALG_ES256:
+	case JWT_ALG_ES256K:
+	case JWT_ALG_PS256:
+		return 256;
+	case JWT_ALG_HS384:
+	case JWT_ALG_RS384:
+	case JWT_ALG_ES384:
+	case JWT_ALG_PS384:
+		return 384;
+	case JWT_ALG_HS512:
+	case JWT_ALG_RS512:
+	case JWT_ALG_ES512:
+	case JWT_ALG_PS512:
+	case JWT_ALG_EDDSA:
+		return 512;
+	default:
+		return 0;
+	}
+}
+
+/* base64url(SHA-@bits(@value)), optionally truncated to the left half. Returns
+ * a malloc'd string the caller frees, or NULL on error. */
+static char *token_hash(const char *value, int bits, int half)
+{
+	unsigned char hash[64];	/* SHA-512 is the widest */
+	unsigned int hlen = 0;
+	char *b64 = NULL;
+
+	if (value == NULL || bits == 0 || jwt_ops->sha == NULL)
+		return NULL;
+
+	if (jwt_ops->sha(bits, (const unsigned char *)value, strlen(value),
+			 hash, &hlen) || hlen == 0 || hlen > sizeof(hash))
+		return NULL; // LCOV_EXCL_LINE
+
+	if (half)
+		hlen /= 2;
+
+	if (jwt_base64uri_encode(&b64, (char *)hash, (int)hlen) <= 0)
+		return NULL; // LCOV_EXCL_LINE
+
+	return b64;
+}
+
+char *jwt_token_hash(const char *value, jwk_thumbprint_alg_t alg)
+{
+	return token_hash(value, thumbprint_sha_bits(alg), 0);
+}
+
+char *jwt_token_hash_half(const char *value, jwt_alg_t alg)
+{
+	return token_hash(value, alg_sha_bits(alg), 1);
+}

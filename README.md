@@ -18,6 +18,8 @@ Standard | RFC                                                                  
 ``cnf``  | :page_facing_up: [RFC-7800](https://datatracker.ietf.org/doc/html/rfc7800) | Proof-of-Possession (confirmation) claim helpers
 ``Unencoded Payload`` | :page_facing_up: [RFC-7797](https://datatracker.ietf.org/doc/html/rfc7797) | JWS unencoded (``b64=false``) and detached payloads
 ``BCP 225`` | :page_facing_up: [RFC-8725](https://datatracker.ietf.org/doc/html/rfc8725) | JWT Best Current Practices (``typ`` check, algorithm allowlist)
+``DPoP`` | :page_facing_up: [RFC-9449](https://datatracker.ietf.org/doc/html/rfc9449) | Proof-of-possession: embedded-JWK verify + ``ath`` token hash
+``Application Profiles`` | :page_facing_up: [RFC-9068](https://datatracker.ietf.org/doc/html/rfc9068) | ``at+jwt``, VAPID, PASSporT, OpenID4VCI, DPoP, mTLS, JAdES recipes
 
 > [!NOTE]
 > Throughout this documentation you will see links such as the ones
@@ -151,6 +153,19 @@ configurable TTL), and a stale cache is refreshed with a conditional GET
 forces a refresh on an unknown-`kid` (key rotation), rate-limited by a cooldown
 so random `kid` values cannot amplify into a request flood. Only `http`/`https`
 URLs are accepted (an SSRF guard). Requires the `WITH_LIBCURL` build.
+
+#### Application Profiles
+
+Most real-world JWT specs are *application profiles* — an ordinary signed JWT
+with a particular `typ`, required claims, and key binding — not new crypto. The
+small primitives that complete them are: `jwt_checker_require()` (assert claims
+are present, RFC 9068), `jwt_checker_enable_embedded_jwk()` (verify a
+self-contained token against the header `jwk`, confirmed by thumbprint — DPoP and
+OpenID4VCI), and `jwt_token_hash()` / `jwt_token_hash_half()` (DPoP `ath`, OIDC
+`at_hash`/`c_hash`). The **Application Profiles** page of the docs has worked
+build-and-verify recipes for `at+jwt` (RFC 9068), VAPID, PASSporT, OpenID4VCI,
+DPoP (RFC 9449), mTLS (RFC 8705), and JAdES, each mirrored by a test in
+`tests/jwt_profiles.c`.
 
 #### JWE
 

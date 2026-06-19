@@ -386,6 +386,109 @@ static jwt_claims_t __verify_claims(jwt_t *jwt)
 	return failed;
 }
 
+/* @rfc{9068} Every claim named via jwt_checker_require() must be PRESENT in the
+ * token, independent of any value match. Returns 0 if all are present, or 1 with
+ * the error set naming the first missing one. */
+static int __verify_required(jwt_t *jwt)
+{
+	jwt_checker_t *checker = jwt->checker;
+	size_t i;
+
+	if (checker == NULL)
+		return 0; // LCOV_EXCL_LINE
+
+	for (i = 0; i < checker->c.n_require; i++) {
+		const char *name = checker->c.require[i];
+		jwt_value_t jval;
+
+		/* Presence is all we assert: a wrong-type claim (a numeric "exp",
+		 * an array "aud") still returns a non-NOEXIST error, i.e. present. */
+		jwt_set_GET_STR(&jval, name);
+		if (jwt_claim_get(jwt, &jval) == JWT_VALUE_ERR_NOEXIST) {
+			jwt_write_error(jwt,
+				"Required claim \"%s\" is missing", name);
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+/* @rfc{7515,4.1.3} Build and CONFIRM the verification key from a protected
+ * header's "jwk". The header key is attacker-supplied, so it is accepted only
+ * after its thumbprint matches the checker's pin (c->embedded_jkt) or is found
+ * in its allowlist (c->embedded_keyring), using c->embedded_alg. On success
+ * returns a jwk_set_t that OWNS the key (the caller frees it) and points *out at
+ * the contained item; returns NULL (with *out NULL) if embedded-jwk is not
+ * enabled, the header carries no usable "jwk", or confirmation fails. */
+jwk_set_t *jwt_embedded_jwk_key(struct jwt_common *c, jwt_json_t *headers,
+				const jwk_item_t **out)
+{
+	jwt_json_t *jwk;
+	char *jwk_str;
+	jwk_set_t *ks;
+	const jwk_item_t *item;
+	char *tp;
+	int ok;
+
+	*out = NULL;
+
+	if (!c->embedded_jwk || headers == NULL)
+		return NULL; // LCOV_EXCL_LINE (callers guarantee both)
+
+	jwk = jwt_json_obj_get(headers, "jwk");
+	if (jwk == NULL || !jwt_json_is_object(jwk))
+		return NULL;
+
+	jwk_str = jwt_json_serialize(jwk, 0);
+	if (jwk_str == NULL)
+		return NULL; // LCOV_EXCL_LINE
+
+	ks = jwks_create(jwk_str);
+	jwt_freemem(jwk_str);
+	if (ks == NULL)
+		return NULL; // LCOV_EXCL_LINE
+	/* A set-level parse error (a malformed key surfaces as an item error and
+	 * is caught by the thumbprint check below). Defensive depth. */
+	if (jwks_error(ks)) {
+		// LCOV_EXCL_START
+		jwks_free(ks);
+		return NULL;
+		// LCOV_EXCL_STOP
+	}
+
+	item = jwks_item_get(ks, 0);
+	if (item == NULL) {
+		// LCOV_EXCL_START
+		jwks_free(ks);
+		return NULL;
+		// LCOV_EXCL_STOP
+	}
+
+	/* Confirm the attacker-supplied key against the pin or the allowlist. */
+	tp = jwks_item_thumbprint(item, c->embedded_alg);
+	if (tp == NULL) {
+		jwks_free(ks);
+		return NULL;
+	}
+
+	if (c->embedded_jkt != NULL)
+		ok = (strcmp(tp, c->embedded_jkt) == 0);
+	else
+		ok = (c->embedded_keyring != NULL &&
+		      jwks_find_bythumbprint((jwk_set_t *)c->embedded_keyring,
+					     c->embedded_alg, tp) != NULL);
+	jwt_freemem(tp);
+
+	if (!ok) {
+		jwks_free(ks);
+		return NULL;
+	}
+
+	*out = item;
+	return ks;
+}
+
 /* @rfc{7519,4.1.7} jti: hand the id to the application callback, which
  * validates/consumes it (e.g. replay protection). A registered callback means
  * a token with no jti is rejected.
@@ -480,6 +583,10 @@ static int __verify_config_post(jwt_t *jwt, const jwt_config_t *config,
 		jwt_write_error(jwt, "Failed one or more claims");
 		return 1;
 	}
+
+	/* @rfc{9068} Required claims must be present (also JSON-claims only). */
+	if (jwt->b64 && __verify_required(jwt))
+		return 1;
 
 	if (!sig_len) {
 		if (config->key || config->alg != JWT_ALG_NONE ||
@@ -923,6 +1030,10 @@ int jwt_verify_json(jwt_checker_t *checker, const char *token)
 			n_verified, n_entries);
 	} else if (jwt->b64 && __verify_claims(jwt)) {
 		jwt_write_error(checker, "Failed one or more claims");
+	} else if (jwt->b64 && __verify_required(jwt)) {
+		/* @rfc{9068} Required-claims-present, same as the compact path; the
+		 * specific "missing" error is written on the jwt. */
+		jwt_copy_error(checker, jwt);
 	} else if (__verify_jti(jwt)) {
 		/* jti runs only after signature + claims succeed. */
 		jwt_write_error(checker, "Failed one or more claims");
