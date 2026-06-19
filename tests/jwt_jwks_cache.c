@@ -64,10 +64,15 @@ static void *server_thread(void *arg)
 			srv.conditional++;
 		pthread_mutex_unlock(&srv.lock);
 
+		/* Consume write()'s result (glibc marks it warn_unused_result, and a
+		 * (void) cast does not suppress that under -Werror). We do NOT assert
+		 * it: a test client may legitimately hang up early, and this runs on a
+		 * worker thread where a failing ck_assert would longjmp across threads. */
 		if (srv.fail) {
 			const char *e = "HTTP/1.1 500 Internal Server Error\r\n"
 					"Content-Length: 0\r\n\r\n";
-			ck_assert_int_gt(write(fd, e, strlen(e)), 0);
+			ssize_t w = write(fd, e, strlen(e));
+			(void)w;
 		} else if (cond) {
 			char hdr[256];
 			int hlen = snprintf(hdr, sizeof(hdr),
@@ -75,7 +80,8 @@ static void *server_thread(void *arg)
 				"ETag: \"v1\"\r\n"
 				"Cache-Control: max-age=%d\r\n"
 				"\r\n", srv.max_age);
-			ck_assert_int_gt(write(fd, hdr, hlen), 0);
+			ssize_t w = write(fd, hdr, hlen);
+			(void)w;
 		} else {
 			char hdr[256];
 			int hlen = snprintf(hdr, sizeof(hdr),
@@ -85,8 +91,10 @@ static void *server_thread(void *arg)
 				"Cache-Control: max-age=%d\r\n"
 				"Content-Length: %zu\r\n"
 				"\r\n", srv.max_age, strlen(JWKS_BODY));
-			ck_assert_int_gt(write(fd, hdr, hlen), 0);
-			ck_assert_int_gt(write(fd, JWKS_BODY, strlen(JWKS_BODY)), 0);
+			ssize_t wh = write(fd, hdr, hlen);
+			ssize_t wb = write(fd, JWKS_BODY, strlen(JWKS_BODY));
+			(void)wh;
+			(void)wb;
 		}
 
 		close(fd);
