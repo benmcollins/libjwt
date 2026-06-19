@@ -578,6 +578,11 @@ void jwks_free(jwk_set_t *jwk_set)
 		return;
 
 	jwks_item_free_all(jwk_set);
+	if (jwk_set->cache != NULL) {
+		jwt_freemem(jwk_set->cache->url);
+		jwt_freemem(jwk_set->cache->etag);
+		jwt_freemem(jwk_set->cache);
+	}
 	jwt_freemem(jwk_set);
 }
 

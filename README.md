@@ -141,6 +141,17 @@ thumbprint is verified against the leaf certificate at parse time
 Certificate-chain validation and `x5u` fetching are intentionally left to the
 caller for now (chain/trust policy and SSRF are security-critical).
 
+#### Cached remote JWKS (libcurl)
+
+`jwks_load_fromurl_cached()` fetches a JWKS from a URL and reuses the keyring as
+a cache: subsequent calls serve the cached keys without a network request while
+they are fresh (honoring the response `Cache-Control: max-age`, else a
+configurable TTL), and a stale cache is refreshed with a conditional GET
+(`If-None-Match`/`ETag`, so a `304` keeps the keys). `jwks_refresh_fromurl()`
+forces a refresh on an unknown-`kid` (key rotation), rate-limited by a cooldown
+so random `kid` values cannot amplify into a request flood. Only `http`/`https`
+URLs are accepted (an SSRF guard). Requires the `WITH_LIBCURL` build.
+
 #### JWE
 
 LibJWT supports JWE (RFC 7516) in both the Compact Serialization and the JSON

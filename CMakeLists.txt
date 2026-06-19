@@ -427,6 +427,9 @@ if (CHECK_FOUND)
 	# RFC 7517 X.509 params (x5c/x5t/x5t#S256)
 	list (APPEND UNIT_TESTS jwt_x509)
 
+	# Cached remote JWKS source (TTL/ETag/cooldown)
+	list (APPEND UNIT_TESTS jwt_jwks_cache)
+
 	# ML-DSA (FIPS 204 / RFC 9964). The test is a no-op unless the build
 	# enabled WITH_ML_DSA against a capable backend.
 	list (APPEND UNIT_TESTS jwt_mldsa)
