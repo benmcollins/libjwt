@@ -67,7 +67,7 @@ static void *server_thread(void *arg)
 		if (srv.fail) {
 			const char *e = "HTTP/1.1 500 Internal Server Error\r\n"
 					"Content-Length: 0\r\n\r\n";
-			(void)write(fd, e, strlen(e));
+			ck_assert_int_gt(write(fd, e, strlen(e)), 0);
 		} else if (cond) {
 			char hdr[256];
 			int hlen = snprintf(hdr, sizeof(hdr),
@@ -75,7 +75,7 @@ static void *server_thread(void *arg)
 				"ETag: \"v1\"\r\n"
 				"Cache-Control: max-age=%d\r\n"
 				"\r\n", srv.max_age);
-			(void)write(fd, hdr, hlen);
+			ck_assert_int_gt(write(fd, hdr, hlen), 0);
 		} else {
 			char hdr[256];
 			int hlen = snprintf(hdr, sizeof(hdr),
@@ -85,8 +85,8 @@ static void *server_thread(void *arg)
 				"Cache-Control: max-age=%d\r\n"
 				"Content-Length: %zu\r\n"
 				"\r\n", srv.max_age, strlen(JWKS_BODY));
-			(void)write(fd, hdr, hlen);
-			(void)write(fd, JWKS_BODY, strlen(JWKS_BODY));
+			ck_assert_int_gt(write(fd, hdr, hlen), 0);
+			ck_assert_int_gt(write(fd, JWKS_BODY, strlen(JWKS_BODY)), 0);
 		}
 
 		close(fd);
