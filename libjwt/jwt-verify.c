@@ -1030,6 +1030,10 @@ int jwt_verify_json(jwt_checker_t *checker, const char *token)
 			n_verified, n_entries);
 	} else if (jwt->b64 && __verify_claims(jwt)) {
 		jwt_write_error(checker, "Failed one or more claims");
+	} else if (jwt->b64 && __verify_required(jwt)) {
+		/* @rfc{9068} Required-claims-present, same as the compact path; the
+		 * specific "missing" error is written on the jwt. */
+		jwt_copy_error(checker, jwt);
 	} else if (__verify_jti(jwt)) {
 		/* jti runs only after signature + claims succeed. */
 		jwt_write_error(checker, "Failed one or more claims");

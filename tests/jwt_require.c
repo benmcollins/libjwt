@@ -177,6 +177,50 @@ START_TEST(test_require_errors)
 }
 END_TEST
 
+/* Required-claims must be enforced on the JSON Serialization too, not only the
+ * compact form (else a token could dodge the check by being JSON-wrapped). */
+START_TEST(test_require_json_serialization)
+{
+	jwk_set_t *set;
+	const jwk_item_t *key;
+	jwt_builder_auto_t *b = NULL;
+	jwt_checker_auto_t *c1 = NULL, *c2 = NULL;
+	char_auto *token = NULL;
+	jwt_value_t v;
+	const char *need_iss[] = { "iss" };
+	const char *need_jti[] = { "jti" };
+
+	SET_OPS();
+
+	set = load_key();
+	key = jwks_item_get(set, 0);
+
+	/* A Flattened JSON token (RFC 7515 7.2.2) with iss but no jti. */
+	b = jwt_builder_new();
+	ck_assert_int_eq(jwt_builder_setkey(b, JWT_ALG_ES256, key), 0);
+	ck_assert_int_eq(jwt_builder_set_format(b, JWT_FORMAT_JSON_FLAT), 0);
+	jwt_set_SET_STR(&v, "iss", "https://issuer.example");
+	ck_assert_int_eq(jwt_builder_claim_set(b, &v), JWT_VALUE_ERR_NONE);
+	token = jwt_builder_generate(b);
+	ck_assert_ptr_nonnull(token);
+	ck_assert_int_eq(token[0], '{');	/* a JSON serialization */
+
+	/* Present passes... */
+	c1 = jwt_checker_new();
+	ck_assert_int_eq(jwt_checker_setkey(c1, JWT_ALG_ES256, key), 0);
+	ck_assert_int_eq(jwt_checker_require(c1, need_iss, 1), 0);
+	ck_assert_int_eq(jwt_checker_verify(c1, token), 0);
+
+	/* ...absent is rejected (the JSON path enforces it). */
+	c2 = jwt_checker_new();
+	ck_assert_int_eq(jwt_checker_setkey(c2, JWT_ALG_ES256, key), 0);
+	ck_assert_int_eq(jwt_checker_require(c2, need_jti, 1), 0);
+	ck_assert_int_ne(jwt_checker_verify(c2, token), 0);
+
+	jwks_free(set);
+}
+END_TEST
+
 static Suite *libjwt_suite(const char *title)
 {
 	Suite *s;
@@ -191,6 +235,7 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, test_require_missing_rejected, 0, i);
 	tcase_add_loop_test(tc_core, test_require_present_with_jti, 0, i);
 	tcase_add_loop_test(tc_core, test_require_clear, 0, i);
+	tcase_add_loop_test(tc_core, test_require_json_serialization, 0, i);
 	tcase_add_loop_test(tc_core, test_require_errors, 0, i);
 
 	tcase_set_timeout(tc_core, 30);
