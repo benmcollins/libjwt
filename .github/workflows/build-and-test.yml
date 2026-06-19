@@ -90,7 +90,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          PKGS="build-essential cmake pkg-config libssl-dev check bats jq"
+          PKGS="build-essential cmake pkg-config libssl-dev check bats jq libcurl4-openssl-dev"
           if [ "${{ matrix.json }}" = "json-c" ]; then
             PKGS="$PKGS libjson-c-dev"
           else
@@ -106,7 +106,7 @@ jobs:
           [ "${{ matrix.json }}" = "json-c" ] && JSON_FLAG="-DWITH_JSON_C=YES"
           cmake -B build \
             -DWITH_OPENSSL=ON -DWITH_GNUTLS=OFF -DWITH_MBEDTLS=OFF \
-            $JSON_FLAG
+            -DWITH_LIBCURL=ON $JSON_FLAG
           cmake --build build -- all check
 
   # OpenSSL is an optional backend, so the library must build and pass the test
@@ -123,19 +123,19 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: "MbedTLS",         flags: "-DWITH_OPENSSL=OFF -DWITH_GNUTLS=OFF -DWITH_MBEDTLS=ON" }
-          - { name: "GnuTLS",          flags: "-DWITH_OPENSSL=OFF -DWITH_GNUTLS=ON -DWITH_MBEDTLS=OFF" }
-          - { name: "OpenSSL",         flags: "-DWITH_OPENSSL=ON -DWITH_GNUTLS=OFF -DWITH_MBEDTLS=OFF" }
-          - { name: "MbedTLS+GnuTLS",  flags: "-DWITH_OPENSSL=OFF -DWITH_GNUTLS=ON -DWITH_MBEDTLS=ON" }
-          - { name: "MbedTLS+OpenSSL", flags: "-DWITH_OPENSSL=ON -DWITH_GNUTLS=OFF -DWITH_MBEDTLS=ON" }
-          - { name: "GnuTLS+OpenSSL",  flags: "-DWITH_OPENSSL=ON -DWITH_GNUTLS=ON -DWITH_MBEDTLS=OFF" }
+          - { name: "MbedTLS",         flags: "-DWITH_OPENSSL=OFF -DWITH_GNUTLS=OFF -DWITH_MBEDTLS=ON -DWITH_LIBCURL=ON" }
+          - { name: "GnuTLS",          flags: "-DWITH_OPENSSL=OFF -DWITH_GNUTLS=ON -DWITH_MBEDTLS=OFF -DWITH_LIBCURL=ON" }
+          - { name: "OpenSSL",         flags: "-DWITH_OPENSSL=ON -DWITH_GNUTLS=OFF -DWITH_MBEDTLS=OFF -DWITH_LIBCURL=ON" }
+          - { name: "MbedTLS+GnuTLS",  flags: "-DWITH_OPENSSL=OFF -DWITH_GNUTLS=ON -DWITH_MBEDTLS=ON -DWITH_LIBCURL=ON" }
+          - { name: "MbedTLS+OpenSSL", flags: "-DWITH_OPENSSL=ON -DWITH_GNUTLS=OFF -DWITH_MBEDTLS=ON -DWITH_LIBCURL=ON" }
+          - { name: "GnuTLS+OpenSSL",  flags: "-DWITH_OPENSSL=ON -DWITH_GNUTLS=ON -DWITH_MBEDTLS=OFF -DWITH_LIBCURL=ON" }
           # The comprehensive row: all three backends + experimental ML-DSA. This
           # is the ONLY row that collects coverage (-> Codecov) and runs memcheck.
           # On this image GnuTLS is built --with-leancrypto, so WITH_ML_DSA=ON
           # exercises the ML-DSA SUCCESS path on both OpenSSL and GnuTLS (and the
           # rejection path on MbedTLS) - those lines are run, not just compiled,
           # so they count toward Codecov instead of dragging codecov/patch down.
-          - { name: "all", flags: "-DWITH_OPENSSL=ON -DWITH_GNUTLS=ON -DWITH_MBEDTLS=ON -DWITH_ML_DSA=ON", coverage: true }
+          - { name: "all", flags: "-DWITH_OPENSSL=ON -DWITH_GNUTLS=ON -DWITH_MBEDTLS=ON -DWITH_ML_DSA=ON -DWITH_LIBCURL=ON", coverage: true }
     steps:
     - uses: actions/checkout@v5
 
