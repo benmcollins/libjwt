@@ -630,6 +630,27 @@ static int __verify_config_post(jwt_t *jwt, const jwt_config_t *config,
 		// LCOV_EXCL_STOP
 	}
 
+	/* @rfc{8725,3.1} Pin to the EXACT algorithm, not just the key family.
+	 * The alg-vs-alg checks above compare config and key to each OTHER, but
+	 * on the common pinned path -- both config->alg and config->key->alg set
+	 * and equal -- none of them compares the token's own alg (jwt->alg). The
+	 * jwt_alg_required_kty() backstop below is only family-granular (every
+	 * RSn/PSn alg maps to JWK_KEY_TYPE_RSA, every ESn to EC), so without this
+	 * a token presenting e.g. "RS512" verifies against a key the caller
+	 * pinned as "RS256": same family, so the kty guard passes. Not a forgery
+	 * (the signature must still be valid), but a pinned verifier accepting an
+	 * algorithm it never pinned is a policy/conformance gap. Require exact
+	 * agreement with whichever alg the caller pinned. Purely additive: no
+	 * legitimately-pinned token is newly rejected. */
+	if (config->alg != JWT_ALG_NONE && jwt->alg != config->alg) {
+		jwt_write_error(jwt, "JWT alg does not match pinned config alg");
+		return 1;
+	} else if (config->key->alg != JWT_ALG_NONE &&
+		   jwt->alg != config->key->alg) {
+		jwt_write_error(jwt, "JWT alg does not match pinned key alg");
+		return 1;
+	}
+
 	/* Algorithm is now bound (jwt->alg). Defensively confirm that the
 	 * JWK's actual key type can carry it. This blocks algorithm
 	 * confusion (GHSA-q843-6q5f-w55g) even if a malformed JWK has an
@@ -792,6 +813,16 @@ static void try_candidate(jwt_t *jwt, struct jwt_signature *s,
 		return;
 
 	if (jwt_alg_required_kty(s->alg) != jwks_item_kty(key))
+		return;
+
+	/* @rfc{8725,3.1} Exact-alg pin: if the candidate key declares an "alg",
+	 * the signature's alg must match it exactly, not merely its family (the
+	 * kty gate above is family-granular -- every RSn/PSn maps to RSA). This
+	 * is the JSON-path mirror of the Compact pinned-alg check and the keyring
+	 * scan's own "kalg != s->alg" skip, applied at the single choke point so
+	 * the explicit-key and "kid"-matched branches are covered too: without
+	 * it a key declaring "RS256" would verify an "RS512" signature. */
+	if (jwks_item_alg(key) != JWT_ALG_NONE && jwks_item_alg(key) != s->alg)
 		return;
 
 	jwt->alg = s->alg;
