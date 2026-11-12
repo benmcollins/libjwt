@@ -1993,6 +1993,54 @@ START_TEST(test_json_nul_in_jwks)
 }
 END_TEST
 
+/* A JWKS file is one JSON value, as a string or a FILE * is: a second one
+ * after it is refused, as with Jansson (json-c used to load the first and
+ * ignore the rest), while trailing whitespace is fine. */
+START_TEST(test_jwks_file_trailing_data)
+{
+#define OCT_K1	"{\"kty\":\"oct\",\"kid\":\"k1\"," \
+		"\"k\":\"0gmNspkRljssLSrldySnYUS-zhtCo5sqeqo_yl7n2XA\"}"
+	static const struct {
+		const char *doc;
+		int ok;
+	} files[] = {
+		{ OCT_K1 "\r\n \t\n", 1 },
+		{ OCT_K1 "\n" OCT_K1 "\n", 0 },
+		{ OCT_K1 "]", 0 },
+	};
+#undef OCT_K1
+	size_t f;
+
+	SET_OPS();
+
+	for (f = 0; f < ARRAY_SIZE(files); f++) {
+		char path[] = "/tmp/libjwt_trail_XXXXXX";
+		jwk_set_auto_t *set = NULL;
+		FILE *fp;
+		int fd;
+
+		fd = mkstemp(path);
+		ck_assert_int_ge(fd, 0);
+		fp = fdopen(fd, "w");
+		ck_assert_ptr_nonnull(fp);
+		ck_assert_int_ge(fputs(files[f].doc, fp), 0);
+		ck_assert_int_eq(fclose(fp), 0);
+
+		set = jwks_create_fromfile(path);
+		unlink(path);
+		ck_assert_ptr_nonnull(set);
+
+		if (files[f].ok) {
+			ck_assert_int_eq(jwks_error_any(set), 0);
+			ck_assert_ptr_nonnull(jwks_find_bykid(set, "k1"));
+		} else {
+			ck_assert_int_ne(jwks_error(set), 0);
+			ck_assert_ptr_null(jwks_item_get(set, 0));
+		}
+	}
+}
+END_TEST
+
 /* A protected header the builder will not produce, and its HS256 signature
  * (oct_key_256.json) over it and the payload {"sub":"x"}. */
 struct signed_hdr {
@@ -2375,6 +2423,7 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_json_parity, test_jwks_top_level_null, 0, i);
 	tcase_add_loop_test(tc_json_parity, test_json_nul_in_token, 0, i);
 	tcase_add_loop_test(tc_json_parity, test_json_nul_in_jwks, 0, i);
+	tcase_add_loop_test(tc_json_parity, test_jwks_file_trailing_data, 0, i);
 	tcase_add_loop_test(tc_json_parity, test_json_null_array_element, 0, i);
 	tcase_add_loop_test(tc_json_parity, test_json_null_member, 0, i);
 
