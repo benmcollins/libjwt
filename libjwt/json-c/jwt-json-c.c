@@ -637,6 +637,14 @@ static jwt_json_t *validate_parsed(struct json_tokener *tok,
 		}
 	}
 
+	/* json-c has no object for a JSON null: "null" parses to NULL, which
+	 * the caller takes for a failure, so it needs an error like any other
+	 * (jwks_process() prints it). */
+	if (!obj) {
+		set_error(error, source, "JSON null is not supported");
+		return NULL;
+	}
+
 	return from_jc(obj);
 }
 

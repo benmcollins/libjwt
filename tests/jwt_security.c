@@ -1762,6 +1762,37 @@ START_TEST(test_callback_cannot_reenter_detached)
 END_TEST
 
 /*
+ * === JSON backend parity ===
+ *
+ * The json-c backend must accept and reject what the Jansson one does. json-c
+ * stores a JSON null as a NULL pointer, which reads as a missing value, and
+ * decodes "\u0000" into strings that libjwt then reads as C strings.
+ */
+
+/* A JWKS that is just the JSON null. Jansson hands it to the JWK parser,
+ * which finds no "kty" in it. json-c has no object for a null, so the parse
+ * fails, and that failure needs an error message like any other (it used to
+ * leave the message uninitialized). */
+START_TEST(test_jwks_top_level_null)
+{
+	jwk_set_auto_t *jwk_set = NULL;
+
+	SET_OPS();
+
+	jwk_set = jwks_create("null\n");
+	ck_assert_ptr_nonnull(jwk_set);
+#ifdef HAVE_JSON_C
+	ck_assert_int_ne(jwks_error(jwk_set), 0);
+	ck_assert_str_eq(jwks_error_msg(jwk_set),
+			 "<buffer>: JSON null is not supported");
+#else
+	ck_assert_int_eq(jwks_error(jwk_set), 0);
+	ck_assert_int_eq(jwks_error_any(jwk_set), 1);
+#endif
+}
+END_TEST
+
+/*
  * === Suite Setup ===
  */
 
@@ -1772,6 +1803,7 @@ static Suite *libjwt_suite(const char *title)
 	TCase *tc_jwt_parse;
 	TCase *tc_null_safety;
 	TCase *tc_alg_confusion;
+	TCase *tc_json_parity;
 	int i = ARRAY_SIZE(jwt_test_ops);
 
 	s = suite_create(title);
@@ -1883,6 +1915,14 @@ static Suite *libjwt_suite(const char *title)
 
 	tcase_set_timeout(tc_alg_confusion, 30);
 	suite_add_tcase(s, tc_alg_confusion);
+
+	/* json-c behaves as Jansson does */
+	tc_json_parity = tcase_create("json_parity");
+
+	tcase_add_loop_test(tc_json_parity, test_jwks_top_level_null, 0, i);
+
+	tcase_set_timeout(tc_json_parity, 30);
+	suite_add_tcase(s, tc_json_parity);
 
 	return s;
 }
