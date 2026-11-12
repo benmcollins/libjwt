@@ -1000,20 +1000,42 @@ typedef enum {
 } jwt_verify_policy_t;
 
 /**
- * @brief Set a keyring and policy for multi-signature verification
+ * @brief Set a keyring and policy for verification
  *
  * Supplies a set of candidate keys (a JWKS) instead of the single key set by
- * jwt_checker_setkey(), so a JWS JSON Serialization with multiple signatures
- * can be verified. A signature naming a ``kid`` is matched to that key in the
- * ring; a keyless signature is tried against every compatible key. Each
- * candidate is held to the usual algorithm/key-type binding.
+ * jwt_checker_setkey(), e.g. for key rotation, several issuers, or a JWS JSON
+ * Serialization with multiple signatures. Every token is verified against it:
+ * a JSON Serialization signature by signature, and a Compact token exactly as
+ * the equivalent one-signature (Flattened) JSON token.
+ *
+ * A signature whose protected header names a ``kid`` is verified only against
+ * the ring key with that ``kid``; if the ring has none, that signature does not
+ * verify (there is no fallback to the other keys). A signature without a
+ * ``kid`` is tried against every compatible key. Each candidate is held to the
+ * usual algorithm/key-type binding and, when the key declares an ``"alg"``, to
+ * exactly that algorithm. The ``"typ"`` and algorithm policy, the verify
+ * callback (run once per signature; it may supply the key), the claim checks
+ * and the jti check all apply, and an unsigned (``"alg":"none"``) token is
+ * never accepted.
  *
  * Under ::JWT_VERIFY_POLICY_ANY (the default and the generalization of the
  * single-key behavior) the token is accepted if at least one signature
  * verifies; under ::JWT_VERIFY_POLICY_ALL every signature in the token must
- * verify. The keyring is borrowed: the caller retains ownership and must keep
- * it valid for the lifetime of the checker. Setting a keyring and setting a
- * single key are mutually exclusive; the last call wins.
+ * verify. A Compact token carries exactly one signature, so it meets either
+ * policy when that signature verifies. The keyring is borrowed: the caller
+ * retains ownership and must keep it valid for the lifetime of the checker.
+ * Setting a keyring and setting a single key are mutually exclusive; the last
+ * call wins. When embedded-JWK verification is enabled
+ * (jwt_checker_enable_embedded_jwk()), a Compact token is still verified with
+ * the confirmed header key rather than the keyring.
+ *
+ * @note With the Jansson JSON backend, a Compact token whose unencoded
+ * (@rfc{7797}) payload is not valid UTF-8 cannot be verified against a
+ * keyring; use jwt_checker_setkey() for it.
+ *
+ * @note Before 3.6.2 a Compact token was not checked against the keyring at
+ * all: a checker given only a keyring rejected every signed Compact token and
+ * accepted an unsigned one (GHSA-mhc9-xvg5-qg29).
  *
  * @param checker Pointer to a checker object
  * @param keyring A JWKS of candidate keys (borrowed, not freed by the checker)

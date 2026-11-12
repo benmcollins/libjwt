@@ -557,6 +557,85 @@ int FUNC(time_leeway)(jwt_common_t *__cmd, jwt_claims_t claim, time_t secs)
 }
 
 #ifdef JWT_CHECKER
+/* @rfc{7515,7.2.2} A keyring checker verifies a Compact token as the
+ * equivalent one-signature Flattened JWS JSON Serialization, so it gets exactly
+ * what a JSON token gets: a "kid" selects that ring key (no fallback), a
+ * kid-less token is tried against every compatible key, each under the
+ * alg/key-type binding and the key's "alg" pin; the typ/alg policy,
+ * per-signature callback, claims, required claims and jti all apply; and
+ * "none" is never accepted. The Compact path below only knows the single key,
+ * which jwt_checker_setkeyring() clears, so it would treat the checker as
+ * unkeyed and accept a forged unsigned token (GHSA-mhc9-xvg5-qg29).
+ *
+ * "protected" is the text before the FIRST '.', "signature" the text after the
+ * LAST '.', and "payload" everything between, so an @rfc{7797} unencoded
+ * payload containing '.' stays intact. The JSON is built with the JSON API,
+ * never by formatting a string: a raw payload may hold quotes or backslashes
+ * and must not be able to add members. Returns a malloc'd string, or NULL with
+ * the checker error set. */
+static char *compact_to_flattened(jwt_checker_t *checker, const char *token)
+{
+	static const char * const names[] = {
+		"protected", "payload", "signature",
+	};
+	jwt_json_auto_t *root = NULL;
+	char_auto *buf = NULL;
+	const char *parts[ARRAY_SIZE(names)];
+	char *first, *last, *out;
+	size_t i, len = strlen(token) + 1;
+
+	/* A reused checker may still hold the last error; clear it so the ones
+	 * written here are current (jwt_verify_json() resets it as well). */
+	FUNC(error_clear)(checker);
+
+	buf = jwt_malloc(len);
+	if (buf == NULL) {
+		jwt_write_error(checker, "Error allocating memory"); // LCOV_EXCL_LINE
+		return NULL; // LCOV_EXCL_LINE
+	}
+	memcpy(buf, token, len);
+
+	first = strchr(buf, '.');
+	last = strrchr(buf, '.');
+	if (first == NULL || first == last) {
+		jwt_write_error(checker, "Invalid JWS Compact Serialization");
+		return NULL;
+	}
+	*first = '\0';
+	*last = '\0';
+	parts[0] = buf;
+	parts[1] = first + 1;
+	parts[2] = last + 1;
+
+	root = jwt_json_create();
+	if (root == NULL) {
+		jwt_write_error(checker, "Error allocating memory"); // LCOV_EXCL_LINE
+		return NULL; // LCOV_EXCL_LINE
+	}
+
+	for (i = 0; i < ARRAY_SIZE(names); i++) {
+		jwt_json_t *v = jwt_json_create_str(parts[i]);
+
+		/* Jansson refuses a string that is not valid UTF-8 (json-c
+		 * takes any bytes), e.g. a binary unencoded payload. */
+		if (v == NULL) {
+			jwt_write_error(checker, "Token is not valid UTF-8");
+			return NULL;
+		}
+		/* obj_set consumes @v even when it fails. */
+		if (jwt_json_obj_set(root, names[i], v)) {
+			jwt_write_error(checker, "Error allocating memory"); // LCOV_EXCL_LINE
+			return NULL; // LCOV_EXCL_LINE
+		}
+	}
+
+	out = jwt_json_serialize(root, JWT_JSON_COMPACT);
+	if (out == NULL)
+		jwt_write_error(checker, "Error allocating memory"); // LCOV_EXCL_LINE
+
+	return out;
+}
+
 int FUNC(verify)(jwt_common_t *__cmd, const char *token)
 {
 	JWT_CONFIG_DECLARE(config);
@@ -599,6 +678,19 @@ int FUNC(verify)(jwt_common_t *__cmd, const char *token)
 			p++;
 		if (*p == '{')
 			return jwt_verify_json(__cmd, token);
+	}
+
+	/* A keyring checker verifies a Compact token as its one-signature JSON
+	 * equivalent (see compact_to_flattened()), never on the single-key path
+	 * below. Embedded-JWK verify keeps its own Compact flow and, as before,
+	 * takes precedence over a keyring. */
+	if (__cmd->c.keyring != NULL && !__cmd->c.embedded_jwk) {
+		char_auto *flat = compact_to_flattened(__cmd, token);
+
+		if (flat == NULL)
+			return 1;
+
+		return jwt_verify_json(__cmd, flat);
 	}
 
 	jwt = jwt_new();

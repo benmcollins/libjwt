@@ -327,3 +327,28 @@ JWS_RING="../tests/keys/jwks_jws_pair.json"
 	run ./tools/jwt-verify -k ${EC_KEY} -r ${JWS_RING} "x.y.z"
 	[ "${status}" -ne 0 ]
 }
+
+# GHSA-mhc9-xvg5-qg29: --keyring verifies a Compact token as a one-signature
+# JWS (kid binding or a scan of the compatible keys), never as a keyless
+# checker that accepts an unsigned token.
+KEYRING="../tests/keys/jwks_keyring.json"
+# {"alg":"none"} . {"sub":"admin","iss":"trusted","aud":"api"} . (unsigned)
+NONE_TOK="eyJhbGciOiJub25lIn0.eyJzdWIiOiJhZG1pbiIsImlzcyI6InRydXN0ZWQiLCJhdWQiOiJhcGkifQ."
+
+@test "Verify a signed Compact token against a keyring" {
+	token="$(./tools/jwt-generate -q -n -k ${EC_KEY})"
+	[ "${token:0:1}" != "{" ]
+	./tools/jwt-verify -q -r ${JWS_RING} -P any "${token}"
+	./tools/jwt-verify -q -r ${JWS_RING} -P all "${token}"
+	./tools/jwt-verify -v -r ${KEYRING} "${token}"
+}
+
+@test "A forged alg none Compact token fails against a keyring" {
+	run ./tools/jwt-verify -q -r ${KEYRING} "${NONE_TOK}"
+	[ "${status}" -ne 0 ]
+	run ./tools/jwt-verify -q -r ${KEYRING} -P all "${NONE_TOK}"
+	[ "${status}" -ne 0 ]
+	run ./tools/jwt-verify -r ${JWS_RING} "${NONE_TOK}"
+	[ "${status}" -ne 0 ]
+	echo "${output}" | grep -q 'invalid "alg"'
+}

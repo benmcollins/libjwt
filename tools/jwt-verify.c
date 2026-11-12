@@ -34,9 +34,10 @@ Decode and (optionally) verify the signature for a JSON Web Token\n\
                         provided with -k does not have an \"alg\" attribute\n\
   -p, --print=CMD       When printing JSON, pipe through CMD\n\
   -k, --key=FILE        Filename containing a JSON Web Key\n\
-  -r, --keyring=FILE    Filename containing a JWKS to verify a multi-signature\n\
-                        JWS JSON Serialization against (RFC 7515). Exclusive\n\
-                        with --key\n\
+  -r, --keyring=FILE    Filename containing a JWKS to verify against (RFC 7515),\n\
+                        for Compact and (multi-signature) JSON tokens alike: a\n\
+                        signature's kid selects that key, one without a kid is\n\
+                        tried against every compatible key. Exclusive with --key\n\
   -P, --policy=POLICY   Multi-signature policy: any (default, accept if one\n\
                         signature verifies) or all (every signature must)\n\
   -q, --quiet           No output. Exit value is number of errors\n\
