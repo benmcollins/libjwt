@@ -815,6 +815,13 @@ int FUNC(verify)(jwt_common_t *__cmd, const char *token)
 	if (__cmd == NULL)
 		return 1;
 
+	/* Not from this checker's own callbacks: the token being verified
+	 * still uses the signatures and embedded key a new verify frees. */
+	if (__cmd->c.verifying) {
+		jwt_write_error(__cmd, "Checker is already verifying a token");
+		return 1;
+	}
+
 	/* Its callbacks run inside; see FUNC(setkey). */
 	__cmd->c.verifying++;
 	ret = __verify(__cmd, token);

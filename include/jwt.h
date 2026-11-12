@@ -1232,9 +1232,15 @@ int jwt_checker_enable_embedded_jwk_keyring(jwt_checker_t *checker,
  * The ctx value is also passed to the callback as part of the jwt_config_t
  * struct.
  *
- * @note The callback must not call jwt_checker_verify() or
- * jwt_checker_verify_detached() on the checker that invoked it, nor free a key
- * or keyring that checker is using.
+ * @note The callback must not free a key or keyring the checker that invoked
+ * it is using, and must return (not, e.g., longjmp() out): a checker it does
+ * not return to refuses every later verify. Nor can it verify with that
+ * checker: a nested jwt_checker_verify() or jwt_checker_verify_detached()
+ * fails with "Checker is already verifying a token" and leaves that error on
+ * the checker, which then fails a JWS JSON Serialization, or a Compact token
+ * checked against a keyring, unless the callback clears it. Verify a nested
+ * token with another checker. All of this applies to a jti callback
+ * (jwt_checker_setjti()) too.
  *
  * @note Calling this with a NULL cb param and a new ctx param after already
  * setting the callback will allow updating the ctx passed to the callback.
@@ -1259,6 +1265,10 @@ int jwt_checker_setcb(jwt_checker_t *checker, jwt_callback_t cb, void *ctx);
  * no ``"jti"`` claim is rejected.
  *
  * The ctx is passed to the callback via the @ref jwt_config_t structure.
+ *
+ * @note The callback is held to the same rules as the verify callback (see
+ * jwt_checker_setcb()): it must return, must not free a key or keyring the
+ * checker is using, and cannot verify with that checker.
  *
  * @note Calling this with a NULL cb and a new ctx updates the ctx. Calling with
  * both NULL disables the callback.

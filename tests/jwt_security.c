@@ -1659,6 +1659,108 @@ START_TEST(test_callback_unkey_does_not_last)
 }
 END_TEST
 
+/* A callback cannot verify with its own checker (that freed the signature
+ * list and embedded key the outer verify was using): the nested call fails. */
+static int reenter_rc;
+static char reenter_msg[256];
+
+static int reenter_cb(jwt_t *jwt, jwt_config_t *config)
+{
+	jwt_checker_t *c = config->ctx;
+
+	(void)jwt;
+	reenter_rc = jwt_checker_verify(c, "eyJhbGciOiJub25lIn0.e30.");
+	snprintf(reenter_msg, sizeof(reenter_msg), "%s",
+		 jwt_checker_error_msg(c));
+	jwt_checker_error_clear(c);
+
+	return 0;
+}
+
+START_TEST(test_callback_cannot_reenter)
+{
+	jwt_builder_auto_t *builder = NULL;
+	jwt_checker_auto_t *c = NULL;
+	char_auto *tok = NULL;
+
+	SET_OPS();
+
+	read_json("ec_key_prime256v1.json");
+
+	builder = jwt_builder_new();
+	ck_assert_ptr_nonnull(builder);
+	ck_assert_int_eq(jwt_builder_setkey(builder, JWT_ALG_ES256, g_item), 0);
+	tok = jwt_builder_generate(builder);
+	ck_assert_ptr_nonnull(tok);
+
+	c = jwt_checker_new();
+	ck_assert_ptr_nonnull(c);
+	ck_assert_int_eq(jwt_checker_setkeyring(c, g_jwk_set,
+				JWT_VERIFY_POLICY_ANY), 0);
+	ck_assert_int_eq(jwt_checker_setcb(c, reenter_cb, c), 0);
+
+	reenter_rc = 0;
+	ck_assert_int_eq(jwt_checker_verify(c, tok), 0);
+	ck_assert_int_ne(reenter_rc, 0);
+	ck_assert_str_eq(reenter_msg, "Checker is already verifying a token");
+	ck_assert_uint_eq(jwt_checker_sig_count(c), 1);
+	ck_assert_int_eq(jwt_checker_sig_verified(c, 0), 1);
+
+	free_key();
+}
+END_TEST
+
+/* Likewise jwt_checker_verify_detached(), which must fail before it touches
+ * the checker: the outer verify keeps its signature count and results. */
+static int reenter_detached_cb(jwt_t *jwt, jwt_config_t *config)
+{
+	jwt_checker_t *c = config->ctx;
+
+	(void)jwt;
+	reenter_rc = jwt_checker_verify_detached(c, "eyJhbGciOiJub25lIn0..",
+						 (const unsigned char *)"{}",
+						 2);
+	snprintf(reenter_msg, sizeof(reenter_msg), "%s",
+		 jwt_checker_error_msg(c));
+	jwt_checker_error_clear(c);
+
+	return 0;
+}
+
+START_TEST(test_callback_cannot_reenter_detached)
+{
+	jwt_builder_auto_t *builder = NULL;
+	jwt_checker_auto_t *c = NULL;
+	char_auto *tok = NULL;
+
+	SET_OPS();
+
+	read_json("ec_key_prime256v1.json");
+
+	builder = jwt_builder_new();
+	ck_assert_ptr_nonnull(builder);
+	ck_assert_int_eq(jwt_builder_setkey(builder, JWT_ALG_ES256, g_item), 0);
+	tok = jwt_builder_generate(builder);
+	ck_assert_ptr_nonnull(tok);
+
+	c = jwt_checker_new();
+	ck_assert_ptr_nonnull(c);
+	ck_assert_int_eq(jwt_checker_setkeyring(c, g_jwk_set,
+				JWT_VERIFY_POLICY_ANY), 0);
+	ck_assert_int_eq(jwt_checker_setcb(c, reenter_detached_cb, c), 0);
+
+	reenter_rc = 0;
+	ck_assert_int_eq(jwt_checker_verify(c, tok), 0);
+	ck_assert_int_ne(reenter_rc, 0);
+	ck_assert_str_eq(reenter_msg, "Checker is already verifying a token");
+	ck_assert_uint_eq(jwt_checker_sig_count(c), 1);
+	ck_assert_int_eq(jwt_checker_sig_verified(c, 0), 1);
+	ck_assert_ptr_nonnull(jwt_checker_sig_key(c, 0));
+
+	free_key();
+}
+END_TEST
+
 /*
  * === Suite Setup ===
  */
@@ -1774,6 +1876,10 @@ static Suite *libjwt_suite(const char *title)
 			    test_callback_cannot_unkey_checker, 0, i);
 	tcase_add_loop_test(tc_alg_confusion,
 			    test_callback_unkey_does_not_last, 0, i);
+	tcase_add_loop_test(tc_alg_confusion,
+			    test_callback_cannot_reenter, 0, i);
+	tcase_add_loop_test(tc_alg_confusion,
+			    test_callback_cannot_reenter_detached, 0, i);
 
 	tcase_set_timeout(tc_alg_confusion, 30);
 	suite_add_tcase(s, tc_alg_confusion);
