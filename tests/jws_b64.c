@@ -1033,6 +1033,283 @@ START_TEST(test_b64_builder_guards)
 }
 END_TEST
 
+#define CRIT_STRINGS	"\"crit\" header entries must be strings"
+
+/* ---- Every "crit" entry must be a string, a JSON null included ---- */
+START_TEST(test_b64_crit_entries)
+{
+	/* json-c hands a null entry back as NULL: not a string either. */
+	static const char * const crits[] = {
+		"[null]", "[\"x-ext\",null]", "[\"x-ext\",1]",
+	};
+	jwk_set_t *ks;
+	const jwk_item_t *ec;
+	size_t i, f, b64;
+
+	SET_OPS();
+	ks = load_one("ec_key_prime256v1.json");
+	ec = jwks_item_get(ks, 0);
+
+	for (i = 0; i < ARRAY_SIZE(crits); i++) {
+		for (f = 0; f < ARRAY_SIZE(formats); f++) {
+			for (b64 = 0; b64 < 2; b64++) {
+				jwt_builder_auto_t *b = jwt_builder_new();
+				char_auto *tok = NULL;
+				jwt_value_t v;
+
+				ck_assert_int_eq(jwt_builder_setkey(b,
+						JWT_ALG_ES256, ec), 0);
+				ck_assert_int_eq(jwt_builder_set_format(b,
+						formats[f]), 0);
+				if (!b64) {
+					ck_assert_int_eq(jwt_builder_setpayload(
+						b, RAW, RAW_LEN), 0);
+					ck_assert_int_eq(jwt_builder_setb64(b,
+						0), 0);
+				}
+				jwt_set_SET_JSON(&v, "x-ext", "[1]");
+				ck_assert_int_eq(jwt_builder_header_set(b, &v),
+						 JWT_VALUE_ERR_NONE);
+				jwt_set_SET_JSON(&v, "crit", (char *)crits[i]);
+				ck_assert_int_eq(jwt_builder_header_set(b, &v),
+						 JWT_VALUE_ERR_NONE);
+
+				tok = jwt_builder_generate(b);
+				ck_assert_ptr_null(tok);
+				ck_assert_str_eq(jwt_builder_error_msg(b),
+						 CRIT_STRINGS);
+			}
+		}
+	}
+
+	jwks_free(ks);
+}
+END_TEST
+
+/* A verify callback recording, as the checker sees it, the protected "crit"
+ * of each signature in turn. A signature without one is rejected. */
+struct crit_seen {
+	unsigned int n;
+	char *crit[2];
+};
+
+static int cb_crit_seen(jwt_t *jwt, jwt_config_t *config)
+{
+	struct crit_seen *seen = config->ctx;
+	jwt_value_t v;
+
+	if (seen->n == ARRAY_SIZE(seen->crit))
+		return 1;
+
+	jwt_set_GET_JSON(&v, "crit");
+	if (jwt_header_get(jwt, &v) != JWT_VALUE_ERR_NONE)
+		return 1;
+	seen->crit[seen->n++] = v.json_val;
+
+	return 0;
+}
+
+#define CRIT_ABSENT(n)	"\"crit\" lists \"" n "\" which is not in " \
+			"the header"
+#define CRIT_TWICE(n)	"\"crit\" lists \"" n "\" more than once"
+#define CRIT_REG(n)	"\"crit\" cannot list registered header \"" n "\""
+#define CRIT_ARRAY	"\"crit\" header must be an array"
+#define CRIT_EMPTY	"\"crit\" header must not be empty"
+
+/* ---- A signature's own protected "crit" adds to the shared one ---- */
+START_TEST(test_b64_sig_crit)
+{
+	static const struct {
+		int b64;		/* jwt_builder_setb64() */
+		const char *crit;	/* this signature's protected "crit" */
+		int x_sig;		/* "x-sig": 1 protected, 2 header */
+		/* Without and with a shared jwt_builder_setcrit("x-ext"): the
+		 * token's "crit" (an array), or else the builder's error. */
+		const char *res[2];
+	} cases[] = {
+		/* The shared names stay listed, first. */
+		{ 0, "[\"x-sig\"]", 1,
+		  { "[\"b64\",\"x-sig\"]", "[\"b64\",\"x-ext\",\"x-sig\"]" } },
+		{ 1, "[\"x-sig\"]", 1,
+		  { "[\"x-sig\"]", "[\"x-ext\",\"x-sig\"]" } },
+		/* One listed here as well is listed once. */
+		{ 0, "[\"x-sig\",\"b64\"]", 1,
+		  { "[\"b64\",\"x-sig\"]", "[\"b64\",\"x-ext\",\"x-sig\"]" } },
+		{ 1, "[\"x-ext\",\"x-sig\"]", 1,
+		  { CRIT_ABSENT("x-ext"), "[\"x-ext\",\"x-sig\"]" } },
+		/* A name must be in the protected header... */
+		{ 1, "[\"b64\"]", 0,
+		  { CRIT_ABSENT("b64"), CRIT_ABSENT("b64") } },
+		{ 1, "[\"x-sig\"]", 0,
+		  { CRIT_ABSENT("x-sig"), CRIT_ABSENT("x-sig") } },
+		{ 0, "[\"x-sig\"]", 2,
+		  { CRIT_ABSENT("x-sig"), CRIT_ABSENT("x-sig") } },
+		/* ...and the list valid on its own, shared one or not. */
+		{ 0, "{\"x-sig\":1}", 1, { CRIT_ARRAY, CRIT_ARRAY } },
+		{ 1, "[]", 0, { CRIT_EMPTY, CRIT_EMPTY } },
+		{ 0, "[\"x-sig\",1]", 1, { CRIT_STRINGS, CRIT_STRINGS } },
+		{ 1, "[\"x-sig\",null]", 1, { CRIT_STRINGS, CRIT_STRINGS } },
+		{ 1, "[\"kid\"]", 0, { CRIT_REG("kid"), CRIT_REG("kid") } },
+		{ 0, "[\"x-sig\",\"x-sig\"]", 1,
+		  { CRIT_TWICE("x-sig"), CRIT_TWICE("x-sig") } },
+		{ 0, "[\"b64\",\"b64\"]", 0,
+		  { CRIT_TWICE("b64"), CRIT_TWICE("b64") } },
+	};
+	jwk_set_t *ks;
+	const jwk_item_t *ec;
+	size_t i, f, ext;
+
+	SET_OPS();
+	ks = load_one("ec_key_prime256v1.json");
+	ec = jwks_item_get(ks, 0);
+
+	for (i = 0; i < ARRAY_SIZE(cases); i++) {
+		/* Per-signature headers are only in the JSON serializations. */
+		for (f = 1; f < ARRAY_SIZE(formats); f++) {
+			for (ext = 0; ext < 2; ext++) {
+				jwt_builder_auto_t *b = jwt_builder_new();
+				jwt_checker_auto_t *c = NULL;
+				struct crit_seen seen = { 0 };
+				char_auto *tok = NULL;
+				jwt_signature_t *sig;
+				jwt_value_t v;
+				int ret = 0;
+
+				sig = jwt_builder_add_signature(b,
+						JWT_ALG_ES256, ec);
+				ck_assert_ptr_nonnull(sig);
+				ck_assert_int_eq(jwt_builder_set_format(b,
+						formats[f]), 0);
+				if (!cases[i].b64) {
+					ck_assert_int_eq(jwt_builder_setpayload(
+						b, RAW, RAW_LEN), 0);
+					ck_assert_int_eq(jwt_builder_setb64(b,
+						0), 0);
+				}
+				if (ext) {
+					jwt_set_SET_JSON(&v, "x-ext", "[1]");
+					ck_assert_int_eq(jwt_builder_header_set(
+						b, &v), JWT_VALUE_ERR_NONE);
+					ck_assert_int_eq(jwt_builder_setcrit(b,
+						"x-ext"), 0);
+				}
+				if (cases[i].x_sig == 1)
+					ret = jwt_signature_add_protected_json(
+						sig, "x-sig", "[1]");
+				else if (cases[i].x_sig == 2)
+					ret = jwt_signature_add_header_json(
+						sig, "x-sig", "[1]");
+				ck_assert_int_eq(ret, 0);
+				ck_assert_int_eq(
+					jwt_signature_add_protected_json(sig,
+					"crit", cases[i].crit), 0);
+
+				tok = jwt_builder_generate(b);
+				if (cases[i].res[ext][0] != '[') {
+					ck_assert_ptr_null(tok);
+					ck_assert_str_eq(
+						jwt_builder_error_msg(b),
+						cases[i].res[ext]);
+					continue;
+				}
+				ck_assert_ptr_nonnull(tok);
+
+				c = jwt_checker_new();
+				ck_assert_int_eq(jwt_checker_setkey(c,
+					JWT_ALG_ES256, ec), 0);
+				ck_assert_int_eq(jwt_checker_understands(c,
+					"x-sig"), 0);
+				ck_assert_int_eq(jwt_checker_understands(c,
+					"x-ext"), 0);
+				ck_assert_int_eq(jwt_checker_setcb(c,
+					cb_crit_seen, &seen), 0);
+				ck_assert_int_eq(jwt_checker_verify(c, tok), 0);
+				ck_assert_uint_eq(seen.n, 1);
+				ck_assert_str_eq(seen.crit[0],
+						 cases[i].res[ext]);
+				free(seen.crit[0]);
+			}
+		}
+	}
+
+	jwks_free(ks);
+}
+END_TEST
+
+/* ---- Two signers over one unencoded payload, one with its own "crit" ---- */
+START_TEST(test_b64_sig_crit_multi)
+{
+	/* Each round's "crit", as each signature carries it. */
+	static const char * const want[][2] = {
+		{ "[\"b64\",\"x-ext\",\"x-sig\"]", "[\"b64\",\"x-ext\"]" },
+		{ "[\"b64\",\"x-ext\",\"x-sig\"]", "[\"b64\",\"x-ext\"]" },
+		/* Base64url claims now: "b64" is no longer shared. */
+		{ "[\"x-ext\",\"x-sig\"]", "[\"x-ext\"]" },
+	};
+	jwk_set_t *ks, *rsa, *ring;
+	jwt_builder_auto_t *b = NULL;
+	jwt_signature_t *s1, *s2;
+	jwt_value_t v;
+	size_t n;
+
+	SET_OPS();
+	ks = load_one("ec_key_prime256v1.json");
+	rsa = load_one("rsa_key_2048.json");
+	ring = load_one("ec_key_prime256v1.json");
+	ck_assert_ptr_nonnull(jwks_load_fromfile(ring,
+				KEYDIR "/rsa_key_2048.json"));
+
+	b = jwt_builder_new();
+	s1 = jwt_builder_add_signature(b, JWT_ALG_ES256, jwks_item_get(ks, 0));
+	ck_assert_ptr_nonnull(s1);
+	s2 = jwt_builder_add_signature(b, JWT_ALG_RS256,
+				       jwks_item_get(rsa, 0));
+	ck_assert_ptr_nonnull(s2);
+	ck_assert_int_eq(jwt_builder_setpayload(b, RAW, RAW_LEN), 0);
+	ck_assert_int_eq(jwt_builder_setb64(b, 0), 0);
+	jwt_set_SET_JSON(&v, "x-ext", "[1]");
+	ck_assert_int_eq(jwt_builder_header_set(b, &v), JWT_VALUE_ERR_NONE);
+	ck_assert_int_eq(jwt_builder_setcrit(b, "x-ext"), 0);
+	ck_assert_int_eq(jwt_signature_add_protected_json(s1, "x-sig", "[1]"),
+			 0);
+	ck_assert_int_eq(jwt_signature_add_protected_json(s1, "crit",
+							  "[\"x-sig\"]"), 0);
+
+	/* Generating must leave each signature's own "crit" as it was. Had
+	 * the first one kept the shared names, it would still list "b64" in
+	 * the last round, which the builder refuses. Generating twice with
+	 * the same settings cannot tell. */
+	for (n = 0; n < ARRAY_SIZE(want); n++) {
+		jwt_checker_auto_t *c = jwt_checker_new();
+		struct crit_seen seen = { 0 };
+		char_auto *tok = NULL;
+
+		if (n == ARRAY_SIZE(want) - 1) {
+			ck_assert_int_eq(jwt_builder_setpayload(b, NULL, 0), 0);
+			ck_assert_int_eq(jwt_builder_setb64(b, 1), 0);
+		}
+		tok = jwt_builder_generate(b);
+		ck_assert_ptr_nonnull(tok);
+		ck_assert_int_eq(jwt_checker_setkeyring(c, ring,
+					JWT_VERIFY_POLICY_ALL), 0);
+		ck_assert_int_eq(jwt_checker_understands(c, "x-sig"), 0);
+		ck_assert_int_eq(jwt_checker_understands(c, "x-ext"), 0);
+		ck_assert_int_eq(jwt_checker_setcb(c, cb_crit_seen, &seen), 0);
+		ck_assert_int_eq(jwt_checker_verify(c, tok), 0);
+		ck_assert_uint_eq(jwt_checker_sig_count(c), 2);
+		ck_assert_uint_eq(seen.n, 2);
+		ck_assert_str_eq(seen.crit[0], want[n][0]);
+		ck_assert_str_eq(seen.crit[1], want[n][1]);
+		free(seen.crit[0]);
+		free(seen.crit[1]);
+	}
+
+	jwks_free(ks);
+	jwks_free(rsa);
+	jwks_free(ring);
+}
+END_TEST
+
 static Suite *libjwt_suite(const char *title)
 {
 	Suite *s;
@@ -1057,6 +1334,9 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, test_b64_false_jti, 0, i);
 	tcase_add_loop_test(tc_core, test_b64_unprotected, 0, i);
 	tcase_add_loop_test(tc_core, test_b64_builder_guards, 0, i);
+	tcase_add_loop_test(tc_core, test_b64_crit_entries, 0, i);
+	tcase_add_loop_test(tc_core, test_b64_sig_crit, 0, i);
+	tcase_add_loop_test(tc_core, test_b64_sig_crit_multi, 0, i);
 
 	tcase_set_timeout(tc_core, 60);
 	suite_add_tcase(s, tc_core);

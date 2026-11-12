@@ -367,6 +367,43 @@ START_TEST(test_edges)
 	ck_assert_int_eq(jwt_builder_set_format(b3, JWT_FORMAT_JSON_FLAT), 0);
 	ck_assert_ptr_null(jwt_builder_generate(b3));
 
+	/* (c2) A Compact token carries only the jwt_builder_setkey() signer. A
+	 * lone jwt_builder_add_signature() signer is refused rather than
+	 * dropped, which emitted an unsigned token; Flattened carries it. */
+	{
+		jwt_builder_auto_t *b4 = jwt_builder_new();
+		char_auto *t4 = NULL;
+
+		sig = jwt_builder_add_signature(b4, JWT_ALG_ES256, ec);
+		ck_assert_ptr_nonnull(sig);
+		ck_assert_int_eq(jwt_signature_add_protected_json(sig, "kid",
+			"\"k4\""), 0);
+		ck_assert_ptr_null(jwt_builder_generate(b4));
+		ck_assert_str_eq(jwt_builder_error_msg(b4),
+			"Compact serialization cannot carry a "
+			"jwt_builder_add_signature() signer");
+
+		ck_assert_int_eq(jwt_builder_set_format(b4,
+			JWT_FORMAT_JSON_FLAT), 0);
+		t4 = jwt_builder_generate(b4);
+		ck_assert_ptr_nonnull(t4);
+		ck_assert_int_eq(jwt_checker_verify(c1, t4), 0);
+	}
+
+	/* (c3) A setkey() signer still makes a Compact token, also when
+	 * setkey() follows a lone add_signature(). */
+	{
+		jwt_builder_auto_t *b5 = jwt_builder_new();
+		char_auto *t5 = NULL;
+
+		ck_assert_ptr_nonnull(jwt_builder_add_signature(b5,
+			JWT_ALG_ES256, ec));
+		ck_assert_int_eq(jwt_builder_setkey(b5, JWT_ALG_ES256, ec), 0);
+		t5 = jwt_builder_generate(b5);
+		ck_assert_ptr_nonnull(t5);
+		ck_assert_int_eq(jwt_checker_verify(c1, t5), 0);
+	}
+
 	/* (d) A verify callback runs per signature: allow then reject. */
 	c2 = jwt_checker_new();
 	ck_assert_int_eq(jwt_checker_setkey(c2, JWT_ALG_ES256, ec), 0);

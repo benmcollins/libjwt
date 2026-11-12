@@ -1401,6 +1401,21 @@ char *FUNC(generate)(jwt_common_t *__cmd)
 		return NULL;
 	}
 
+	/* That signature is the jwt_builder_setkey() signer, which setkey()
+	 * mirrors into the first node. A lone node that does not match it was
+	 * added with jwt_builder_add_signature(): the token would be emitted
+	 * without that signer (unsigned, when setkey() was never called), so
+	 * refuse it instead of dropping it. */
+	if (__cmd->c.n_signatures == 1) {
+		struct jwt_signature *s = jwt_signature_first(&__cmd->c);
+
+		if (s->alg != __cmd->c.alg || s->key != __cmd->c.key) {
+			jwt_write_error(__cmd, "Compact serialization cannot "
+				"carry a jwt_builder_add_signature() signer");
+			return NULL;
+		}
+	}
+
 	if (jwt_head_setup(jwt))
 		return NULL; // LCOV_EXCL_LINE
 

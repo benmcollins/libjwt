@@ -583,6 +583,11 @@ int jwt_builder_set_format(jwt_builder_t *builder, jwt_serialization_t format);
  * its own protected header and the shared payload, so signers may use different
  * algorithms (e.g. RS256 and ES256). ``alg`` must not be ::JWT_ALG_NONE.
  *
+ * A Compact token carries only the jwt_builder_setkey() signer. If the only
+ * signer was added with this function, select ::JWT_FORMAT_JSON_FLAT or
+ * ::JWT_FORMAT_JSON_GENERAL: in ::JWT_FORMAT_COMPACT, jwt_builder_generate()
+ * fails rather than emit a token without it.
+ *
  * @param builder Pointer to a builder object
  * @param alg A valid ::jwt_alg_t type (not ::JWT_ALG_NONE)
  * @param key A JWK private key matching @p alg
@@ -603,6 +608,16 @@ jwt_signature_t *jwt_builder_add_signature(jwt_builder_t *builder, jwt_alg_t alg
  * library sets ``alg`` from the signer, and ``b64`` from jwt_builder_setb64()
  * for every signature alike, since it describes the shared payload
  * (@rfc{7797,3}).
+ *
+ * A ``crit`` (@rfc{7515,4.1.11}) set here lists this signature's own critical
+ * parameters. Like the builder's ``crit``, it must be a non-empty array of
+ * distinct names that RFC 7515 and JWA do not define, each present in this
+ * signature's protected header, which includes the builder's header (a member
+ * set with jwt_signature_add_header_json() does not count).
+ * jwt_builder_generate() lists the builder's critical names (its ``crit``
+ * header, jwt_builder_setcrit(), and ``b64`` for an unencoded payload) first
+ * and this signature's others after them, and fails rather than emit an
+ * invalid ``crit``.
  *
  * @param signature A handle from jwt_builder_add_signature()
  * @param key The header parameter name
