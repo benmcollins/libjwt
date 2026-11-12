@@ -1222,11 +1222,17 @@ int jwt_checker_enable_embedded_jwk_keyring(jwt_checker_t *checker,
  *
  * Treat what the callback sees as unverified: the header and claims count as
  * verified only once jwt_checker_verify() (or jwt_checker_verify_detached())
- * returns 0 and, in a JWS JSON Serialization, where each signature has its
- * own header, a header only if jwt_checker_sig_verified() also reports its
- * signature as verified. Act on them (e.g. record them) only then, or in a
- * jti callback (jwt_checker_setjti()), which runs after the signature and
- * claim checks.
+ * returns 0. Act on them (e.g. record them) only then, or act on the claims
+ * in a jti callback (jwt_checker_setjti()), which runs after the signature
+ * and claim checks. In a JWS JSON Serialization with several signatures,
+ * each has its own header, and under ::JWT_VERIFY_POLICY_ANY the token is
+ * accepted if one of them verifies, so a header the callback saw may belong
+ * to a signature that did not. The callback is not told which signature it
+ * runs for, and one that the ``"typ"`` or algorithm policy skips gets no
+ * call, so its calls do not line up with the indexes of
+ * jwt_checker_sig_verified(): rely on such a header only under
+ * ::JWT_VERIFY_POLICY_ALL, where every signature of an accepted token
+ * verified.
  *
  * The callback can also set the key and algorithm used to verify the signature.
  * If the callback returns non-zero, then processing will stop and return an
