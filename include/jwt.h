@@ -1215,9 +1215,10 @@ int jwt_checker_enable_embedded_jwk_keyring(jwt_checker_t *checker,
  *
  * When verifying a token, this callback will be run after jwt_t has been
  * parsed, but before the token is verified (including signature
- * verification). During this, the callback should only inspect the header or
- * claims in the JWT; the checks that follow may see any change it makes to
- * them.
+ * verification). During this, the callback must only inspect the header and
+ * claims in the JWT, never change them: the checks that follow read the jwt_t
+ * as the callback leaves it, so deleting the ``exp`` claim, for example, lets
+ * an expired token pass.
  *
  * The callback can also set the key and algorithm used to verify the signature.
  * If the callback returns non-zero, then processing will stop and return an
@@ -1914,9 +1915,10 @@ int jwt_checker_time_leeway(jwt_checker_t *checker, jwt_claims_t claim,
  * created, then you can provide this during the builder callback on the jwt_t
  * object.
  *
- * When verifying a token, the checker callback should not modify the jwt_t
- * object at all. Access to the jwt_t is provided only to allow additional
- * validation beyond LibJWT's internal checks.
+ * When verifying a token, the checker callback must not modify the jwt_t
+ * object at all, since LibJWT's own checks that follow see the change (see
+ * jwt_checker_setcb()). Access to the jwt_t is provided only to allow
+ * additional validation beyond LibJWT's internal checks.
  * @{
  */
 
