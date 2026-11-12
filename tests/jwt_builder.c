@@ -783,6 +783,34 @@ START_TEST(claim_json_setgetdel)
 }
 END_TEST
 
+START_TEST(merge_nameless_array)
+{
+	jwt_builder_auto_t *builder = NULL;
+	jwt_value_t jval;
+
+	SET_OPS();
+
+	builder = jwt_builder_new();
+	ck_assert_ptr_nonnull(builder);
+
+	/* Only a JSON object can be merged into the header or the claims,
+	 * whether or not it replaces members; an array used to crash the
+	 * json-c backend. */
+	jwt_set_SET_JSON(&jval, NULL, "[1,2]");
+	ck_assert_int_eq(jwt_builder_header_set(builder, &jval),
+			 JWT_VALUE_ERR_INVALID);
+	jwt_set_SET_JSON(&jval, "", "[{\"a\":1}]");
+	jval.replace = 1;
+	ck_assert_int_eq(jwt_builder_claim_set(builder, &jval),
+			 JWT_VALUE_ERR_INVALID);
+
+	/* An object still merges. */
+	jwt_set_SET_JSON(&jval, NULL, "{\"a\":1}");
+	ck_assert_int_eq(jwt_builder_claim_set(builder, &jval),
+			 JWT_VALUE_ERR_NONE);
+}
+END_TEST
+
 START_TEST(header_str_setgetdel)
 {
 	const char exp[] = "eyJhbGciOiJub25lIiwidHlwIjoiQ3VzdG9tIn0.e30.";
@@ -1333,6 +1361,170 @@ START_TEST(jti_setjti_null)
 }
 END_TEST
 
+/* JSON with "\u0000" in a string or an object key is refused, as Jansson
+ * refuses it: json-c decoded it, and libjwt read the value or key only up
+ * to the NUL. A backslash followed by "u0000" is not a NUL. */
+START_TEST(json_nul_refused)
+{
+	jwt_builder_auto_t *builder = NULL;
+	jwt_signature_t *sig;
+	jwt_value_t jval;
+
+	SET_OPS();
+
+	read_json("oct_key_256.json");
+
+	builder = jwt_builder_new();
+	ck_assert_ptr_nonnull(builder);
+
+	jwt_set_SET_JSON(&jval, NULL, "{\"a\":\"x\\u0000y\"}");
+	ck_assert_int_eq(jwt_builder_claim_set(builder, &jval),
+			 JWT_VALUE_ERR_INVALID);
+	jwt_set_SET_JSON(&jval, "b", "{\"c\\u0000\":1}");
+	ck_assert_int_eq(jwt_builder_claim_set(builder, &jval),
+			 JWT_VALUE_ERR_INVALID);
+	jwt_set_SET_JSON(&jval, NULL, "{\"x-h\":\"\\u0000\"}");
+	ck_assert_int_eq(jwt_builder_header_set(builder, &jval),
+			 JWT_VALUE_ERR_INVALID);
+
+	sig = jwt_builder_add_signature(builder, JWT_ALG_HS256, g_item);
+	ck_assert_ptr_nonnull(sig);
+	ck_assert_int_ne(jwt_signature_add_protected_json(sig, "x-p",
+				"\"a\\u0000b\""), 0);
+
+	jwt_set_SET_JSON(&jval, NULL, "{\"a\":\"\\\\u0000\"}");
+	ck_assert_int_eq(jwt_builder_claim_set(builder, &jval),
+			 JWT_VALUE_ERR_NONE);
+	jwt_set_GET_STR(&jval, "a");
+	ck_assert_int_eq(jwt_builder_claim_get(builder, &jval),
+			 JWT_VALUE_ERR_NONE);
+	ck_assert_str_eq(jval.str_val, "\\u0000");
+
+	/* The signature borrows the key: free it first. */
+	jwt_builder_free(builder);
+	builder = NULL;
+	free_key();
+}
+END_TEST
+
+/* A JSON null in "crit" is an entry that is not a string, as with Jansson.
+ * json-c gives NULL for it, which used to end the checks of "crit" there,
+ * so the entries after it went unchecked and the token was emitted. */
+START_TEST(crit_appset_null_entry)
+{
+	const char *entries = "\"crit\" header entries must be strings";
+	jwt_builder_auto_t *builder = NULL;
+	char_auto *out = NULL;
+	jwt_value_t jval;
+	int ret;
+
+	SET_OPS();
+
+	builder = jwt_builder_new();
+	ck_assert_ptr_nonnull(builder);
+
+	jwt_set_SET_JSON(&jval, "crit", "[null,\"x\"]");
+	ret = jwt_builder_header_set(builder, &jval);
+	ck_assert_int_eq(ret, 0);
+
+	out = jwt_builder_generate(builder);
+	ck_assert_ptr_null(out);
+	ck_assert_str_eq(jwt_builder_error_msg(builder), entries);
+
+	/* Nor when an unencoded payload adds "b64" to it. */
+	jwt_builder_free(builder);
+	builder = jwt_builder_new();
+	ck_assert_ptr_nonnull(builder);
+
+	jwt_set_SET_JSON(&jval, "crit", "[null]");
+	ret = jwt_builder_header_set(builder, &jval);
+	ck_assert_int_eq(ret, 0);
+	ck_assert_int_eq(jwt_builder_setb64(builder, 0), 0);
+	ret = jwt_builder_setpayload(builder, (const unsigned char *)"raw", 3);
+	ck_assert_int_eq(ret, 0);
+
+	out = jwt_builder_generate(builder);
+	ck_assert_ptr_null(out);
+	ck_assert_str_eq(jwt_builder_error_msg(builder), entries);
+}
+END_TEST
+
+/* Merges the JSON object in config->ctx into the header. */
+static int header_json_cb(jwt_t *jwt, jwt_config_t *config)
+{
+	jwt_value_t jval;
+
+	jwt_set_SET_JSON(&jval, NULL, config->ctx);
+
+	return jwt_header_set(jwt, &jval) != JWT_VALUE_ERR_NONE;
+}
+
+/* A "b64" or "crit" header that is JSON null is refused, set directly or by
+ * the callback, as with Jansson. json-c's jwt_json_obj_get() gives NULL for
+ * it, as for a missing member, so the token used to be emitted with it. */
+START_TEST(header_b64_crit_null)
+{
+	const char *must_match = "A \"b64\" header must match "
+		"jwt_builder_setb64()";
+	const char *not_array = "\"crit\" header must be an array";
+	static const struct {
+		char *json;		/* nameless JSON to merge */
+		int cb;			/* by the callback, not header_set */
+		int b64;		/* jwt_builder_setb64() */
+	} cases[] = {
+		{ "{\"b64\":null}", 1, 1 },
+		{ "{\"b64\":null}", 1, 0 },
+		{ "{\"crit\":null}", 0, 1 },
+		{ "{\"crit\":null}", 0, 0 },
+		{ "{\"crit\":null}", 1, 1 },
+	};
+	jwt_value_t jval;
+	size_t c;
+	int ret;
+
+	SET_OPS();
+
+	/* jwt_builder_header_set() refuses "b64" outright. */
+	{
+		jwt_builder_auto_t *builder = jwt_builder_new();
+
+		ck_assert_ptr_nonnull(builder);
+		jwt_set_SET_JSON(&jval, NULL, "{\"b64\":null}");
+		ck_assert_int_eq(jwt_builder_header_set(builder, &jval),
+				 JWT_VALUE_ERR_INVALID);
+	}
+
+	for (c = 0; c < ARRAY_SIZE(cases); c++) {
+		jwt_builder_auto_t *builder = jwt_builder_new();
+		char_auto *out = NULL;
+
+		ck_assert_ptr_nonnull(builder);
+
+		if (cases[c].cb) {
+			ret = jwt_builder_setcb(builder, header_json_cb,
+						cases[c].json);
+		} else {
+			jwt_set_SET_JSON(&jval, NULL, cases[c].json);
+			ret = jwt_builder_header_set(builder, &jval);
+		}
+		ck_assert_int_eq(ret, 0);
+
+		if (!cases[c].b64) {
+			ck_assert_int_eq(jwt_builder_setb64(builder, 0), 0);
+			ret = jwt_builder_setpayload(builder,
+					(const unsigned char *)"raw", 3);
+			ck_assert_int_eq(ret, 0);
+		}
+
+		out = jwt_builder_generate(builder);
+		ck_assert_ptr_null(out);
+		ck_assert_str_eq(jwt_builder_error_msg(builder),
+				 strstr(cases[c].json, "b64") ?
+				 must_match : not_array);
+	}
+}
+END_TEST
+
 static Suite *libjwt_suite(const char *title)
 {
 	Suite *s;
@@ -1381,6 +1573,7 @@ static Suite *libjwt_suite(const char *title)
 	tc_core = tcase_create("Header SetGetDel");
 	/* All of the code paths for str/int/bool/json have been covered. We
 	 * just run this to ensure set/get/del works on headers */
+	tcase_add_loop_test(tc_core, merge_nameless_array, 0, i);
 	tcase_add_loop_test(tc_core, header_str_setgetdel, 0, i);
 	tcase_set_timeout(tc_core, 60);
 	suite_add_tcase(s, tc_core);
@@ -1406,6 +1599,14 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, jti_gen, 0, i);
 	tcase_add_loop_test(tc_core, jti_gen_fail, 0, i);
 	tcase_add_loop_test(tc_core, jti_setjti_null, 0, i);
+	tcase_set_timeout(tc_core, 60);
+	suite_add_tcase(s, tc_core);
+
+	/* json-c behaves as Jansson does */
+	tc_core = tcase_create("JSON Parity");
+	tcase_add_loop_test(tc_core, json_nul_refused, 0, i);
+	tcase_add_loop_test(tc_core, crit_appset_null_entry, 0, i);
+	tcase_add_loop_test(tc_core, header_b64_crit_null, 0, i);
 	tcase_set_timeout(tc_core, 60);
 	suite_add_tcase(s, tc_core);
 

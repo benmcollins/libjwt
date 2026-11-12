@@ -239,7 +239,9 @@ static jwk_item_t *jwk_process_one(jwk_set_t *jwk_set, jwt_json_t *jwk)
 	}
 
 	memset(item, 0, sizeof(*item));
-	item->json = jwt_json_clone(jwk);
+	/* json-c hands out a JSON null array element as NULL: make it an
+	 * empty object, which fails below as Jansson's null does. */
+	item->json = jwk ? jwt_json_clone(jwk) : jwt_json_create();
 	if (item->json == NULL) {
 		// LCOV_EXCL_START
 		/* Only free what this function owns: the jwk_item_t allocated
