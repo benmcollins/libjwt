@@ -872,10 +872,12 @@ static void try_candidate(jwt_t *jwt, struct jwt_signature *s,
 	/* @rfc{8725,3.1} Exact-alg pin: if the candidate key declares an "alg",
 	 * the signature's alg must match it exactly, not merely its family (the
 	 * kty gate above is family-granular -- every RSn/PSn maps to RSA). This
-	 * is the JSON-path mirror of the Compact pinned-alg check and the keyring
-	 * scan's own "kalg != s->alg" skip, applied at the single choke point so
-	 * the explicit-key and "kid"-matched branches are covered too: without
-	 * it a key declaring "RS256" would verify an "RS512" signature. */
+	 * is the JSON-path mirror of the Compact pinned key-alg check (the
+	 * checker's or callback's pinned alg is applied in verify_entry()) and
+	 * the keyring scan's own "kalg != s->alg" skip, applied at the single
+	 * choke point so the explicit-key and "kid"-matched branches are
+	 * covered too: without it a key declaring "RS256" would verify an
+	 * "RS512" signature. */
 	if (jwks_item_alg(key) != JWT_ALG_NONE && jwks_item_alg(key) != s->alg)
 		return;
 
@@ -896,9 +898,10 @@ static void try_candidate(jwt_t *jwt, struct jwt_signature *s,
 	jwt->error_msg[0] = '\0';
 }
 
-/* Verify one signature entry: run the optional per-signature callback, select
- * the key (the checker's single key, a "kid"-named keyring key, or every
- * compatible keyring key), and verify. */
+/* Verify one signature entry: run the optional per-signature callback, hold
+ * the signature to the pinned algorithm, select the key (the checker's single
+ * key, a "kid"-named keyring key, or every compatible keyring key), and
+ * verify. */
 static int verify_entry(jwt_checker_t *checker, jwt_t *jwt,
 			struct jwt_signature *s, const char *payload_b64,
 			int payload_len)
@@ -945,11 +948,23 @@ static int verify_entry(jwt_checker_t *checker, jwt_t *jwt,
 		config.key = checker->c.key;
 		scan = 0;
 	}
-	config.alg = s->alg;
+	/* As on the Compact path, the callback sees (and may change) the
+	 * algorithm the checker pinned with its key; without one, this
+	 * signature's own. */
+	config.alg = (checker->c.alg != JWT_ALG_NONE) ? checker->c.alg : s->alg;
 	config.ctx = checker->c.cb_ctx;
 
 	if (checker->c.cb && checker->c.cb(jwt, &config)) {
 		/* Callback rejected this signature; not a hard error under ANY. */
+		jwt->headers = NULL;
+		return 0;
+	}
+
+	/* @rfc{8725,3.1} Pin the EXACT algorithm, as the Compact path does: a
+	 * signature whose "alg" is not the one pinned (by jwt_checker_setkey()
+	 * or in config->alg by the callback) does not verify, even with a key
+	 * that has no "alg" of its own to pin it in try_candidate(). */
+	if (config.alg != JWT_ALG_NONE && config.alg != s->alg) {
 		jwt->headers = NULL;
 		return 0;
 	}

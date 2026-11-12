@@ -1163,6 +1163,170 @@ START_TEST(test_compact_keyring_embedded)
 }
 END_TEST
 
+/* ====================================================================
+ * The JSON path (which a keyring checker also takes for a Compact token):
+ * the pinned algorithm.
+ * ==================================================================== */
+
+static const jwt_serialization_t all_fmt[] = {
+	JWT_FORMAT_COMPACT, JWT_FORMAT_JSON_FLAT, JWT_FORMAT_JSON_GENERAL,
+};
+
+/* A token over {"sub":"alice"} signed by @key under @alg in @fmt, with the
+ * members of the JSON object @hdr (if not NULL) added to its header. */
+static char *fmt_tok(jwt_alg_t alg, const jwk_item_t *key, const char *hdr,
+		     jwt_serialization_t fmt)
+{
+	jwt_builder_auto_t *b = jwt_builder_new();
+	jwt_value_t v;
+	char *tok;
+
+	ck_assert_ptr_nonnull(b);
+	ck_assert_int_eq(jwt_builder_setkey(b, alg, key), 0);
+	if (hdr != NULL) {
+		jwt_set_SET_JSON(&v, NULL, (char *)hdr);
+		ck_assert_int_eq(jwt_builder_header_set(b, &v),
+				 JWT_VALUE_ERR_NONE);
+	}
+	jwt_set_SET_STR(&v, "sub", "alice");
+	ck_assert_int_eq(jwt_builder_claim_set(b, &v), JWT_VALUE_ERR_NONE);
+	ck_assert_int_eq(jwt_builder_set_format(b, fmt), 0);
+	tok = jwt_builder_generate(b);
+	ck_assert_ptr_nonnull(tok);
+
+	return tok;
+}
+
+struct cb_pin_ctx {
+	jwt_alg_t pin;		/* set in config->alg, unless JWT_ALG_NONE */
+	jwt_alg_t seen;		/* config->alg as the callback found it */
+};
+
+static int cb_pin(jwt_t *jwt, jwt_config_t *config)
+{
+	struct cb_pin_ctx *x = config->ctx;
+
+	(void)jwt;
+	x->seen = config->alg;
+	if (x->pin != JWT_ALG_NONE)
+		config->alg = x->pin;
+
+	return 0;
+}
+
+/* ---- The pinned algorithm holds in every serialization ---- */
+START_TEST(test_json_alg_pin)
+{
+	static const jwt_alg_t other[] = { JWT_ALG_PS256, JWT_ALG_RS512 };
+	struct cb_pin_ctx look = { JWT_ALG_NONE, JWT_ALG_NONE };
+	struct cb_pin_ctx pin = { JWT_ALG_RS256, JWT_ALG_NONE };
+	jwt_builder_auto_t *b = NULL;
+	jwt_checker_auto_t *one = NULL;
+	char_auto *two = NULL;
+	jwk_set_t *ks;
+	const jwk_item_t *key;
+	size_t f, i, p;
+
+	SET_OPS();
+
+	/* An RSA key without an "alg" of its own: only the checker, or the
+	 * callback, pins one. */
+	ks = load_one("rsa_key_2048_no_alg.json");
+	key = jwks_item_get(ks, 0);
+
+	for (f = 0; f < ARRAY_SIZE(all_fmt); f++) {
+		char_auto *rs = fmt_tok(JWT_ALG_RS256, key, NULL, all_fmt[f]);
+
+		for (i = 0; i < ARRAY_SIZE(other); i++) {
+			char_auto *t = fmt_tok(other[i], key, NULL, all_fmt[f]);
+			struct cb_pin_ctx over = { other[i], JWT_ALG_NONE };
+			jwt_checker_auto_t *c1 = NULL, *c2 = NULL;
+
+			/* jwt_checker_setkey(RS256): RS256 verifies, the other
+			 * algorithms of the key's type do not, and the callback
+			 * sees the pinned one. */
+			c1 = jwt_checker_new();
+			ck_assert_int_eq(jwt_checker_setkey(c1, JWT_ALG_RS256,
+							    key), 0);
+			ck_assert_int_eq(jwt_checker_setcb(c1, cb_pin, &look), 0);
+			ck_assert_int_eq(jwt_checker_verify(c1, rs), 0);
+			look.seen = JWT_ALG_NONE;
+			ck_assert_int_ne(jwt_checker_verify(c1, t), 0);
+			ck_assert_str_eq(jwt_checker_error_msg(c1),
+				all_fmt[f] == JWT_FORMAT_COMPACT ?
+				"Config alg does not match JWT" : ERR_POLICY_1);
+			ck_assert_int_eq(look.seen, JWT_ALG_RS256);
+
+			/* The callback may pin another algorithm instead. */
+			c2 = jwt_checker_new();
+			ck_assert_int_eq(jwt_checker_setkey(c2, JWT_ALG_RS256,
+							    key), 0);
+			ck_assert_int_eq(jwt_checker_setcb(c2, cb_pin, &over), 0);
+			ck_assert_int_eq(jwt_checker_verify(c2, t), 0);
+			ck_assert_int_ne(jwt_checker_verify(c2, rs), 0);
+
+			/* A keyring pins no algorithm: the callback sees the
+			 * signature's own and both tokens verify, unless the
+			 * callback pins one. */
+			for (p = 0; p < ARRAY_SIZE(both_pol); p++) {
+				jwt_checker_auto_t *c = jwt_checker_new();
+
+				ck_assert_int_eq(jwt_checker_setkeyring(c, ks,
+					both_pol[p]), 0);
+				ck_assert_int_eq(jwt_checker_setcb(c, cb_pin,
+					&look), 0);
+				ck_assert_int_eq(jwt_checker_verify(c, t), 0);
+				ck_assert_int_eq(look.seen, other[i]);
+				ck_assert_int_eq(jwt_checker_verify(c, rs), 0);
+
+				ck_assert_int_eq(jwt_checker_setcb(c, cb_pin,
+					&pin), 0);
+				ck_assert_int_eq(jwt_checker_verify(c, rs), 0);
+				ck_assert_int_ne(jwt_checker_verify(c, t), 0);
+				ck_assert_str_eq(jwt_checker_error_msg(c),
+						 ERR_POLICY_1);
+			}
+		}
+	}
+
+	/* One key signing RS256 and PS256 in a General token: with RS256
+	 * pinned, the PS256 signature does not count. */
+	b = jwt_builder_new();
+	ck_assert_int_eq(jwt_builder_setkey(b, JWT_ALG_RS256, key), 0);
+	ck_assert_ptr_nonnull(jwt_builder_add_signature(b, JWT_ALG_PS256, key));
+	two = jwt_builder_generate(b);
+	ck_assert_ptr_nonnull(two);
+
+	one = jwt_checker_new();
+	ck_assert_int_eq(jwt_checker_setkey(one, JWT_ALG_RS256, key), 0);
+	ck_assert_int_eq(jwt_checker_verify(one, two), 0);
+	ck_assert_uint_eq(jwt_checker_sig_count(one), 2);
+	ck_assert_int_eq(jwt_checker_sig_verified(one, 0), 1);
+	ck_assert_int_eq(jwt_checker_sig_verified(one, 1), 0);
+
+	for (p = 0; p < ARRAY_SIZE(both_pol); p++) {
+		jwt_checker_auto_t *c = jwt_checker_new();
+
+		ck_assert_int_eq(jwt_checker_setkeyring(c, ks, both_pol[p]), 0);
+		ck_assert_int_eq(jwt_checker_verify(c, two), 0);
+		ck_assert_int_eq(jwt_checker_sig_verified(c, 1), 1);
+
+		ck_assert_int_eq(jwt_checker_setcb(c, cb_pin, &pin), 0);
+		if (both_pol[p] == JWT_VERIFY_POLICY_ALL) {
+			ck_assert_int_ne(jwt_checker_verify(c, two), 0);
+			ck_assert_str_eq(jwt_checker_error_msg(c),
+				"Signature policy not met (1 of 2 verified)");
+		} else {
+			ck_assert_int_eq(jwt_checker_verify(c, two), 0);
+		}
+		ck_assert_int_eq(jwt_checker_sig_verified(c, 0), 1);
+		ck_assert_int_eq(jwt_checker_sig_verified(c, 1), 0);
+	}
+
+	jwks_free(ks);
+}
+END_TEST
+
 static Suite *libjwt_suite(const char *title)
 {
 	Suite *s;
@@ -1189,6 +1353,7 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, test_compact_keyring_b64, 0, i);
 	tcase_add_loop_test(tc_core, test_compact_keyring_reuse, 0, i);
 	tcase_add_loop_test(tc_core, test_compact_keyring_embedded, 0, i);
+	tcase_add_loop_test(tc_core, test_json_alg_pin, 0, i);
 
 	tcase_set_timeout(tc_core, 60);
 

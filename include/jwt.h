@@ -995,6 +995,12 @@ void jwt_checker_error_clear(jwt_checker_t *checker);
  *
  * See @ref jwt_builder_setkey for detailed information.
  *
+ * A signature, of a Compact token or of a JWS JSON Serialization alike,
+ * verifies only if it uses exactly that algorithm (with ::JWT_ALG_NONE, the
+ * key's ``"alg"``), not merely one the key could check (e.g. RS512 or PS256
+ * when pinned to RS256). A verify callback that sets config->alg pins that
+ * algorithm instead.
+ *
  * A NULL key (with ::JWT_ALG_NONE) also drops a keyring. Unless embedded-JWK
  * verification is enabled (this does not turn it off), the checker is then
  * unkeyed: it verifies no JWS JSON Serialization, and of Compact tokens only
@@ -1045,13 +1051,16 @@ typedef enum {
  * ``kid`` value is ignored) is verified only against the ring key with that
  * ``kid``; if the ring has none, that signature does not verify (there is no
  * fallback to the other keys). A signature without a ``kid`` is tried against
- * every compatible key. Each candidate is held to the usual algorithm/key-type
- * binding and, when the key declares an ``"alg"``, to exactly that algorithm.
- * The ``"typ"`` and algorithm policy, the verify callback (run once for each
- * signature that meets that policy, until an error such as an unsupported
- * ``"crit"`` header ends the verification; it may supply the key), the claim
- * checks and the jti check all apply, and an unsigned (``"alg":"none"``) token
- * is never accepted.
+ * every compatible key.
+ *
+ * Each candidate is held to the usual algorithm/key-type binding and, when the
+ * key declares an ``"alg"``, to exactly that algorithm. The ``"typ"`` and
+ * algorithm policy, the verify callback (run once for each signature that
+ * meets that policy, until an error such as an unsupported ``"crit"`` header
+ * ends the verification), the claim checks and the jti check all apply, and
+ * an unsigned (``"alg":"none"``) token is never accepted. The callback may
+ * supply the key, which is then the only one tried; if it sets config->alg, a
+ * signature with another ``"alg"`` does not verify.
  *
  * A ring key is not tied to an issuer: when the ring holds the keys of several
  * issuers, a token without a ``kid`` verifies with whichever of them signed
