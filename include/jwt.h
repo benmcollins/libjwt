@@ -1047,11 +1047,11 @@ typedef enum {
  * a JSON Serialization signature by signature, and a Compact token exactly as
  * the equivalent one-signature (Flattened) JSON token.
  *
- * A signature whose protected header names a ``kid`` (a string; any other
- * ``kid`` value is ignored) is verified only against the ring key with that
- * ``kid``; if the ring has none, that signature does not verify (there is no
- * fallback to the other keys). A signature without a ``kid`` is tried against
- * every compatible key.
+ * A signature whose protected header names a ``kid`` is verified only against
+ * the ring key with that ``kid``; if the ring has none, that signature does
+ * not verify (there is no fallback to the other keys). A ``kid`` that is not a
+ * string, in either header, fails the verification. A signature without a
+ * ``kid`` is tried against every compatible key.
  *
  * Each candidate is held to the usual algorithm/key-type binding and, when the
  * key declares an ``"alg"``, to exactly that algorithm. The ``"typ"`` and

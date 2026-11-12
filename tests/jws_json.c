@@ -1165,8 +1165,10 @@ END_TEST
 
 /* ====================================================================
  * The JSON path (which a keyring checker also takes for a Compact token):
- * the pinned algorithm.
+ * the pinned algorithm and the type of "kid".
  * ==================================================================== */
+
+#define ERR_KID_TYPE	"\"kid\" header must be a string"
 
 static const jwt_serialization_t all_fmt[] = {
 	JWT_FORMAT_COMPACT, JWT_FORMAT_JSON_FLAT, JWT_FORMAT_JSON_GENERAL,
@@ -1327,6 +1329,73 @@ START_TEST(test_json_alg_pin)
 }
 END_TEST
 
+/* ---- A keyring needs any "kid" to be a string ---- */
+START_TEST(test_keyring_kid_type)
+{
+	static const char * const bad[] = {
+		"{\"kid\":123}", "{\"kid\":null}", "{\"kid\":[\"x\"]}",
+		"{\"kid\":{}}", "{\"kid\":true}",
+	};
+	char_auto *flat = NULL, *hint = NULL;
+	jwk_set_t *ks;
+	const jwk_item_t *key;
+	size_t i, p;
+
+	SET_OPS();
+
+	/* A ring of one key without a "kid": only a scan finds it. */
+	ks = load_one("oct_key_256.json");
+	key = jwks_item_get(ks, 0);
+	flat = fmt_tok(JWT_ALG_HS256, key, NULL, JWT_FORMAT_JSON_FLAT);
+
+	for (i = 0; i < ARRAY_SIZE(bad); i++) {
+		char_auto *ct = NULL, *ft = NULL, *ut = NULL;
+		jwt_checker_auto_t *one = NULL;
+
+		ct = fmt_tok(JWT_ALG_HS256, key, bad[i], JWT_FORMAT_COMPACT);
+		ft = fmt_tok(JWT_ALG_HS256, key, bad[i], JWT_FORMAT_JSON_FLAT);
+		/* In the unprotected header, which the signature does not
+		 * cover. */
+		ck_assert_int_gt(asprintf(&ut, "{\"header\":%s,%s", bad[i],
+					  flat + 1), 0);
+
+		for (p = 0; p < ARRAY_SIZE(both_pol); p++) {
+			jwt_checker_auto_t *c = jwt_checker_new();
+
+			ck_assert_int_eq(jwt_checker_setkeyring(c, ks,
+				both_pol[p]), 0);
+			ck_assert_int_ne(jwt_checker_verify(c, ct), 0);
+			ck_assert_str_eq(jwt_checker_error_msg(c), ERR_KID_TYPE);
+			ck_assert_int_eq(jwt_checker_sig_verified(c, 0), 0);
+			ck_assert_int_ne(jwt_checker_verify(c, ft), 0);
+			ck_assert_str_eq(jwt_checker_error_msg(c), ERR_KID_TYPE);
+			ck_assert_int_ne(jwt_checker_verify(c, ut), 0);
+			ck_assert_str_eq(jwt_checker_error_msg(c), ERR_KID_TYPE);
+		}
+
+		/* A single key is not selected by "kid": no change there. */
+		one = jwt_checker_new();
+		ck_assert_int_eq(jwt_checker_setkey(one, JWT_ALG_HS256, key), 0);
+		ck_assert_int_eq(jwt_checker_verify(one, ct), 0);
+		ck_assert_int_eq(jwt_checker_verify(one, ft), 0);
+	}
+
+	/* A string "kid" in the unprotected header selects no key: the ring
+	 * is scanned, as before. */
+	ck_assert_int_gt(asprintf(&hint, "{\"header\":{\"kid\":\"hint\"},%s",
+				  flat + 1), 0);
+	for (p = 0; p < ARRAY_SIZE(both_pol); p++) {
+		jwt_checker_auto_t *c = jwt_checker_new();
+
+		ck_assert_int_eq(jwt_checker_setkeyring(c, ks, both_pol[p]), 0);
+		ck_assert_int_eq(jwt_checker_verify(c, hint), 0);
+		ck_assert_ptr_eq(jwt_checker_sig_key(c, 0), key);
+	}
+
+	jwks_free(ks);
+}
+END_TEST
+
 static Suite *libjwt_suite(const char *title)
 {
 	Suite *s;
@@ -1354,6 +1423,7 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, test_compact_keyring_reuse, 0, i);
 	tcase_add_loop_test(tc_core, test_compact_keyring_embedded, 0, i);
 	tcase_add_loop_test(tc_core, test_json_alg_pin, 0, i);
+	tcase_add_loop_test(tc_core, test_keyring_kid_type, 0, i);
 
 	tcase_set_timeout(tc_core, 60);
 

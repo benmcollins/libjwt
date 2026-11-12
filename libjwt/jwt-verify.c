@@ -855,6 +855,64 @@ static int build_sig_entry(jwt_checker_t *checker, jwt_json_t *entry,
 	return 0;
 }
 
+struct member_find {
+	const char *name;
+	jwt_json_t *value;
+	int found;
+};
+
+static int member_find_cb(const char *key, jwt_json_t *value, void *ctx)
+{
+	struct member_find *m = ctx;
+
+	if (strcmp(key, m->name))
+		return 0;
+
+	m->value = value;
+	m->found = 1;
+
+	return 1;
+}
+
+/* Is member @name present in object @obj? Unlike jwt_json_obj_get(), this
+ * also finds one whose value is JSON null under json-c (which has no null
+ * object, so its obj_get() reports the member as absent); *@value is then
+ * NULL there, while Jansson gives a JSON null. */
+static int json_has(const jwt_json_t *obj, const char *name, jwt_json_t **value)
+{
+	struct member_find m = { name, NULL, 0 };
+
+	jwt_json_obj_foreach(obj, member_find_cb, &m);
+	*value = m.value;
+
+	return m.found;
+}
+
+/* @rfc{7515,4.1.4} Read the "kid" that selects signature @s's ring key, from
+ * its protected header, into *@kid (NULL if there is none). "kid" is a string
+ * wherever it appears: a value of any other type (JSON null included) in
+ * either header returns 1 rather than count as no "kid", which would turn a
+ * key bound by "kid" into a scan of the whole ring. */
+static int sig_kid(const struct jwt_signature *s, const char **kid)
+{
+	jwt_json_t *v;
+
+	*kid = NULL;
+
+	if (s->header != NULL && json_has(s->header, "kid", &v) &&
+	    !jwt_json_is_string(v))
+		return 1;
+
+	if (!json_has(s->protected, "kid", &v))
+		return 0;
+	if (!jwt_json_is_string(v))
+		return 1;
+
+	*kid = jwt_json_str_val(v);
+
+	return 0;
+}
+
 /* Try one candidate key against signature @s over @input. Applies the
  * algorithm/key-type anti-confusion gate (GHSA-q843-6q5f-w55g) before any
  * verify, and routes the crypto to the key's origin backend via jwt_item_ops()
@@ -909,7 +967,7 @@ static int verify_entry(jwt_checker_t *checker, jwt_t *jwt,
 	JWT_CONFIG_DECLARE(config);
 	const jwk_set_t *ring = checker->c.keyring;
 	char_auto *input = NULL;
-	const char *kid;
+	const char *kid = NULL;
 	int prot_len, scan;
 
 	/* @rfc{7515,5.1} Signing input is the VERBATIM protected_b64 "." payload_b64. */
@@ -930,6 +988,13 @@ static int verify_entry(jwt_checker_t *checker, jwt_t *jwt,
 		return 1;
 	}
 
+	/* A keyring selects the key by "kid", so it must be a string. */
+	if (ring != NULL && sig_kid(s, &kid)) {
+		jwt_write_error(checker, "\"kid\" header must be a string");
+		jwt->headers = NULL;
+		return 1;
+	}
+
 	/* @rfc{8725} A signature whose "typ"/alg does not meet the checker's
 	 * expectation is simply not accepted (skipped), so the policy decides. */
 	if (!jwt_typ_alg_ok(jwt)) {
@@ -939,7 +1004,6 @@ static int verify_entry(jwt_checker_t *checker, jwt_t *jwt,
 
 	/* Seed the candidate: a kid-named keyring key (a binding assertion, no
 	 * fallback), or the checker's single key. A keyless keyring entry scans. */
-	kid = json_str(s->protected, "kid");
 	if (ring != NULL) {
 		config.key = (kid != NULL)
 			? jwks_find_bykid((jwk_set_t *)ring, kid) : NULL;
