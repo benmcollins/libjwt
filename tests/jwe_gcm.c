@@ -341,6 +341,7 @@ START_TEST(alg_enc_mismatch)
 	tok = jwe_builder_generate(builder, (const unsigned char *)PT,
 				   strlen(PT));
 	ck_assert_ptr_nonnull(tok);
+	free_key();
 
 	/* Checker configured for a different enc than the token carries. */
 	read_json("oct_dir_128.json");
