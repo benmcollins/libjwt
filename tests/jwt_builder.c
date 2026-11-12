@@ -1449,6 +1449,82 @@ START_TEST(crit_appset_null_entry)
 }
 END_TEST
 
+/* Merges the JSON object in config->ctx into the header. */
+static int header_json_cb(jwt_t *jwt, jwt_config_t *config)
+{
+	jwt_value_t jval;
+
+	jwt_set_SET_JSON(&jval, NULL, config->ctx);
+
+	return jwt_header_set(jwt, &jval) != JWT_VALUE_ERR_NONE;
+}
+
+/* A "b64" or "crit" header that is JSON null is refused, set directly or by
+ * the callback, as with Jansson. json-c's jwt_json_obj_get() gives NULL for
+ * it, as for a missing member, so the token used to be emitted with it. */
+START_TEST(header_b64_crit_null)
+{
+	const char *must_match = "A \"b64\" header must match "
+		"jwt_builder_setb64()";
+	const char *not_array = "\"crit\" header must be an array";
+	static const struct {
+		char *json;		/* nameless JSON to merge */
+		int cb;			/* by the callback, not header_set */
+		int b64;		/* jwt_builder_setb64() */
+	} cases[] = {
+		{ "{\"b64\":null}", 1, 1 },
+		{ "{\"b64\":null}", 1, 0 },
+		{ "{\"crit\":null}", 0, 1 },
+		{ "{\"crit\":null}", 0, 0 },
+		{ "{\"crit\":null}", 1, 1 },
+	};
+	jwt_value_t jval;
+	size_t c;
+	int ret;
+
+	SET_OPS();
+
+	/* jwt_builder_header_set() refuses "b64" outright. */
+	{
+		jwt_builder_auto_t *builder = jwt_builder_new();
+
+		ck_assert_ptr_nonnull(builder);
+		jwt_set_SET_JSON(&jval, NULL, "{\"b64\":null}");
+		ck_assert_int_eq(jwt_builder_header_set(builder, &jval),
+				 JWT_VALUE_ERR_INVALID);
+	}
+
+	for (c = 0; c < ARRAY_SIZE(cases); c++) {
+		jwt_builder_auto_t *builder = jwt_builder_new();
+		char_auto *out = NULL;
+
+		ck_assert_ptr_nonnull(builder);
+
+		if (cases[c].cb) {
+			ret = jwt_builder_setcb(builder, header_json_cb,
+						cases[c].json);
+		} else {
+			jwt_set_SET_JSON(&jval, NULL, cases[c].json);
+			ret = jwt_builder_header_set(builder, &jval);
+		}
+		ck_assert_int_eq(ret, 0);
+
+		if (!cases[c].b64) {
+			ck_assert_int_eq(jwt_builder_setb64(builder, 0), 0);
+			ret = jwt_builder_setpayload(builder,
+					(const unsigned char *)"raw", 3);
+			ck_assert_int_eq(ret, 0);
+		}
+
+		out = jwt_builder_generate(builder);
+		ck_assert_ptr_null(out);
+		ck_assert_str_eq(jwt_builder_error_msg(builder),
+				 strstr(cases[c].json, "b64") ?
+				 must_match : not_array);
+	}
+}
+END_TEST
+
 static Suite *libjwt_suite(const char *title)
 {
 	Suite *s;
@@ -1530,6 +1606,7 @@ static Suite *libjwt_suite(const char *title)
 	tc_core = tcase_create("JSON Parity");
 	tcase_add_loop_test(tc_core, json_nul_refused, 0, i);
 	tcase_add_loop_test(tc_core, crit_appset_null_entry, 0, i);
+	tcase_add_loop_test(tc_core, header_b64_crit_null, 0, i);
 	tcase_set_timeout(tc_core, 60);
 	suite_add_tcase(s, tc_core);
 

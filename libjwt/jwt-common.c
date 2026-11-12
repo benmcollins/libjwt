@@ -467,8 +467,8 @@ jwt_value_error_t FUNC(header_set)(jwt_common_t *__cmd, jwt_value_t *value)
 			   value->json_val != NULL) {
 			obj = jwt_json_parse(value->json_val,
 					     JWT_JSON_REJECT_DUPLICATES, NULL);
-			b64 = jwt_json_is_object(obj) &&
-			      jwt_json_obj_get(obj, "b64") != NULL;
+			/* Even as JSON null (see jwt_json_obj_has()). */
+			b64 = jwt_json_obj_has(obj, "b64");
 		}
 
 		if (b64) {
@@ -1320,16 +1320,28 @@ char *FUNC(generate)(jwt_common_t *__cmd)
 	 * refuses it), but the callback can still set one with
 	 * jwt_header_set(). Refuse one that disagrees with the setting: the
 	 * token would claim an encoding its payload does not have, and a JWT
-	 * would slip past the b64=false guard below. */
+	 * would slip past the b64=false guard below. A JSON null disagrees
+	 * too, though json-c's jwt_json_obj_get() gives NULL for it. */
 	{
 		jwt_json_t *jb = jwt_json_obj_get(jwt->headers, "b64");
 
-		if (jb != NULL && (!jwt_json_is_bool(jb) ||
-		    (jwt_json_is_true(jb) ? 1 : 0) != jwt->b64)) {
+		if (jwt_json_obj_has(jwt->headers, "b64") &&
+		    (!jwt_json_is_bool(jb) ||
+		     (jwt_json_is_true(jb) ? 1 : 0) != jwt->b64)) {
 			jwt_write_error(__cmd, "A \"b64\" header must match "
 					"jwt_builder_setb64()");
 			return NULL;
 		}
+	}
+
+	/* @rfc{7515,4.1.11} Likewise a "crit" that is JSON null: with json-c,
+	 * jwt_json_obj_get() gives NULL for it, as for no "crit" at all, so
+	 * jwt_apply_b64_header() and jwt_write_crit() below would replace it
+	 * or emit it, where with Jansson they refuse it as not an array. */
+	if (jwt_json_obj_has(jwt->headers, "crit") &&
+	    jwt_json_obj_get(jwt->headers, "crit") == NULL) {
+		jwt_write_error(__cmd, "\"crit\" header must be an array");
+		return NULL;
 	}
 
 	if (!jwt->b64) {
