@@ -1399,8 +1399,9 @@ unsigned int jwt_checker_sig_count(const jwt_checker_t *checker);
  *
  * @param checker Pointer to a checker object
  * @param index A signature index in ``[0, jwt_checker_sig_count())``
- * @return 1 if signature @p index verified against a keyring key, 0 otherwise
- *  (including an out-of-range index)
+ * @return 1 if signature @p index verified, 0 otherwise (including an
+ *  out-of-range index). An unsigned token that an unkeyed checker accepted
+ *  counts as verified, with no key.
  * @since 3.6.0
  */
 JWT_EXPORT
@@ -1411,9 +1412,14 @@ int jwt_checker_sig_verified(const jwt_checker_t *checker, unsigned int index);
  *
  * @param checker Pointer to a checker object
  * @param index A signature index in ``[0, jwt_checker_sig_count())``
- * @return The keyring key that verified signature @p index, or NULL if it did
- *  not verify or the index is out of range. Borrowed from the keyring; do not
- *  free.
+ * @return The key that verified signature @p index, or NULL if it did not
+ *  verify, it is an accepted unsigned token's (which has no key) or the
+ *  index is out of range. It is borrowed, so do not free it: it belongs to
+ *  the keyring, or to whoever supplied it (jwt_checker_setkey() or the
+ *  verify callback), except that a key confirmed by embedded-JWK
+ *  verification belongs to the checker, which keeps it only until the next
+ *  jwt_checker_verify() or jwt_checker_verify_detached() call or
+ *  jwt_checker_free().
  * @since 3.6.0
  */
 JWT_EXPORT
@@ -1430,10 +1436,22 @@ const jwk_item_t *jwt_checker_sig_key(const jwt_checker_t *checker,
  * header. As with jwt_checker_verify(), an unencoded payload is accepted only
  * if ``"b64"`` is present in the token's ``"crit"`` header (RFC 7797 §6).
  *
+ * A base64url payload is verified byte for byte, NULs included. An unencoded
+ * payload is spliced into the token as text, so it must not contain a NUL byte
+ * (jwt_builder_generate() will not sign one either): such a payload is
+ * rejected, never verified only up to the NUL. In the JWS JSON Serialization
+ * it must also be a valid JSON string, which with the Jansson JSON backend
+ * means valid UTF-8.
+ *
+ * Any error already set in @p checker is cleared on entry and every failure
+ * sets one, so jwt_checker_error() and jwt_checker_error_msg() always reflect
+ * this call.
+ *
  * @param checker Pointer to a checker object
  * @param token A string containing the (detached) token to verify
  * @param payload The out-of-band payload bytes
- * @param len The payload length in bytes
+ * @param len The payload length in bytes. For a C string pass its strlen():
+ *  an unencoded payload that counts the terminating NUL is rejected.
  * @return 0 on success, non-zero otherwise with error set in the checker
  * @since 3.6.0
  */

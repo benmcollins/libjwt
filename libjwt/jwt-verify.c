@@ -1132,27 +1132,40 @@ static int detached_b64(const char *prot_b64)
 }
 
 /* @rfc{7797,3} The payload as it appears in the signing input: base64url(@payload)
- * when b64, else the raw bytes. Returns a malloc'd NUL-terminated string. */
-static char *detached_payload_part(int b64, const unsigned char *payload,
-				   size_t len)
+ * when b64, else the raw bytes. Returns a malloc'd NUL-terminated string, or
+ * NULL with the error set in @checker. */
+static char *detached_payload_part(jwt_checker_t *checker, int b64,
+				   const unsigned char *payload, size_t len)
 {
 	char *pp = NULL;
 
 	if (b64) {
+		/* base64url is binary-safe: it carries every byte of @payload. */
 		if (len == 0)
-			return jwt_str_dup("");
-		if (len > INT_MAX ||
-		    jwt_base64uri_encode(&pp, (const char *)payload, (int)len) <= 0)
-			return NULL; // LCOV_EXCL_LINE
-		return pp;
+			pp = jwt_str_dup("");
+		else if (len <= INT_MAX)
+			jwt_base64uri_encode(&pp, (const char *)payload, (int)len);
+	} else if (len && memchr(payload, '\0', len) != NULL) {
+		/* The raw bytes are spliced into a C string (Compact) or a JSON
+		 * string (JSON Serialization), and either one ends at a NUL: the
+		 * bytes after it would be reported as verified without being
+		 * signed (GHSA-v7q9-pwfj-qmf5). Reject the payload instead, just
+		 * as jwt_builder_generate() refuses to sign one. */
+		jwt_write_error(checker,
+			"An unencoded (b64=false) payload must not "
+			"contain a NUL byte");
+		return NULL;
+	} else {
+		pp = jwt_malloc(len + 1);
+		if (pp != NULL) {
+			if (len)
+				memcpy(pp, payload, len);
+			pp[len] = '\0';
+		}
 	}
 
-	pp = jwt_malloc(len + 1);
 	if (pp == NULL)
-		return NULL; // LCOV_EXCL_LINE
-	if (len)
-		memcpy(pp, payload, len);
-	pp[len] = '\0';
+		jwt_write_error(checker, "Error allocating memory"); // LCOV_EXCL_LINE
 
 	return pp;
 }
@@ -1173,6 +1186,13 @@ int jwt_checker_verify_detached(jwt_checker_t *checker, const char *token,
 
 	if (checker == NULL)
 		return 1;
+
+	/* Report only this call: a stale error must not survive a success,
+	 * nor (as jwt_write_error() keeps the first message) mask a failure.
+	 * Likewise jwt_checker_sig_count() must not report the last call's
+	 * signatures after an early failure here (e.g. a NUL rejected below). */
+	jwt_checker_error_clear(checker);
+	checker->c.last_sig_count = 0;
 
 	if (token == NULL || !strlen(token)) {
 		jwt_write_error(checker, "Must pass a token");
@@ -1211,19 +1231,28 @@ int jwt_checker_verify_detached(jwt_checker_t *checker, const char *token,
 			? jwt_json_str_val(prot_j) : NULL;
 
 		b64 = detached_b64(prot_b64);
-		pp = detached_payload_part(b64, payload, len);
-		if (pp == NULL) {
+		pp = detached_payload_part(checker, b64, payload, len);
+		if (pp == NULL)
+			return 1;
+
+		/* Jansson only holds valid UTF-8 in a JSON string. A base64url
+		 * payload always is; an unencoded one need not be. */
+		v = jwt_json_create_str(pp);
+		if (v == NULL) {
+			jwt_write_error(checker, "Unencoded payload cannot be "
+					"carried in the JWS JSON Serialization");
+			return 1;
+		}
+		if (jwt_json_obj_set(root, "payload", v)) {
 			jwt_write_error(checker, "Error allocating memory"); // LCOV_EXCL_LINE
 			return 1; // LCOV_EXCL_LINE
 		}
 
-		v = jwt_json_create_str(pp);
-		if (v == NULL || jwt_json_obj_set(root, "payload", v))
-			return 1; // LCOV_EXCL_LINE
-
 		recon = jwt_json_serialize(root, JWT_JSON_COMPACT);
-		if (recon == NULL)
+		if (recon == NULL) {
+			jwt_write_error(checker, "Error allocating memory"); // LCOV_EXCL_LINE
 			return 1; // LCOV_EXCL_LINE
+		}
 	} else {
 		/* @rfc{7515,7.1} Compact: rebuild header "." payload "." signature. */
 		const char *firstdot = strchr(token, '.');
@@ -1242,24 +1271,32 @@ int jwt_checker_verify_detached(jwt_checker_t *checker, const char *token,
 		sig_len = strlen(sig);
 
 		head_b64 = jwt_malloc(head_len + 1);
-		if (head_b64 == NULL)
+		if (head_b64 == NULL) {
+			jwt_write_error(checker, "Error allocating memory"); // LCOV_EXCL_LINE
 			return 1; // LCOV_EXCL_LINE
+		}
 		memcpy(head_b64, token, head_len);
 		head_b64[head_len] = '\0';
 
 		b64 = detached_b64(head_b64);
-		pp = detached_payload_part(b64, payload, len);
+		pp = detached_payload_part(checker, b64, payload, len);
 		if (pp == NULL)
-			return 1; // LCOV_EXCL_LINE
+			return 1;
 
 		recon_len = head_len + 1 + strlen(pp) + 1 + sig_len;
 		recon = jwt_malloc(recon_len + 1);
-		if (recon == NULL)
+		if (recon == NULL) {
+			jwt_write_error(checker, "Error allocating memory"); // LCOV_EXCL_LINE
 			return 1; // LCOV_EXCL_LINE
+		}
 		sprintf(recon, "%s.%s.%s", head_b64, pp, sig);
 	}
 
 	ret = jwt_checker_verify(checker, recon);
+
+	/* Never fail without an error, even if the verify path left none. */
+	if (ret && !checker->error)
+		jwt_write_error(checker, "Token failed verification"); // LCOV_EXCL_LINE
 
 	return ret;
 }
