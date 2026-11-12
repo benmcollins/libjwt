@@ -126,6 +126,11 @@ Verify unencoded documents with a separate checker that does none of these.
 Likewise, the builder sets `"b64"` only through `jwt_builder_setb64()`, alike in
 every signature, and never emits `"b64"` or `"crit"` unprotected.
 
+The checker reads a base64url payload as JWT claims, so an opaque document is
+verified only in the unencoded form, which cannot carry a NUL byte (the builder
+refuses to sign one and the checker rejects one). LibJWT can therefore sign a
+document that contains NUL bytes, base64url-encoded, but cannot verify it.
+
 #### Key generation
 
 `jwks_generate()` produces a fresh key as a JWK, ready to sign/verify with:

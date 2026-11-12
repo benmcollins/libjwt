@@ -1484,6 +1484,10 @@ const jwk_item_t *jwt_checker_sig_key(const jwt_checker_t *checker,
  * it must also be a valid JSON string, which with the Jansson JSON backend
  * means valid UTF-8.
  *
+ * jwt_checker_verify() reads a base64url payload as a JWT claim set, though,
+ * so it must be a JSON object (see jwt_builder_setpayload()): a binary
+ * document can be signed base64url-encoded, but not verified.
+ *
  * Any error already set in @p checker is cleared on entry and every failure
  * sets one, so jwt_checker_error() and jwt_checker_error_msg() always reflect
  * this call.
