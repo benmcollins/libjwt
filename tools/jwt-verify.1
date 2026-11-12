@@ -16,10 +16,12 @@ a JSON Web Token.
 .PP
 By default, the token(s) will be decoded and verified.
 If there is a signature block on the JWT, then you must give a JWK key
-with the \f[B]\-k\f[R] option.
-Verifying a signature requires specifying the algorithm, so it must
-either be in the key file (as the \f[B]alg\f[R] attribute), or passed on
-the command line with the \f[B]\-a\f[R] argument.
+with the \f[B]\-k\f[R] option, or a JWK Set with the \f[B]\-r\f[R]
+option.
+Verifying a signature with \f[B]\-k\f[R] requires specifying the
+algorithm, so it must either be in the key file (as the \f[B]alg\f[R]
+attribute), or passed on the command line with the \f[B]\-a\f[R]
+argument.
 .PP
 \f[B]jwt\-verify\f[R] will not assume the algorithm from the JWT itself
 (for security reasons), however, the algorithm in the JWT must match
@@ -65,6 +67,8 @@ The exit value will be the number of token validation failures.
 Specify the algorithm to be used when verifying the signature block of
 any tokens passed to the program.
 See \f[B]\-l\f[R] for values of \f[I]ALG\f[R].
+Not accepted with \f[B]\-\-keyring\f[R], where a key\(cqs own
+\f[B]alg\f[R], if it has one, pins the algorithm.
 .TP
 \f[B]\-k\f[R] \f[I]FILE\f[R], \f[B]\-\-key\f[R]=\f[I]FILE\f[R]
 Path to a file containing a key in JSON Web Key format.
@@ -74,9 +78,13 @@ the \f[B]key2jwk(1)\f[R] tool.
 .TP
 \f[B]\-r\f[R] \f[I]FILE\f[R], \f[B]\-\-keyring\f[R]=\f[I]FILE\f[R]
 Path to a file containing a JWK Set (JWKS) of candidate keys, used to
-verify a multi\-signature JWS JSON Serialization (RFC 7515 §7.2).
+verify Compact tokens and the (multi\-signature) JWS JSON Serialization
+(RFC 7515 §7.2).
 A signature naming a \f[B]kid\f[R] is matched to that key; a keyless
 signature is tried against every compatible key.
+A key whose \f[B]use\f[R] is not \f[B]sig\f[R], or whose
+\f[B]key_ops\f[R] names neither \f[B]verify\f[R] nor \f[B]sign\f[R], is
+not a candidate.
 Mutually exclusive with \f[B]\-\-key\f[R].
 .TP
 \f[B]\-P\f[R] \f[I]POLICY\f[R], \f[B]\-\-policy\f[R]=\f[I]POLICY\f[R]

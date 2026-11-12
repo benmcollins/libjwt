@@ -338,5 +338,10 @@ int main(int argc, char *argv[])
 
 	free(token);
 
+	/* The builder borrows the keys, so free it before their sets. */
+	jwt_builder_freep(&builder);
+	for (i = 0; i < n_keys; i++)
+		jwks_free(sets[i]);
+
 	return 0;
 }

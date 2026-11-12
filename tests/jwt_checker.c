@@ -1958,10 +1958,12 @@ static Suite *libjwt_suite(const char *title)
 	s = suite_create(title);
 
 	tc_core = tcase_create("New");
+	tcase_set_timeout(tc_core, 30);
 	tcase_add_loop_test(tc_core, new, 0, i);
 	suite_add_tcase(s, tc_core);
 
 	tc_core = tcase_create("Verify");
+	tcase_set_timeout(tc_core, 30);
 	tcase_add_loop_test(tc_core, verify, 0, i);
 	tcase_add_loop_test(tc_core, verify_bad_header, 0, i);
 	tcase_add_loop_test(tc_core, verify_bad_payload, 0, i);
@@ -1976,6 +1978,7 @@ static Suite *libjwt_suite(const char *title)
 	suite_add_tcase(s, tc_core);
 
 	tc_core = tcase_create("Error Handling");
+	tcase_set_timeout(tc_core, 30);
 	tcase_add_loop_test(tc_core, null_handling, 0, i);
 	tcase_add_loop_test(tc_core, bad_alg, 0, i);
 	tcase_add_loop_test(tc_core, no_alg, 0, i);
@@ -1989,6 +1992,7 @@ static Suite *libjwt_suite(const char *title)
 	suite_add_tcase(s, tc_core);
 
 	tc_core = tcase_create("HS256 Key Verify");
+	tcase_set_timeout(tc_core, 30);
 	tcase_add_loop_test(tc_core, verify_hs256, 0, i);
 	tcase_add_loop_test(tc_core, verify_hs256_wcb, 0, i);
 	tcase_add_loop_test(tc_core, verify_hs256_stress, 0, i);
@@ -1997,12 +2001,14 @@ static Suite *libjwt_suite(const char *title)
 	suite_add_tcase(s, tc_core);
 
 	tc_core = tcase_create("Claims");
+	tcase_set_timeout(tc_core, 30);
 	tcase_add_loop_test(tc_core, claim_setgetdel, 0, i);
 	tcase_add_loop_test(tc_core, claim_aud_array, 0, i);
 	tcase_add_loop_test(tc_core, claim_time_set, 0, i);
 	suite_add_tcase(s, tc_core);
 
 	tc_core = tcase_create("Corner cases");
+	tcase_set_timeout(tc_core, 30);
 	tcase_add_loop_test(tc_core, verify_ps256_nosig, 0, i);
 	tcase_add_loop_test(tc_core, verify_ps256_bad_b64_sig, 0, i);
 	tcase_add_loop_test(tc_core, verify_ps256_bad_b64_sig_255, 0, i);
@@ -2011,6 +2017,7 @@ static Suite *libjwt_suite(const char *title)
 	suite_add_tcase(s, tc_core);
 
 	tc_core = tcase_create("Crit Header");
+	tcase_set_timeout(tc_core, 30);
 	tcase_add_loop_test(tc_core, crit_unsupported, 0, i);
 	tcase_add_loop_test(tc_core, crit_not_in_header, 0, i);
 	tcase_add_loop_test(tc_core, crit_understood, 0, i);
@@ -2026,6 +2033,7 @@ static Suite *libjwt_suite(const char *title)
 	suite_add_tcase(s, tc_core);
 
 	tc_core = tcase_create("JTI");
+	tcase_set_timeout(tc_core, 30);
 	tcase_add_loop_test(tc_core, jti_verify, 0, i);
 	tcase_add_loop_test(tc_core, jti_verify_reject, 0, i);
 	tcase_add_loop_test(tc_core, jti_not_called_on_bad_sig, 0, i);

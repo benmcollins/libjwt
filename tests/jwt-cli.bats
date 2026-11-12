@@ -41,6 +41,23 @@ CLAIM_RES="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZG1pbiI6ZmFsc2UsImV4cCI6MTgz
 	./tools/jwt-verify -v -k ${HS256_KEY} ${CLAIM_RES}
 }
 
+# A key without an "alg" needs -a/--algorithm, and both spellings must work.
+NOALG_KEY="../tests/keys/oct_key_256_sig.json"
+
+@test "Verify with -a ALG as well as --algorithm=ALG" {
+	token="$(./tools/jwt-generate -q -n -a HS256 -k ${NOALG_KEY})"
+	./tools/jwt-verify -q -a HS256 -k ${NOALG_KEY} "${token}"
+	./tools/jwt-verify -q --algorithm=HS256 -k ${NOALG_KEY} "${token}"
+	# The algorithm given is the one enforced...
+	run ./tools/jwt-verify -a HS384 -k ${NOALG_KEY} "${token}"
+	[ "${status}" -ne 0 ]
+	echo "${output}" | grep -q 'alg does not match'
+	# ...and an unknown one is reported by name.
+	run ./tools/jwt-verify -a BOGUS -k ${NOALG_KEY} "${token}"
+	[ "${status}" -ne 0 ]
+	echo "${output}" | grep -q 'Unknown algorithm \[BOGUS\]'
+}
+
 @test "Generate JWKS from PEM Files" {
 	# The golden all.json covers every key type, but only the OpenSSL backend
 	# converts them all: GnuTLS has no secp256k1, MbedTLS has no EdDSA (the
@@ -321,6 +338,40 @@ JWS_RING="../tests/keys/jwks_jws_pair.json"
 	[ "${status}" -ne 0 ]
 	run ./tools/jwt-verify -q -r ${EC_KEY} -P any "${token}"
 	[ "${status}" -eq 0 ]
+}
+
+# With a keyring, the ring's keys decide each signature's algorithm: say so,
+# rather than "none (from options)", and show the token as a signed one.
+@test "Verify against a keyring names the keyring as the alg source" {
+	token="$(./tools/jwt-generate -q -n -k ${EC_KEY})"
+	run ./tools/jwt-verify -r ${JWS_RING} "${token}"
+	[ "${status}" -eq 0 ]
+	echo "${output}" | grep '\[ALG\]' | grep -q 'per key (from keyring)'
+	[ "$(echo "${output}" | grep -c 'from options')" -eq 0 ]
+	# The locked (signed) token icon, not the unlocked one of alg none.
+	echo "${output}" | grep '\[TOK\]' | grep -q $'\xF0\x9F\x94\x90'
+}
+
+# Tokens read from stdin (one per line) take the same path; the exit value
+# counts the ones that fail.
+@test "Verify tokens from stdin against a keyring" {
+	t1="$(./tools/jwt-generate -q -n -k ${EC_KEY})"
+	t2="$(./tools/jwt-generate -q -n -k ${RS_KEY})"
+	run bash -c "printf '%s\n' '${t1}' x.y.z '${t2}' | \
+		./tools/jwt-verify -r ${JWS_RING} -"
+	[ "${status}" -eq 1 ]
+	[ "$(echo "${output}" | grep -c 'Verified')" -eq 2 ]
+	[ "$(echo "${output}" | grep '\[TOK\]' | \
+		grep -c $'\xF0\x9F\x94\x90')" -eq 3 ]
+}
+
+@test "--algorithm cannot be used with --keyring" {
+	token="$(./tools/jwt-generate -q -n -k ${EC_KEY})"
+	for alg in ES256 none; do
+		run ./tools/jwt-verify --algorithm=${alg} -r ${JWS_RING} "${token}"
+		[ "${status}" -ne 0 ]
+		echo "${output}" | grep -q 'cannot be used with --keyring'
+	done
 }
 
 @test "key and keyring are mutually exclusive" {

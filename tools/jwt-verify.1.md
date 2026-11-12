@@ -16,9 +16,10 @@ of a JSON Web Token.
 
 By default, the token(s) will be decoded and verified. If there is a
 signature block on the JWT, then you must give a JWK key with the
-**-k** option. Verifying a signature requires specifying the algorithm,
-so it must either be in the key file (as the **alg** attribute), or
-passed on the command line with the **-a** argument.
+**-k** option, or a JWK Set with the **-r** option. Verifying a signature
+with **-k** requires specifying the algorithm, so it must either be in
+the key file (as the **alg** attribute), or passed on the command line
+with the **-a** argument.
 
 **jwt-verify** will not assume the algorithm from the JWT itself (for
 security reasons), however, the algorithm in the JWT must match what
@@ -58,7 +59,9 @@ exit status from the program will cause verification to fail.
 
 **\-a** _ALG_, **\-\-algorithm**=_ALG_
   ~ Specify the algorithm to be used when verifying the signature block of
-  any tokens passed to the program. See **-l** for values of _ALG_.
+  any tokens passed to the program. See **-l** for values of _ALG_. Not
+  accepted with **\-\-keyring**, where a key's own **alg**, if it has one,
+  pins the algorithm.
 
 **\-k** _FILE_, **\-\-key**=_FILE_
   ~ Path to a file containing a key in JSON Web Key format. If your keys are
@@ -67,9 +70,11 @@ exit status from the program will cause verification to fail.
 
 **\-r** _FILE_, **\-\-keyring**=_FILE_
   ~ Path to a file containing a JWK Set (JWKS) of candidate keys, used to verify
-  a multi-signature JWS JSON Serialization (RFC 7515 §7.2). A signature naming a
-  **kid** is matched to that key; a keyless signature is tried against every
-  compatible key. Mutually exclusive with **\-\-key**.
+  Compact tokens and the (multi-signature) JWS JSON Serialization (RFC 7515
+  §7.2). A signature naming a **kid** is matched to that key; a keyless
+  signature is tried against every compatible key. A key whose **use** is not
+  **sig**, or whose **key_ops** names neither **verify** nor **sign**, is not a
+  candidate. Mutually exclusive with **\-\-key**.
 
 **\-P** _POLICY_, **\-\-policy**=_POLICY_
   ~ Multi-signature acceptance policy when a keyring is used: **any** (the
