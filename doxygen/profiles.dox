@@ -185,3 +185,9 @@ token = jwt_builder_generate(builder);
 jwt_checker_setkey(checker, JWT_ALG_ES256, signer_key);
 jwt_checker_verify_detached(checker, token, document, document_len);
 @endcode
+
+@note The unencoded document is not a JWT claim set (@rfc{7797,7}): the checker
+evaluates it as an empty one, so a checker that pins @c iss, @c sub or @c aud,
+calls @ref jwt_checker_require or sets a @c jti callback rejects it. Use a
+separate checker for these documents, without any of those, and bind the signer
+through its key and @c x5c chain; verify JWTs with their own checker.
