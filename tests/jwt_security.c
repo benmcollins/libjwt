@@ -2113,6 +2113,25 @@ START_TEST(test_json_null_array_element)
 	ck_assert_str_eq(jwks_item_error_msg(item),
 			 "Invalid JWK: \"x5c\" entry is not a string");
 
+	/* A null "keys" entry is an item with an error, and the keys around
+	 * it still load; the set itself has no error. */
+	{
+		jwk_set_auto_t *keys = jwks_create("{\"keys\":[null,"
+			"{\"kty\":\"oct\",\"kid\":\"k1\",\"k\":"
+			"\"0gmNspkRljssLSrldySnYUS-zhtCo5sqeqo_yl7n2XA\"}]}");
+
+		ck_assert_ptr_nonnull(keys);
+		ck_assert_int_eq(jwks_error(keys), 0);
+		ck_assert_int_eq(jwks_item_count(keys), 2);
+		item = jwks_item_get(keys, 0);
+		ck_assert_int_ne(jwks_item_error(item), 0);
+		ck_assert_str_eq(jwks_item_error_msg(item),
+				 "Invalid JWK: missing kty value");
+		item = jwks_item_get(keys, 1);
+		ck_assert_int_eq(jwks_item_error(item), 0);
+		ck_assert_ptr_eq(jwks_find_bykid(keys, "k1"), item);
+	}
+
 	free_key();
 }
 END_TEST
