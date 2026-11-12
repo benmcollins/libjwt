@@ -1239,11 +1239,18 @@ END_TEST
 /* ---- Two signers over one unencoded payload, one with its own "crit" ---- */
 START_TEST(test_b64_sig_crit_multi)
 {
+	/* Each round's "crit", as each signature carries it. */
+	static const char * const want[][2] = {
+		{ "[\"b64\",\"x-ext\",\"x-sig\"]", "[\"b64\",\"x-ext\"]" },
+		{ "[\"b64\",\"x-ext\",\"x-sig\"]", "[\"b64\",\"x-ext\"]" },
+		/* Base64url claims now: "b64" is no longer shared. */
+		{ "[\"x-ext\",\"x-sig\"]", "[\"x-ext\"]" },
+	};
 	jwk_set_t *ks, *rsa, *ring;
 	jwt_builder_auto_t *b = NULL;
 	jwt_signature_t *s1, *s2;
 	jwt_value_t v;
-	int n;
+	size_t n;
 
 	SET_OPS();
 	ks = load_one("ec_key_prime256v1.json");
@@ -1268,12 +1275,20 @@ START_TEST(test_b64_sig_crit_multi)
 	ck_assert_int_eq(jwt_signature_add_protected_json(s1, "crit",
 							  "[\"x-sig\"]"), 0);
 
-	/* Twice: generating leaves each signature's own "crit" as it was. */
-	for (n = 0; n < 2; n++) {
+	/* Generating must leave each signature's own "crit" as it was. Had
+	 * the first one kept the shared names, it would still list "b64" in
+	 * the last round, which the builder refuses. Generating twice with
+	 * the same settings cannot tell. */
+	for (n = 0; n < ARRAY_SIZE(want); n++) {
 		jwt_checker_auto_t *c = jwt_checker_new();
 		struct crit_seen seen = { 0 };
-		char_auto *tok = jwt_builder_generate(b);
+		char_auto *tok = NULL;
 
+		if (n == ARRAY_SIZE(want) - 1) {
+			ck_assert_int_eq(jwt_builder_setpayload(b, NULL, 0), 0);
+			ck_assert_int_eq(jwt_builder_setb64(b, 1), 0);
+		}
+		tok = jwt_builder_generate(b);
 		ck_assert_ptr_nonnull(tok);
 		ck_assert_int_eq(jwt_checker_setkeyring(c, ring,
 					JWT_VERIFY_POLICY_ALL), 0);
@@ -1283,8 +1298,8 @@ START_TEST(test_b64_sig_crit_multi)
 		ck_assert_int_eq(jwt_checker_verify(c, tok), 0);
 		ck_assert_uint_eq(jwt_checker_sig_count(c), 2);
 		ck_assert_uint_eq(seen.n, 2);
-		ck_assert_str_eq(seen.crit[0], "[\"b64\",\"x-ext\",\"x-sig\"]");
-		ck_assert_str_eq(seen.crit[1], "[\"b64\",\"x-ext\"]");
+		ck_assert_str_eq(seen.crit[0], want[n][0]);
+		ck_assert_str_eq(seen.crit[1], want[n][1]);
 		free(seen.crit[0]);
 		free(seen.crit[1]);
 	}
