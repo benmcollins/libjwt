@@ -194,7 +194,8 @@ through its key and @c x5c chain; verify JWTs with their own checker.
 
 @note An unencoded document is carried in the token as text, so it must not
 contain a NUL byte: @ref jwt_builder_generate refuses to sign one and
-@ref jwt_checker_verify_detached rejects one. A binary document can only be
-signed with the default base64url encoding (leave @ref jwt_builder_setb64 at
-1), which carries every byte, and LibJWT cannot verify that signature: its
-checker reads a base64url payload as a JWT claim set (JSON).
+@ref jwt_checker_verify_detached rejects one. A document that contains NUL
+bytes, as most binary formats do, can only be signed with the default
+base64url encoding (leave @ref jwt_builder_setb64 at 1), which carries every
+byte, and LibJWT cannot verify that signature: its checker reads a base64url
+payload as a JWT claim set (JSON).
