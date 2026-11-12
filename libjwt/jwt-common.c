@@ -898,7 +898,10 @@ static const struct jwt_signature *checker_sig_at(const jwt_checker_t *checker,
 	const struct jwt_signature *s;
 	unsigned int i = 0;
 
-	if (checker == NULL || checker->c.signatures.next == NULL)
+	/* Only the last call's signatures: an early failure (e.g. in
+	 * jwt_checker_verify_detached()) resets the count, not the list. */
+	if (checker == NULL || checker->c.signatures.next == NULL ||
+	    index >= checker->c.last_sig_count)
 		return NULL;
 
 	list_for_each_entry(s, &checker->c.signatures, node) {
@@ -906,7 +909,8 @@ static const struct jwt_signature *checker_sig_at(const jwt_checker_t *checker,
 			return s;
 	}
 
-	return NULL;
+	/* Only if recording the Compact path's signature failed. */
+	return NULL; // LCOV_EXCL_LINE
 }
 
 unsigned int jwt_checker_sig_count(const jwt_checker_t *checker)

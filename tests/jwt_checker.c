@@ -1659,6 +1659,296 @@ START_TEST(jti_pool_roundtrip)
 }
 END_TEST
 
+/* ---- jwt_checker_verify_detached() (GHSA-v7q9-pwfj-qmf5) ---- */
+
+#define DETACHED_NUL_MSG \
+	"An unencoded (b64=false) payload must not contain a NUL byte"
+#define DETACHED_UTF8_MSG \
+	"Unencoded payload cannot be carried in the JWS JSON Serialization"
+
+/* A Flattened JWS whose protected header is
+ * {"alg":"ES256","b64":false,"crit":["b64"]} and whose signature is junk. */
+#define DETACHED_JUNK_JSON						\
+	"{\"protected\":\"eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsi" \
+	"YjY0Il19\",\"signature\":\"AA\"}"
+
+/* Expect jwt_checker_verify_detached() to fail with exactly @__msg set. */
+#define DETACHED_FAILS(__checker, __token, __payload, __len, __msg) ({	\
+	ck_assert_int_ne(jwt_checker_verify_detached(__checker, __token,	\
+		(const unsigned char *)(__payload), __len), 0);		\
+	ck_assert_int_ne(jwt_checker_error(__checker), 0);		\
+	ck_assert_str_eq(jwt_checker_error_msg(__checker), __msg);	\
+})
+
+static const jwt_serialization_t detached_formats[] = {
+	JWT_FORMAT_COMPACT, JWT_FORMAT_JSON_FLAT, JWT_FORMAT_JSON_GENERAL,
+};
+
+/* Sign @len bytes of @payload with g_item (ES256) as a detached JWS in
+ * @format, base64url-encoded if @b64, else unencoded (RFC 7797). */
+static char *detached_token(const unsigned char *payload, size_t len, int b64,
+			    jwt_serialization_t format)
+{
+	jwt_builder_auto_t *builder = jwt_builder_new();
+	char *out;
+
+	ck_assert_ptr_nonnull(builder);
+	ck_assert_int_eq(jwt_builder_setkey(builder, JWT_ALG_ES256, g_item), 0);
+	ck_assert_int_eq(jwt_builder_setpayload(builder, payload, len), 0);
+	ck_assert_int_eq(jwt_builder_setb64(builder, b64), 0);
+	ck_assert_int_eq(jwt_builder_set_detached(builder, 1), 0);
+	ck_assert_int_eq(jwt_builder_set_format(builder, format), 0);
+	out = jwt_builder_generate(builder);
+	ck_assert_ptr_nonnull(out);
+
+	return out;
+}
+
+static jwt_checker_t *detached_checker(void)
+{
+	jwt_checker_t *checker = jwt_checker_new();
+
+	ck_assert_ptr_nonnull(checker);
+	ck_assert_int_eq(jwt_checker_setkey(checker, JWT_ALG_ES256, g_item), 0);
+
+	return checker;
+}
+
+/* An unencoded (b64=false) detached payload used to be verified only up to its
+ * first NUL, so a signature over B also passed B || 0x00 || anything. Such a
+ * payload is now rejected, in every serialization. */
+START_TEST(detached_unencoded_nul)
+{
+	static const unsigned char body[] = "{\"amount\":5,\"to\":\"bob\"}";
+	static const unsigned char tail[] = "{\"amount\":5000000,\"to\":\"eve\"}";
+	unsigned char forged[sizeof(body) + sizeof(tail)];
+	size_t f;
+
+	SET_OPS();
+	read_json("ec_key_prime256v1.json");
+
+	/* B || 0x00 || tail, where only B was signed. */
+	memcpy(forged, body, sizeof(body));
+	memcpy(forged + sizeof(body), tail, sizeof(tail));
+
+	for (f = 0; f < ARRAY_SIZE(detached_formats); f++) {
+		jwt_checker_auto_t *checker = detached_checker();
+		char_auto *token = detached_token(body, sizeof(body) - 1, 0,
+						  detached_formats[f]);
+
+		ck_assert_int_eq(jwt_checker_verify_detached(checker, token,
+				body, sizeof(body) - 1), 0);
+		ck_assert_int_eq(jwt_checker_error(checker), 0);
+
+		DETACHED_FAILS(checker, token, forged, sizeof(forged) - 1,
+			       DETACHED_NUL_MSG);
+
+		/* The signed bytes, but with the C string terminator counted. */
+		DETACHED_FAILS(checker, token, body, sizeof(body),
+			       DETACHED_NUL_MSG);
+
+		/* A leading NUL. */
+		DETACHED_FAILS(checker, token, "\0x", 2, DETACHED_NUL_MSG);
+	}
+
+	free_key();
+}
+END_TEST
+
+/* A base64url (b64=true) detached payload is binary-safe: a NUL in it is signed
+ * and checked like any other byte, and so is everything after it. The checker
+ * reads a b64=true payload as JWT claims, hence the JSON ahead of the NUL. */
+START_TEST(detached_b64_nul)
+{
+	static const unsigned char body[] = "{\"sub\":\"alice\"}\0\xff\x01tail";
+	const size_t len = sizeof(body) - 1;
+	unsigned char altered[sizeof(body)];
+	size_t f;
+
+	SET_OPS();
+	read_json("ec_key_prime256v1.json");
+
+	/* The same bytes, but one after the NUL changed. */
+	memcpy(altered, body, sizeof(body));
+	altered[len - 1] ^= 0x20;
+
+	for (f = 0; f < ARRAY_SIZE(detached_formats); f++) {
+		jwt_checker_auto_t *checker = detached_checker();
+		char_auto *token = detached_token(body, len, 1,
+						  detached_formats[f]);
+
+		ck_assert_int_eq(jwt_checker_verify_detached(checker, token,
+				body, len), 0);
+		ck_assert_int_eq(jwt_checker_error(checker), 0);
+
+		/* The bytes after the NUL are signed: changing one fails... */
+		ck_assert_int_ne(jwt_checker_verify_detached(checker, token,
+				altered, len), 0);
+		ck_assert_int_ne(jwt_checker_error(checker), 0);
+
+		/* ...and so does dropping them. */
+		ck_assert_int_ne(jwt_checker_verify_detached(checker, token,
+				body, strlen((const char *)body)), 0);
+		ck_assert_int_ne(jwt_checker_error(checker), 0);
+
+		/* No payload at all (NULL with length 0 is allowed). */
+		ck_assert_int_ne(jwt_checker_verify_detached(checker, token,
+				NULL, 0), 0);
+		ck_assert_int_ne(jwt_checker_error(checker), 0);
+	}
+
+	free_key();
+}
+END_TEST
+
+/* The JWS JSON Serialization carries an unencoded payload as a JSON string.
+ * Jansson refuses bytes that are not valid UTF-8, and that failure used to
+ * return non-zero with no error set; json-c carries the bytes verbatim, so a
+ * good signature over them verifies. Compact carries them under either. */
+START_TEST(detached_unencoded_not_utf8)
+{
+	static const unsigned char bin[] = { 0xff, 0xfe, 'x' };
+	jwt_checker_auto_t *checker = NULL;
+	size_t f;
+	int ret;
+
+	SET_OPS();
+	read_json("ec_key_prime256v1.json");
+	checker = detached_checker();
+
+	/* Junk signature: rejected under both JSON backends, with an error. */
+	ret = jwt_checker_verify_detached(checker, DETACHED_JUNK_JSON, bin,
+					  sizeof(bin));
+	ck_assert_int_ne(ret, 0);
+	ck_assert_int_ne(jwt_checker_error(checker), 0);
+#ifdef HAVE_JSON_C
+	ck_assert_int_ne(strlen(jwt_checker_error_msg(checker)), 0);
+#else
+	ck_assert_str_eq(jwt_checker_error_msg(checker), DETACHED_UTF8_MSG);
+#endif
+
+	for (f = 0; f < ARRAY_SIZE(detached_formats); f++) {
+		char_auto *token = detached_token(bin, sizeof(bin), 0,
+						  detached_formats[f]);
+
+		ret = jwt_checker_verify_detached(checker, token, bin,
+						  sizeof(bin));
+#ifndef HAVE_JSON_C
+		if (detached_formats[f] != JWT_FORMAT_COMPACT) {
+			ck_assert_int_ne(ret, 0);
+			ck_assert_str_eq(jwt_checker_error_msg(checker),
+					 DETACHED_UTF8_MSG);
+			continue;
+		}
+#endif
+		ck_assert_int_eq(ret, 0);
+		ck_assert_int_eq(jwt_checker_error(checker), 0);
+	}
+
+	free_key();
+}
+END_TEST
+
+/* The checker's error state always reflects the last verify_detached() call: a
+ * stale error neither survives a success nor masks the next failure's message
+ * (jwt_write_error() keeps the first one), and every failure sets an error. */
+START_TEST(detached_error_state)
+{
+	static const unsigned char body[] = "detached document";
+	static const unsigned char claims[] = "{\"sub\":\"alice\"}";
+	static const unsigned char bin[] = { 0xff, 0xfe, 'x' };
+	const size_t len = sizeof(body) - 1;
+	jwt_checker_auto_t *checker = NULL;
+	size_t f;
+
+	SET_OPS();
+	read_json("ec_key_prime256v1.json");
+
+	ck_assert_int_ne(jwt_checker_verify_detached(NULL, "a..b", body, len), 0);
+
+	checker = detached_checker();
+
+	/* Back-to-back early failures, each with its own message. */
+	DETACHED_FAILS(checker, NULL, body, len, "Must pass a token");
+	DETACHED_FAILS(checker, "{", NULL, 1, "Must pass a payload");
+	DETACHED_FAILS(checker, "", body, len, "Must pass a token");
+	DETACHED_FAILS(checker, " {\"payload\":", body, len,
+		       "Invalid JWS JSON Serialization");
+	DETACHED_FAILS(checker, "nodot", body, len,
+		       "Not a detached Compact Serialization");
+	DETACHED_FAILS(checker, "one.dot", body, len,
+		       "Not a detached Compact Serialization");
+
+	/* A "b64" that cannot be read (no protected header, or one that is not
+	 * JSON) is taken as true; the verify then rejects the token itself. */
+	ck_assert_int_ne(jwt_checker_verify_detached(checker,
+			"{\"signature\":\"AA\"}", body, len), 0);
+	ck_assert_int_ne(jwt_checker_error(checker), 0);
+	ck_assert_int_ne(jwt_checker_verify_detached(checker,
+			"bm90anNvbg..AA", body, len), 0);
+	ck_assert_int_ne(jwt_checker_error(checker), 0);
+
+	for (f = 0; f < ARRAY_SIZE(detached_formats); f++) {
+		char_auto *token = detached_token(body, len, 0,
+						  detached_formats[f]);
+		char_auto *token64 = detached_token(claims,
+				sizeof(claims) - 1, 1, detached_formats[f]);
+
+		/* A failed verify, then a good verify_detached: no error. */
+		ck_assert_int_ne(jwt_checker_verify(checker, "not.a.token"), 0);
+		ck_assert_int_ne(jwt_checker_error(checker), 0);
+		ck_assert_int_eq(jwt_checker_verify_detached(checker, token,
+				body, len), 0);
+		ck_assert_int_eq(jwt_checker_error(checker), 0);
+		ck_assert_str_eq(jwt_checker_error_msg(checker), "");
+
+		/* A failure right after that success sets an error. */
+		ck_assert_int_ne(jwt_checker_verify_detached(checker,
+				DETACHED_JUNK_JSON, bin, sizeof(bin)), 0);
+		ck_assert_int_ne(jwt_checker_error(checker), 0);
+
+		/* A stale message gives way to this call's, and the signature
+		 * the success before verified does not survive an early
+		 * failure. */
+		ck_assert_int_eq(jwt_checker_verify_detached(checker, token,
+				body, len), 0);
+		ck_assert_uint_eq(jwt_checker_sig_count(checker), 1);
+		ck_assert_int_eq(jwt_checker_sig_verified(checker, 0), 1);
+		ck_assert_ptr_nonnull(jwt_checker_sig_key(checker, 0));
+		DETACHED_FAILS(checker, token, "a\0b", 3, DETACHED_NUL_MSG);
+		ck_assert_uint_eq(jwt_checker_sig_count(checker), 0);
+		ck_assert_int_eq(jwt_checker_sig_verified(checker, 0), 0);
+		ck_assert_ptr_null(jwt_checker_sig_key(checker, 0));
+		DETACHED_FAILS(checker, token, NULL, 1, "Must pass a payload");
+
+		/* A payload that was not signed, or an empty one, fails with
+		 * an error from the signature check. */
+		ck_assert_int_ne(jwt_checker_verify_detached(checker, token,
+				(const unsigned char *)"tampered", 8), 0);
+		ck_assert_int_ne(jwt_checker_error(checker), 0);
+		ck_assert_int_ne(jwt_checker_verify_detached(checker, token,
+				NULL, 0), 0);
+		ck_assert_int_ne(jwt_checker_error(checker), 0);
+
+		/* The same holds for a base64url payload. */
+		ck_assert_int_eq(jwt_checker_verify_detached(checker, token64,
+				claims, sizeof(claims) - 1), 0);
+		ck_assert_int_eq(jwt_checker_error(checker), 0);
+		ck_assert_int_ne(jwt_checker_verify_detached(checker, token64,
+				NULL, 0), 0);
+		ck_assert_int_ne(jwt_checker_error(checker), 0);
+
+		/* And a success clears it all again. */
+		ck_assert_int_eq(jwt_checker_verify_detached(checker, token,
+				body, len), 0);
+		ck_assert_int_eq(jwt_checker_error(checker), 0);
+		ck_assert_str_eq(jwt_checker_error_msg(checker), "");
+	}
+
+	free_key();
+}
+END_TEST
+
 static Suite *libjwt_suite(const char *title)
 {
 	Suite *s;
@@ -1743,6 +2033,14 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, jti_verify_not_string, 0, i);
 	tcase_add_loop_test(tc_core, jti_setjti_null, 0, i);
 	tcase_add_loop_test(tc_core, jti_pool_roundtrip, 0, i);
+	suite_add_tcase(s, tc_core);
+
+	tc_core = tcase_create("Detached");
+	tcase_add_loop_test(tc_core, detached_unencoded_nul, 0, i);
+	tcase_add_loop_test(tc_core, detached_b64_nul, 0, i);
+	tcase_add_loop_test(tc_core, detached_unencoded_not_utf8, 0, i);
+	tcase_add_loop_test(tc_core, detached_error_state, 0, i);
+	tcase_set_timeout(tc_core, 30);
 	suite_add_tcase(s, tc_core);
 
 	return s;
