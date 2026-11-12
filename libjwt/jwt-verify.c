@@ -163,11 +163,13 @@ int jwt_check_crit(jwt_t *jwt, char * const *understood)
 	return 0;
 }
 
-/* @rfc{7797,6} Read the "b64" header (default true). A false value is the
- * RFC 7797 unencoded payload option and is ONLY accepted if "b64" is also
- * present in "crit" (else an attacker could flip the signing-input meaning).
- * Sets *b64; returns 1 on the crit violation or a non-boolean "b64". */
-static int jwt_payload_b64(jwt_t *jwt, int *b64)
+/* @rfc{7797,6} Read the "b64" member of protected header @hdr (default true).
+ * A false value is the RFC 7797 unencoded payload option and is ONLY accepted
+ * if "b64" is also present in "crit" (else an attacker could flip the
+ * signing-input meaning). Sets *b64; returns NULL, or the error for the crit
+ * violation or a non-boolean "b64". Shared by jwt_parse() (Compact) and
+ * build_sig_entry() (each JSON signature). */
+static const char *jwt_payload_b64(const jwt_json_t *hdr, int *b64)
 {
 	jwt_json_t *jb64, *crit, *ent;
 	size_t i;
@@ -175,21 +177,19 @@ static int jwt_payload_b64(jwt_t *jwt, int *b64)
 
 	*b64 = 1;
 
-	jb64 = jwt_json_obj_get(jwt->headers, "b64");
+	jb64 = jwt_json_obj_get(hdr, "b64");
 	if (jb64 == NULL)
-		return 0;
+		return NULL;
 
-	if (!jwt_json_is_bool(jb64)) {
-		jwt_write_error(jwt, "\"b64\" header must be a boolean");
-		return 1;
-	}
+	if (!jwt_json_is_bool(jb64))
+		return "\"b64\" header must be a boolean";
 
 	if (jwt_json_is_true(jb64))
-		return 0;
+		return NULL;
 
 	*b64 = 0;
 
-	crit = jwt_json_obj_get(jwt->headers, "crit");
+	crit = jwt_json_obj_get(hdr, "crit");
 	if (crit != NULL && jwt_json_is_array(crit)) {
 		jwt_json_arr_foreach(crit, i, ent) {
 			if (jwt_json_is_string(ent) &&
@@ -199,13 +199,10 @@ static int jwt_payload_b64(jwt_t *jwt, int *b64)
 			}
 		}
 	}
-	if (!found) {
-		jwt_write_error(jwt,
-			"\"b64\":false requires \"b64\" in \"crit\" (RFC 7797)");
-		return 1;
-	}
+	if (!found)
+		return "\"b64\":false requires \"b64\" in \"crit\" (RFC 7797)";
 
-	return 0;
+	return NULL;
 }
 
 int jwt_parse(jwt_t *jwt, const char *token, unsigned int *len)
@@ -213,6 +210,7 @@ int jwt_parse(jwt_t *jwt, const char *token, unsigned int *len)
 	char_auto *buf = NULL;
 	char *payload, *sig, *dot, *lastdot = NULL;
 	int buf_len = strlen(token) + 1;
+	const char *err;
 	int b64;
 
 	buf = jwt_malloc(buf_len);
@@ -242,8 +240,11 @@ int jwt_parse(jwt_t *jwt, const char *token, unsigned int *len)
 		return 1;
 
 	/* @rfc{7797} Determine the payload encoding (and enforce crit). */
-	if (jwt_payload_b64(jwt, &b64))
+	err = jwt_payload_b64(jwt->headers, &b64);
+	if (err != NULL) {
+		jwt_write_error(jwt, "%s", err);
 		return 1;
+	}
 	jwt->b64 = b64;
 
 	if (b64) {
@@ -263,7 +264,8 @@ int jwt_parse(jwt_t *jwt, const char *token, unsigned int *len)
 	} else {
 		/* @rfc{7797,5.2} Unencoded: the signature is after the LAST '.'
 		 * and the raw payload (which may itself contain '.') is between
-		 * the 1st and last '.'. The raw payload is not JSON claims. */
+		 * the 1st and last '.'. The raw payload is not JSON claims
+		 * (@rfc{7797,7}), so jwt->claims is left as the empty set. */
 		for (dot = payload; dot[0] != '\0'; dot++) {
 			if (dot[0] == '.')
 				lastdot = dot;
@@ -386,6 +388,20 @@ static jwt_claims_t __verify_claims(jwt_t *jwt)
 	return failed;
 }
 
+/* @rfc{7797,7} An unencoded ("b64":false) payload is never JWT claims, so it is
+ * checked as the EMPTY claim set: the validate-if-present exp/nbf checks pass,
+ * but a pinned iss/sub/aud, a required claim or a jti callback fails. Say so,
+ * rather than blame a claim such a payload cannot carry. */
+static const char unencoded_claims_err[] =
+	"Claims cannot be validated on an unencoded (\"b64\":false) payload "
+	"(RFC 7797)";
+
+/* The error for a failed claim value (or jti) check on @jwt. */
+static const char *claims_error(const jwt_t *jwt)
+{
+	return jwt->b64 ? "Failed one or more claims" : unencoded_claims_err;
+}
+
 /* @rfc{9068} Every claim named via jwt_checker_require() must be PRESENT in the
  * token, independent of any value match. Returns 0 if all are present, or 1 with
  * the error set naming the first missing one. */
@@ -405,6 +421,11 @@ static int __verify_required(jwt_t *jwt)
 		 * an array "aud") still returns a non-NOEXIST error, i.e. present. */
 		jwt_set_GET_STR(&jval, name);
 		if (jwt_claim_get(jwt, &jval) == JWT_VALUE_ERR_NOEXIST) {
+			if (!jwt->b64) {
+				jwt_write_error(jwt, "%s",
+						unencoded_claims_err);
+				return 1;
+			}
 			jwt_write_error(jwt,
 				"Required claim \"%s\" is missing", name);
 			return 1;
@@ -576,16 +597,19 @@ static int __verify_config_post(jwt_t *jwt, const jwt_config_t *config,
 		return 1;
 	}
 
-	/* Yes, we do this before checking a signature. @rfc{7797} An unencoded
-	 * (b64=false) payload is opaque, not JSON claims, so skip claim checks. */
-	if (jwt->b64 && __verify_claims(jwt)) {
+	/* Yes, we do this before checking a signature. @rfc{7797,7} An
+	 * unencoded (b64=false) payload is opaque, never JWT claims, so it is
+	 * checked as the EMPTY claim set: it passes the default exp/nbf checks,
+	 * but a pinned iss/sub/aud or a required claim fails closed, as the jti
+	 * check does (see claims_error()). */
+	if (__verify_claims(jwt)) {
 		/* TODO Pass back the ORd list of claims failed. */
-		jwt_write_error(jwt, "Failed one or more claims");
+		jwt_write_error(jwt, "%s", claims_error(jwt));
 		return 1;
 	}
 
-	/* @rfc{9068} Required claims must be present (also JSON-claims only). */
-	if (jwt->b64 && __verify_required(jwt))
+	/* @rfc{9068} Required claims must be present. */
+	if (__verify_required(jwt))
 		return 1;
 
 	if (!sig_len) {
@@ -691,7 +715,7 @@ jwt_t *jwt_verify_complete(jwt_t *jwt, const jwt_config_t *config,
 	 * permitted). Only now run the jti replay callback, which may mutate
 	 * external state and must not fire on an unauthenticated token. */
 	if (__verify_jti(jwt))
-		jwt_write_error(jwt, "Failed one or more claims");
+		jwt_write_error(jwt, "%s", claims_error(jwt));
 
 	return jwt;
 }
@@ -726,13 +750,16 @@ static const char *json_str(const jwt_json_t *obj, const char *key)
 /* Parse one signature entry (a General-form array element, or the Flattened
  * top-level object) into a new jwt_signature appended to the checker's list:
  * its verbatim base64url "protected" and "signature", the decoded protected
- * header, its algorithm, and the optional unprotected "header". */
-static int build_sig_entry(jwt_checker_t *checker, jwt_json_t *entry)
+ * header, its algorithm, and the optional unprotected "header". *@pb64 is the
+ * payload's "b64", agreed across entries (-1 until the first is parsed). */
+static int build_sig_entry(jwt_checker_t *checker, jwt_json_t *entry,
+			   int *pb64)
 {
 	jwt_json_t *prot_obj, *hdr_j, *hdr_clone = NULL;
-	const char *prot_b64, *sig_b64, *alg_str;
+	const char *prot_b64, *sig_b64, *alg_str, *err;
 	struct jwt_signature *s;
 	jwt_alg_t alg;
+	int b64;
 
 	prot_b64 = json_str(entry, "protected");
 	sig_b64 = json_str(entry, "signature");
@@ -759,6 +786,23 @@ static int build_sig_entry(jwt_checker_t *checker, jwt_json_t *entry)
 		return 1;
 	}
 
+	/* @rfc{7797,3} The payload is shared, so "b64" MUST be the same in
+	 * every signature. Validate this entry's "b64" (as jwt_parse() does)
+	 * and its agreement with the entries before it here, before any entry
+	 * can be skipped by policy and before the payload is decoded, so the
+	 * payload is read exactly as whichever signature verifies signed it.
+	 * Compare the effective value (absent is true) of EVERY entry: letting
+	 * an unverified entry pick the mode was GHSA-6gm4-gxx5-93hq. */
+	err = jwt_payload_b64(prot_obj, &b64);
+	if (err == NULL && *pb64 != -1 && b64 != *pb64)
+		err = "JWS JSON signatures disagree on \"b64\"";
+	if (err != NULL) {
+		jwt_json_release(prot_obj);
+		jwt_write_error(checker, "%s", err);
+		return 1;
+	}
+	*pb64 = b64;
+
 	hdr_j = jwt_json_obj_get(entry, "header");
 	if (hdr_j != NULL) {
 		if (!jwt_json_is_object(hdr_j) ||
@@ -766,6 +810,16 @@ static int build_sig_entry(jwt_checker_t *checker, jwt_json_t *entry)
 			jwt_json_release(prot_obj);
 			jwt_write_error(checker,
 				"JWS unprotected header is invalid or overlaps");
+			return 1;
+		}
+		/* @rfc{7515,4.1.11}/@rfc{7797,3} "crit" and "b64" MUST be
+		 * integrity protected, i.e. only in "protected". Reject them
+		 * here rather than silently ignore them. */
+		if (jwt_json_obj_get(hdr_j, "crit") != NULL ||
+		    jwt_json_obj_get(hdr_j, "b64") != NULL) {
+			jwt_json_release(prot_obj);
+			jwt_write_error(checker,
+				"JWS \"crit\"/\"b64\" must be in the protected header");
 			return 1;
 		}
 		hdr_clone = jwt_json_clone(hdr_j);
@@ -862,7 +916,8 @@ static int verify_entry(jwt_checker_t *checker, jwt_t *jwt,
 		return 1; // LCOV_EXCL_LINE
 	sprintf(input, "%s.%s", s->protected_b64, payload_b64);
 
-	/* This signature's header drives crit/callback. */
+	/* This signature's header drives crit/callback. Its "b64" was already
+	 * validated (and agreed across entries) by build_sig_entry(). */
 	jwt->headers = s->protected;
 	jwt->alg = s->alg;
 
@@ -870,17 +925,6 @@ static int verify_entry(jwt_checker_t *checker, jwt_t *jwt,
 		jwt_copy_error(checker, jwt);
 		jwt->headers = NULL;
 		return 1;
-	}
-
-	/* @rfc{7797,6} Enforce "b64" in "crit" if this signature is unencoded. */
-	{
-		int eb64;
-
-		if (jwt_payload_b64(jwt, &eb64)) {
-			jwt_copy_error(checker, jwt);
-			jwt->headers = NULL;
-			return 1;
-		}
 	}
 
 	/* @rfc{8725} A signature whose "typ"/alg does not meet the checker's
@@ -938,7 +982,7 @@ int jwt_verify_json(jwt_checker_t *checker, const char *token)
 	jwt_auto_t *jwt = NULL;
 	const char *payload_b64;
 	struct jwt_signature *s;
-	int n_verified = 0, sig_ok, payload_len, pb64 = 1;
+	int n_verified = 0, sig_ok, payload_len, pb64 = -1;
 	size_t n_entries;
 
 	/* Reset for a reused checker. */
@@ -986,10 +1030,11 @@ int jwt_verify_json(jwt_checker_t *checker, const char *token)
 			return 1;
 		}
 		for (i = 0; i < cnt; i++) {
-			if (build_sig_entry(checker, jwt_json_arr_get(sigs, i)))
+			if (build_sig_entry(checker, jwt_json_arr_get(sigs, i),
+					    &pb64))
 				return 1;
 		}
-	} else if (build_sig_entry(checker, root)) {
+	} else if (build_sig_entry(checker, root, &pb64)) {
 		return 1;
 	}
 
@@ -1001,20 +1046,9 @@ int jwt_verify_json(jwt_checker_t *checker, const char *token)
 		return 1;
 	}
 
-	/* @rfc{7797} The shared payload's encoding comes from the (shared)
-	 * signatures; read it from the first one. An unencoded payload is opaque
-	 * (not JSON claims), so it is neither base64-decoded nor claim-checked. */
-	{
-		struct jwt_signature *first = jwt_signature_first(&checker->c);
-		jwt_json_t *jb = first ?
-			jwt_json_obj_get(first->protected, "b64") : NULL;
-
-		if (jb != NULL && jwt_json_is_bool(jb) && !jwt_json_is_true(jb))
-			pb64 = 0;
-	}
-
 	/* A transient JWT carrying the shared payload for the per-signature
-	 * verify and the read-only claim checks. */
+	 * verify and the read-only claim checks. @pb64 is the "b64" every
+	 * signature agreed on (see build_sig_entry()). */
 	jwt = jwt_new();
 	if (jwt == NULL) {
 		jwt_write_error(checker, "Error allocating memory"); // LCOV_EXCL_LINE
@@ -1033,6 +1067,8 @@ int jwt_verify_json(jwt_checker_t *checker, const char *token)
 			return 1;
 		}
 	} else {
+		/* @rfc{7797,7} An unencoded payload is opaque, never JWT
+		 * claims: it is checked as the EMPTY claim set below. */
 		jwt->claims = jwt_json_create();
 		if (jwt->claims == NULL)
 			return 1; // LCOV_EXCL_LINE
@@ -1059,15 +1095,15 @@ int jwt_verify_json(jwt_checker_t *checker, const char *token)
 		jwt_write_error(checker,
 			"Signature policy not met (%d of %zu verified)",
 			n_verified, n_entries);
-	} else if (jwt->b64 && __verify_claims(jwt)) {
-		jwt_write_error(checker, "Failed one or more claims");
-	} else if (jwt->b64 && __verify_required(jwt)) {
+	} else if (__verify_claims(jwt)) {
+		jwt_write_error(checker, "%s", claims_error(jwt));
+	} else if (__verify_required(jwt)) {
 		/* @rfc{9068} Required-claims-present, same as the compact path; the
 		 * specific "missing" error is written on the jwt. */
 		jwt_copy_error(checker, jwt);
 	} else if (__verify_jti(jwt)) {
 		/* jti runs only after signature + claims succeed. */
-		jwt_write_error(checker, "Failed one or more claims");
+		jwt_write_error(checker, "%s", claims_error(jwt));
 	}
 
 	return checker->error;

@@ -113,7 +113,13 @@ signatures or JAdES/eIDAS detached signatures — set the payload bytes with
 raw payload), and `jwt_builder_set_detached()` omits the payload from the output.
 A detached token is verified with `jwt_checker_verify_detached()`, supplying the
 payload out-of-band. As mandated by RFC 7797 §6, the checker rejects a
-`"b64":false` token unless `"b64"` appears in `"crit"`.
+`"b64":false` token unless `"b64"` appears in `"crit"`. It also rejects a JWS
+JSON token whose signatures disagree on `"b64"` (§3), or that carries `"b64"`
+or `"crit"` in an unprotected header (RFC 7515 §4.1.11). An unencoded payload
+is never JWT claims (§7): it is checked as an empty claim set, so a checker
+that pins `"iss"`/`"sub"`/`"aud"`, requires claims or checks `"jti"` rejects it:
+`Claims cannot be validated on an unencoded ("b64":false) payload (RFC 7797)`.
+Verify unencoded documents with a separate checker that does none of these.
 
 #### Key generation
 

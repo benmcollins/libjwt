@@ -639,6 +639,11 @@ int jwt_signature_add_header_json(jwt_signature_t *signature,
  * are ignored. Pass @p data as NULL (or @p len 0) to clear it and return to
  * the claims model. The bytes are copied.
  *
+ * jwt_checker_verify() reads a base64url-encoded (the default) payload as a
+ * JWT claim set, so it must then be a JSON object; an unencoded one
+ * (jwt_builder_setb64()) is never claims (@rfc{7797,7}), so a checker that
+ * pins or requires claims rejects it.
+ *
  * @param builder Pointer to a builder object
  * @param data The payload bytes (copied), or NULL to clear
  * @param len The payload length in bytes
@@ -657,6 +662,10 @@ int jwt_builder_setpayload(jwt_builder_t *builder, const unsigned char *data,
  * is emitted in the protected header, ``"b64"`` is added to ``"crit"``, and the
  * signature is computed over the **raw** payload bytes. Requires a raw payload
  * (jwt_builder_setpayload()), since RFC 7797 forbids the option for JWTs.
+ *
+ * The result is not a JWT, even if its bytes spell a claim set: a checker
+ * evaluates it as an empty claim set, so claim pins, jwt_checker_require() or
+ * a ``jti`` callback reject it (see jwt_checker_verify()).
  *
  * @param builder Pointer to a builder object
  * @param b64 Nonzero for base64url (default), zero for an unencoded payload
@@ -1068,12 +1077,16 @@ int jwt_checker_setalgs(jwt_checker_t *checker, const jwt_alg_t *algs, size_t n)
  *
  * When set, jwt_checker_verify() rejects a token that is missing any of the
  * named claims, independent of any value match (a value check is a separate
- * concern -- see jwt_checker_claim_set()). LibJWT otherwise validates only the
- * claims it is told to compare, and silently tolerates an absent one; this
+ * concern -- see jwt_checker_claim_set()). LibJWT otherwise requires only the
+ * claims whose value it is told to compare (a pinned ``iss``, ``sub`` or
+ * ``aud``) and tolerates an absent ``exp``, ``nbf`` or any other claim; this
  * asserts the mandatory-claims discipline that profiles such as RFC 9068
  * (@c at+jwt) require -- e.g. @c {"iss","exp","aud","sub","client_id","jti"}.
  * The names are copied. Passing @p count as 0 (or @p claims as NULL) clears the
  * requirement.
+ *
+ * An @rfc{7797} unencoded (``"b64":false``) payload carries no claims
+ * (@rfc{7797,7}), so any requirement rejects it (see jwt_checker_verify()).
  *
  * @param checker Pointer to a checker object
  * @param claims An array of claim names that must be present (copied)
@@ -1230,6 +1243,28 @@ int jwt_checker_understands(jwt_checker_t *checker, const char *header);
 
 /**
  * @brief Verify a token
+ *
+ * Accepts the Compact Serialization or the JWS JSON Serialization
+ * (@rfc{7515,7.2}), auto-detected by a ``{`` as the first byte after any
+ * leading space, tab, CR or LF.
+ *
+ * An @rfc{7797} unencoded (``"b64":false``) token is accepted only if
+ * ``"b64"`` is listed in its ``"crit"`` header. In a JSON token, ``"b64"`` and
+ * ``"crit"`` may appear only in protected headers (@rfc{7515,4.1.11}), and
+ * every signature must carry the same ``"b64"`` value (@rfc{7797,3}); a token
+ * that breaks either rule is rejected under any keyring policy.
+ *
+ * An unencoded payload is never JWT claims (@rfc{7797,7}), so it is checked as
+ * an empty claim set: the default ``exp``/``nbf`` checks (validate if present)
+ * pass it, but a checker that pins ``iss``, ``sub`` or ``aud``
+ * (jwt_checker_claim_set()), requires claims (jwt_checker_require()) or checks
+ * ``jti`` (jwt_checker_setjti()) rejects it with the error ``Claims cannot be
+ * validated on an unencoded ("b64":false) payload (RFC 7797)``. Verify such
+ * documents with a separate checker that does none of these. Before 3.6.2,
+ * the pinned-value and required-claim checks were skipped for an unencoded
+ * payload.
+ *
+ * These rules apply equally to jwt_checker_verify_detached().
  *
  * @note If you set a callback for this checker, this is when it will be called.
  *
@@ -1661,20 +1696,28 @@ int jwt_builder_time_offset(jwt_builder_t *builder, jwt_claims_t claim,
  * ``aud`` | String or Array | ``userval`` equals ``aud``, or is among its elements
  * ``sub`` | String          | !strcmp(``sub``, ``userval``)
  *
- * @note Validation is "validate if present": enabling a check (e.g.
- * ``JWT_CLAIM_EXP``) only fails a token when the claim @b is present and does
- * not satisfy the comparison above. A token that @b omits the claim passes the
- * check. In particular, enabling ``JWT_CLAIM_EXP`` does @b not by itself
- * require that a token carry an ``exp``; if you must reject tokens lacking a
- * given claim, enforce that in a callback.
+ * @note ``exp`` and ``nbf`` are "validate if present": the check only fails a
+ * token when the claim @b is present and does not satisfy the comparison
+ * above. A token that @b omits it passes, so enabling ``JWT_CLAIM_EXP`` does
+ * @b not by itself require that a token carry an ``exp``. A value pinned with
+ * jwt_checker_claim_set() (``iss``, ``aud`` or ``sub``) is different: the
+ * claim must be present @b and match, so a token that omits it fails. To
+ * reject tokens lacking any other claim, use jwt_checker_require().
+ *
+ * @note An @rfc{7797} unencoded (``"b64":false``) payload carries no claims
+ * (@rfc{7797,7}) and is checked as an empty set: it passes ``exp`` and
+ * ``nbf``, but fails any pinned value, required claim or ``jti`` check (see
+ * jwt_checker_verify()).
  *
  * @note Per @rfc{7519,4.1.3}, ``aud`` may be a single string or an array of
  * strings; the token is accepted when your configured audience matches the
  * string or appears among the array elements.
  *
- * @note The checker object does not evaluate any values in the header with
- * the exception of the ``alg`` element when validating a token. Anything you
- * need to do there can be done in a callback with the jwt_t.
+ * @note Besides ``alg``, the checker object itself evaluates only the ``crit``
+ * and ``b64`` header parameters and, when configured to, ``typ``
+ * (jwt_checker_expect_typ()), ``kid`` (keyring lookup) and an embedded
+ * ``jwk``. Anything else you need to do there can be done in a callback with
+ * the jwt_t.
  *
  * @{
  */
