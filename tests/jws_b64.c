@@ -1033,6 +1033,59 @@ START_TEST(test_b64_builder_guards)
 }
 END_TEST
 
+#define CRIT_STRINGS	"\"crit\" header entries must be strings"
+
+/* ---- Every "crit" entry must be a string, a JSON null included ---- */
+START_TEST(test_b64_crit_entries)
+{
+	/* json-c hands a null entry back as NULL: not a string either. */
+	static const char * const crits[] = {
+		"[null]", "[\"x-ext\",null]", "[\"x-ext\",1]",
+	};
+	jwk_set_t *ks;
+	const jwk_item_t *ec;
+	size_t i, f, b64;
+
+	SET_OPS();
+	ks = load_one("ec_key_prime256v1.json");
+	ec = jwks_item_get(ks, 0);
+
+	for (i = 0; i < ARRAY_SIZE(crits); i++) {
+		for (f = 0; f < ARRAY_SIZE(formats); f++) {
+			for (b64 = 0; b64 < 2; b64++) {
+				jwt_builder_auto_t *b = jwt_builder_new();
+				char_auto *tok = NULL;
+				jwt_value_t v;
+
+				ck_assert_int_eq(jwt_builder_setkey(b,
+						JWT_ALG_ES256, ec), 0);
+				ck_assert_int_eq(jwt_builder_set_format(b,
+						formats[f]), 0);
+				if (!b64) {
+					ck_assert_int_eq(jwt_builder_setpayload(
+						b, RAW, RAW_LEN), 0);
+					ck_assert_int_eq(jwt_builder_setb64(b,
+						0), 0);
+				}
+				jwt_set_SET_JSON(&v, "x-ext", "[1]");
+				ck_assert_int_eq(jwt_builder_header_set(b, &v),
+						 JWT_VALUE_ERR_NONE);
+				jwt_set_SET_JSON(&v, "crit", (char *)crits[i]);
+				ck_assert_int_eq(jwt_builder_header_set(b, &v),
+						 JWT_VALUE_ERR_NONE);
+
+				tok = jwt_builder_generate(b);
+				ck_assert_ptr_null(tok);
+				ck_assert_str_eq(jwt_builder_error_msg(b),
+						 CRIT_STRINGS);
+			}
+		}
+	}
+
+	jwks_free(ks);
+}
+END_TEST
+
 static Suite *libjwt_suite(const char *title)
 {
 	Suite *s;
@@ -1057,6 +1110,7 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, test_b64_false_jti, 0, i);
 	tcase_add_loop_test(tc_core, test_b64_unprotected, 0, i);
 	tcase_add_loop_test(tc_core, test_b64_builder_guards, 0, i);
+	tcase_add_loop_test(tc_core, test_b64_crit_entries, 0, i);
 
 	tcase_set_timeout(tc_core, 60);
 	suite_add_tcase(s, tc_core);

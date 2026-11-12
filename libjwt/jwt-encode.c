@@ -369,22 +369,26 @@ static int jwt_crit_is_registered(const char *name)
 static int jwt_validate_crit(jwt_t *jwt, jwt_json_t *crit)
 {
 	jwt_json_t *ent;
-	size_t i;
+	size_t i, n;
 
 	if (!jwt_json_is_array(crit)) {
 		jwt_write_error(jwt, "\"crit\" header must be an array");
 		return 1;
 	}
 
-	if (jwt_json_arr_size(crit) == 0) {
+	n = jwt_json_arr_size(crit);
+	if (n == 0) {
 		jwt_write_error(jwt, "\"crit\" header must not be empty");
 		return 1;
 	}
 
-	jwt_json_arr_foreach(crit, i, ent) {
+	/* Index every entry: json-c returns a JSON null one as NULL, which
+	 * would end jwt_json_arr_foreach() there and skip the rest. */
+	for (i = 0; i < n; i++) {
 		const char *name;
 		size_t k;
 
+		ent = jwt_json_arr_get(crit, i);
 		if (!jwt_json_is_string(ent)) {
 			jwt_write_error(jwt,
 				"\"crit\" header entries must be strings");
