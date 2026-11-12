@@ -604,6 +604,14 @@ jwt_signature_t *jwt_builder_add_signature(jwt_builder_t *builder, jwt_alg_t alg
  * for every signature alike, since it describes the shared payload
  * (@rfc{7797,3}).
  *
+ * A ``crit`` (@rfc{7515,4.1.11}) set here lists this signature's own critical
+ * parameters. Like the shared one, it must be a non-empty array of distinct
+ * names that RFC 7515 and JWA do not define, each present in the protected
+ * header (a member set with jwt_signature_add_header_json() is not).
+ * jwt_builder_generate() lists the shared names (jwt_builder_setcrit(), and
+ * ``b64`` for an unencoded payload) first and this signature's others after
+ * them, and fails rather than emit an invalid ``crit``.
+ *
  * @param signature A handle from jwt_builder_add_signature()
  * @param key The header parameter name
  * @param value_json The value as a JSON string

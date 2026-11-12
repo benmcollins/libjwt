@@ -215,6 +215,80 @@ static jwt_json_t *build_protected(jwt_t *jwt, struct jwt_signature *s,
 	return prot;
 }
 
+static int jwt_validate_crit(jwt_t *jwt, const jwt_json_t *hdr,
+			     jwt_json_t *crit);
+
+/* Whether @crit, a validated "crit" array, lists @name. */
+static int crit_lists(const jwt_json_t *crit, const char *name)
+{
+	jwt_json_t *ent;
+	size_t i;
+
+	jwt_json_arr_foreach(crit, i, ent) {
+		if (!strcmp(jwt_json_str_val(ent), name))
+			return 1;
+	}
+
+	return 0;
+}
+
+/* @rfc{7515,4.1.11} A signature's own protected "crit" lists critical
+ * parameters of its own, so check it against its protected header @prot as
+ * the shared one was checked against the shared header. @prot carries the
+ * shared header's critical parameters too ("b64" for an unencoded payload,
+ * jwt_builder_setcrit() names), which build_protected() let this "crit"
+ * replace: list them again, first, then this signature's others. Both lists
+ * are valid and each name is listed once, so the union is valid as well. */
+static int sig_crit_check(jwt_t *jwt, const struct jwt_signature *s,
+			  jwt_json_t *prot)
+{
+	jwt_json_t *mine, *base, *crit, *ent, *v;
+	size_t i;
+
+	mine = s->protected ? jwt_json_obj_get(s->protected, "crit") : NULL;
+	if (mine == NULL)
+		return 0;	/* The shared "crit" is validated already. */
+
+	if (jwt_validate_crit(jwt, prot, mine))
+		return 1;
+
+	base = jwt_json_obj_get(jwt->headers, "crit");
+	if (base == NULL)
+		return 0;	/* As merged, @prot's "crit" is @mine. */
+
+	crit = jwt_json_clone(base);
+	if (crit == NULL) {
+		// LCOV_EXCL_START
+		jwt_write_error(jwt, "Error allocating memory");
+		return 1;
+		// LCOV_EXCL_STOP
+	}
+
+	jwt_json_arr_foreach(mine, i, ent) {
+		if (crit_lists(base, jwt_json_str_val(ent)))
+			continue;
+
+		v = jwt_json_create_str(jwt_json_str_val(ent));
+		if (v == NULL || jwt_json_arr_append(crit, v)) {
+			// LCOV_EXCL_START
+			jwt_json_release(crit);
+			jwt_write_error(jwt, "Error allocating memory");
+			return 1;
+			// LCOV_EXCL_STOP
+		}
+	}
+
+	/* obj_set steals @crit (on failure too) in place of @mine. */
+	if (jwt_json_obj_set(prot, "crit", crit)) {
+		// LCOV_EXCL_START
+		jwt_write_error(jwt, "Error allocating memory");
+		return 1;
+		// LCOV_EXCL_STOP
+	}
+
+	return 0;
+}
+
 /* @rfc{7515,7.2} Emit the JWS JSON Serialization. @jwt carries the finalized
  * shared claims (the payload) and the shared base protected header; @cmd carries
  * the signature list and the format (Flattened or General). Each signature signs
@@ -274,6 +348,9 @@ char *jwt_encode_json(jwt_t *jwt, struct jwt_common *cmd)
 		prot = build_protected(jwt, s, alg);
 		if (prot == NULL)
 			return NULL; // LCOV_EXCL_LINE
+
+		if (sig_crit_check(jwt, s, prot))
+			return NULL;
 
 		if (s->header && jwt_header_params_overlap(prot, s->header)) {
 			jwt_write_error(jwt,
@@ -361,12 +438,13 @@ static int jwt_crit_is_registered(const char *name)
 	return 0;
 }
 
-/* @rfc{7515,4.1.11} Validate the "crit" value now present in the header,
- * regardless of how it got there (jwt_builder_setcrit() or set directly by
- * the application). It must be a non-empty array of unique strings, each
- * naming a header parameter that is present in the header and is not a
- * Header Parameter name defined by RFC 7515 or JWA. */
-static int jwt_validate_crit(jwt_t *jwt, jwt_json_t *crit)
+/* @rfc{7515,4.1.11} Validate @crit, the "crit" value of header @hdr,
+ * regardless of how it got there (jwt_builder_setcrit(), set directly by
+ * the application, or a signature's own). It must be a non-empty array of
+ * unique strings, each naming a header parameter that is present in @hdr
+ * and is not a Header Parameter name defined by RFC 7515 or JWA. */
+static int jwt_validate_crit(jwt_t *jwt, const jwt_json_t *hdr,
+			     jwt_json_t *crit)
 {
 	jwt_json_t *ent;
 	size_t i, n;
@@ -404,7 +482,7 @@ static int jwt_validate_crit(jwt_t *jwt, jwt_json_t *crit)
 			return 1;
 		}
 
-		if (jwt_json_obj_get(jwt->headers, name) == NULL) {
+		if (jwt_json_obj_get(hdr, name) == NULL) {
 			jwt_write_error(jwt,
 				"\"crit\" lists \"%s\" which is not in the header",
 				name);
@@ -468,7 +546,7 @@ int jwt_write_crit(jwt_t *jwt, char * const *crit)
 		} else if (!jwt_json_is_array(arr)) {
 			/* App set a non-array "crit"; can't append to it.
 			 * Let validation below report the error. */
-			return jwt_validate_crit(jwt, arr);
+			return jwt_validate_crit(jwt, jwt->headers, arr);
 		}
 
 		for (i = 0; crit[i] != NULL; i++) {
@@ -491,7 +569,7 @@ int jwt_write_crit(jwt_t *jwt, char * const *crit)
 	if (arr == NULL)
 		return 0;
 
-	return jwt_validate_crit(jwt, arr);
+	return jwt_validate_crit(jwt, jwt->headers, arr);
 }
 
 int jwt_head_setup(jwt_t *jwt)
