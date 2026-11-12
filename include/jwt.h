@@ -975,6 +975,19 @@ void jwt_checker_error_clear(jwt_checker_t *checker);
  *
  * See @ref jwt_builder_setkey for detailed information.
  *
+ * A NULL key (with ::JWT_ALG_NONE) also drops a keyring. Unless embedded-JWK
+ * verification is enabled (this does not turn it off), the checker is then
+ * unkeyed: it verifies no JWS JSON Serialization, and of Compact tokens only
+ * unsigned (``"alg":"none"``) ones, unless a verify callback supplies a key.
+ *
+ * Called from a verify or jti callback, though, it only removes the key: a
+ * checker that was given a key or keyring still requires one, so every later
+ * token fails unless a callback supplies the key, until this is called with a
+ * NULL key outside a verify. It does not fail the token being verified, whose
+ * signature is still checked with config->key (a jti callback runs only after
+ * that check), though later signatures of the same JWS JSON Serialization find
+ * no key. To reject that token, the verify callback returns non-zero.
+ *
  * @param checker Pointer to a checker object
  * @param alg A valid jwt_alg_t type
  * @param key A JWK key object
@@ -1008,15 +1021,24 @@ typedef enum {
  * a JSON Serialization signature by signature, and a Compact token exactly as
  * the equivalent one-signature (Flattened) JSON token.
  *
- * A signature whose protected header names a ``kid`` is verified only against
- * the ring key with that ``kid``; if the ring has none, that signature does not
- * verify (there is no fallback to the other keys). A signature without a
- * ``kid`` is tried against every compatible key. Each candidate is held to the
- * usual algorithm/key-type binding and, when the key declares an ``"alg"``, to
- * exactly that algorithm. The ``"typ"`` and algorithm policy, the verify
- * callback (run once per signature; it may supply the key), the claim checks
- * and the jti check all apply, and an unsigned (``"alg":"none"``) token is
- * never accepted.
+ * A signature whose protected header names a ``kid`` (a string; any other
+ * ``kid`` value is ignored) is verified only against the ring key with that
+ * ``kid``; if the ring has none, that signature does not verify (there is no
+ * fallback to the other keys). A signature without a ``kid`` is tried against
+ * every compatible key. Each candidate is held to the usual algorithm/key-type
+ * binding and, when the key declares an ``"alg"``, to exactly that algorithm.
+ * The ``"typ"`` and algorithm policy, the verify callback (run once for each
+ * signature that meets that policy, until an error such as an unsupported
+ * ``"crit"`` header ends the verification; it may supply the key), the claim
+ * checks and the jti check all apply, and an unsigned (``"alg":"none"``) token
+ * is never accepted.
+ *
+ * A ring key is not tied to an issuer: when the ring holds the keys of several
+ * issuers, a token without a ``kid`` verifies with whichever of them signed
+ * it. To bind an issuer to its keys, select the key from the token's ``iss``
+ * in the verify callback and return non-zero for an unknown or missing ``iss``
+ * (leaving the key NULL lets a token without a ``kid`` be tried against the
+ * whole ring), or use one checker and keyring per issuer.
  *
  * Under ::JWT_VERIFY_POLICY_ANY (the default and the generalization of the
  * single-key behavior) the token is accepted if at least one signature
@@ -1027,15 +1049,17 @@ typedef enum {
  * Setting a keyring and setting a single key are mutually exclusive; the last
  * call wins. When embedded-JWK verification is enabled
  * (jwt_checker_enable_embedded_jwk()), a Compact token is still verified with
- * the confirmed header key rather than the keyring.
+ * the confirmed header key rather than the keyring, while a JWS JSON
+ * Serialization is verified against the keyring.
  *
  * @note With the Jansson JSON backend, a Compact token whose unencoded
  * (@rfc{7797}) payload is not valid UTF-8 cannot be verified against a
  * keyring; use jwt_checker_setkey() for it.
  *
  * @note Before 3.6.2 a Compact token was not checked against the keyring at
- * all: a checker given only a keyring rejected every signed Compact token and
- * accepted an unsigned one (GHSA-mhc9-xvg5-qg29).
+ * all: a checker given only a keyring rejected every signed Compact token
+ * (unless its verify callback supplied the key) and accepted an unsigned one
+ * (GHSA-mhc9-xvg5-qg29).
  *
  * @param checker Pointer to a checker object
  * @param keyring A JWKS of candidate keys (borrowed, not freed by the checker)
@@ -1163,20 +1187,54 @@ int jwt_checker_enable_embedded_jwk_keyring(jwt_checker_t *checker,
 					    const jwk_set_t *allowed);
 
 /**
- * @brief Set a callback for generating tokens
+ * @brief Set a callback for verifying tokens
  *
  * When verifying a token, this callback will be run after jwt_t has been
  * parsed, but before the token is verified (including signature
  * verification). During this, the callback should only inspect the header or
- * claims in the JWT. Any attempts to make changes to the jwt_t object will not
- * change the rest of the process.
+ * claims in the JWT; the checks that follow may see any change it makes to
+ * them.
  *
  * The callback can also set the key and algorithm used to verify the signature.
  * If the callback returns non-zero, then processing will stop and return an
- * error.
+ * error. A JWS JSON Serialization needs a key or keyring on the checker: one
+ * with neither fails it before the callback runs. For a JWS JSON
+ * Serialization, and a Compact token checked against a keyring (which is
+ * verified as one), the callback runs once for each
+ * signature that meets the ``"typ"`` and algorithm policy (until an error such
+ * as an unsupported ``"crit"`` header ends the verification), a non-zero
+ * return only leaves that signature unverified (the ::jwt_verify_policy_t then
+ * decides), and config->alg is that signature's own "alg"; setting it has no
+ * effect.
  *
- * The ctx value is also passed to the callback as part of the jwt_value_t
+ * What config->key holds when the callback runs, and what leaving it NULL
+ * means:
+ * - After jwt_checker_setkey(), or with a header key confirmed by
+ *   embedded-JWK verification (which, for a Compact token, takes precedence
+ *   over a keyring), it is that key. The callback may replace the key but not
+ *   remove it: a NULL key leaves the signature unverified, even if the
+ *   callback also reconfigures the checker. Nor does a callback that calls
+ *   jwt_checker_setkey() with no key make the checker unkeyed for later
+ *   tokens (see there).
+ * - With a keyring (jwt_checker_setkeyring()), it is the ring key named by
+ *   the signature's ``kid``, or NULL. A key the callback sets is the only one
+ *   tried; a NULL key lets a signature without a ``kid`` be tried against every
+ *   compatible ring key.
+ * - Otherwise it is NULL. If the callback leaves it so, and has not given the
+ *   checker a key or keyring, only an unsigned (``"alg":"none"``) token can
+ *   verify.
+ *
+ * @warning In that last case a forged unsigned token is accepted, so a
+ * callback that selects the key (e.g. by ``kid``) on a checker without a key,
+ * keyring or embedded-JWK verification must return non-zero when it finds
+ * none, or set config->alg.
+ *
+ * The ctx value is also passed to the callback as part of the jwt_config_t
  * struct.
+ *
+ * @note The callback must not call jwt_checker_verify() or
+ * jwt_checker_verify_detached() on the checker that invoked it, nor free a key
+ * or keyring that checker is using.
  *
  * @note Calling this with a NULL cb param and a new ctx param after already
  * setting the callback will allow updating the ctx passed to the callback.
