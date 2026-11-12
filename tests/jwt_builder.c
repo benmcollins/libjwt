@@ -1361,6 +1361,52 @@ START_TEST(jti_setjti_null)
 }
 END_TEST
 
+/* JSON with "\u0000" in a string or an object key is refused, as Jansson
+ * refuses it: json-c decoded it, and libjwt read the value or key only up
+ * to the NUL. A backslash followed by "u0000" is not a NUL. */
+START_TEST(json_nul_refused)
+{
+	jwt_builder_auto_t *builder = NULL;
+	jwt_signature_t *sig;
+	jwt_value_t jval;
+
+	SET_OPS();
+
+	read_json("oct_key_256.json");
+
+	builder = jwt_builder_new();
+	ck_assert_ptr_nonnull(builder);
+
+	jwt_set_SET_JSON(&jval, NULL, "{\"a\":\"x\\u0000y\"}");
+	ck_assert_int_eq(jwt_builder_claim_set(builder, &jval),
+			 JWT_VALUE_ERR_INVALID);
+	jwt_set_SET_JSON(&jval, "b", "{\"c\\u0000\":1}");
+	ck_assert_int_eq(jwt_builder_claim_set(builder, &jval),
+			 JWT_VALUE_ERR_INVALID);
+	jwt_set_SET_JSON(&jval, NULL, "{\"x-h\":\"\\u0000\"}");
+	ck_assert_int_eq(jwt_builder_header_set(builder, &jval),
+			 JWT_VALUE_ERR_INVALID);
+
+	sig = jwt_builder_add_signature(builder, JWT_ALG_HS256, g_item);
+	ck_assert_ptr_nonnull(sig);
+	ck_assert_int_ne(jwt_signature_add_protected_json(sig, "x-p",
+				"\"a\\u0000b\""), 0);
+
+	jwt_set_SET_JSON(&jval, NULL, "{\"a\":\"\\\\u0000\"}");
+	ck_assert_int_eq(jwt_builder_claim_set(builder, &jval),
+			 JWT_VALUE_ERR_NONE);
+	jwt_set_GET_STR(&jval, "a");
+	ck_assert_int_eq(jwt_builder_claim_get(builder, &jval),
+			 JWT_VALUE_ERR_NONE);
+	ck_assert_str_eq(jval.str_val, "\\u0000");
+
+	/* The signature borrows the key: free it first. */
+	jwt_builder_free(builder);
+	builder = NULL;
+	free_key();
+}
+END_TEST
+
 static Suite *libjwt_suite(const char *title)
 {
 	Suite *s;
@@ -1435,6 +1481,12 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, jti_gen, 0, i);
 	tcase_add_loop_test(tc_core, jti_gen_fail, 0, i);
 	tcase_add_loop_test(tc_core, jti_setjti_null, 0, i);
+	tcase_set_timeout(tc_core, 60);
+	suite_add_tcase(s, tc_core);
+
+	/* json-c behaves as Jansson does */
+	tc_core = tcase_create("JSON Parity");
+	tcase_add_loop_test(tc_core, json_nul_refused, 0, i);
 	tcase_set_timeout(tc_core, 60);
 	suite_add_tcase(s, tc_core);
 

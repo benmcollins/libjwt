@@ -16,6 +16,7 @@
 #include <string.h>
 #include <errno.h>
 #include <time.h>
+#include <unistd.h>
 
 #include "jwt_tests.h"
 
@@ -1792,6 +1793,206 @@ START_TEST(test_jwks_top_level_null)
 }
 END_TEST
 
+/* The oct_key_256.json key, with a "kid". */
+static const char oct_k1[] = "{\"keys\":[{\"kty\":\"oct\",\"kid\":\"k1\","
+	"\"alg\":\"HS256\","
+	"\"k\":\"0gmNspkRljssLSrldySnYUS-zhtCo5sqeqo_yl7n2XA\"}]}";
+
+/* Copy @tok with @ins added to the end of its "@member" string value. */
+static char *add_to_member(const char *tok, const char *member,
+			   const char *ins)
+{
+	char key[32], *out;
+	const char *p, *q;
+	size_t n;
+
+	snprintf(key, sizeof(key), "\"%s\":\"", member);
+	p = strstr(tok, key);
+	ck_assert_ptr_nonnull(p);
+	q = strchr(p + strlen(key), '"');
+	ck_assert_ptr_nonnull(q);
+
+	n = (size_t)(q - tok);
+	out = malloc(strlen(tok) + strlen(ins) + 1);
+	ck_assert_ptr_nonnull(out);
+	memcpy(out, tok, n);
+	strcpy(out + n, ins);
+	strcat(out, q);
+
+	return out;
+}
+
+/* "\u0000" in a token is refused, as Jansson refuses it. json-c decoded it and
+ * libjwt read the string, or object key, only up to the NUL, so the rest of
+ * it was never checked. */
+START_TEST(test_json_nul_in_token)
+{
+	/* {"alg":"HS256","kid":"k1\u0000junk"} . {"sub":"x"} . <HS256, k1> */
+	const char kid_nul[] =
+		"eyJhbGciOiJIUzI1NiIsImtpZCI6ImsxXHUwMDAwanVuayJ9"
+		".eyJzdWIiOiJ4In0"
+		".8MzlsCu49jA_Z9sYEsQrW9OxaQ9rKSj9KaTS7fcuozo";
+	/* {"alg":"HS256","kid":"k1"} . {"sub":"x"} . <HS256, k1> */
+	const char kid_ok[] =
+		"eyJhbGciOiJIUzI1NiIsImtpZCI6ImsxIn0"
+		".eyJzdWIiOiJ4In0"
+		"._jMbhBP7jZR_aqUP8yxL3FpgdHwn94YnEvz8WWzD3iE";
+	/* "aud" as pinned, then with a NUL in its value, or in its key. */
+	const char * const claims[] = {
+		"{\"aud\":\"api\"}",
+		"{\"aud\":\"api\\u0000.attacker.example\"}",
+		"{\"aud\\u0000x\":\"api\"}",
+	};
+	const char * const members[] = { "payload", "protected", "signature" };
+	jwk_set_auto_t *ring = NULL;
+	size_t i, m;
+	int b64, ret;
+
+	SET_OPS();
+
+	read_json("oct_key_256.json");
+
+	/* A "kid" does not select the key named by its prefix. */
+	ring = jwks_create(oct_k1);
+	ck_assert_ptr_nonnull(ring);
+	ck_assert_int_eq(jwks_error_any(ring), 0);
+	{
+		jwt_checker_auto_t *c = jwt_checker_new();
+
+		ck_assert_ptr_nonnull(c);
+		ck_assert_int_eq(jwt_checker_setkeyring(c, ring,
+					JWT_VERIFY_POLICY_ANY), 0);
+		ck_assert_int_eq(jwt_checker_verify(c, kid_ok), 0);
+		ck_assert_int_ne(jwt_checker_verify(c, kid_nul), 0);
+	}
+
+	/* A claim is not compared by its prefix (a signed raw payload). The
+	 * first entry is the control. */
+	for (i = 0; i < ARRAY_SIZE(claims); i++) {
+		jwt_builder_auto_t *b = jwt_builder_new();
+		jwt_checker_auto_t *c = jwt_checker_new();
+		char_auto *tok = NULL;
+
+		ck_assert_ptr_nonnull(b);
+		ck_assert_ptr_nonnull(c);
+		ret = jwt_builder_setkey(b, JWT_ALG_HS256, g_item);
+		ck_assert_int_eq(ret, 0);
+		ret = jwt_builder_setpayload(b,
+				(const unsigned char *)claims[i],
+				strlen(claims[i]));
+		ck_assert_int_eq(ret, 0);
+		tok = jwt_builder_generate(b);
+		ck_assert_ptr_nonnull(tok);
+
+		ret = jwt_checker_setkey(c, JWT_ALG_HS256, g_item);
+		ck_assert_int_eq(ret, 0);
+		ret = jwt_checker_claim_set(c, JWT_CLAIM_AUD, "api");
+		ck_assert_int_eq(ret, 0);
+
+		ret = jwt_checker_verify(c, tok);
+		if (i == 0)
+			ck_assert_int_eq(ret, 0);
+		else
+			ck_assert_int_ne(ret, 0);
+	}
+
+	/* No member of a JWS JSON token, base64url or unencoded, is checked
+	 * only up to a NUL. */
+	for (b64 = 1; b64 >= 0; b64--) {
+		jwt_builder_auto_t *b = jwt_builder_new();
+		jwt_checker_auto_t *c = jwt_checker_new();
+		char_auto *tok = NULL;
+
+		ck_assert_ptr_nonnull(b);
+		ck_assert_ptr_nonnull(c);
+		ret = jwt_builder_setkey(b, JWT_ALG_HS256, g_item);
+		ck_assert_int_eq(ret, 0);
+		ret = jwt_builder_set_format(b, JWT_FORMAT_JSON_FLAT);
+		ck_assert_int_eq(ret, 0);
+		if (!b64) {
+			ck_assert_int_eq(jwt_builder_setb64(b, 0), 0);
+			ret = jwt_builder_setpayload(b,
+					(const unsigned char *)"$.02", 4);
+			ck_assert_int_eq(ret, 0);
+		}
+		tok = jwt_builder_generate(b);
+		ck_assert_ptr_nonnull(tok);
+
+		ret = jwt_checker_setkey(c, JWT_ALG_HS256, g_item);
+		ck_assert_int_eq(ret, 0);
+		ck_assert_int_eq(jwt_checker_verify(c, tok), 0);
+
+		for (m = 0; m < ARRAY_SIZE(members); m++) {
+			char_auto *bad = add_to_member(tok, members[m],
+						       "\\u0000;unsigned");
+
+			ck_assert_int_ne(jwt_checker_verify(c, bad), 0);
+		}
+	}
+
+	free_key();
+}
+END_TEST
+
+/* Likewise in a JWK or JWKS, from a string, a FILE * or a file. */
+START_TEST(test_json_nul_in_jwks)
+{
+	const char value[] = "{\"kty\":\"oct\",\"kid\":\"a\\u0000b\","
+		"\"k\":\"0gmNspkRljssLSrldySnYUS-zhtCo5sqeqo_yl7n2XA\"}";
+	const char key[] = "{\"kty\\u0000x\":\"oct\","
+		"\"k\":\"0gmNspkRljssLSrldySnYUS-zhtCo5sqeqo_yl7n2XA\"}";
+	char path[] = "/tmp/libjwt_nul_XXXXXX";
+	jwk_set_t *set;
+	FILE *fp;
+	int fd;
+
+	SET_OPS();
+
+	set = jwks_create(value);
+	ck_assert_ptr_nonnull(set);
+	ck_assert_int_ne(jwks_error(set), 0);
+	ck_assert_ptr_nonnull(strstr(jwks_error_msg(set),
+				     "\\u0000 is not allowed"));
+	jwks_free(set);
+
+	set = jwks_create(key);
+	ck_assert_ptr_nonnull(set);
+	ck_assert_int_ne(jwks_error(set), 0);
+	jwks_free(set);
+
+	fd = mkstemp(path);
+	ck_assert_int_ge(fd, 0);
+	fp = fdopen(fd, "w+");
+	ck_assert_ptr_nonnull(fp);
+	ck_assert_int_ge(fputs(value, fp), 0);
+	ck_assert_int_eq(fflush(fp), 0);
+	rewind(fp);
+
+	set = jwks_create_fromfp(fp);
+	fclose(fp);
+	ck_assert_ptr_nonnull(set);
+	ck_assert_int_ne(jwks_error(set), 0);
+	ck_assert_ptr_nonnull(strstr(jwks_error_msg(set),
+				     "\\u0000 is not allowed"));
+	jwks_free(set);
+
+	set = jwks_create_fromfile(path);
+	unlink(path);
+	ck_assert_ptr_nonnull(set);
+	ck_assert_int_ne(jwks_error(set), 0);
+	ck_assert_ptr_nonnull(strstr(jwks_error_msg(set),
+				     "\\u0000 is not allowed"));
+	jwks_free(set);
+
+	/* A file that cannot be opened is named in the error. */
+	set = jwks_create_fromfile(path);
+	ck_assert_ptr_nonnull(set);
+	ck_assert_int_ne(jwks_error(set), 0);
+	ck_assert_ptr_nonnull(strstr(jwks_error_msg(set), path));
+	jwks_free(set);
+}
+END_TEST
+
 /*
  * === Suite Setup ===
  */
@@ -1920,6 +2121,8 @@ static Suite *libjwt_suite(const char *title)
 	tc_json_parity = tcase_create("json_parity");
 
 	tcase_add_loop_test(tc_json_parity, test_jwks_top_level_null, 0, i);
+	tcase_add_loop_test(tc_json_parity, test_json_nul_in_token, 0, i);
+	tcase_add_loop_test(tc_json_parity, test_json_nul_in_jwks, 0, i);
 
 	tcase_set_timeout(tc_json_parity, 30);
 	suite_add_tcase(s, tc_json_parity);

@@ -596,6 +596,31 @@ static void set_error(jwt_json_error_t *error, const char *source,
 			 "%s", source);
 }
 
+/* Jansson refuses "\u0000" in a string or an object key (libjwt never sets
+ * JSON_ALLOW_NUL). json-c decodes it: it cuts an object key short at the NUL,
+ * and keeps it in a string, which libjwt then reads as a C string. Either way
+ * whatever follows the NUL is dropped without a word, so a claim "api\u0000x"
+ * would match "api". Refuse the escape before parsing, as Jansson does. JSON
+ * has a backslash only in a string, where it starts an escape, so stepping
+ * over each escape finds every "\u0000" and never mistakes an escaped
+ * backslash followed by "u0000" for one. */
+#define NUL_ESCAPE_ERROR	"\\u0000 is not allowed"
+
+static int has_nul_escape(const char *buf, size_t len)
+{
+	size_t i;
+
+	for (i = 0; i < len; i++) {
+		if (buf[i] != '\\')
+			continue;
+		if (len - i >= 6 && !memcmp(buf + i + 1, "u0000", 5))
+			return 1;
+		i++;	/* the escaped character */
+	}
+
+	return 0;
+}
+
 /*
  * NOTE: json-c does not support JWT_JSON_REJECT_DUPLICATES.
  * Duplicate keys are silently accepted (last value wins).
@@ -666,6 +691,11 @@ jwt_json_t *jwt_json_parse(const char *input, size_t flags,
 		return NULL;
 	}
 
+	if (has_nul_escape(input, slen)) {
+		set_error(error, "<string>", NUL_ESCAPE_ERROR);
+		return NULL;
+	}
+
 	tok = json_tokener_new();
 	if (!tok) {
 		set_error(error, "<string>", "Failed to create tokener");
@@ -704,6 +734,11 @@ jwt_json_t *jwt_json_parse_buf(const char *buffer, size_t buflen,
 		return NULL;
 	}
 
+	if (has_nul_escape(buffer, buflen)) {
+		set_error(error, "<buffer>", NUL_ESCAPE_ERROR);
+		return NULL;
+	}
+
 	tok = json_tokener_new();
 	if (!tok) {
 		set_error(error, "<buffer>", "Failed to create tokener");
@@ -728,30 +763,32 @@ jwt_json_t *jwt_json_parse_buf(const char *buffer, size_t buflen,
 jwt_json_t *jwt_json_parse_file(const char *path, size_t flags,
 				jwt_json_error_t *error)
 {
-	struct json_object *obj;
+	jwt_json_t *obj;
+	FILE *fp;
 
 	if (!path) {
 		set_error(error, "<file>", "NULL path");
 		return NULL;
 	}
 
-	obj = json_object_from_file(path);
-	if (!obj) {
-		set_error(error, path, "Failed to parse file");
+	/* Read the file here rather than with json_object_from_file(), so its
+	 * text gets the same checks as any other input (see has_nul_escape()
+	 * and validate_parsed()). */
+	fp = fopen(path, "rb");
+	if (!fp) {
+		set_error(error, path, "Unable to open file");
 		return NULL;
 	}
 
-	if (!(flags & JWT_JSON_DECODE_ANY)) {
-		if (!json_object_is_type(obj, json_type_object) &&
-		    !json_object_is_type(obj, json_type_array)) {
-			set_error(error, path,
-				  "Expected JSON object or array");
-			json_object_put(obj);
-			return NULL;
-		}
-	}
+	obj = jwt_json_parse_fp(fp, flags, error);
+	fclose(fp);
 
-	return from_jc(obj);
+	/* Keep naming the file in the error, as before. */
+	if (!obj && error)
+		snprintf(error->source, JWT_JSON_ERROR_SOURCE_LENGTH, "%s",
+			 path);
+
+	return obj;
 }
 
 jwt_json_t *jwt_json_parse_fp(FILE *input, size_t flags,
