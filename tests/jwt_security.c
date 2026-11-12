@@ -1993,6 +1993,130 @@ START_TEST(test_json_nul_in_jwks)
 }
 END_TEST
 
+/* A protected header the builder will not produce, and its HS256 signature
+ * (oct_key_256.json) over it and the payload {"sub":"x"}. */
+struct signed_hdr {
+	const char *prot;
+	const char *sig;
+};
+
+#define SUB_X	"eyJzdWIiOiJ4In0"
+
+static char *hdr_compact(const struct signed_hdr *h)
+{
+	char *tok = NULL;
+
+	ck_assert_int_gt(asprintf(&tok, "%s." SUB_X ".%s", h->prot, h->sig), 0);
+
+	return tok;
+}
+
+/* Flattened JWS JSON, with @extra (",\"member\":...") added. */
+static char *hdr_flat(const struct signed_hdr *h, const char *extra)
+{
+	char *tok = NULL;
+
+	ck_assert_int_gt(asprintf(&tok, "{\"payload\":\"" SUB_X "\","
+				  "\"protected\":\"%s\","
+				  "\"signature\":\"%s\"%s}",
+				  h->prot, h->sig, extra), 0);
+
+	return tok;
+}
+
+/* Verify @tok with oct_key_256.json (g_item) as the key, or in a keyring.
+ * Returns the checker's error message, or NULL if the token verified. */
+static char verify_msg[256];
+
+static const char *hdr_verify(const char *tok, int keyring,
+			      const char *understood)
+{
+	/* Declared first, so freed after the checker that borrows it. */
+	jwk_set_auto_t *ring = NULL;
+	jwt_checker_auto_t *c = jwt_checker_new();
+	int ret;
+
+	ck_assert_ptr_nonnull(c);
+	if (keyring) {
+		ring = jwks_create(oct_k1);
+		ck_assert_ptr_nonnull(ring);
+		ret = jwt_checker_setkeyring(c, ring, JWT_VERIFY_POLICY_ANY);
+	} else {
+		ret = jwt_checker_setkey(c, JWT_ALG_HS256, g_item);
+	}
+	ck_assert_int_eq(ret, 0);
+	if (understood)
+		ck_assert_int_eq(jwt_checker_understands(c, understood), 0);
+
+	if (!jwt_checker_verify(c, tok))
+		return NULL;
+
+	snprintf(verify_msg, sizeof(verify_msg), "%s",
+		 jwt_checker_error_msg(c));
+
+	return verify_msg;
+}
+
+/* {"alg":"HS256"}, a control */
+static const struct signed_hdr hdr_plain = {
+	"eyJhbGciOiJIUzI1NiJ9",
+	"oCDDLEY9LLM6yy33vqb9kIlJU2zwtY6uiPeA70BVO0o",
+};
+
+/* {"alg":"HS256","crit":[null,"zzz"],"zzz":1} */
+static const struct signed_hdr hdr_crit_null_entry = {
+	"eyJhbGciOiJIUzI1NiIsImNyaXQiOltudWxsLCJ6enoiXSwienp6IjoxfQ",
+	"1zMxEaDZGbbCreycvd0FtTsLKqB1HRbsMwXqBqoDJ5c",
+};
+
+/* A JSON null in an array is an element like any other. json-c returns NULL
+ * for it, which used to end jwt_json_arr_foreach() there, so later elements
+ * were skipped: here the unknown critical "zzz", and in a JWK the "x5c" and
+ * "key_ops" entries. */
+START_TEST(test_json_null_array_element)
+{
+	const char *entries = "\"crit\" header entries must be strings";
+	char_auto *compact = NULL, *flat = NULL;
+	jwk_set_auto_t *ops = NULL, *x5c = NULL;
+	const jwk_item_t *item;
+	int keyring;
+
+	SET_OPS();
+
+	read_json("oct_key_256.json");
+
+	compact = hdr_compact(&hdr_crit_null_entry);
+	flat = hdr_flat(&hdr_crit_null_entry, "");
+
+	for (keyring = 0; keyring < 2; keyring++) {
+		char_auto *plain = hdr_compact(&hdr_plain);
+
+		ck_assert_ptr_null(hdr_verify(plain, keyring, NULL));
+		ck_assert_str_eq(hdr_verify(compact, keyring, NULL), entries);
+		ck_assert_str_eq(hdr_verify(flat, keyring, NULL), entries);
+	}
+
+	ops = jwks_create("{\"kty\":\"oct\",\"key_ops\":[null,\"verify\"],"
+		"\"k\":\"0gmNspkRljssLSrldySnYUS-zhtCo5sqeqo_yl7n2XA\"}");
+	ck_assert_ptr_nonnull(ops);
+	item = jwks_item_get(ops, 0);
+	ck_assert_ptr_nonnull(item);
+	ck_assert_int_eq(jwks_item_error(item), 0);
+	ck_assert_int_eq(jwks_item_key_ops(item), JWK_KEY_OP_VERIFY);
+
+	x5c = jwks_create("{\"kty\":\"oct\",\"x5c\":[null],"
+		"\"k\":\"0gmNspkRljssLSrldySnYUS-zhtCo5sqeqo_yl7n2XA\"}");
+	ck_assert_ptr_nonnull(x5c);
+	item = jwks_item_get(x5c, 0);
+	ck_assert_ptr_nonnull(item);
+	ck_assert_int_ne(jwks_item_error(item), 0);
+	ck_assert_str_eq(jwks_item_error_msg(item),
+			 "Invalid JWK: \"x5c\" entry is not a string");
+
+	free_key();
+}
+END_TEST
+
 /*
  * === Suite Setup ===
  */
@@ -2123,6 +2247,7 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_json_parity, test_jwks_top_level_null, 0, i);
 	tcase_add_loop_test(tc_json_parity, test_json_nul_in_token, 0, i);
 	tcase_add_loop_test(tc_json_parity, test_json_nul_in_jwks, 0, i);
+	tcase_add_loop_test(tc_json_parity, test_json_null_array_element, 0, i);
 
 	tcase_set_timeout(tc_json_parity, 30);
 	suite_add_tcase(s, tc_json_parity);

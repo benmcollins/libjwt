@@ -1407,6 +1407,48 @@ START_TEST(json_nul_refused)
 }
 END_TEST
 
+/* A JSON null in "crit" is an entry that is not a string, as with Jansson.
+ * json-c gives NULL for it, which used to end the checks of "crit" there,
+ * so the entries after it went unchecked and the token was emitted. */
+START_TEST(crit_appset_null_entry)
+{
+	const char *entries = "\"crit\" header entries must be strings";
+	jwt_builder_auto_t *builder = NULL;
+	char_auto *out = NULL;
+	jwt_value_t jval;
+	int ret;
+
+	SET_OPS();
+
+	builder = jwt_builder_new();
+	ck_assert_ptr_nonnull(builder);
+
+	jwt_set_SET_JSON(&jval, "crit", "[null,\"x\"]");
+	ret = jwt_builder_header_set(builder, &jval);
+	ck_assert_int_eq(ret, 0);
+
+	out = jwt_builder_generate(builder);
+	ck_assert_ptr_null(out);
+	ck_assert_str_eq(jwt_builder_error_msg(builder), entries);
+
+	/* Nor when an unencoded payload adds "b64" to it. */
+	jwt_builder_free(builder);
+	builder = jwt_builder_new();
+	ck_assert_ptr_nonnull(builder);
+
+	jwt_set_SET_JSON(&jval, "crit", "[null]");
+	ret = jwt_builder_header_set(builder, &jval);
+	ck_assert_int_eq(ret, 0);
+	ck_assert_int_eq(jwt_builder_setb64(builder, 0), 0);
+	ret = jwt_builder_setpayload(builder, (const unsigned char *)"raw", 3);
+	ck_assert_int_eq(ret, 0);
+
+	out = jwt_builder_generate(builder);
+	ck_assert_ptr_null(out);
+	ck_assert_str_eq(jwt_builder_error_msg(builder), entries);
+}
+END_TEST
+
 static Suite *libjwt_suite(const char *title)
 {
 	Suite *s;
@@ -1487,6 +1529,7 @@ static Suite *libjwt_suite(const char *title)
 	/* json-c behaves as Jansson does */
 	tc_core = tcase_create("JSON Parity");
 	tcase_add_loop_test(tc_core, json_nul_refused, 0, i);
+	tcase_add_loop_test(tc_core, crit_appset_null_entry, 0, i);
 	tcase_set_timeout(tc_core, 60);
 	suite_add_tcase(s, tc_core);
 

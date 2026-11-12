@@ -130,10 +130,13 @@ jwt_json_t *jwt_json_arr_get(const jwt_json_t *array, size_t index);
 JWT_NO_EXPORT
 int jwt_json_arr_append(jwt_json_t *array, jwt_json_t *value);
 
-#define jwt_json_arr_foreach(array, index, value)		\
-	for ((index) = 0;					\
-	     (index) < jwt_json_arr_size(array) &&		\
-	     ((value) = jwt_json_arr_get((array), (index)));	\
+/* Visit every element of @array (none if it is not an array). @value is NULL
+ * for a JSON null element on json-c (Jansson gives the null itself), so the
+ * body must type-check it before use; the loop does not stop there. */
+#define jwt_json_arr_foreach(array, index, value)			\
+	for ((index) = 0;						\
+	     (index) < jwt_json_arr_size(array) &&			\
+	     ((value) = jwt_json_arr_get((array), (index)), 1);		\
 	     (index)++)
 
 /* ================================================================
