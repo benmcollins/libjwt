@@ -150,6 +150,12 @@ jwt_json_t *jwt_json_obj_get(const jwt_json_t *object, const char *key)
 	return from_json(json_object_get(to_json(object), key));
 }
 
+int jwt_json_obj_has(const jwt_json_t *object, const char *key)
+{
+	/* A member whose value is null holds json_null(), not NULL. */
+	return json_object_get(to_json(object), key) != NULL;
+}
+
 int jwt_json_obj_set(jwt_json_t *object, const char *key, jwt_json_t *value)
 {
 	return json_object_set_new(to_json(object), key, to_json(value));

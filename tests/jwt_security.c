@@ -2024,6 +2024,21 @@ static char *hdr_flat(const struct signed_hdr *h, const char *extra)
 	return tok;
 }
 
+/* General JWS JSON, with @entry_extra added to the signature and @extra to
+ * the top level. */
+static char *hdr_general(const struct signed_hdr *h, const char *entry_extra,
+			 const char *extra)
+{
+	char *tok = NULL;
+
+	ck_assert_int_gt(asprintf(&tok, "{\"payload\":\"" SUB_X "\","
+				  "\"signatures\":[{\"protected\":\"%s\","
+				  "\"signature\":\"%s\"%s}]%s}",
+				  h->prot, h->sig, entry_extra, extra), 0);
+
+	return tok;
+}
+
 /* Verify @tok with oct_key_256.json (g_item) as the key, or in a keyring.
  * Returns the checker's error message, or NULL if the token verified. */
 static char verify_msg[256];
@@ -2130,6 +2145,100 @@ START_TEST(test_json_null_array_element)
 		item = jwks_item_get(keys, 1);
 		ck_assert_int_eq(jwks_item_error(item), 0);
 		ck_assert_ptr_eq(jwks_find_bykid(keys, "k1"), item);
+	}
+
+	free_key();
+}
+END_TEST
+
+/* {"alg":"HS256","b64":null} */
+static const struct signed_hdr hdr_b64_null = {
+	"eyJhbGciOiJIUzI1NiIsImI2NCI6bnVsbH0",
+	"m3RTDYq5KVSlqxmxvwC2vnk8E_gFJrb-X7lijcyRNqU",
+};
+
+/* {"alg":"HS256","crit":null} */
+static const struct signed_hdr hdr_crit_null = {
+	"eyJhbGciOiJIUzI1NiIsImNyaXQiOm51bGx9",
+	"98XF7LFGKGiO9lSX8b9QCNLMY4jUv6NK3SYFpwnmSFA",
+};
+
+/* {"alg":"HS256","crit":["x"],"x":null} */
+static const struct signed_hdr hdr_crit_x_null = {
+	"eyJhbGciOiJIUzI1NiIsImNyaXQiOlsieCJdLCJ4IjpudWxsfQ",
+	"Y-u1MP_xvDl-R_E5AXYrb2MSAv18AkCnPrJtBg-dORE",
+};
+
+/* A member that is JSON null is present, with a value of the wrong type.
+ * json-c's jwt_json_obj_get() gives NULL for it, as for a missing member, so
+ * these were taken as absent there. */
+START_TEST(test_json_null_member)
+{
+	const char *b64 = "\"b64\" header must be a boolean";
+	const char *crit = "\"crit\" header must be an array";
+	const char *unprot =
+		"JWS \"crit\"/\"b64\" must be in the protected header";
+	const char *header = "JWS unprotected header is invalid or overlaps";
+	const char *mixed = "JWS JSON mixes General and Flattened members";
+	int keyring;
+
+	SET_OPS();
+
+	read_json("oct_key_256.json");
+
+	/* In the protected header, Compact or JSON, key or keyring. A null
+	 * parameter listed in "crit" is in the header. */
+	for (keyring = 0; keyring < 2; keyring++) {
+		char_auto *b64_c = hdr_compact(&hdr_b64_null);
+		char_auto *b64_f = hdr_flat(&hdr_b64_null, "");
+		char_auto *crit_c = hdr_compact(&hdr_crit_null);
+		char_auto *crit_f = hdr_flat(&hdr_crit_null, "");
+		char_auto *x_c = hdr_compact(&hdr_crit_x_null);
+
+		ck_assert_str_eq(hdr_verify(b64_c, keyring, NULL), b64);
+		ck_assert_str_eq(hdr_verify(b64_f, keyring, NULL), b64);
+		ck_assert_str_eq(hdr_verify(crit_c, keyring, NULL), crit);
+		ck_assert_str_eq(hdr_verify(crit_f, keyring, NULL), crit);
+		ck_assert_ptr_null(hdr_verify(x_c, keyring, "x"));
+	}
+
+	/* In an unprotected header, or as the unprotected header. */
+	{
+		char_auto *crit_f = hdr_flat(&hdr_plain,
+					     ",\"header\":{\"crit\":null}");
+		char_auto *b64_g = hdr_general(&hdr_plain,
+				",\"header\":{\"b64\":null}", "");
+		char_auto *hdr_f = hdr_flat(&hdr_plain, ",\"header\":null");
+		char_auto *hdr_g = hdr_general(&hdr_plain, ",\"header\":null",
+					       "");
+
+		ck_assert_str_eq(hdr_verify(crit_f, 0, NULL), unprot);
+		ck_assert_str_eq(hdr_verify(b64_g, 0, NULL), unprot);
+		ck_assert_str_eq(hdr_verify(hdr_f, 0, NULL), header);
+		ck_assert_str_eq(hdr_verify(hdr_g, 0, NULL), header);
+	}
+
+	/* General and Flattened members do not mix. */
+	{
+		char_auto *flat = hdr_flat(&hdr_plain, "");
+		char_auto *general = hdr_general(&hdr_plain, "", "");
+		char_auto *sigs = hdr_flat(&hdr_plain, ",\"signatures\":null");
+		char_auto *prot = hdr_general(&hdr_plain, "",
+					      ",\"protected\":null");
+		char_auto *sig = hdr_general(&hdr_plain, "",
+					     ",\"signature\":null");
+		char_auto *hdr = hdr_general(&hdr_plain, "",
+					     ",\"header\":null");
+
+		ck_assert_ptr_null(hdr_verify(flat, 0, NULL));
+		ck_assert_ptr_null(hdr_verify(general, 0, NULL));
+		ck_assert_str_eq(hdr_verify(sigs, 0, NULL), mixed);
+		ck_assert_str_eq(hdr_verify(prot, 0, NULL), mixed);
+		ck_assert_str_eq(hdr_verify(sig, 0, NULL), mixed);
+		ck_assert_str_eq(hdr_verify(hdr, 0, NULL), mixed);
+		ck_assert_str_eq(hdr_verify("{\"payload\":\"" SUB_X "\","
+					    "\"signatures\":null}", 0, NULL),
+				 "\"signatures\" must be an array");
 	}
 
 	free_key();
@@ -2267,6 +2376,7 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_json_parity, test_json_nul_in_token, 0, i);
 	tcase_add_loop_test(tc_json_parity, test_json_nul_in_jwks, 0, i);
 	tcase_add_loop_test(tc_json_parity, test_json_null_array_element, 0, i);
+	tcase_add_loop_test(tc_json_parity, test_json_null_member, 0, i);
 
 	tcase_set_timeout(tc_json_parity, 30);
 	suite_add_tcase(s, tc_json_parity);

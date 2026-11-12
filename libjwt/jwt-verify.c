@@ -102,10 +102,13 @@ int jwt_check_crit(jwt_t *jwt, char * const *understood)
 	jwt_json_t *crit, *ent;
 	size_t i;
 
-	crit = jwt_json_obj_get(jwt->headers, "crit");
-	if (crit == NULL)
+	/* A "crit" (or a listed parameter) that is JSON null is present: test
+	 * that with jwt_json_obj_has(), as json-c's jwt_json_obj_get() gives
+	 * NULL for it. */
+	if (!jwt_json_obj_has(jwt->headers, "crit"))
 		return 0;
 
+	crit = jwt_json_obj_get(jwt->headers, "crit");
 	if (!jwt_json_is_array(crit)) {
 		jwt_write_error(jwt, "\"crit\" header must be an array");
 		return 1;
@@ -129,7 +132,7 @@ int jwt_check_crit(jwt_t *jwt, char * const *understood)
 		name = jwt_json_str_val(ent);
 
 		/* Must actually appear in the header. */
-		if (jwt_json_obj_get(jwt->headers, name) == NULL) {
+		if (!jwt_json_obj_has(jwt->headers, name)) {
 			jwt_write_error(jwt,
 				"\"crit\" lists \"%s\" which is not in the header",
 				name);
@@ -177,10 +180,11 @@ static const char *jwt_payload_b64(const jwt_json_t *hdr, int *b64)
 
 	*b64 = 1;
 
-	jb64 = jwt_json_obj_get(hdr, "b64");
-	if (jb64 == NULL)
+	/* Even a JSON null "b64" (NULL from json-c's jwt_json_obj_get()). */
+	if (!jwt_json_obj_has(hdr, "b64"))
 		return NULL;
 
+	jb64 = jwt_json_obj_get(hdr, "b64");
 	if (!jwt_json_is_bool(jb64))
 		return "\"b64\" header must be a boolean";
 
@@ -803,8 +807,9 @@ static int build_sig_entry(jwt_checker_t *checker, jwt_json_t *entry,
 	}
 	*pb64 = b64;
 
+	/* Members that are JSON null count too (see jwt_json_obj_has()). */
 	hdr_j = jwt_json_obj_get(entry, "header");
-	if (hdr_j != NULL) {
+	if (jwt_json_obj_has(entry, "header")) {
 		if (!jwt_json_is_object(hdr_j) ||
 		    jwt_header_params_overlap(prot_obj, hdr_j)) {
 			jwt_json_release(prot_obj);
@@ -815,8 +820,8 @@ static int build_sig_entry(jwt_checker_t *checker, jwt_json_t *entry,
 		/* @rfc{7515,4.1.11}/@rfc{7797,3} "crit" and "b64" MUST be
 		 * integrity protected, i.e. only in "protected". Reject them
 		 * here rather than silently ignore them. */
-		if (jwt_json_obj_get(hdr_j, "crit") != NULL ||
-		    jwt_json_obj_get(hdr_j, "b64") != NULL) {
+		if (jwt_json_obj_has(hdr_j, "crit") ||
+		    jwt_json_obj_has(hdr_j, "b64")) {
 			jwt_json_release(prot_obj);
 			jwt_write_error(checker,
 				"JWS \"crit\"/\"b64\" must be in the protected header");
@@ -1006,14 +1011,15 @@ int jwt_verify_json(jwt_checker_t *checker, const char *token)
 	payload_len = (int)strlen(payload_b64);
 
 	/* @rfc{7515,7.2} General has a "signatures" array; Flattened hoists a
-	 * single signature's members to the top level. They are exclusive. */
+	 * single signature's members to the top level. They are exclusive,
+	 * even when one is JSON null (see jwt_json_obj_has()). */
 	sigs = jwt_json_obj_get(root, "signatures");
-	if (sigs != NULL) {
+	if (jwt_json_obj_has(root, "signatures")) {
 		size_t i, cnt;
 
-		if (jwt_json_obj_get(root, "protected") ||
-		    jwt_json_obj_get(root, "signature") ||
-		    jwt_json_obj_get(root, "header")) {
+		if (jwt_json_obj_has(root, "protected") ||
+		    jwt_json_obj_has(root, "signature") ||
+		    jwt_json_obj_has(root, "header")) {
 			jwt_write_error(checker,
 				"JWS JSON mixes General and Flattened members");
 			return 1;

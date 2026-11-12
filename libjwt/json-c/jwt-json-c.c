@@ -115,6 +115,14 @@ jwt_json_t *jwt_json_obj_get(const jwt_json_t *object, const char *key)
 	return from_jc(json_object_object_get(to_jc(object), key));
 }
 
+int jwt_json_obj_has(const jwt_json_t *object, const char *key)
+{
+	/* 1 for a member whose value is null, which json-c stores as NULL;
+	 * json_object_object_get_ex() is 0 for a non-object. */
+	return object && key &&
+	       json_object_object_get_ex(to_jc(object), key, NULL);
+}
+
 int jwt_json_obj_set(jwt_json_t *object, const char *key, jwt_json_t *value)
 {
 	int ret;
