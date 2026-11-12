@@ -72,15 +72,15 @@ static void print_token_trunc(const char *str, size_t max_len)
 	}
 }
 
-static int process_one(jwt_checker_t *checker, jwt_alg_t alg, const char *token,
-		       int quiet)
+static int process_one(jwt_checker_t *checker, int signed_only,
+		       const char *token, int quiet)
 {
 	int err = 0;
 
 	if (!quiet) {
-		printf("\n%s %s[TOK]\033[0m ", alg == JWT_ALG_NONE ?
-			"\xF0\x9F\x94\x93" : "\xF0\x9F\x94\x90",
-			alg == JWT_ALG_NONE ? "\033[0;93m" : "\033[0;92m");
+		printf("\n%s %s[TOK]\033[0m ", signed_only ?
+			"\xF0\x9F\x94\x90" : "\xF0\x9F\x94\x93",
+			signed_only ? "\033[0;92m" : "\033[0;93m");
 		print_token_trunc(token, 60);
 	}
 
@@ -103,12 +103,14 @@ int main(int argc, char *argv[])
 	const char *key_file = NULL;
 	const char *keyring_file = NULL;
 	jwt_alg_t alg = JWT_ALG_NONE;
+	int alg_given = 0;
 	jwt_verify_policy_t policy = JWT_VERIFY_POLICY_ANY;
 	jwk_set_auto_t *jwk_set = NULL;
 	jwk_set_auto_t *keyring = NULL;
 	const jwk_item_t *item = NULL;
 	int oc, err, verbose = 0;
 	int quiet = 0;
+	int signed_only;
 
 	char *optstr = "hk:r:P:a:lvqp:";
 	struct option opttbl[] = {
@@ -190,6 +192,7 @@ int main(int argc, char *argv[])
 					"algorithms)\n", optarg);
 				exit(EXIT_FAILURE);
 			}
+			alg_given = 1;
 			break;
 
 		default: /* '?' */
@@ -203,6 +206,11 @@ int main(int argc, char *argv[])
 
 	if (argc == 0)
 		usage("No token(s) given", EXIT_FAILURE);
+
+	/* A keyring's keys decide the algorithm of each signature. */
+	if (keyring_file && alg_given)
+		usage("--algorithm cannot be used with --keyring",
+		      EXIT_FAILURE);
 
 	if (key_file == NULL && alg != JWT_ALG_NONE)
 		usage("An algorithm other than 'none' requires a key",
@@ -280,6 +288,10 @@ int main(int argc, char *argv[])
 			       jwt_alg_str(jwks_item_alg(item)));
 		}
 		alg = jwks_item_alg(item);
+	} else if (keyring && !quiet) {
+		/* Each signature's ring key (the one its kid names, or any
+		 * compatible key) decides its algorithm. */
+		printf("\033[0;92m[ALG]\033[0m per key (from keyring)");
 	} else if (!quiet){
 		if (alg == JWT_ALG_NONE)
 			printf("\033[0;91m[ALG]\033[0m %s (from options)",
@@ -293,17 +305,20 @@ int main(int argc, char *argv[])
 
 	err = 0;
 
+	/* Show a token as signed whenever a key or keyring checks it. */
+	signed_only = keyring != NULL || alg != JWT_ALG_NONE;
+
 	if (!strcmp(argv[0], "-")) {
 		char token[BUFSIZ];
 		while (fgets(token, sizeof(token), stdin) != NULL) {
 			token[strcspn(token, "\n")] = '\0';
 
-			err += process_one(checker, alg, token, quiet);
+			err += process_one(checker, signed_only, token, quiet);
 		}
 	} else {
 		for (oc = 0; oc < argc; oc++) {
 			const char *token = argv[oc];
-			err += process_one(checker, alg, token, quiet);
+			err += process_one(checker, signed_only, token, quiet);
 		}
 	}
 
