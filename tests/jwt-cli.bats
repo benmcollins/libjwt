@@ -41,6 +41,23 @@ CLAIM_RES="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZG1pbiI6ZmFsc2UsImV4cCI6MTgz
 	./tools/jwt-verify -v -k ${HS256_KEY} ${CLAIM_RES}
 }
 
+# A key without an "alg" needs -a/--algorithm, and both spellings must work.
+NOALG_KEY="../tests/keys/oct_key_256_sig.json"
+
+@test "Verify with -a ALG as well as --algorithm=ALG" {
+	token="$(./tools/jwt-generate -q -n -a HS256 -k ${NOALG_KEY})"
+	./tools/jwt-verify -q -a HS256 -k ${NOALG_KEY} "${token}"
+	./tools/jwt-verify -q --algorithm=HS256 -k ${NOALG_KEY} "${token}"
+	# The algorithm given is the one enforced...
+	run ./tools/jwt-verify -a HS384 -k ${NOALG_KEY} "${token}"
+	[ "${status}" -ne 0 ]
+	echo "${output}" | grep -q 'alg does not match'
+	# ...and an unknown one is reported by name.
+	run ./tools/jwt-verify -a BOGUS -k ${NOALG_KEY} "${token}"
+	[ "${status}" -ne 0 ]
+	echo "${output}" | grep -q 'Unknown algorithm \[BOGUS\]'
+}
+
 @test "Generate JWKS from PEM Files" {
 	# The golden all.json covers every key type, but only the OpenSSL backend
 	# converts them all: GnuTLS has no secp256k1, MbedTLS has no EdDSA (the

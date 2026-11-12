@@ -110,7 +110,7 @@ int main(int argc, char *argv[])
 	int oc, err, verbose = 0;
 	int quiet = 0;
 
-	char *optstr = "hk:r:P:alvqp:";
+	char *optstr = "hk:r:P:a:lvqp:";
 	struct option opttbl[] = {
 		{ "help",	no_argument,		NULL, 'h' },
 		{ "key",	required_argument,	NULL, 'k' },
