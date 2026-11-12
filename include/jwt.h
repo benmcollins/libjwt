@@ -1404,9 +1404,13 @@ int jwt_checker_verify(jwt_checker_t *checker, const char *token);
 /**
  * @brief Number of signatures in the last verified token
  *
- * After jwt_checker_verify(), returns how many signatures the token carried
- * (1 for a Compact or Flattened token, N for a General one, 0 if verification
- * failed before the signatures were parsed).
+ * After jwt_checker_verify() or jwt_checker_verify_detached(), returns how
+ * many signatures the token carried: 1 for a Compact or Flattened token, N
+ * for a General one. It is 0 if verification failed before the signatures
+ * were parsed and, for a Compact token not checked against a keyring (see
+ * jwt_checker_setkeyring()), whenever the token was rejected. The count says
+ * nothing about whether the token was accepted (see
+ * jwt_checker_sig_verified()).
  *
  * @param checker Pointer to a checker object
  * @return The signature count of the last token
@@ -1418,8 +1422,16 @@ unsigned int jwt_checker_sig_count(const jwt_checker_t *checker);
 /**
  * @brief Whether a given signature of the last token verified
  *
- * After jwt_checker_verify(), reports per-signature results. Useful under
- * ::JWT_VERIFY_POLICY_ANY to learn which signature(s) passed.
+ * After jwt_checker_verify() or jwt_checker_verify_detached(), reports
+ * per-signature results. Useful under ::JWT_VERIFY_POLICY_ANY to learn which
+ * signature(s) passed.
+ *
+ * @warning This reports the signature check alone, not whether the token was
+ * accepted: a signature can show as verified although jwt_checker_verify()
+ * rejected the token, e.g. because it expired, failed a claim check or did
+ * not meet ::JWT_VERIFY_POLICY_ALL. Only the return value of
+ * jwt_checker_verify() (or jwt_checker_verify_detached()) says whether to
+ * accept the token.
  *
  * @param checker Pointer to a checker object
  * @param index A signature index in ``[0, jwt_checker_sig_count())``
@@ -1434,6 +1446,10 @@ int jwt_checker_sig_verified(const jwt_checker_t *checker, unsigned int index);
 /**
  * @brief The key a given signature of the last token verified against
  *
+ * Like jwt_checker_sig_verified(), this reports the signature check alone: it
+ * returns a verified signature's key even if jwt_checker_verify() rejected
+ * the token.
+ *
  * @param checker Pointer to a checker object
  * @param index A signature index in ``[0, jwt_checker_sig_count())``
  * @return The key that verified signature @p index, or NULL if it did not
@@ -1442,7 +1458,8 @@ int jwt_checker_sig_verified(const jwt_checker_t *checker, unsigned int index);
  *  the keyring, or to whoever supplied it (jwt_checker_setkey() or the
  *  verify callback), except that a key confirmed by embedded-JWK
  *  verification belongs to the checker, which keeps it only until the next
- *  jwt_checker_verify() or jwt_checker_verify_detached() call or
+ *  jwt_checker_verify() or jwt_checker_verify_detached() call on @p checker
+ *  (even one that fails at once, as on a NULL or empty token) or
  *  jwt_checker_free().
  * @since 3.6.0
  */
