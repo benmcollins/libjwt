@@ -1092,6 +1092,14 @@ typedef enum {
  * (@rfc{7797}) payload is not valid UTF-8 cannot be verified against a
  * keyring; use jwt_checker_setkey() for it.
  *
+ * @note A Compact token is verified against a keyring by converting it to the
+ * JSON Serialization and parsing that again, before anything in it is
+ * checked. A hostile token, e.g. one full of control characters, then costs
+ * about 15 bytes of memory per byte of token, where the single-key path needs
+ * about one, and some 50 to 100 times its CPU time: a 64 MB token took about
+ * 1 GB and several seconds. Limit the size of the tokens you accept before
+ * verifying them.
+ *
  * @note Before 3.6.2 a Compact token was not checked against the keyring at
  * all: a checker given only a keyring rejected every signed Compact token
  * (unless its verify callback supplied the key) and accepted an unsigned one
