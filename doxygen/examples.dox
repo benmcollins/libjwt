@@ -227,8 +227,9 @@ token = jwt_builder_generate(builder);
 
 The checker has the mirror-image hook, @ref jwt_checker_setcb — it runs during
 verification so you can inspect the header and claims, or select the verification
-key, before the signature is checked. (A checker callback should only read the
-@ref jwt_t — changes to it do not affect verification.)
+key, before the signature is checked. (A checker callback must only read the
+@ref jwt_t, never change it: the checks that follow see any change, so deleting
+the ``exp`` claim, for example, would let an expired token pass.)
 
 @note For the very common case of a unique token id, the builder offers a
 dedicated @ref jwt_builder_setjti hook to generate the ``jti`` claim, paired with
