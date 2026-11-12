@@ -460,8 +460,8 @@ static int jwt_validate_crit(jwt_t *jwt, const jwt_json_t *hdr,
 		return 1;
 	}
 
-	/* Index every entry: json-c returns a JSON null one as NULL, which
-	 * would end jwt_json_arr_foreach() there and skip the rest. */
+	/* Index every entry, so that none is skipped: json-c returns a JSON
+	 * null one as NULL, which is not a string either. */
 	for (i = 0; i < n; i++) {
 		const char *name;
 		size_t k;
