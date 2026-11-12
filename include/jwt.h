@@ -1245,13 +1245,16 @@ int jwt_checker_enable_embedded_jwk_keyring(jwt_checker_t *checker,
  * meets the ``"typ"`` and algorithm policy (until an error such as an
  * unsupported ``"crit"`` header ends the verification), just before that
  * signature is verified. It sees that signature's protected header, but not
- * its unprotected ``"header"``, and the token's claims; config->alg is that
- * signature's own ``"alg"``, and setting it has no effect. A non-zero return
- * only leaves that signature unverified, for the ::jwt_verify_policy_t to
- * decide: under ::JWT_VERIFY_POLICY_ANY the token is still accepted if
- * another of its signatures verifies, and under ::JWT_VERIFY_POLICY_ALL it is
- * rejected. A Compact token has only the one signature, so it is rejected
- * under either policy.
+ * its unprotected ``"header"``, and the token's claims. config->alg is the
+ * algorithm given to jwt_checker_setkey(), if any, or else that signature's
+ * own ``"alg"``, and the signature verifies only if its ``"alg"`` is the one
+ * in config->alg when the callback returns (for ::JWT_ALG_NONE, the key's
+ * ``"alg"``, if it has one). A non-zero return only leaves that signature
+ * unverified, for the ::jwt_verify_policy_t to decide: under
+ * ::JWT_VERIFY_POLICY_ANY the token is still accepted if another of its
+ * signatures verifies, and under ::JWT_VERIFY_POLICY_ALL it is rejected. A
+ * Compact token has only the one signature, so it is rejected under either
+ * policy.
  *
  * What config->key holds when the callback runs, and what leaving it NULL
  * means:
@@ -1262,10 +1265,10 @@ int jwt_checker_enable_embedded_jwk_keyring(jwt_checker_t *checker,
  *   callback also reconfigures the checker. Nor does a callback that calls
  *   jwt_checker_setkey() with no key make the checker unkeyed for later
  *   tokens (see there).
- * - With a keyring (jwt_checker_setkeyring()), it is the ring key named by
- *   the signature's ``kid``, or NULL. A key the callback sets is the only one
- *   tried; a NULL key lets a signature without a ``kid`` be tried against every
- *   compatible ring key.
+ * - With a keyring (jwt_checker_setkeyring()), it is the candidate key that
+ *   the signature's ``kid`` names (see there), or NULL. A key the callback
+ *   sets is the only one tried; a NULL key lets a signature without a ``kid``
+ *   be tried against every compatible candidate.
  * - Otherwise it is NULL. If the callback leaves it so, and has not given the
  *   checker a key or keyring, only an unsigned (``"alg":"none"``) token can
  *   verify.
