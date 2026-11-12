@@ -999,7 +999,8 @@ void jwt_checker_error_clear(jwt_checker_t *checker);
  * verifies only if it uses exactly that algorithm (with ::JWT_ALG_NONE, the
  * key's ``"alg"``), not merely one the key could check (e.g. RS512 or PS256
  * when pinned to RS256). A verify callback that sets config->alg pins that
- * algorithm instead.
+ * algorithm instead. The key is used whatever its ``"use"`` or
+ * ``"key_ops"``, unlike the keys of a keyring (see jwt_checker_setkeyring()).
  *
  * A NULL key (with ::JWT_ALG_NONE) also drops a keyring. Unless embedded-JWK
  * verification is enabled (this does not turn it off), the checker is then
@@ -1047,11 +1048,16 @@ typedef enum {
  * a JSON Serialization signature by signature, and a Compact token exactly as
  * the equivalent one-signature (Flattened) JSON token.
  *
- * A signature whose protected header names a ``kid`` is verified only against
- * the ring key with that ``kid``; if the ring has none, that signature does
- * not verify (there is no fallback to the other keys). A ``kid`` that is not a
- * string, in either header, fails the verification. A signature without a
- * ``kid`` is tried against every compatible key.
+ * Only ring keys meant for signatures are candidates: not a key whose
+ * ``"use"`` is present and is not ``"sig"``, nor one whose ``"key_ops"`` is
+ * present and includes neither ``"verify"`` nor ``"sign"`` (e.g. a
+ * key-wrapping key). Every key that libjwt imports (jwks_load_fromkey()) or
+ * generates (jwks_generate()) is a candidate. A signature whose protected
+ * header names a ``kid`` is verified only against the candidate with that
+ * ``kid``; if there is none, that signature does not verify (there is no
+ * fallback to the other keys). A ``kid`` that is not a string, in either
+ * header, fails the verification. A signature without a ``kid`` is tried
+ * against every compatible candidate.
  *
  * Each candidate is held to the usual algorithm/key-type binding and, when the
  * key declares an ``"alg"``, to exactly that algorithm. The ``"typ"`` and
@@ -1059,8 +1065,9 @@ typedef enum {
  * meets that policy, until an error such as an unsupported ``"crit"`` header
  * ends the verification), the claim checks and the jti check all apply, and
  * an unsigned (``"alg":"none"``) token is never accepted. The callback may
- * supply the key, which is then the only one tried; if it sets config->alg, a
- * signature with another ``"alg"`` does not verify.
+ * supply the key, which is then the only one tried, whatever its ``"use"`` or
+ * ``"key_ops"``; if it sets config->alg, a signature with another ``"alg"``
+ * does not verify.
  *
  * A ring key is not tied to an issuer: when the ring holds the keys of several
  * issuers, a token without a ``kid`` verifies with whichever of them signed

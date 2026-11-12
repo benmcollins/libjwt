@@ -913,6 +913,61 @@ static int sig_kid(const struct jwt_signature *s, const char **kid)
 	return 0;
 }
 
+/* @rfc{7517,4.2,4.3} May the keyring offer key @k to verify a signature? Not
+ * if its "use" is present and is not "sig", nor if its "key_ops" is present
+ * and includes neither "verify" nor "sign": such a key is meant for something
+ * else, such as key wrapping, and is skipped as JWKS key selection commonly
+ * does. "sign" counts, as @rfc{7517,4.3} pairs it with "verify" and a private
+ * key verifies with its public part: jwt_key2jwk() gives every private or
+ * HMAC key it exports (for jwks_load_fromkey(), and jwks_generate() of a key
+ * pair) "key_ops":["sign"]. A malformed value counts against the key. Only
+ * for keys the ring offers, by "kid" or in the scan: a key the application
+ * chose (jwt_checker_setkey(), or the verify callback) is used as given. */
+static int ring_key_verifies(const jwk_item_t *k)
+{
+	jwt_json_t *v, *op;
+	const char *s;
+	size_t i, n;
+
+	if (json_has(k->json, "use", &v) &&
+	    (!jwt_json_is_string(v) || strcmp(jwt_json_str_val(v), "sig")))
+		return 0;
+
+	if (!json_has(k->json, "key_ops", &v))
+		return 1;
+
+	/* Read every member by index, alike on both JSON backends: a JSON null
+	 * one (NULL from json-c) is skipped like any other non-string, so
+	 * [null,"verify"] may verify. */
+	n = jwt_json_arr_size(v);
+	for (i = 0; i < n; i++) {
+		op = jwt_json_arr_get(v, i);
+		if (!jwt_json_is_string(op))
+			continue;
+		s = jwt_json_str_val(op);
+		if (!strcmp(s, "verify") || !strcmp(s, "sign"))
+			return 1;
+	}
+
+	return 0;
+}
+
+/* The ring key that @kid names: the first one with that "kid" that the ring
+ * may offer (see ring_key_verifies()), or NULL. */
+static const jwk_item_t *ring_find_kid(const jwk_set_t *ring, const char *kid)
+{
+	const jwk_item_t *k;
+
+	list_for_each_entry(k, &ring->head, node) {
+		const char *kkid = jwks_item_kid(k);
+
+		if (kkid != NULL && !strcmp(kkid, kid) && ring_key_verifies(k))
+			return k;
+	}
+
+	return NULL;
+}
+
 /* Try one candidate key against signature @s over @input. Applies the
  * algorithm/key-type anti-confusion gate (GHSA-q843-6q5f-w55g) before any
  * verify, and routes the crypto to the key's origin backend via jwt_item_ops()
@@ -1005,8 +1060,7 @@ static int verify_entry(jwt_checker_t *checker, jwt_t *jwt,
 	/* Seed the candidate: a kid-named keyring key (a binding assertion, no
 	 * fallback), or the checker's single key. A keyless keyring entry scans. */
 	if (ring != NULL) {
-		config.key = (kid != NULL)
-			? jwks_find_bykid((jwk_set_t *)ring, kid) : NULL;
+		config.key = (kid != NULL) ? ring_find_kid(ring, kid) : NULL;
 		scan = (kid == NULL);
 	} else {
 		config.key = checker->c.key;
@@ -1044,6 +1098,8 @@ static int verify_entry(jwt_checker_t *checker, jwt_t *jwt,
 			jwt_alg_t kalg = jwks_item_alg(k);
 
 			if (kalg != JWT_ALG_NONE && kalg != s->alg)
+				continue;
+			if (!ring_key_verifies(k))
 				continue;
 			try_candidate(jwt, s, k, input, (unsigned int)strlen(input));
 		}
