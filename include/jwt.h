@@ -1220,17 +1220,32 @@ int jwt_checker_enable_embedded_jwk_keyring(jwt_checker_t *checker,
  * as the callback leaves it, so deleting the ``exp`` claim, for example, lets
  * an expired token pass.
  *
+ * Treat what the callback sees as unverified: the header and claims count as
+ * verified only once jwt_checker_verify() (or jwt_checker_verify_detached())
+ * returns 0 and, in a JWS JSON Serialization, where each signature has its
+ * own header, a header only if jwt_checker_sig_verified() also reports its
+ * signature as verified. Act on them (e.g. record them) only then, or in a
+ * jti callback (jwt_checker_setjti()), which runs after the signature and
+ * claim checks.
+ *
  * The callback can also set the key and algorithm used to verify the signature.
  * If the callback returns non-zero, then processing will stop and return an
- * error. A JWS JSON Serialization needs a key or keyring on the checker: one
- * with neither fails it before the callback runs. For a JWS JSON
- * Serialization, and a Compact token checked against a keyring (which is
- * verified as one), the callback runs once for each
- * signature that meets the ``"typ"`` and algorithm policy (until an error such
- * as an unsupported ``"crit"`` header ends the verification), a non-zero
- * return only leaves that signature unverified (the ::jwt_verify_policy_t then
- * decides), and config->alg is that signature's own "alg"; setting it has no
- * effect.
+ * error, except as described next for a JWS JSON Serialization. A JWS JSON
+ * Serialization needs a key or keyring on the checker: one with neither fails
+ * it before the callback runs.
+ *
+ * For a JWS JSON Serialization, and a Compact token checked against a keyring
+ * (which is verified as one), the callback runs once for each signature that
+ * meets the ``"typ"`` and algorithm policy (until an error such as an
+ * unsupported ``"crit"`` header ends the verification), just before that
+ * signature is verified. It sees that signature's protected header, but not
+ * its unprotected ``"header"``, and the token's claims; config->alg is that
+ * signature's own ``"alg"``, and setting it has no effect. A non-zero return
+ * only leaves that signature unverified, for the ::jwt_verify_policy_t to
+ * decide: under ::JWT_VERIFY_POLICY_ANY the token is still accepted if
+ * another of its signatures verifies, and under ::JWT_VERIFY_POLICY_ALL it is
+ * rejected. A Compact token has only the one signature, so it is rejected
+ * under either policy.
  *
  * What config->key holds when the callback runs, and what leaving it NULL
  * means:
@@ -1288,6 +1303,14 @@ int jwt_checker_setcb(jwt_checker_t *checker, jwt_callback_t cb, void *ctx);
  * where an application implements replay protection against its own id pool
  * (look the id up and consume it). When this callback is set, a token that has
  * no ``"jti"`` claim is rejected.
+ *
+ * It runs once per token, last: only after the signature check (for a JWS
+ * JSON Serialization, the ::jwt_verify_policy_t) and every claim check have
+ * passed, so the claims it sees are verified, and a non-zero return rejects
+ * the token under either policy. For a JWS JSON Serialization, and a Compact
+ * token checked against a keyring, the jwt_t it receives holds the claims
+ * but no header (jwt_header_get() fails), and jwt_get_alg() names the last
+ * signature's algorithm, whether or not that signature verified.
  *
  * The ctx is passed to the callback via the @ref jwt_config_t structure.
  *
@@ -2052,9 +2075,10 @@ int jwt_builder_setcnf(jwt_builder_t *builder, const char *member,
  * @rfc{7800}
  *
  * Returns the value of @c cnf.@p member (e.g. @c "jkt", @c "kid",
- * @c "x5t#S256") for a verified token. Because a verifier obtains the @ref
- * jwt_t inside its jwt_checker_setcb() callback, this is where you call it to
- * confirm a presented proof-of-possession key.
+ * @c "x5t#S256") of a token. Because a verifier obtains the @ref jwt_t inside
+ * its jwt_checker_setcb() callback, this is where you call it to confirm a
+ * presented proof-of-possession key; as with anything the callback reads, the
+ * value is verified only once jwt_checker_verify() returns 0.
  *
  * @param jwt Pointer to a jwt_t token
  * @param member The confirmation member name to read
