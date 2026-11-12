@@ -1482,7 +1482,10 @@ const jwk_item_t *jwt_checker_sig_key(const jwt_checker_t *checker,
  * (jwt_builder_generate() will not sign one either): such a payload is
  * rejected, never verified only up to the NUL. In the JWS JSON Serialization
  * it must also be a valid JSON string, which with the Jansson JSON backend
- * means valid UTF-8.
+ * means valid UTF-8. With Jansson, that holds for a Compact token checked
+ * against a keyring too, since it is verified as one (see
+ * jwt_checker_setkeyring()): one whose payload is not valid UTF-8 fails with
+ * "Token is not valid UTF-8", so verify it with jwt_checker_setkey() instead.
  *
  * jwt_checker_verify() reads a base64url payload as a JWT claim set, though,
  * so it must be a JSON object (see jwt_builder_setpayload()): a binary
