@@ -783,6 +783,34 @@ START_TEST(claim_json_setgetdel)
 }
 END_TEST
 
+START_TEST(merge_nameless_array)
+{
+	jwt_builder_auto_t *builder = NULL;
+	jwt_value_t jval;
+
+	SET_OPS();
+
+	builder = jwt_builder_new();
+	ck_assert_ptr_nonnull(builder);
+
+	/* Only a JSON object can be merged into the header or the claims,
+	 * whether or not it replaces members; an array used to crash the
+	 * json-c backend. */
+	jwt_set_SET_JSON(&jval, NULL, "[1,2]");
+	ck_assert_int_eq(jwt_builder_header_set(builder, &jval),
+			 JWT_VALUE_ERR_INVALID);
+	jwt_set_SET_JSON(&jval, "", "[{\"a\":1}]");
+	jval.replace = 1;
+	ck_assert_int_eq(jwt_builder_claim_set(builder, &jval),
+			 JWT_VALUE_ERR_INVALID);
+
+	/* An object still merges. */
+	jwt_set_SET_JSON(&jval, NULL, "{\"a\":1}");
+	ck_assert_int_eq(jwt_builder_claim_set(builder, &jval),
+			 JWT_VALUE_ERR_NONE);
+}
+END_TEST
+
 START_TEST(header_str_setgetdel)
 {
 	const char exp[] = "eyJhbGciOiJub25lIiwidHlwIjoiQ3VzdG9tIn0.e30.";
@@ -1381,6 +1409,7 @@ static Suite *libjwt_suite(const char *title)
 	tc_core = tcase_create("Header SetGetDel");
 	/* All of the code paths for str/int/bool/json have been covered. We
 	 * just run this to ensure set/get/del works on headers */
+	tcase_add_loop_test(tc_core, merge_nameless_array, 0, i);
 	tcase_add_loop_test(tc_core, header_str_setgetdel, 0, i);
 	tcase_set_timeout(tc_core, 60);
 	suite_add_tcase(s, tc_core);

@@ -172,8 +172,9 @@ static jwt_value_error_t jwt_set_json(jwt_json_t *which, jwt_value_t *jval)
 		/* Done with this. */
 		jwt_json_releasep(&json_val);
 
+		/* Fails for a JSON array: only an object can be merged. */
 		if (ret)
-			jval->error = JWT_VALUE_ERR_INVALID; // LCOV_EXCL_LINE
+			jval->error = JWT_VALUE_ERR_INVALID;
 	} else {
 		/* Add object at name */
 		if (!jwt_obj_check(which, jval)) {

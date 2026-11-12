@@ -181,6 +181,13 @@ int jwt_json_obj_merge(jwt_json_t *object, jwt_json_t *other)
 	if (!object || !other)
 		return -1;
 
+	/* json_object_object_foreach() dereferences a non-object's (NULL)
+	 * table, so refuse one, as Jansson's json_object_update() does: a
+	 * nameless JSON array passed to a header/claim setter got here. */
+	if (!json_object_is_type(to_jc(object), json_type_object) ||
+	    !json_object_is_type(to_jc(other), json_type_object))
+		return -1;
+
 	json_object_object_foreach(to_jc(other), key, val) {
 		json_object_object_add(to_jc(object), key,
 				       json_object_get(val));
@@ -192,6 +199,12 @@ int jwt_json_obj_merge(jwt_json_t *object, jwt_json_t *other)
 int jwt_json_obj_merge_new(jwt_json_t *object, jwt_json_t *other)
 {
 	if (!object || !other)
+		return -1;
+
+	/* As jwt_json_obj_merge() does, and Jansson's
+	 * json_object_update_missing(). */
+	if (!json_object_is_type(to_jc(object), json_type_object) ||
+	    !json_object_is_type(to_jc(other), json_type_object))
 		return -1;
 
 	json_object_object_foreach(to_jc(other), key, val) {
