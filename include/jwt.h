@@ -583,6 +583,11 @@ int jwt_builder_set_format(jwt_builder_t *builder, jwt_serialization_t format);
  * its own protected header and the shared payload, so signers may use different
  * algorithms (e.g. RS256 and ES256). ``alg`` must not be ::JWT_ALG_NONE.
  *
+ * A Compact token carries only the jwt_builder_setkey() signer. If the only
+ * signer was added with this function, select ::JWT_FORMAT_JSON_FLAT or
+ * ::JWT_FORMAT_JSON_GENERAL: in ::JWT_FORMAT_COMPACT, jwt_builder_generate()
+ * fails rather than emit a token without it.
+ *
  * @param builder Pointer to a builder object
  * @param alg A valid ::jwt_alg_t type (not ::JWT_ALG_NONE)
  * @param key A JWK private key matching @p alg
