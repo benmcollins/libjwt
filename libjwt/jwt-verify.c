@@ -1164,6 +1164,13 @@ int jwt_checker_verify_detached(jwt_checker_t *checker, const char *token,
 	const char *p;
 	int b64, ret;
 
+	/* Not from this checker's own callbacks (see FUNC(verify)), and before
+	 * anything here touches the state the outer verify is still using. */
+	if (checker != NULL && checker->c.verifying) {
+		jwt_write_error(checker, "Checker is already verifying a token");
+		return 1;
+	}
+
 	if (checker == NULL)
 		return 1;
 

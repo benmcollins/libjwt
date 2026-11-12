@@ -113,6 +113,13 @@ struct jwt_common {
 	jwt_verify_policy_t policy;
 	unsigned int last_sig_count;	/* signatures in the last JSON token	*/
 
+	/* checker: @key_required is set once it is given a key or a keyring,
+	 * and cleared only by jwt_checker_setkey() with no key called outside
+	 * a verify; @verifying is set while jwt_checker_verify() runs, whose
+	 * callbacks may reconfigure the checker (GHSA-mhc9-xvg5-qg29). */
+	int key_required;
+	int verifying;
+
 	/* --- @rfc{7797} Unencoded payload / detached payload ---
 	 * An opaque payload set via jwt_builder_setpayload() (mutually exclusive
 	 * with JSON claims); signed as-is. @b64 (default 1) selects base64url vs

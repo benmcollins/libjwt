@@ -99,8 +99,11 @@ To verify a multi-signature token, supply a set of candidate keys (a JWKS) with
 `jwt_checker_setkeyring()` and a policy: `JWT_VERIFY_POLICY_ANY` (the default —
 accept if at least one signature verifies, e.g. multi-issuer or key rotation) or
 `JWT_VERIFY_POLICY_ALL` (every signature must verify, e.g. co-signing). A
-signature naming a `kid` is matched to that key; a keyless one is tried against
-every compatible key, always under the usual algorithm/key-type binding.
+signature naming a `kid` is verified only against that key (there is no
+fallback); a keyless one is tried against every compatible key, always under the
+usual algorithm/key-type binding and the key's own `alg`, if it has one. A
+keyring verifies Compact tokens the same way, as a JWS with one signature (which
+meets either policy), and never accepts an unsigned (`alg:none`) token.
 `jwt_checker_verify()` auto-detects Compact vs JSON input.
 
 ##### Unencoded and detached payloads (RFC 7797)

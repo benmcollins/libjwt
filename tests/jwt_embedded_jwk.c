@@ -321,6 +321,136 @@ START_TEST(test_enable_errors)
 }
 END_TEST
 
+/* An unsigned ("alg":"none") token whose header embeds @jwk_hdr: a forgery
+ * that needs only the PUBLIC key. @detached leaves @body out of the token.
+ * Caller frees it. */
+static char *make_unsigned(char *jwk_hdr, const char *body, int detached)
+{
+	jwt_builder_auto_t *b = jwt_builder_new();
+	jwt_value_t v;
+
+	ck_assert_ptr_nonnull(b);
+	ck_assert_int_eq(jwt_builder_setkey(b, JWT_ALG_NONE, NULL), 0);
+	jwt_set_SET_JSON(&v, "jwk", jwk_hdr);
+	ck_assert_int_eq(jwt_builder_header_set(b, &v), JWT_VALUE_ERR_NONE);
+	ck_assert_int_eq(jwt_builder_setpayload(b, (const unsigned char *)body,
+						strlen(body)), 0);
+	ck_assert_int_eq(jwt_builder_set_detached(b, detached), 0);
+
+	return jwt_builder_generate(b);
+}
+
+/* What a verify callback commonly does: pick the key by "kid" (ctx is the
+ * set), leaving config->key NULL when the token names none or an unknown one. */
+static int kid_lookup_cb(jwt_t *jwt, jwt_config_t *config)
+{
+	jwt_value_t v;
+
+	jwt_set_GET_STR(&v, "kid");
+	config->key = jwt_header_get(jwt, &v) == JWT_VALUE_ERR_NONE ?
+		jwks_find_bykid(config->ctx, v.str_val) : NULL;
+
+	return 0;
+}
+
+/* GHSA-mhc9-xvg5-qg29: embedded-JWK verify seeds config->alg from the token's
+ * own "alg". A callback that left config->key NULL then had the checker treat
+ * itself as unkeyed, so a forged unsigned token embedding the pinned public
+ * key was accepted, with or without a keyring and through the detached form.
+ * The callback may replace the confirmed key, never remove it. */
+START_TEST(test_callback_cannot_strip_key)
+{
+	static const char body[] = "{\"sub\":\"admin\"}";
+	const char *nokey = "Callback left no verification key";
+	jwk_set_t *set;
+	const jwk_item_t *key;
+	char_auto *jkt = NULL;
+	char_auto *forged = NULL, *forged_det = NULL, *proof = NULL;
+	char_auto *proof_kid = NULL;
+	int mode;
+
+	SET_OPS();
+
+	set = load_key_a();
+	key = jwks_item_get(set, 0);
+	jkt = jwks_item_thumbprint(key, JWK_THUMBPRINT_SHA256);
+	ck_assert_ptr_nonnull(jkt);
+
+	forged = make_unsigned(PUB_JWK_P256, body, 0);
+	forged_det = make_unsigned(PUB_JWK_P256, body, 1);
+	proof = make_proof(key, PUB_JWK_P256, NULL);
+	ck_assert_ptr_nonnull(forged);
+	ck_assert_ptr_nonnull(forged_det);
+	ck_assert_ptr_nonnull(proof);
+
+	/* The same proof naming key A's "kid", which the callback finds. */
+	{
+		jwt_builder_auto_t *b = jwt_builder_new();
+		jwt_value_t v;
+
+		ck_assert_ptr_nonnull(b);
+		ck_assert_int_eq(jwt_builder_setkey(b, JWT_ALG_ES256, key), 0);
+		jwt_set_SET_JSON(&v, "jwk", PUB_JWK_P256);
+		ck_assert_int_eq(jwt_builder_header_set(b, &v),
+				 JWT_VALUE_ERR_NONE);
+		jwt_set_SET_STR(&v, "kid", jwks_item_kid(key));
+		ck_assert_int_eq(jwt_builder_header_set(b, &v),
+				 JWT_VALUE_ERR_NONE);
+		proof_kid = jwt_builder_generate(b);
+		ck_assert_ptr_nonnull(proof_kid);
+	}
+
+	/* Thumbprint pin, allowlist, and allowlist plus a keyring (which the
+	 * embedded-JWK Compact flow takes precedence over). */
+	for (mode = 0; mode < 3; mode++) {
+		jwt_checker_auto_t *c = jwt_checker_new();
+
+		ck_assert_ptr_nonnull(c);
+		if (mode == 2)
+			ck_assert_int_eq(jwt_checker_setkeyring(c, set,
+					JWT_VERIFY_POLICY_ALL), 0);
+		if (mode == 0)
+			ck_assert_int_eq(jwt_checker_enable_embedded_jwk(c,
+					JWK_THUMBPRINT_SHA256, jkt), 0);
+		else
+			ck_assert_int_eq(jwt_checker_enable_embedded_jwk_keyring(
+					c, JWK_THUMBPRINT_SHA256, set), 0);
+
+		/* No callback: the proof verifies, the forgery does not. */
+		ck_assert_int_eq(jwt_checker_verify(c, proof), 0);
+		ck_assert_int_ne(jwt_checker_verify(c, forged), 0);
+
+		ck_assert_int_eq(jwt_checker_setcb(c, kid_lookup_cb, set), 0);
+
+		ck_assert_int_ne(jwt_checker_verify(c, forged), 0);
+		ck_assert_str_eq(jwt_checker_error_msg(c), nokey);
+		ck_assert_uint_eq(jwt_checker_sig_count(c), 0);
+		ck_assert_int_eq(jwt_checker_sig_verified(c, 0), 0);
+
+		ck_assert_int_ne(jwt_checker_verify_detached(c, forged_det,
+				(const unsigned char *)body, strlen(body)), 0);
+		ck_assert_str_eq(jwt_checker_error_msg(c), nokey);
+
+		/* A signed proof without a "kid" fails the same way... */
+		ck_assert_int_ne(jwt_checker_verify(c, proof), 0);
+		ck_assert_str_eq(jwt_checker_error_msg(c), nokey);
+
+		/* ...and one whose "kid" the callback finds still verifies. */
+		ck_assert_int_eq(jwt_checker_verify(c, proof_kid), 0);
+		ck_assert_uint_eq(jwt_checker_sig_count(c), 1);
+		ck_assert_int_eq(jwt_checker_sig_verified(c, 0), 1);
+
+		/* A later failure reports only itself: neither an earlier
+		 * error nor the last call's signature survives it. */
+		ck_assert_int_ne(jwt_checker_verify(c, ""), 0);
+		ck_assert_str_eq(jwt_checker_error_msg(c), "Must pass a token");
+		ck_assert_uint_eq(jwt_checker_sig_count(c), 0);
+	}
+
+	jwks_free(set);
+}
+END_TEST
+
 static Suite *libjwt_suite(const char *title)
 {
 	Suite *s;
@@ -339,6 +469,7 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, test_malformed_embedded_jwk, 0, i);
 	tcase_add_loop_test(tc_core, test_checker_reuse, 0, i);
 	tcase_add_loop_test(tc_core, test_enable_errors, 0, i);
+	tcase_add_loop_test(tc_core, test_callback_cannot_strip_key, 0, i);
 
 	tcase_set_timeout(tc_core, 30);
 

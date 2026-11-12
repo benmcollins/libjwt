@@ -1379,6 +1379,389 @@ START_TEST(test_embedded_pad_rejected)
 END_TEST
 
 /*
+ * === A verify callback cannot strip the checker's key (GHSA-mhc9-xvg5-qg29) ===
+ *
+ * jwt_checker_setkey(c, JWT_ALG_NONE, key) takes the algorithm from the key, so
+ * config->alg is JWT_ALG_NONE when the callback runs. A callback that set
+ * config->key to NULL (e.g. a "kid" lookup that found nothing) left a checker
+ * with neither a key nor an alg, which accepts exactly the unsigned tokens: a
+ * forged {"alg":"none"} token verified. The key may be replaced, not removed.
+ */
+struct key_swap {
+	const jwk_item_t *key;	/* what the callback leaves in config->key	*/
+	int clear_alg;		/* ...and whether it also sets alg to none	*/
+};
+
+static int key_swap_cb(jwt_t *jwt, jwt_config_t *config)
+{
+	const struct key_swap *ks = config->ctx;
+
+	(void)jwt;
+	config->key = ks->key;
+	if (ks->clear_alg)
+		config->alg = JWT_ALG_NONE;
+
+	return 0;
+}
+
+START_TEST(test_callback_cannot_strip_key)
+{
+	/* {"alg":"none"} . {"sub":"admin"} . (empty signature) */
+	const char forged[] = "eyJhbGciOiJub25lIn0.eyJzdWIiOiJhZG1pbiJ9.";
+	const char *nokey = "Callback left no verification key";
+	const jwt_alg_t algs[] = { JWT_ALG_NONE, JWT_ALG_ES256 };
+	jwt_builder_auto_t *builder = NULL;
+	char_auto *signed_tok = NULL;
+	struct key_swap ks;
+	size_t a;
+	int clear;
+
+	SET_OPS();
+
+	read_json("ec_key_prime256v1.json");	/* "alg":"ES256" */
+
+	builder = jwt_builder_new();
+	ck_assert_ptr_nonnull(builder);
+	ck_assert_int_eq(jwt_builder_setkey(builder, JWT_ALG_ES256, g_item), 0);
+	signed_tok = jwt_builder_generate(builder);
+	ck_assert_ptr_nonnull(signed_tok);
+
+	/* setkey() with the key's own alg or an explicit one; the callback
+	 * removes the key, and with clear_alg also the alg. */
+	for (a = 0; a < ARRAY_SIZE(algs); a++) {
+		for (clear = 0; clear < 2; clear++) {
+			jwt_checker_auto_t *c = jwt_checker_new();
+
+			ck_assert_ptr_nonnull(c);
+			ck_assert_int_eq(jwt_checker_setkey(c, algs[a],
+							    g_item), 0);
+
+			/* No callback: the forgery never verified. */
+			ck_assert_int_ne(jwt_checker_verify(c, forged), 0);
+			ck_assert_int_eq(jwt_checker_verify(c, signed_tok), 0);
+
+			ks.key = NULL;
+			ks.clear_alg = clear;
+			ck_assert_int_eq(jwt_checker_setcb(c, key_swap_cb,
+							   &ks), 0);
+
+			ck_assert_int_ne(jwt_checker_verify(c, forged), 0);
+			ck_assert_str_eq(jwt_checker_error_msg(c), nokey);
+			ck_assert_uint_eq(jwt_checker_sig_count(c), 0);
+			ck_assert_int_ne(jwt_checker_verify(c, signed_tok), 0);
+			ck_assert_str_eq(jwt_checker_error_msg(c), nokey);
+
+			/* Replacing the key is still allowed. */
+			ks.key = g_item;
+			ks.clear_alg = 0;
+			ck_assert_int_eq(jwt_checker_verify(c, signed_tok), 0);
+			ck_assert_int_ne(jwt_checker_verify(c, forged), 0);
+			ck_assert_str_eq(jwt_checker_error_msg(c),
+					 "Expected a signature, but JWT has none");
+		}
+	}
+
+	/* Unchanged: a checker given no key at all, whose callback finds none
+	 * either, verifies only unsigned tokens (see jwt_checker_setcb()). */
+	{
+		jwt_checker_auto_t *c = jwt_checker_new();
+
+		ck_assert_ptr_nonnull(c);
+		ks.key = NULL;
+		ks.clear_alg = 0;
+		ck_assert_int_eq(jwt_checker_setcb(c, key_swap_cb, &ks), 0);
+		ck_assert_int_eq(jwt_checker_verify(c, forged), 0);
+		ck_assert_int_ne(jwt_checker_verify(c, signed_tok), 0);
+		ck_assert_str_eq(jwt_checker_error_msg(c),
+				 "JWT has signature, but no key was given");
+	}
+
+	free_key();
+}
+END_TEST
+
+/* ...nor by reconfiguring its own checker, which its ctx may well point to:
+ * e.g. remembering a lookup with jwt_checker_setkey(ctx, JWT_ALG_NONE, found),
+ * refreshing a keyring with jwt_checker_setkeyring(), or turning on
+ * embedded-JWK verification. A key the checker held before the callback, or
+ * was given since, means this token needs one, and so does the next. */
+struct reconf {
+	jwt_checker_t *checker;
+	int how;
+};
+
+static int reconf_cb(jwt_t *jwt, jwt_config_t *config)
+{
+	const struct reconf *r = config->ctx;
+
+	(void)jwt;
+	switch (r->how) {
+	case 0:	/* keyed: the lookup "remembered" its miss */
+		ck_assert_int_eq(jwt_checker_setkey(r->checker, JWT_ALG_NONE,
+						    NULL), 0);
+		break;
+	case 1:	/* keyed, then swapped to a keyring */
+	case 3:	/* unkeyed, then given a keyring */
+		ck_assert_int_eq(jwt_checker_setkeyring(r->checker, g_jwk_set,
+					JWT_VERIFY_POLICY_ANY), 0);
+		break;
+	case 2:	/* unkeyed, then given a key */
+		ck_assert_int_eq(jwt_checker_setkey(r->checker, JWT_ALG_NONE,
+						    g_item), 0);
+		break;
+	case 4:	/* unkeyed, given a keyring and then no key again */
+		ck_assert_int_eq(jwt_checker_setkeyring(r->checker, g_jwk_set,
+					JWT_VERIFY_POLICY_ANY), 0);
+		ck_assert_int_eq(jwt_checker_setkey(r->checker, JWT_ALG_NONE,
+						    NULL), 0);
+		break;
+	default: /* unkeyed, then given embedded-JWK verification */
+		ck_assert_int_eq(jwt_checker_enable_embedded_jwk_keyring(
+				r->checker, JWK_THUMBPRINT_SHA256, g_jwk_set), 0);
+		break;
+	}
+	config->key = NULL;
+
+	return 0;
+}
+
+START_TEST(test_callback_cannot_unkey_checker)
+{
+	/* {"alg":"none"} . {"sub":"admin"} . (empty signature) */
+	const char forged[] = "eyJhbGciOiJub25lIn0.eyJzdWIiOiJhZG1pbiJ9.";
+	struct reconf r;
+
+	SET_OPS();
+
+	read_json("ec_key_prime256v1.json");	/* "alg":"ES256" */
+
+	for (r.how = 0; r.how < 6; r.how++) {
+		jwt_checker_auto_t *c = jwt_checker_new();
+
+		ck_assert_ptr_nonnull(c);
+		if (r.how < 2)
+			ck_assert_int_eq(jwt_checker_setkey(c, JWT_ALG_NONE,
+							    g_item), 0);
+		r.checker = c;
+		ck_assert_int_eq(jwt_checker_setcb(c, reconf_cb, &r), 0);
+
+		ck_assert_int_ne(jwt_checker_verify(c, forged), 0);
+		ck_assert_str_eq(jwt_checker_error_msg(c),
+				 "Callback left no verification key");
+		ck_assert_uint_eq(jwt_checker_sig_count(c), 0);
+
+		/* Nor does the reconfiguration unkey the next token. */
+		ck_assert_int_ne(jwt_checker_verify(c, forged), 0);
+		ck_assert_uint_eq(jwt_checker_sig_count(c), 0);
+	}
+
+	free_key();
+}
+END_TEST
+
+/* A server reuses its checker. A callback that "remembers" its "kid" lookup
+ * on it with jwt_checker_setkey(ctx, JWT_ALG_NONE, found) removes the key on a
+ * miss, but the checker still requires one: the next forged token must not
+ * meet an unkeyed checker. Likewise for a jti callback that does so. Only the
+ * application, outside a verify, can make the checker unkeyed again. */
+struct remember {
+	jwt_checker_t *checker;
+	const jwk_item_t *found;	/* the lookup's result */
+};
+
+static int remember_cb(jwt_t *jwt, jwt_config_t *config)
+{
+	const struct remember *r = config->ctx;
+
+	(void)jwt;
+	ck_assert_int_eq(jwt_checker_setkey(r->checker, JWT_ALG_NONE,
+					    r->found), 0);
+	config->key = r->found;
+
+	return 0;
+}
+
+static int remember_jti_cb(const jwt_t *jwt, jwt_config_t *config,
+			   const char *jti)
+{
+	const struct remember *r = config->ctx;
+
+	(void)jwt;
+	(void)jti;
+	ck_assert_int_eq(jwt_checker_setkey(r->checker, JWT_ALG_NONE, NULL), 0);
+
+	return 0;
+}
+
+START_TEST(test_callback_unkey_does_not_last)
+{
+	/* {"alg":"none"} . {"sub":"admin","jti":"1"} . (empty signature) */
+	const char forged[] = "eyJhbGciOiJub25lIn0.eyJzdWIiOiJhZG1pbiIsImp0aSI6IjEifQ.";
+	const char *nokey = "Callback left no verification key";
+	jwt_builder_auto_t *builder = NULL;
+	jwt_checker_auto_t *c = NULL;
+	char_auto *signed_tok = NULL;
+	jwt_value_t jval;
+	struct remember r;
+
+	SET_OPS();
+
+	read_json("ec_key_prime256v1.json");	/* "alg":"ES256" */
+
+	builder = jwt_builder_new();
+	ck_assert_ptr_nonnull(builder);
+	ck_assert_int_eq(jwt_builder_setkey(builder, JWT_ALG_ES256, g_item), 0);
+	jwt_set_SET_STR(&jval, "jti", "1");
+	ck_assert_int_eq(jwt_builder_claim_set(builder, &jval),
+			 JWT_VALUE_ERR_NONE);
+	signed_tok = jwt_builder_generate(builder);
+	ck_assert_ptr_nonnull(signed_tok);
+
+	c = jwt_checker_new();
+	ck_assert_ptr_nonnull(c);
+	ck_assert_int_eq(jwt_checker_setkey(c, JWT_ALG_NONE, g_item), 0);
+	r.checker = c;
+	r.found = NULL;
+	ck_assert_int_eq(jwt_checker_setcb(c, remember_cb, &r), 0);
+
+	/* A miss: this token and every later one still need a key. */
+	ck_assert_int_ne(jwt_checker_verify(c, forged), 0);
+	ck_assert_str_eq(jwt_checker_error_msg(c), nokey);
+	ck_assert_int_ne(jwt_checker_verify(c, forged), 0);
+	ck_assert_str_eq(jwt_checker_error_msg(c), nokey);
+	ck_assert_int_ne(jwt_checker_verify(c, signed_tok), 0);
+	ck_assert_str_eq(jwt_checker_error_msg(c), nokey);
+
+	/* A hit verifies; a miss after it still fails. */
+	r.found = g_item;
+	ck_assert_int_eq(jwt_checker_verify(c, signed_tok), 0);
+	ck_assert_int_ne(jwt_checker_verify(c, forged), 0);
+	r.found = NULL;
+	ck_assert_int_ne(jwt_checker_verify(c, forged), 0);
+	ck_assert_str_eq(jwt_checker_error_msg(c), nokey);
+
+	/* A jti callback that un-keys the checker after a verified token. */
+	ck_assert_int_eq(jwt_checker_setcb(c, NULL, NULL), 0);
+	ck_assert_int_eq(jwt_checker_setkey(c, JWT_ALG_NONE, g_item), 0);
+	ck_assert_int_eq(jwt_checker_setjti(c, remember_jti_cb, &r), 0);
+	ck_assert_int_eq(jwt_checker_verify(c, signed_tok), 0);
+	ck_assert_int_ne(jwt_checker_verify(c, forged), 0);
+	ck_assert_str_eq(jwt_checker_error_msg(c),
+			 "A callback removed the checker's key");
+
+	/* The application itself can still make the checker unkeyed. */
+	ck_assert_int_eq(jwt_checker_setjti(c, NULL, NULL), 0);
+	ck_assert_int_eq(jwt_checker_setkey(c, JWT_ALG_NONE, NULL), 0);
+	ck_assert_int_eq(jwt_checker_verify(c, forged), 0);
+	ck_assert_int_ne(jwt_checker_verify(c, signed_tok), 0);
+
+	free_key();
+}
+END_TEST
+
+/* A callback cannot verify with its own checker (that freed the signature
+ * list and embedded key the outer verify was using): the nested call fails. */
+static int reenter_rc;
+static char reenter_msg[256];
+
+static int reenter_cb(jwt_t *jwt, jwt_config_t *config)
+{
+	jwt_checker_t *c = config->ctx;
+
+	(void)jwt;
+	reenter_rc = jwt_checker_verify(c, "eyJhbGciOiJub25lIn0.e30.");
+	snprintf(reenter_msg, sizeof(reenter_msg), "%s",
+		 jwt_checker_error_msg(c));
+	jwt_checker_error_clear(c);
+
+	return 0;
+}
+
+START_TEST(test_callback_cannot_reenter)
+{
+	jwt_builder_auto_t *builder = NULL;
+	jwt_checker_auto_t *c = NULL;
+	char_auto *tok = NULL;
+
+	SET_OPS();
+
+	read_json("ec_key_prime256v1.json");
+
+	builder = jwt_builder_new();
+	ck_assert_ptr_nonnull(builder);
+	ck_assert_int_eq(jwt_builder_setkey(builder, JWT_ALG_ES256, g_item), 0);
+	tok = jwt_builder_generate(builder);
+	ck_assert_ptr_nonnull(tok);
+
+	c = jwt_checker_new();
+	ck_assert_ptr_nonnull(c);
+	ck_assert_int_eq(jwt_checker_setkeyring(c, g_jwk_set,
+				JWT_VERIFY_POLICY_ANY), 0);
+	ck_assert_int_eq(jwt_checker_setcb(c, reenter_cb, c), 0);
+
+	reenter_rc = 0;
+	ck_assert_int_eq(jwt_checker_verify(c, tok), 0);
+	ck_assert_int_ne(reenter_rc, 0);
+	ck_assert_str_eq(reenter_msg, "Checker is already verifying a token");
+	ck_assert_uint_eq(jwt_checker_sig_count(c), 1);
+	ck_assert_int_eq(jwt_checker_sig_verified(c, 0), 1);
+
+	free_key();
+}
+END_TEST
+
+/* Likewise jwt_checker_verify_detached(), which must fail before it touches
+ * the checker: the outer verify keeps its signature count and results. */
+static int reenter_detached_cb(jwt_t *jwt, jwt_config_t *config)
+{
+	jwt_checker_t *c = config->ctx;
+
+	(void)jwt;
+	reenter_rc = jwt_checker_verify_detached(c, "eyJhbGciOiJub25lIn0..",
+						 (const unsigned char *)"{}",
+						 2);
+	snprintf(reenter_msg, sizeof(reenter_msg), "%s",
+		 jwt_checker_error_msg(c));
+	jwt_checker_error_clear(c);
+
+	return 0;
+}
+
+START_TEST(test_callback_cannot_reenter_detached)
+{
+	jwt_builder_auto_t *builder = NULL;
+	jwt_checker_auto_t *c = NULL;
+	char_auto *tok = NULL;
+
+	SET_OPS();
+
+	read_json("ec_key_prime256v1.json");
+
+	builder = jwt_builder_new();
+	ck_assert_ptr_nonnull(builder);
+	ck_assert_int_eq(jwt_builder_setkey(builder, JWT_ALG_ES256, g_item), 0);
+	tok = jwt_builder_generate(builder);
+	ck_assert_ptr_nonnull(tok);
+
+	c = jwt_checker_new();
+	ck_assert_ptr_nonnull(c);
+	ck_assert_int_eq(jwt_checker_setkeyring(c, g_jwk_set,
+				JWT_VERIFY_POLICY_ANY), 0);
+	ck_assert_int_eq(jwt_checker_setcb(c, reenter_detached_cb, c), 0);
+
+	reenter_rc = 0;
+	ck_assert_int_eq(jwt_checker_verify(c, tok), 0);
+	ck_assert_int_ne(reenter_rc, 0);
+	ck_assert_str_eq(reenter_msg, "Checker is already verifying a token");
+	ck_assert_uint_eq(jwt_checker_sig_count(c), 1);
+	ck_assert_int_eq(jwt_checker_sig_verified(c, 0), 1);
+	ck_assert_ptr_nonnull(jwt_checker_sig_key(c, 0));
+
+	free_key();
+}
+END_TEST
+
+/*
  * === Suite Setup ===
  */
 
@@ -1487,6 +1870,16 @@ static Suite *libjwt_suite(const char *title)
 			    test_missing_exp_passes, 0, i);
 	tcase_add_loop_test(tc_alg_confusion,
 			    test_embedded_pad_rejected, 0, i);
+	tcase_add_loop_test(tc_alg_confusion,
+			    test_callback_cannot_strip_key, 0, i);
+	tcase_add_loop_test(tc_alg_confusion,
+			    test_callback_cannot_unkey_checker, 0, i);
+	tcase_add_loop_test(tc_alg_confusion,
+			    test_callback_unkey_does_not_last, 0, i);
+	tcase_add_loop_test(tc_alg_confusion,
+			    test_callback_cannot_reenter, 0, i);
+	tcase_add_loop_test(tc_alg_confusion,
+			    test_callback_cannot_reenter_detached, 0, i);
 
 	tcase_set_timeout(tc_alg_confusion, 30);
 	suite_add_tcase(s, tc_alg_confusion);
