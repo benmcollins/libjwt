@@ -1414,8 +1414,8 @@ int jwt_checker_verify(jwt_checker_t *checker, const char *token);
  * many signatures the token carried: 1 for a Compact or Flattened token, N
  * for a General one. It is 0 if verification failed before the signatures
  * were parsed and, for a Compact token not checked against a keyring (see
- * jwt_checker_setkeyring()), whenever the token was rejected. The count says
- * nothing about whether the token was accepted (see
+ * jwt_checker_setkeyring()), whenever the token was rejected. A non-zero
+ * count does not mean that the token was accepted (see
  * jwt_checker_sig_verified()).
  *
  * @param checker Pointer to a checker object
