@@ -599,8 +599,10 @@ jwt_signature_t *jwt_builder_add_signature(jwt_builder_t *builder, jwt_alg_t alg
  *
  * The value is parsed as JSON. The member is integrity-protected (it is part
  * of the bytes this signature signs over) and is the right place for a
- * per-signer ``kid``. Library-managed names (``alg``) and duplicates are
- * rejected.
+ * per-signer ``kid``. Library-managed names and duplicates are rejected: the
+ * library sets ``alg`` from the signer, and ``b64`` from jwt_builder_setb64()
+ * for every signature alike, since it describes the shared payload
+ * (@rfc{7797,3}).
  *
  * @param signature A handle from jwt_builder_add_signature()
  * @param key The header parameter name
@@ -617,7 +619,10 @@ int jwt_signature_add_protected_json(jwt_signature_t *signature,
  *
  * The value is parsed as JSON. The member is NOT integrity-protected and is
  * only emitted in the JSON serializations (@rfc{7515,7.2.1}). It must be
- * disjoint from this signature's protected header.
+ * disjoint from this signature's protected header. ``crit`` and ``b64`` must
+ * be integrity protected (@rfc{7515,4.1.11}, @rfc{7797,3}) and are rejected
+ * here, as are ``alg`` and duplicates; jwt_checker_verify() rejects a token
+ * that carries either one unprotected.
  *
  * @param signature A handle from jwt_builder_add_signature()
  * @param key The header parameter name
@@ -666,6 +671,12 @@ int jwt_builder_setpayload(jwt_builder_t *builder, const unsigned char *data,
  * The result is not a JWT, even if its bytes spell a claim set: a checker
  * evaluates it as an empty claim set, so claim pins, jwt_checker_require() or
  * a ``jti`` callback reject it (see jwt_checker_verify()).
+ *
+ * The setting applies to every signature of a JSON serialization alike, as
+ * @rfc{7797,3} requires, and is the only way to set ``"b64"``:
+ * jwt_builder_header_set(), jwt_signature_add_protected_json() and
+ * jwt_signature_add_header_json() refuse it, and jwt_builder_generate() fails
+ * if a callback sets a ``"b64"`` header that does not match it.
  *
  * @param builder Pointer to a builder object
  * @param b64 Nonzero for base64url (default), zero for an unencoded payload
@@ -1574,6 +1585,10 @@ int jwt_checker_verify_detached(jwt_checker_t *checker, const char *token,
 
 /**
  * @brief Set a header in a builder object
+ *
+ * ``"b64"`` (@rfc{7797}) is refused, by name or inside a merged JSON object,
+ * with the error set in the builder: the payload encoding is chosen with
+ * jwt_builder_setb64().
  *
  * @param builder Pointer to a builder object
  * @param value Pointer to a jwt_value_t object representing the value to set

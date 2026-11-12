@@ -899,6 +899,140 @@ START_TEST(test_b64_unprotected)
 }
 END_TEST
 
+#define B64_SETB64	"\"b64\" cannot be set as a header: " \
+			"use jwt_builder_setb64()"
+#define B64_MISMATCH	"A \"b64\" header must match jwt_builder_setb64()"
+
+/* A builder callback merging the JSON object @config->ctx into the header,
+ * as an application can with jwt_header_set(). */
+static int cb_merge_hdr(jwt_t *jwt, jwt_config_t *config)
+{
+	jwt_value_t v;
+
+	jwt_set_SET_JSON(&v, NULL, config->ctx);
+
+	return jwt_header_set(jwt, &v) != JWT_VALUE_ERR_NONE;
+}
+
+/* ---- The builder cannot mint what jwt_checker_verify() rejects ---- */
+START_TEST(test_b64_builder_guards)
+{
+	static const struct {
+		int b64;		/* jwt_builder_setb64()		*/
+		const char *hdr;	/* merged by the callback	*/
+		int ok;
+	} cbs[] = {
+		/* A "b64" that matches the setting is harmless... */
+		{ 1, "{\"b64\":true}",				1 },
+		{ 0, "{\"b64\":false}",				1 },
+		/* ...but a JWT claiming "b64":false (which would dodge the
+		 * raw-payload guard), the converse, or a non-boolean is not. */
+		{ 1, "{\"b64\":false,\"crit\":[\"b64\"]}",	0 },
+		{ 0, "{\"b64\":true}",				0 },
+		{ 1, "{\"b64\":\"false\"}",			0 },
+	};
+	jwk_set_t *ks;
+	const jwk_item_t *ec;
+	jwt_builder_auto_t *b = NULL;
+	jwt_checker_auto_t *c = NULL;
+	jwt_signature_t *sig;
+	jwt_value_t v, bad[4];
+	char_auto *tok = NULL;
+	size_t i, f;
+
+	SET_OPS();
+	ks = load_one("ec_key_prime256v1.json");
+	ec = jwks_item_get(ks, 0);
+
+	/* jwt_builder_header_set() refuses "b64" by name, whatever its value,
+	 * and inside a nameless JSON object to merge, of which nothing is
+	 * set. Other names and objects still are. */
+	b = jwt_builder_new();
+	ck_assert_ptr_nonnull(b);
+	jwt_set_SET_BOOL(&bad[0], "b64", 0);
+	jwt_set_SET_STR(&bad[1], "b64", "true");
+	jwt_set_SET_JSON(&bad[2], NULL, "{\"x-ext\":1,\"b64\":false}");
+	jwt_set_SET_JSON(&bad[3], "", "{\"b64\":true}");
+	for (i = 0; i < ARRAY_SIZE(bad); i++) {
+		ck_assert_int_eq(jwt_builder_header_set(b, &bad[i]),
+				 JWT_VALUE_ERR_INVALID);
+		ck_assert_str_eq(jwt_builder_error_msg(b), B64_SETB64);
+		jwt_builder_error_clear(b);
+	}
+	jwt_set_GET_BOOL(&v, "b64");
+	ck_assert_int_eq(jwt_builder_header_get(b, &v), JWT_VALUE_ERR_NOEXIST);
+	jwt_set_GET_INT(&v, "x-ext");
+	ck_assert_int_eq(jwt_builder_header_get(b, &v), JWT_VALUE_ERR_NOEXIST);
+	jwt_set_SET_JSON(&v, NULL, "{\"x-ext\":1}");
+	ck_assert_int_eq(jwt_builder_header_set(b, &v), JWT_VALUE_ERR_NONE);
+	jwt_set_SET_BOOL(&v, "x-b64", 0);
+	ck_assert_int_eq(jwt_builder_header_set(b, &v), JWT_VALUE_ERR_NONE);
+	ck_assert_int_eq(jwt_builder_error(b), 0);
+
+	/* Per signature, "b64" is in neither header and "crit" only in the
+	 * protected one (values that parse on both JSON backends). */
+	sig = jwt_builder_add_signature(b, JWT_ALG_ES256, ec);
+	ck_assert_ptr_nonnull(sig);
+	ck_assert_int_ne(jwt_signature_add_protected_json(sig, "b64",
+							  "[false]"), 0);
+	ck_assert_int_ne(jwt_signature_add_header_json(sig, "b64",
+						       "[false]"), 0);
+	ck_assert_int_ne(jwt_signature_add_header_json(sig, "crit",
+						       "[\"x-sig\"]"), 0);
+	ck_assert_int_eq(jwt_signature_add_protected_json(sig, "x-sig",
+							  "[false]"), 0);
+	ck_assert_int_eq(jwt_signature_add_protected_json(sig, "crit",
+							  "[\"x-sig\"]"), 0);
+	ck_assert_int_eq(jwt_signature_add_header_json(sig, "kid", "\"hint\""),
+			 0);
+	ck_assert_int_eq(jwt_builder_set_format(b, JWT_FORMAT_JSON_FLAT), 0);
+	tok = jwt_builder_generate(b);
+	ck_assert_ptr_nonnull(tok);
+
+	c = jwt_checker_new();
+	ck_assert_int_eq(jwt_checker_setkey(c, JWT_ALG_ES256, ec), 0);
+	ck_assert_int_eq(jwt_checker_understands(c, "x-sig"), 0);
+	ck_assert_int_eq(jwt_checker_verify(c, tok), 0);
+
+	/* A "b64" header set by the callback with jwt_header_set() must match
+	 * jwt_builder_setb64(), in every serialization. */
+	for (f = 0; f < ARRAY_SIZE(formats); f++) {
+		for (i = 0; i < ARRAY_SIZE(cbs); i++) {
+			jwt_builder_auto_t *bb = jwt_builder_new();
+			jwt_checker_auto_t *cc = NULL;
+			char_auto *t = NULL;
+
+			ck_assert_int_eq(jwt_builder_setkey(bb, JWT_ALG_ES256,
+							    ec), 0);
+			ck_assert_int_eq(jwt_builder_set_format(bb, formats[f]),
+					 0);
+			if (!cbs[i].b64) {
+				ck_assert_int_eq(jwt_builder_setpayload(bb, RAW,
+							RAW_LEN), 0);
+				ck_assert_int_eq(jwt_builder_setb64(bb, 0), 0);
+			}
+			ck_assert_int_eq(jwt_builder_setcb(bb, cb_merge_hdr,
+						(void *)cbs[i].hdr), 0);
+			t = jwt_builder_generate(bb);
+			if (!cbs[i].ok) {
+				ck_assert_ptr_null(t);
+				ck_assert_str_eq(jwt_builder_error_msg(bb),
+						 B64_MISMATCH);
+				continue;
+			}
+			ck_assert_ptr_nonnull(t);
+
+			cc = jwt_checker_new();
+			ck_assert_int_eq(jwt_checker_setkey(cc, JWT_ALG_ES256,
+							    ec), 0);
+			ck_assert_int_eq(jwt_checker_verify(cc, t), 0);
+		}
+	}
+
+	jwks_free(ks);
+}
+END_TEST
+
 static Suite *libjwt_suite(const char *title)
 {
 	Suite *s;
@@ -922,6 +1056,7 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, test_b64_false_claims, 0, i);
 	tcase_add_loop_test(tc_core, test_b64_false_jti, 0, i);
 	tcase_add_loop_test(tc_core, test_b64_unprotected, 0, i);
+	tcase_add_loop_test(tc_core, test_b64_builder_guards, 0, i);
 
 	tcase_set_timeout(tc_core, 60);
 	suite_add_tcase(s, tc_core);

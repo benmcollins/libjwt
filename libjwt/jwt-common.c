@@ -444,6 +444,30 @@ jwt_value_error_t FUNC(header_get)(jwt_common_t *__cmd, jwt_value_t *value)
 
 jwt_value_error_t FUNC(header_set)(jwt_common_t *__cmd, jwt_value_t *value)
 {
+	/* @rfc{7797,3} "b64" says how the payload is encoded, which only
+	 * jwt_builder_setb64() decides (for every signature alike): refuse it
+	 * by name, or inside a nameless JSON object merged into the header. */
+	if (__cmd != NULL && value != NULL) {
+		jwt_json_auto_t *obj = NULL;
+		int b64 = 0;
+
+		if (value->name != NULL && value->name[0] != '\0') {
+			b64 = !strcmp(value->name, "b64");
+		} else if (value->type == JWT_VALUE_JSON &&
+			   value->json_val != NULL) {
+			obj = jwt_json_parse(value->json_val,
+					     JWT_JSON_REJECT_DUPLICATES, NULL);
+			b64 = jwt_json_is_object(obj) &&
+			      jwt_json_obj_get(obj, "b64") != NULL;
+		}
+
+		if (b64) {
+			jwt_write_error(__cmd, "\"b64\" cannot be set as a "
+					"header: use jwt_builder_setb64()");
+			return value->error = JWT_VALUE_ERR_INVALID;
+		}
+	}
+
 	return __run_it(__cmd, __HEADER, value, __setter);
 }
 
@@ -1137,6 +1161,22 @@ char *FUNC(generate)(jwt_common_t *__cmd)
 	jwt->detached = __cmd->c.detached;
 	jwt->payload_raw = __cmd->c.payload_raw;
 	jwt->payload_raw_len = __cmd->c.payload_raw_len;
+
+	/* @rfc{7797,3} "b64" is jwt_builder_setb64()'s alone (header_set
+	 * refuses it), but the callback can still set one with
+	 * jwt_header_set(). Refuse one that disagrees with the setting: the
+	 * token would claim an encoding its payload does not have, and a JWT
+	 * would slip past the b64=false guard below. */
+	{
+		jwt_json_t *jb = jwt_json_obj_get(jwt->headers, "b64");
+
+		if (jb != NULL && (!jwt_json_is_bool(jb) ||
+		    (jwt_json_is_true(jb) ? 1 : 0) != jwt->b64)) {
+			jwt_write_error(__cmd, "A \"b64\" header must match "
+					"jwt_builder_setb64()");
+			return NULL;
+		}
+	}
 
 	if (!jwt->b64) {
 		/* RFC 7797 forbids b64=false for JWTs (JSON claim sets), so it

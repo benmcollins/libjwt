@@ -120,6 +120,8 @@ is never JWT claims (§7): it is checked as an empty claim set, so a checker
 that pins `"iss"`/`"sub"`/`"aud"`, requires claims or checks `"jti"` rejects it:
 `Claims cannot be validated on an unencoded ("b64":false) payload (RFC 7797)`.
 Verify unencoded documents with a separate checker that does none of these.
+Likewise, the builder sets `"b64"` only through `jwt_builder_setb64()`, alike in
+every signature, and never emits `"b64"` or `"crit"` unprotected.
 
 #### Key generation
 

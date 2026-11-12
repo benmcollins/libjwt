@@ -79,8 +79,8 @@ void jwt_signature_free(struct jwt_signature *s)
 }
 
 /* Parse @value_json and set it under @key on @obj (created on first use).
- * Rejects a NULL arg, the library-managed "alg", a parse failure, and a
- * duplicate key. Used by both per-signature header setters. */
+ * Rejects a NULL arg, the library-managed "alg" and "b64", a parse failure,
+ * and a duplicate key. Used by both per-signature header setters. */
 static int signature_set_header(jwt_json_t **obj, const char *key,
 				const char *value_json)
 {
@@ -89,8 +89,10 @@ static int signature_set_header(jwt_json_t **obj, const char *key,
 	if (key == NULL || value_json == NULL)
 		return 1;
 
-	/* "alg" is set by the library from the signer's algorithm. */
-	if (!strcmp(key, "alg"))
+	/* "alg" is set by the library from the signer's algorithm, and
+	 * @rfc{7797,3} "b64" from jwt_builder_setb64(): it describes the shared
+	 * payload, so it MUST be the same in every signature. */
+	if (!strcmp(key, "alg") || !strcmp(key, "b64"))
 		return 1;
 
 	if (*obj == NULL) {
@@ -126,6 +128,11 @@ int jwt_signature_add_header_json(jwt_signature_t *signature,
 				  const char *key, const char *value_json)
 {
 	if (signature == NULL)
+		return 1;
+
+	/* @rfc{7515,4.1.11} "crit" MUST be integrity protected, so never in
+	 * the unprotected header (jwt_checker_verify() rejects it there). */
+	if (key != NULL && !strcmp(key, "crit"))
 		return 1;
 
 	return signature_set_header(&signature->header, key, value_json);
