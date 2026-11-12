@@ -1163,6 +1163,449 @@ START_TEST(test_compact_keyring_embedded)
 }
 END_TEST
 
+/* ====================================================================
+ * The JSON path (which a keyring checker also takes for a Compact token):
+ * the pinned algorithm, the type of "kid", and which ring keys it offers.
+ * ==================================================================== */
+
+#define ERR_KID_TYPE	"\"kid\" header must be a string"
+
+static const jwt_serialization_t all_fmt[] = {
+	JWT_FORMAT_COMPACT, JWT_FORMAT_JSON_FLAT, JWT_FORMAT_JSON_GENERAL,
+};
+
+/* A token over {"sub":"alice"} signed by @key under @alg in @fmt, with the
+ * members of the JSON object @hdr (if not NULL) added to its header. */
+static char *fmt_tok(jwt_alg_t alg, const jwk_item_t *key, const char *hdr,
+		     jwt_serialization_t fmt)
+{
+	jwt_builder_auto_t *b = jwt_builder_new();
+	jwt_value_t v;
+	char *tok;
+
+	ck_assert_ptr_nonnull(b);
+	ck_assert_int_eq(jwt_builder_setkey(b, alg, key), 0);
+	if (hdr != NULL) {
+		jwt_set_SET_JSON(&v, NULL, (char *)hdr);
+		ck_assert_int_eq(jwt_builder_header_set(b, &v),
+				 JWT_VALUE_ERR_NONE);
+	}
+	jwt_set_SET_STR(&v, "sub", "alice");
+	ck_assert_int_eq(jwt_builder_claim_set(b, &v), JWT_VALUE_ERR_NONE);
+	ck_assert_int_eq(jwt_builder_set_format(b, fmt), 0);
+	tok = jwt_builder_generate(b);
+	ck_assert_ptr_nonnull(tok);
+
+	return tok;
+}
+
+struct cb_pin_ctx {
+	jwt_alg_t pin;		/* set in config->alg, unless JWT_ALG_NONE */
+	jwt_alg_t seen;		/* config->alg as the callback found it */
+};
+
+static int cb_pin(jwt_t *jwt, jwt_config_t *config)
+{
+	struct cb_pin_ctx *x = config->ctx;
+
+	(void)jwt;
+	x->seen = config->alg;
+	if (x->pin != JWT_ALG_NONE)
+		config->alg = x->pin;
+
+	return 0;
+}
+
+/* ---- The pinned algorithm holds in every serialization ---- */
+START_TEST(test_json_alg_pin)
+{
+	static const jwt_alg_t other[] = { JWT_ALG_PS256, JWT_ALG_RS512 };
+	struct cb_pin_ctx look = { JWT_ALG_NONE, JWT_ALG_NONE };
+	struct cb_pin_ctx pin = { JWT_ALG_RS256, JWT_ALG_NONE };
+	jwt_builder_auto_t *b = NULL;
+	jwt_checker_auto_t *one = NULL;
+	char_auto *two = NULL;
+	jwk_set_t *ks;
+	const jwk_item_t *key;
+	size_t f, i, p;
+
+	SET_OPS();
+
+	/* An RSA key without an "alg" of its own: only the checker, or the
+	 * callback, pins one. */
+	ks = load_one("rsa_key_2048_no_alg.json");
+	key = jwks_item_get(ks, 0);
+
+	for (f = 0; f < ARRAY_SIZE(all_fmt); f++) {
+		char_auto *rs = fmt_tok(JWT_ALG_RS256, key, NULL, all_fmt[f]);
+
+		for (i = 0; i < ARRAY_SIZE(other); i++) {
+			char_auto *t = fmt_tok(other[i], key, NULL, all_fmt[f]);
+			struct cb_pin_ctx over = { other[i], JWT_ALG_NONE };
+			jwt_checker_auto_t *c1 = NULL, *c2 = NULL;
+
+			/* jwt_checker_setkey(RS256): RS256 verifies, the other
+			 * algorithms of the key's type do not, and the callback
+			 * sees the pinned one. */
+			c1 = jwt_checker_new();
+			ck_assert_int_eq(jwt_checker_setkey(c1, JWT_ALG_RS256,
+							    key), 0);
+			ck_assert_int_eq(jwt_checker_setcb(c1, cb_pin, &look), 0);
+			ck_assert_int_eq(jwt_checker_verify(c1, rs), 0);
+			look.seen = JWT_ALG_NONE;
+			ck_assert_int_ne(jwt_checker_verify(c1, t), 0);
+			ck_assert_str_eq(jwt_checker_error_msg(c1),
+				all_fmt[f] == JWT_FORMAT_COMPACT ?
+				"Config alg does not match JWT" : ERR_POLICY_1);
+			ck_assert_int_eq(look.seen, JWT_ALG_RS256);
+
+			/* The callback may pin another algorithm instead. */
+			c2 = jwt_checker_new();
+			ck_assert_int_eq(jwt_checker_setkey(c2, JWT_ALG_RS256,
+							    key), 0);
+			ck_assert_int_eq(jwt_checker_setcb(c2, cb_pin, &over), 0);
+			ck_assert_int_eq(jwt_checker_verify(c2, t), 0);
+			ck_assert_int_ne(jwt_checker_verify(c2, rs), 0);
+
+			/* A keyring pins no algorithm: the callback sees the
+			 * signature's own and both tokens verify, unless the
+			 * callback pins one. */
+			for (p = 0; p < ARRAY_SIZE(both_pol); p++) {
+				jwt_checker_auto_t *c = jwt_checker_new();
+
+				ck_assert_int_eq(jwt_checker_setkeyring(c, ks,
+					both_pol[p]), 0);
+				ck_assert_int_eq(jwt_checker_setcb(c, cb_pin,
+					&look), 0);
+				ck_assert_int_eq(jwt_checker_verify(c, t), 0);
+				ck_assert_int_eq(look.seen, other[i]);
+				ck_assert_int_eq(jwt_checker_verify(c, rs), 0);
+
+				ck_assert_int_eq(jwt_checker_setcb(c, cb_pin,
+					&pin), 0);
+				ck_assert_int_eq(jwt_checker_verify(c, rs), 0);
+				ck_assert_int_ne(jwt_checker_verify(c, t), 0);
+				ck_assert_str_eq(jwt_checker_error_msg(c),
+						 ERR_POLICY_1);
+			}
+		}
+	}
+
+	/* One key signing RS256 and PS256 in a General token: with RS256
+	 * pinned, the PS256 signature does not count. */
+	b = jwt_builder_new();
+	ck_assert_int_eq(jwt_builder_setkey(b, JWT_ALG_RS256, key), 0);
+	ck_assert_ptr_nonnull(jwt_builder_add_signature(b, JWT_ALG_PS256, key));
+	two = jwt_builder_generate(b);
+	ck_assert_ptr_nonnull(two);
+
+	one = jwt_checker_new();
+	ck_assert_int_eq(jwt_checker_setkey(one, JWT_ALG_RS256, key), 0);
+	ck_assert_int_eq(jwt_checker_verify(one, two), 0);
+	ck_assert_uint_eq(jwt_checker_sig_count(one), 2);
+	ck_assert_int_eq(jwt_checker_sig_verified(one, 0), 1);
+	ck_assert_int_eq(jwt_checker_sig_verified(one, 1), 0);
+
+	for (p = 0; p < ARRAY_SIZE(both_pol); p++) {
+		jwt_checker_auto_t *c = jwt_checker_new();
+
+		ck_assert_int_eq(jwt_checker_setkeyring(c, ks, both_pol[p]), 0);
+		ck_assert_int_eq(jwt_checker_verify(c, two), 0);
+		ck_assert_int_eq(jwt_checker_sig_verified(c, 1), 1);
+
+		ck_assert_int_eq(jwt_checker_setcb(c, cb_pin, &pin), 0);
+		if (both_pol[p] == JWT_VERIFY_POLICY_ALL) {
+			ck_assert_int_ne(jwt_checker_verify(c, two), 0);
+			ck_assert_str_eq(jwt_checker_error_msg(c),
+				"Signature policy not met (1 of 2 verified)");
+		} else {
+			ck_assert_int_eq(jwt_checker_verify(c, two), 0);
+		}
+		ck_assert_int_eq(jwt_checker_sig_verified(c, 0), 1);
+		ck_assert_int_eq(jwt_checker_sig_verified(c, 1), 0);
+	}
+
+	jwks_free(ks);
+}
+END_TEST
+
+/* ---- A keyring needs any "kid" to be a string ---- */
+START_TEST(test_keyring_kid_type)
+{
+	static const char * const bad[] = {
+		"{\"kid\":123}", "{\"kid\":null}", "{\"kid\":[\"x\"]}",
+		"{\"kid\":{}}", "{\"kid\":true}",
+	};
+	char_auto *flat = NULL, *hint = NULL;
+	jwk_set_t *ks;
+	const jwk_item_t *key;
+	size_t i, p;
+
+	SET_OPS();
+
+	/* A ring of one key without a "kid": only a scan finds it. */
+	ks = load_one("oct_key_256.json");
+	key = jwks_item_get(ks, 0);
+	flat = fmt_tok(JWT_ALG_HS256, key, NULL, JWT_FORMAT_JSON_FLAT);
+
+	for (i = 0; i < ARRAY_SIZE(bad); i++) {
+		char_auto *ct = NULL, *ft = NULL, *ut = NULL;
+		jwt_checker_auto_t *one = NULL;
+
+		ct = fmt_tok(JWT_ALG_HS256, key, bad[i], JWT_FORMAT_COMPACT);
+		ft = fmt_tok(JWT_ALG_HS256, key, bad[i], JWT_FORMAT_JSON_FLAT);
+		/* In the unprotected header, which the signature does not
+		 * cover. */
+		ck_assert_int_gt(asprintf(&ut, "{\"header\":%s,%s", bad[i],
+					  flat + 1), 0);
+
+		for (p = 0; p < ARRAY_SIZE(both_pol); p++) {
+			jwt_checker_auto_t *c = jwt_checker_new();
+
+			ck_assert_int_eq(jwt_checker_setkeyring(c, ks,
+				both_pol[p]), 0);
+			ck_assert_int_ne(jwt_checker_verify(c, ct), 0);
+			ck_assert_str_eq(jwt_checker_error_msg(c), ERR_KID_TYPE);
+			ck_assert_int_eq(jwt_checker_sig_verified(c, 0), 0);
+			ck_assert_int_ne(jwt_checker_verify(c, ft), 0);
+			ck_assert_str_eq(jwt_checker_error_msg(c), ERR_KID_TYPE);
+			ck_assert_int_ne(jwt_checker_verify(c, ut), 0);
+			ck_assert_str_eq(jwt_checker_error_msg(c), ERR_KID_TYPE);
+		}
+
+		/* A single key is not selected by "kid": no change there. */
+		one = jwt_checker_new();
+		ck_assert_int_eq(jwt_checker_setkey(one, JWT_ALG_HS256, key), 0);
+		ck_assert_int_eq(jwt_checker_verify(one, ct), 0);
+		ck_assert_int_eq(jwt_checker_verify(one, ft), 0);
+	}
+
+	/* A string "kid" in the unprotected header selects no key: the ring
+	 * is scanned, as before. */
+	ck_assert_int_gt(asprintf(&hint, "{\"header\":{\"kid\":\"hint\"},%s",
+				  flat + 1), 0);
+	for (p = 0; p < ARRAY_SIZE(both_pol); p++) {
+		jwt_checker_auto_t *c = jwt_checker_new();
+
+		ck_assert_int_eq(jwt_checker_setkeyring(c, ks, both_pol[p]), 0);
+		ck_assert_int_eq(jwt_checker_verify(c, hint), 0);
+		ck_assert_ptr_eq(jwt_checker_sig_key(c, 0), key);
+	}
+
+	jwks_free(ks);
+}
+END_TEST
+
+/* The secret of tests/keys/oct_key_256.json, as ring keys that would each
+ * verify its HS256 tokens. Those in not_verify[] are meant for something else,
+ * so a keyring does not offer them. */
+#define OCT_K "\"k\":\"0gmNspkRljssLSrldySnYUS-zhtCo5sqeqo_yl7n2XA\"}"
+
+static const char * const not_verify[] = {
+	"{\"kty\":\"oct\",\"kid\":\"use-enc\",\"use\":\"enc\"," OCT_K,
+	"{\"kty\":\"oct\",\"kid\":\"use-x\",\"use\":\"x-other\"," OCT_K,
+	"{\"kty\":\"oct\",\"kid\":\"use-null\",\"use\":null," OCT_K,
+	"{\"kty\":\"oct\",\"kid\":\"use-num\",\"use\":1," OCT_K,
+	"{\"kty\":\"oct\",\"kid\":\"ops-wrap\","
+		"\"key_ops\":[\"wrapKey\",\"unwrapKey\"]," OCT_K,
+	"{\"kty\":\"oct\",\"kid\":\"ops-enc\","
+		"\"key_ops\":[\"encrypt\",\"decrypt\"]," OCT_K,
+	"{\"kty\":\"oct\",\"kid\":\"ops-derive\","
+		"\"key_ops\":[\"deriveKey\",\"deriveBits\"]," OCT_K,
+	"{\"kty\":\"oct\",\"kid\":\"ops-empty\",\"key_ops\":[]," OCT_K,
+	"{\"kty\":\"oct\",\"kid\":\"ops-null\",\"key_ops\":null," OCT_K,
+	"{\"kty\":\"oct\",\"kid\":\"ops-str\",\"key_ops\":\"verify\"," OCT_K,
+	"{\"kty\":\"oct\",\"kid\":\"sig-wrap\",\"use\":\"sig\","
+		"\"key_ops\":[\"wrapKey\"]," OCT_K,
+};
+
+static const char * const for_verify[] = {
+	"{\"kty\":\"oct\",\"kid\":\"plain\"," OCT_K,
+	"{\"kty\":\"oct\",\"kid\":\"use-sig\",\"use\":\"sig\"," OCT_K,
+	"{\"kty\":\"oct\",\"kid\":\"ops-verify\","
+		"\"key_ops\":[\"sign\",\"verify\"]," OCT_K,
+	/* As libjwt itself marks a private or HMAC key it exports. */
+	"{\"kty\":\"oct\",\"kid\":\"ops-sign\",\"key_ops\":[\"sign\"]," OCT_K,
+	"{\"kty\":\"oct\",\"kid\":\"ops-mixed\",\"key_ops\":[1,\"verify\"],"
+		OCT_K,
+	/* json-c holds a JSON null as NULL: still read the rest. */
+	"{\"kty\":\"oct\",\"kid\":\"ops-null-first\","
+		"\"key_ops\":[null,\"verify\"]," OCT_K,
+};
+
+/* Add the JWKs @jwk[0..@n-1] to @ring, or to a new ring if it is NULL. */
+static jwk_set_t *ring_add(jwk_set_t *ring, const char * const *jwk, size_t n)
+{
+	size_t i;
+
+	if (ring == NULL)
+		ring = jwks_create(NULL);
+	ck_assert_ptr_nonnull(ring);
+	for (i = 0; i < n; i++)
+		ck_assert_ptr_nonnull(jwks_load(ring, jwk[i]));
+	ck_assert_int_eq(jwks_error_any(ring), 0);
+
+	return ring;
+}
+
+/* @tok verifies against @ring under both policies, with its key @k. */
+static void ring_verifies_with(const jwk_set_t *ring, const char *tok,
+			       const jwk_item_t *k)
+{
+	size_t p;
+
+	for (p = 0; p < ARRAY_SIZE(both_pol); p++) {
+		jwt_checker_auto_t *c = jwt_checker_new();
+
+		ck_assert_int_eq(jwt_checker_setkeyring(c, ring, both_pol[p]),
+				 0);
+		ck_assert_int_eq(jwt_checker_verify(c, tok), 0);
+		ck_assert_ptr_eq(jwt_checker_sig_key(c, 0), k);
+	}
+}
+
+/* ---- A keyring offers only keys meant for verification ---- */
+START_TEST(test_keyring_key_use)
+{
+	static const char * const dup[] = {
+		"{\"kty\":\"oct\",\"kid\":\"dup\",\"use\":\"enc\"," OCT_K,
+		"{\"kty\":\"oct\",\"kid\":\"dup\",\"use\":\"sig\"," OCT_K,
+	};
+	struct cb_ring_ctx pass = { 0 }, over = { 0 };
+	jwk_set_t *ks, *bad, *ring, *dups, *own;
+	const jwk_item_t *key, *enc;
+	jwt_checker_auto_t *one = NULL, *cb = NULL;
+	char_auto *enc_tok = NULL;
+	size_t i, f, p;
+
+	SET_OPS();
+
+	ks = load_one("oct_key_256.json");
+	key = jwks_item_get(ks, 0);
+
+	/* Only keys meant for something else; then the same, followed by
+	 * keys that may verify. */
+	bad = ring_add(NULL, not_verify, ARRAY_SIZE(not_verify));
+	ring = ring_add(NULL, not_verify, ARRAY_SIZE(not_verify));
+	ring_add(ring, for_verify, ARRAY_SIZE(for_verify));
+	dups = ring_add(NULL, dup, ARRAY_SIZE(dup));
+
+	for (f = 0; f < 2; f++) {
+		jwt_serialization_t fmt = f ? JWT_FORMAT_JSON_FLAT :
+					      JWT_FORMAT_COMPACT;
+		char_auto *scan = fmt_tok(JWT_ALG_HS256, key, NULL, fmt);
+		char_auto *dup_tok = fmt_tok(JWT_ALG_HS256, key,
+					     "{\"kid\":\"dup\"}", fmt);
+
+		for (p = 0; p < ARRAY_SIZE(both_pol); p++) {
+			jwt_checker_auto_t *c = jwt_checker_new();
+
+			/* The scan skips them all... */
+			ck_assert_int_eq(jwt_checker_setkeyring(c, bad,
+				both_pol[p]), 0);
+			ck_assert_int_ne(jwt_checker_verify(c, scan), 0);
+			ck_assert_str_eq(jwt_checker_error_msg(c), ERR_POLICY_1);
+
+			/* ...for the first key that may verify. */
+			ck_assert_int_eq(jwt_checker_setkeyring(c, ring,
+				both_pol[p]), 0);
+			ck_assert_int_eq(jwt_checker_verify(c, scan), 0);
+			ck_assert_str_eq(jwks_item_kid(jwt_checker_sig_key(c, 0)),
+					 "plain");
+
+			/* A "kid" naming one of them binds to no key, with no
+			 * fallback to the keys that would verify. */
+			for (i = 0; i < jwks_item_count(ring); i++) {
+				const jwk_item_t *k = jwks_item_get(ring, i);
+				char_auto *hdr = NULL, *t = NULL;
+
+				ck_assert_int_gt(asprintf(&hdr, "{\"kid\":\"%s\"}",
+						 jwks_item_kid(k)), 0);
+				t = fmt_tok(JWT_ALG_HS256, key, hdr, fmt);
+				if (i < ARRAY_SIZE(not_verify)) {
+					ck_assert_int_ne(jwt_checker_verify(c, t),
+							 0);
+					ck_assert_str_eq(jwt_checker_error_msg(c),
+							 ERR_POLICY_1);
+				} else {
+					ck_assert_int_eq(jwt_checker_verify(c, t),
+							 0);
+					ck_assert_ptr_eq(jwt_checker_sig_key(c, 0),
+							 k);
+				}
+			}
+
+			/* Of two keys with that "kid", the one that may verify. */
+			ck_assert_int_eq(jwt_checker_setkeyring(c, dups,
+				both_pol[p]), 0);
+			ck_assert_int_eq(jwt_checker_verify(c, dup_tok), 0);
+			ck_assert_ptr_eq(jwt_checker_sig_key(c, 0),
+					 jwks_item_get(dups, 1));
+		}
+	}
+
+	/* The callback is offered no key for a "kid" that names only such a
+	 * key, but may supply it, as jwt_checker_setkey() may. */
+	enc = jwks_item_get(bad, 0);
+	ck_assert_str_eq(jwks_item_kid(enc), "use-enc");
+	enc_tok = fmt_tok(JWT_ALG_HS256, key, "{\"kid\":\"use-enc\"}",
+			  JWT_FORMAT_COMPACT);
+	cb = jwt_checker_new();
+	ck_assert_int_eq(jwt_checker_setkeyring(cb, bad,
+		JWT_VERIFY_POLICY_ANY), 0);
+	pass.key_seen = enc;
+	ck_assert_int_eq(jwt_checker_setcb(cb, cb_ring, &pass), 0);
+	ck_assert_int_ne(jwt_checker_verify(cb, enc_tok), 0);
+	ck_assert_int_eq(pass.calls, 1);
+	ck_assert_ptr_null(pass.key_seen);
+	over.key = enc;
+	ck_assert_int_eq(jwt_checker_setcb(cb, cb_ring, &over), 0);
+	ck_assert_int_eq(jwt_checker_verify(cb, enc_tok), 0);
+	ck_assert_ptr_eq(jwt_checker_sig_key(cb, 0), enc);
+
+	one = jwt_checker_new();
+	ck_assert_int_eq(jwt_checker_setkey(one, JWT_ALG_HS256, enc), 0);
+	ck_assert_int_eq(jwt_checker_verify(one, enc_tok), 0);
+
+	/* The keys libjwt itself imports from an HMAC secret or a private key
+	 * carry "key_ops":["sign"]: a keyring offers them, by "kid" and in the
+	 * scan. */
+	own = jwks_create_fromkey_file(KEYDIR "/pem-files/oct_key_hs256.bin",
+				       JWK_KEY_TRY_HMAC | JWK_KEY_GEN_KID);
+	ck_assert_ptr_nonnull(own);
+	ck_assert_ptr_nonnull(jwks_load_fromkey_file(own,
+		KEYDIR "/pem-files/rsa_key_2048.pem", JWK_KEY_GEN_KID));
+	ck_assert_int_eq(jwks_error_any(own), 0);
+	ck_assert_uint_eq(jwks_item_count(own), 2);
+	for (i = 0; i < 2; i++) {
+		const jwk_item_t *k = jwks_item_get(own, i);
+		jwt_alg_t alg = i ? JWT_ALG_RS256 : JWT_ALG_HS256;
+		char_auto *hdr = NULL;
+
+		ck_assert_int_eq(jwks_item_key_ops(k), JWK_KEY_OP_SIGN);
+		ck_assert_ptr_nonnull(jwks_item_kid(k));
+		ck_assert_int_gt(asprintf(&hdr, "{\"kid\":\"%s\"}",
+					  jwks_item_kid(k)), 0);
+
+		for (f = 0; f < 2; f++) {
+			jwt_serialization_t fmt = f ? JWT_FORMAT_JSON_FLAT :
+						      JWT_FORMAT_COMPACT;
+			char_auto *named = fmt_tok(alg, k, hdr, fmt);
+			char_auto *scan = fmt_tok(alg, k, NULL, fmt);
+
+			ring_verifies_with(own, named, k);
+			ring_verifies_with(own, scan, k);
+		}
+	}
+
+	jwks_free(ks);
+	jwks_free(bad);
+	jwks_free(ring);
+	jwks_free(dups);
+	jwks_free(own);
+}
+END_TEST
+
 static Suite *libjwt_suite(const char *title)
 {
 	Suite *s;
@@ -1189,6 +1632,9 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, test_compact_keyring_b64, 0, i);
 	tcase_add_loop_test(tc_core, test_compact_keyring_reuse, 0, i);
 	tcase_add_loop_test(tc_core, test_compact_keyring_embedded, 0, i);
+	tcase_add_loop_test(tc_core, test_json_alg_pin, 0, i);
+	tcase_add_loop_test(tc_core, test_keyring_kid_type, 0, i);
+	tcase_add_loop_test(tc_core, test_keyring_key_use, 0, i);
 
 	tcase_set_timeout(tc_core, 60);
 

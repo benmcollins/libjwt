@@ -995,6 +995,13 @@ void jwt_checker_error_clear(jwt_checker_t *checker);
  *
  * See @ref jwt_builder_setkey for detailed information.
  *
+ * A signature, of a Compact token or of a JWS JSON Serialization alike,
+ * verifies only if it uses exactly that algorithm (with ::JWT_ALG_NONE, the
+ * key's ``"alg"``), not merely one the key could check (e.g. RS512 or PS256
+ * when pinned to RS256). A verify callback that sets config->alg pins that
+ * algorithm instead. The key is used whatever its ``"use"`` or
+ * ``"key_ops"``, unlike the keys of a keyring (see jwt_checker_setkeyring()).
+ *
  * A NULL key (with ::JWT_ALG_NONE) also drops a keyring. Unless embedded-JWK
  * verification is enabled (this does not turn it off), the checker is then
  * unkeyed: it verifies no JWS JSON Serialization, and of Compact tokens only
@@ -1041,17 +1048,26 @@ typedef enum {
  * a JSON Serialization signature by signature, and a Compact token exactly as
  * the equivalent one-signature (Flattened) JSON token.
  *
- * A signature whose protected header names a ``kid`` (a string; any other
- * ``kid`` value is ignored) is verified only against the ring key with that
- * ``kid``; if the ring has none, that signature does not verify (there is no
- * fallback to the other keys). A signature without a ``kid`` is tried against
- * every compatible key. Each candidate is held to the usual algorithm/key-type
- * binding and, when the key declares an ``"alg"``, to exactly that algorithm.
- * The ``"typ"`` and algorithm policy, the verify callback (run once for each
- * signature that meets that policy, until an error such as an unsupported
- * ``"crit"`` header ends the verification; it may supply the key), the claim
- * checks and the jti check all apply, and an unsigned (``"alg":"none"``) token
- * is never accepted.
+ * Only ring keys meant for signatures are candidates: not a key whose
+ * ``"use"`` is present and is not ``"sig"``, nor one whose ``"key_ops"`` is
+ * present and includes neither ``"verify"`` nor ``"sign"`` (e.g. a
+ * key-wrapping key). Every key that libjwt imports (jwks_load_fromkey()) or
+ * generates (jwks_generate()) is a candidate. A signature whose protected
+ * header names a ``kid`` is verified only against the candidate with that
+ * ``kid``; if there is none, that signature does not verify (there is no
+ * fallback to the other keys). A ``kid`` that is not a string, in either
+ * header, fails the verification. A signature without a ``kid`` is tried
+ * against every compatible candidate.
+ *
+ * Each candidate is held to the usual algorithm/key-type binding and, when the
+ * key declares an ``"alg"``, to exactly that algorithm. The ``"typ"`` and
+ * algorithm policy, the verify callback (run once for each signature that
+ * meets that policy, until an error such as an unsupported ``"crit"`` header
+ * ends the verification), the claim checks and the jti check all apply, and
+ * an unsigned (``"alg":"none"``) token is never accepted. The callback may
+ * supply the key, which is then the only one tried, whatever its ``"use"`` or
+ * ``"key_ops"``; if it sets config->alg, a signature with another ``"alg"``
+ * does not verify.
  *
  * A ring key is not tied to an issuer: when the ring holds the keys of several
  * issuers, a token without a ``kid`` verifies with whichever of them signed
@@ -1075,6 +1091,14 @@ typedef enum {
  * @note With the Jansson JSON backend, a Compact token whose unencoded
  * (@rfc{7797}) payload is not valid UTF-8 cannot be verified against a
  * keyring; use jwt_checker_setkey() for it.
+ *
+ * @note A Compact token is verified against a keyring by converting it to the
+ * JSON Serialization and parsing that again, before anything in it is
+ * checked. A hostile token, e.g. one full of control characters, then costs
+ * about 15 bytes of memory per byte of token, where the single-key path needs
+ * about one, and some 50 to 100 times its CPU time: a 64 MB token took about
+ * 1 GB and several seconds. Limit the size of the tokens you accept before
+ * verifying them.
  *
  * @note Before 3.6.2 a Compact token was not checked against the keyring at
  * all: a checker given only a keyring rejected every signed Compact token

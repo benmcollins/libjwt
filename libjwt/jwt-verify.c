@@ -855,6 +855,119 @@ static int build_sig_entry(jwt_checker_t *checker, jwt_json_t *entry,
 	return 0;
 }
 
+struct member_find {
+	const char *name;
+	jwt_json_t *value;
+	int found;
+};
+
+static int member_find_cb(const char *key, jwt_json_t *value, void *ctx)
+{
+	struct member_find *m = ctx;
+
+	if (strcmp(key, m->name))
+		return 0;
+
+	m->value = value;
+	m->found = 1;
+
+	return 1;
+}
+
+/* Is member @name present in object @obj? Unlike jwt_json_obj_get(), this
+ * also finds one whose value is JSON null under json-c (which has no null
+ * object, so its obj_get() reports the member as absent); *@value is then
+ * NULL there, while Jansson gives a JSON null. */
+static int json_has(const jwt_json_t *obj, const char *name, jwt_json_t **value)
+{
+	struct member_find m = { name, NULL, 0 };
+
+	jwt_json_obj_foreach(obj, member_find_cb, &m);
+	*value = m.value;
+
+	return m.found;
+}
+
+/* @rfc{7515,4.1.4} Read the "kid" that selects signature @s's ring key, from
+ * its protected header, into *@kid (NULL if there is none). "kid" is a string
+ * wherever it appears: a value of any other type (JSON null included) in
+ * either header returns 1 rather than count as no "kid", which would turn a
+ * key bound by "kid" into a scan of the whole ring. */
+static int sig_kid(const struct jwt_signature *s, const char **kid)
+{
+	jwt_json_t *v;
+
+	*kid = NULL;
+
+	if (s->header != NULL && json_has(s->header, "kid", &v) &&
+	    !jwt_json_is_string(v))
+		return 1;
+
+	if (!json_has(s->protected, "kid", &v))
+		return 0;
+	if (!jwt_json_is_string(v))
+		return 1;
+
+	*kid = jwt_json_str_val(v);
+
+	return 0;
+}
+
+/* @rfc{7517,4.2,4.3} May the keyring offer key @k to verify a signature? Not
+ * if its "use" is present and is not "sig", nor if its "key_ops" is present
+ * and includes neither "verify" nor "sign": such a key is meant for something
+ * else, such as key wrapping, and is skipped as JWKS key selection commonly
+ * does. "sign" counts, as @rfc{7517,4.3} pairs it with "verify" and a private
+ * key verifies with its public part: jwt_key2jwk() gives every private or
+ * HMAC key it exports (for jwks_load_fromkey(), and jwks_generate() of a key
+ * pair) "key_ops":["sign"]. A malformed value counts against the key. Only
+ * for keys the ring offers, by "kid" or in the scan: a key the application
+ * chose (jwt_checker_setkey(), or the verify callback) is used as given. */
+static int ring_key_verifies(const jwk_item_t *k)
+{
+	jwt_json_t *v, *op;
+	const char *s;
+	size_t i, n;
+
+	if (json_has(k->json, "use", &v) &&
+	    (!jwt_json_is_string(v) || strcmp(jwt_json_str_val(v), "sig")))
+		return 0;
+
+	if (!json_has(k->json, "key_ops", &v))
+		return 1;
+
+	/* Read every member by index, alike on both JSON backends: a JSON null
+	 * one (NULL from json-c) is skipped like any other non-string, so
+	 * [null,"verify"] may verify. */
+	n = jwt_json_arr_size(v);
+	for (i = 0; i < n; i++) {
+		op = jwt_json_arr_get(v, i);
+		if (!jwt_json_is_string(op))
+			continue;
+		s = jwt_json_str_val(op);
+		if (!strcmp(s, "verify") || !strcmp(s, "sign"))
+			return 1;
+	}
+
+	return 0;
+}
+
+/* The ring key that @kid names: the first one with that "kid" that the ring
+ * may offer (see ring_key_verifies()), or NULL. */
+static const jwk_item_t *ring_find_kid(const jwk_set_t *ring, const char *kid)
+{
+	const jwk_item_t *k;
+
+	list_for_each_entry(k, &ring->head, node) {
+		const char *kkid = jwks_item_kid(k);
+
+		if (kkid != NULL && !strcmp(kkid, kid) && ring_key_verifies(k))
+			return k;
+	}
+
+	return NULL;
+}
+
 /* Try one candidate key against signature @s over @input. Applies the
  * algorithm/key-type anti-confusion gate (GHSA-q843-6q5f-w55g) before any
  * verify, and routes the crypto to the key's origin backend via jwt_item_ops()
@@ -872,10 +985,12 @@ static void try_candidate(jwt_t *jwt, struct jwt_signature *s,
 	/* @rfc{8725,3.1} Exact-alg pin: if the candidate key declares an "alg",
 	 * the signature's alg must match it exactly, not merely its family (the
 	 * kty gate above is family-granular -- every RSn/PSn maps to RSA). This
-	 * is the JSON-path mirror of the Compact pinned-alg check and the keyring
-	 * scan's own "kalg != s->alg" skip, applied at the single choke point so
-	 * the explicit-key and "kid"-matched branches are covered too: without
-	 * it a key declaring "RS256" would verify an "RS512" signature. */
+	 * is the JSON-path mirror of the Compact pinned key-alg check (the
+	 * checker's or callback's pinned alg is applied in verify_entry()) and
+	 * the keyring scan's own "kalg != s->alg" skip, applied at the single
+	 * choke point so the explicit-key and "kid"-matched branches are
+	 * covered too: without it a key declaring "RS256" would verify an
+	 * "RS512" signature. */
 	if (jwks_item_alg(key) != JWT_ALG_NONE && jwks_item_alg(key) != s->alg)
 		return;
 
@@ -896,9 +1011,10 @@ static void try_candidate(jwt_t *jwt, struct jwt_signature *s,
 	jwt->error_msg[0] = '\0';
 }
 
-/* Verify one signature entry: run the optional per-signature callback, select
- * the key (the checker's single key, a "kid"-named keyring key, or every
- * compatible keyring key), and verify. */
+/* Verify one signature entry: run the optional per-signature callback, hold
+ * the signature to the pinned algorithm, select the key (the checker's single
+ * key, a "kid"-named keyring key, or every compatible keyring key), and
+ * verify. */
 static int verify_entry(jwt_checker_t *checker, jwt_t *jwt,
 			struct jwt_signature *s, const char *payload_b64,
 			int payload_len)
@@ -906,7 +1022,7 @@ static int verify_entry(jwt_checker_t *checker, jwt_t *jwt,
 	JWT_CONFIG_DECLARE(config);
 	const jwk_set_t *ring = checker->c.keyring;
 	char_auto *input = NULL;
-	const char *kid;
+	const char *kid = NULL;
 	int prot_len, scan;
 
 	/* @rfc{7515,5.1} Signing input is the VERBATIM protected_b64 "." payload_b64. */
@@ -927,6 +1043,13 @@ static int verify_entry(jwt_checker_t *checker, jwt_t *jwt,
 		return 1;
 	}
 
+	/* A keyring selects the key by "kid", so it must be a string. */
+	if (ring != NULL && sig_kid(s, &kid)) {
+		jwt_write_error(checker, "\"kid\" header must be a string");
+		jwt->headers = NULL;
+		return 1;
+	}
+
 	/* @rfc{8725} A signature whose "typ"/alg does not meet the checker's
 	 * expectation is simply not accepted (skipped), so the policy decides. */
 	if (!jwt_typ_alg_ok(jwt)) {
@@ -936,20 +1059,30 @@ static int verify_entry(jwt_checker_t *checker, jwt_t *jwt,
 
 	/* Seed the candidate: a kid-named keyring key (a binding assertion, no
 	 * fallback), or the checker's single key. A keyless keyring entry scans. */
-	kid = json_str(s->protected, "kid");
 	if (ring != NULL) {
-		config.key = (kid != NULL)
-			? jwks_find_bykid((jwk_set_t *)ring, kid) : NULL;
+		config.key = (kid != NULL) ? ring_find_kid(ring, kid) : NULL;
 		scan = (kid == NULL);
 	} else {
 		config.key = checker->c.key;
 		scan = 0;
 	}
-	config.alg = s->alg;
+	/* As on the Compact path, the callback sees (and may change) the
+	 * algorithm the checker pinned with its key; without one, this
+	 * signature's own. */
+	config.alg = (checker->c.alg != JWT_ALG_NONE) ? checker->c.alg : s->alg;
 	config.ctx = checker->c.cb_ctx;
 
 	if (checker->c.cb && checker->c.cb(jwt, &config)) {
 		/* Callback rejected this signature; not a hard error under ANY. */
+		jwt->headers = NULL;
+		return 0;
+	}
+
+	/* @rfc{8725,3.1} Pin the EXACT algorithm, as the Compact path does: a
+	 * signature whose "alg" is not the one pinned (by jwt_checker_setkey()
+	 * or in config->alg by the callback) does not verify, even with a key
+	 * that has no "alg" of its own to pin it in try_candidate(). */
+	if (config.alg != JWT_ALG_NONE && config.alg != s->alg) {
 		jwt->headers = NULL;
 		return 0;
 	}
@@ -965,6 +1098,8 @@ static int verify_entry(jwt_checker_t *checker, jwt_t *jwt,
 			jwt_alg_t kalg = jwks_item_alg(k);
 
 			if (kalg != JWT_ALG_NONE && kalg != s->alg)
+				continue;
+			if (!ring_key_verifies(k))
 				continue;
 			try_candidate(jwt, s, k, input, (unsigned int)strlen(input));
 		}
