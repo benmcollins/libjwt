@@ -32,6 +32,13 @@ by spaces, or passed via \f[B]stdin\f[R], one per line.
 To use \f[B]stdin\f[R], you must pass \f[B]\-\f[R] as the last and only
 argument after any options.
 .PP
+Each line of \f[B]stdin\f[R] is one token, and the last line does not
+need a newline.
+An empty line is a token that fails.
+A line of 1048576 bytes (1 MiB) or more, not counting its newline, or
+one that has a NUL byte in it, is not verified, not even in part, and
+counts as one token that failed.
+.PP
 When using the \f[B]\-\-verbose\f[R] option, \f[B]jwt\-verify\f[R] will
 print the JSON \f[I]HEADER\f[R] and \f[I]PAYLOAD\f[R] to
 \f[B]stdout\f[R].
@@ -61,7 +68,7 @@ JWT in addition to verifying the token.
 .TP
 \f[B]\-q\f[R], \f[B]\-\-quiet\f[R]
 Do not output anything except for hard errors.
-The exit value will be the number of token validation failures.
+The result is the exit status: see \f[B]EXIT STATUS\f[R].
 .TP
 \f[B]\-a\f[R] \f[I]ALG\f[R], \f[B]\-\-algorithm\f[R]=\f[I]ALG\f[R]
 Specify the algorithm to be used when verifying the signature block of
@@ -96,6 +103,29 @@ Multi\-signature acceptance policy when a keyring is used: \f[B]any\f[R]
 Pipe JSON of header and payload to \f[I]CMD\f[R] through its
 \f[B]stdin\f[R].
 This option only makes sense with \f[B]\-\-verbose\f[R].
+.SH EXIT STATUS
+.TP
+\f[B]0\f[R]
+Every token was verified (its signature checked with \f[B]\-k\f[R] or
+\f[B]\-r\f[R]; with neither, an unsigned token is only decoded).
+.TP
+\f[B]1\f[R]
+A token failed, there was no token to verify (nothing to read on
+\f[B]stdin\f[R]), or the program could not do its work: a bad option, a
+key or keyring that could not be loaded, a read error.
+.PP
+The exit status is not the number of tokens that failed.
+It is 1 for one failure and for any number of them.
+.PP
+\f[B]\-\-help\f[R] and \f[B]\-\-list\f[R] verify nothing; given alone
+they exit 0, but given with anything else (a token, a key, another
+option) they are a usage error (exit 1).
+An argument that starts with \f[B]\-\f[R] is read as an option unless it
+comes after \f[B]\-\-\f[R], and a \f[B]\-\f[R] on its own selects
+\f[B]stdin\f[R] even after \f[B]\-\-\f[R].
+To check a string that comes from somewhere you do not trust, write it
+to \f[B]stdin\f[R] as a single line, or reject it first if it starts
+with \f[B]\-\f[R], which a token never does.
 .SH BUGS
 See GitHub Issues: \c
 .UR https://github.com/benmcollins/libjwt/issues

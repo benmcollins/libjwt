@@ -352,8 +352,8 @@ JWS_RING="../tests/keys/jwks_jws_pair.json"
 	echo "${output}" | grep '\[TOK\]' | grep -q $'\xF0\x9F\x94\x90'
 }
 
-# Tokens read from stdin (one per line) take the same path; the exit value
-# counts the ones that fail.
+# Tokens read from stdin (one per line) take the same path; the exit status
+# is 1 when any of them fails.
 @test "Verify tokens from stdin against a keyring" {
 	t1="$(./tools/jwt-generate -q -n -k ${EC_KEY})"
 	t2="$(./tools/jwt-generate -q -n -k ${RS_KEY})"
@@ -402,4 +402,186 @@ NONE_TOK="eyJhbGciOiJub25lIn0.eyJzdWIiOiJhZG1pbiIsImlzcyI6InRydXN0ZWQiLCJhdWQiOi
 	run ./tools/jwt-verify -r ${JWS_RING} "${NONE_TOK}"
 	[ "${status}" -ne 0 ]
 	echo "${output}" | grep -q 'invalid "alg"'
+}
+
+# GHSA-g7xw-4cjw-2247: the exit status is 0 only when every token verified and
+# 1 otherwise. It is not the number of failures, which an exit status holds
+# modulo 256. A line of stdin is one token whatever its length, never several
+# pieces verified one by one, and no token at all is a failure.
+
+# {"alg":"HS256","typ":"JWT"} . {"sub":"admin"} . (not a signature)
+FORGED_TOK="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiJ9.AAAA"
+
+@test "256 failing tokens as arguments exit 1" {
+	# printf repeats its format for each of the 256 arguments, and %.0s
+	# prints nothing of them.
+	args=($(printf "${FORGED_TOK} %.0s" {1..256}))
+	[ "${#args[@]}" -eq 256 ]
+	run ./tools/jwt-verify -q -k ${HS256_KEY} "${args[@]}"
+	[ "${status}" -eq 1 ]
+	run ./tools/jwt-verify -q -k ${HS256_KEY} "${args[@]}" ${HS256_RES}
+	[ "${status}" -eq 1 ]
+	run ./tools/jwt-verify -q -k ${HS256_KEY} "${args[@]}" "${args[@]}"
+	[ "${status}" -eq 1 ]
+}
+
+@test "256 failing lines on stdin exit 1" {
+	toks=($(printf "${FORGED_TOK} %.0s" {1..256}))
+	[ "${#toks[@]}" -eq 256 ]
+	run ./tools/jwt-verify -q -k ${HS256_KEY} - < <(
+		printf '%s\n' "${toks[@]}")
+	[ "${status}" -eq 1 ]
+}
+
+@test "Mixed tokens exit 1 and all good tokens exit 0" {
+	run ./tools/jwt-verify -q -k ${HS256_KEY} ${HS256_RES} ${FORGED_TOK} \
+		${HS256_RES}
+	[ "${status}" -eq 1 ]
+	run ./tools/jwt-verify -q -k ${HS256_KEY} ${FORGED_TOK} ${FORGED_TOK}
+	[ "${status}" -eq 1 ]
+	run ./tools/jwt-verify -q -k ${HS256_KEY} ${HS256_RES} ${HS256_RES}
+	[ "${status}" -eq 0 ]
+	run ./tools/jwt-verify -q -k ${HS256_KEY} - < <(
+		printf '%s\n' ${HS256_RES} ${FORGED_TOK} ${HS256_RES})
+	[ "${status}" -eq 1 ]
+	run ./tools/jwt-verify -q -k ${HS256_KEY} - < <(
+		printf '%s\n' ${HS256_RES} ${HS256_RES})
+	[ "${status}" -eq 0 ]
+}
+
+# The line buffer is 1 MiB, so a line of 1048576 bytes does not fit. It is not
+# verified, not even in part, and the lines after it are still read as lines:
+# one of 1048575 bytes, which fits and is a token (not a valid one), and a
+# good token.
+@test "An over-long line on stdin is one failed token" {
+	run ./tools/jwt-verify -k ${HS256_KEY} - < <(
+		printf '%0*d\n' 1048576 0
+		printf '%0*d\n' 1048575 0
+		echo "${HS256_RES}")
+	[ "${status}" -eq 1 ]
+	[ "$(echo "${output}" | grep -c 'Line is too long')" -eq 1 ]
+	[ "$(echo "${output}" | grep -c '\[TOK\]')" -eq 2 ]
+	[ "$(echo "${output}" | grep -c 'Verified')" -eq 1 ]
+}
+
+# A forged token padded to one line of 256 * (BUFSIZ - 1) - 1 bytes was read
+# as 256 failing pieces, for an exit status of 0. BUFSIZ is 1024 or 8192,
+# depending on the C library, so try both lengths. The first one now fits in
+# the line buffer and the second one does not.
+@test "A padded forged token on stdin exits 1" {
+	for len in 261887 2096895; do
+		run ./tools/jwt-verify -q -k ${HS256_KEY} - < <(
+			printf '%s%0*d\n' ${FORGED_TOK} \
+				$((len - ${#FORGED_TOK})) 0)
+		[ "${status}" -eq 1 ]
+	done
+}
+
+@test "A valid token longer than BUFSIZ verifies from stdin" {
+	# With 9000 bytes of claim it is longer than either BUFSIZ.
+	token="$(./tools/jwt-generate -q -n -k ${HS256_KEY} \
+		-c "s:pad=$(printf '%09000d' 0)")"
+	[ "${#token}" -gt 8192 ]
+	run ./tools/jwt-verify -q -k ${HS256_KEY} - < <(echo "${token}")
+	[ "${status}" -eq 0 ]
+	# The last line needs no newline.
+	run ./tools/jwt-verify -q -k ${HS256_KEY} - < <(printf '%s' "${token}")
+	[ "${status}" -eq 0 ]
+}
+
+@test "A line with a NUL byte on stdin is one failed token" {
+	# The valid token in front of the NUL byte was verified on its own.
+	# With -q the line is not reported, as no token is.
+	run ./tools/jwt-verify -q -k ${HS256_KEY} - < <(
+		printf '%s\0%s\n' ${HS256_RES} ${FORGED_TOK})
+	[ "${status}" -eq 1 ]
+	[ "$(echo "${output}" | grep -c '\[BAD\]')" -eq 0 ]
+	# Nothing in front of a NUL byte or after it is verified, and a last
+	# line of nothing else still counts. The other lines are verified.
+	run ./tools/jwt-verify -k ${HS256_KEY} - < <(
+		printf '%s\0\n' ${HS256_RES}
+		printf '\0%s\n' ${HS256_RES}
+		printf '%s\n' ${HS256_RES}
+		printf '\0')
+	[ "${status}" -eq 1 ]
+	[ "$(echo "${output}" | grep -c 'has a NUL byte')" -eq 3 ]
+	[ "$(echo "${output}" | grep -c '\[TOK\]')" -eq 1 ]
+	[ "$(echo "${output}" | grep -c 'Verified')" -eq 1 ]
+}
+
+@test "No token to verify exits 1" {
+	# Without a token argument, as before.
+	run ./tools/jwt-verify -q -k ${HS256_KEY}
+	[ "${status}" -eq 1 ]
+	echo "${output}" | grep -q 'No token(s) given'
+	# And with nothing to read on stdin, also when the - comes after --.
+	run ./tools/jwt-verify -q -k ${HS256_KEY} - < /dev/null
+	[ "${status}" -eq 1 ]
+	echo "${output}" | grep -q 'No token(s) read from stdin'
+	run ./tools/jwt-verify -q -k ${HS256_KEY} -- - < /dev/null
+	[ "${status}" -eq 1 ]
+	# A read error is not the end of the input either: a directory
+	# cannot be read, nor can a stdin that is only open for writing.
+	run ./tools/jwt-verify -q -k ${HS256_KEY} - < .
+	[ "${status}" -eq 1 ]
+	run ./tools/jwt-verify -q -k ${HS256_KEY} - 0> /dev/null
+	[ "${status}" -eq 1 ]
+	echo "${output}" | grep -q 'Could not read stdin'
+}
+
+@test "A - for stdin must be the only token argument" {
+	# The token after the - was never verified.
+	run ./tools/jwt-verify -q -k ${HS256_KEY} - ${FORGED_TOK} \
+		<<< "${HS256_RES}"
+	[ "${status}" -eq 1 ]
+	echo "${output}" | grep -q 'must be the only token argument'
+}
+
+# Unchanged on purpose: a line of stdin is verified as it is. A carriage
+# return or a blank next to a token is not stripped and an empty line is not
+# skipped (each is a token that fails), and the last line needs no newline.
+@test "A line of stdin is verified as it is" {
+	run ./tools/jwt-verify -k ${HS256_KEY} - < <(
+		printf '%s\r\n\n %s\n%s' ${HS256_RES} ${HS256_RES} ${HS256_RES})
+	[ "${status}" -eq 1 ]
+	[ "$(echo "${output}" | grep -c '\[TOK\]')" -eq 4 ]
+	[ "$(echo "${output}" | grep -c 'Verified')" -eq 1 ]
+}
+
+# GHSA-g7xw-4cjw-2247: -h/-l print and exit 0 only as the sole argument. In a
+# token position (getopt permutes argv) they once exited 0 while the tokens
+# went unverified. Given with anything else they are now a usage error.
+@test "-h or -l alone exits 0, but with other arguments it is an error" {
+	run ./tools/jwt-verify -h
+	[ "${status}" -eq 0 ]
+	run ./tools/jwt-verify -l
+	[ "${status}" -eq 0 ]
+	echo "${output}" | grep -q 'Algorithms supported'
+	# As the token argument, next to a key.
+	run ./tools/jwt-verify -q -k ${HS256_KEY} -h
+	[ "${status}" -eq 1 ]
+	run ./tools/jwt-verify -q -k ${HS256_KEY} -l
+	[ "${status}" -eq 1 ]
+	run ./tools/jwt-verify -q -k ${HS256_KEY} --help
+	[ "${status}" -eq 1 ]
+	# Reordered after a token: the token must not go unverified at exit 0.
+	run ./tools/jwt-verify -q -k ${HS256_KEY} ${FORGED_TOK} -h
+	[ "${status}" -eq 1 ]
+	# A forged token spelled as an option (-l<forged>) is not a listing.
+	run ./tools/jwt-verify -q -k ${HS256_KEY} "-l${FORGED_TOK}"
+	[ "${status}" -eq 1 ]
+}
+
+# GHSA-g7xw-4cjw-2247: a key set with no keys (as after a rotation) must exit 1,
+# not dereference a NULL item and crash (SIGSEGV).
+@test "A key set with no keys exits 1 and does not crash" {
+	empty="${BATS_TMPDIR:-/tmp}/empty_keys_$$.json"
+	echo '{"keys":[]}' > "${empty}"
+	run ./tools/jwt-verify -k "${empty}" ${HS256_RES}
+	[ "${status}" -eq 1 ]
+	echo "${output}" | grep -q 'No key found'
+	run ./tools/jwt-generate -a HS256 -k "${empty}"
+	[ "${status}" -eq 1 ]
+	echo "${output}" | grep -q 'No key found'
+	rm -f "${empty}"
 }

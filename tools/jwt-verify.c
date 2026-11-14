@@ -15,7 +15,17 @@
 #include <time.h>
 #include <libgen.h>
 
+#ifdef _WIN32
+#include <io.h>
+#include <fcntl.h>
+#endif
+
 #include "jwt-util.h"
+
+/* The buffer for one line of stdin, so a token read from there can be up to
+ * one byte shorter. Generous for a CLI. A line that does not fit is rejected
+ * whole. */
+#define MAX_LINE_LEN (1024 * 1024)
 
 _Noreturn static void usage(const char *error, int exit_state)
 {
@@ -40,11 +50,20 @@ Decode and (optionally) verify the signature for a JSON Web Token\n\
                         tried against every compatible key. Exclusive with --key\n\
   -P, --policy=POLICY   Multi-signature policy: any (default, accept if one\n\
                         signature verifies) or all (every signature must)\n\
-  -q, --quiet           No output. Exit value is number of errors\n\
+  -q, --quiet           Only errors are printed. The exit status gives the result\n\
   -v, --verbose         Show decoded header and payload while verifying\n\
 \nThis program will decode and validate each token on the command line.\n\
 If - is given as the only argument to token, then tokens will be read\n\
 from stdin, one per line.\n\
+\n\
+The exit status is 0 if every token was verified (its signature checked\n\
+with -k or -r; with neither, an unsigned token is only decoded). It is 1\n\
+if any token failed, or if there was no token to verify.\n\
+\n\
+-h and -l verify nothing and exit 0 only when given alone. An argument that\n\
+starts with - is read as an option unless it comes after --. To check a\n\
+token from an untrusted source, pass it on stdin, or reject it first if it\n\
+starts with -, which a real token never does.\n\
 \n\
 For the --print option, output will be piped to the command's stdin. This\n\
 is useful if you wanted to use something like `jq -C` to colorize it or\n\
@@ -97,6 +116,69 @@ static int process_one(jwt_checker_t *checker, int signed_only,
 	return err;
 }
 
+/* Read one line of stdin into @buf, without its newline. Returns 1 for a
+ * line (the last one needs no newline), 0 at the end of the input or on a
+ * read error, and -1 for a line that does not fit in @buf or has a NUL byte
+ * in it. Such a line is read to its end and is one failed token: no part of
+ * it may be verified on its own, so @buf is left empty unless 1 is
+ * returned. */
+static int read_line(char *buf, size_t size)
+{
+	size_t len = 0;
+	int c, ret = 1;
+
+	while ((c = fgetc(stdin)) != EOF && c != '\n') {
+		if (c == '\0' || len + 1 >= size)
+			ret = -1;
+		else
+			buf[len++] = (char)c;
+	}
+
+	/* The end of the input, or a read error: a line cut short by one is
+	 * not a token either. */
+	if (c == EOF && (ferror(stdin) || (len == 0 && ret > 0)))
+		ret = 0;
+
+	buf[ret > 0 ? len : 0] = '\0';
+
+	return ret;
+}
+
+/* Verify every line of stdin as one token. Returns 0 only if there was at
+ * least one and they all verified. */
+static int process_stdin(jwt_checker_t *checker, int signed_only, int quiet)
+{
+	static char token[MAX_LINE_LEN];
+	int ret, err = 0, seen = 0;
+
+	while ((ret = read_line(token, sizeof(token))) != 0) {
+		seen = 1;
+
+		if (ret > 0) {
+			err |= process_one(checker, signed_only, token, quiet);
+			continue;
+		}
+
+		/* No part of this line is verified. */
+		err = 1;
+		if (!quiet)
+			printf("\n\xF0\x9F\x91\x8E \033[0;91m[BAD]\033[0m "
+			       "Line is too long or has a NUL byte\n");
+	}
+
+	/* Nothing to verify is not success, nor is a read error. */
+	if (ferror(stdin)) {
+		fprintf(stderr, "ERR: Could not read stdin: %s\n",
+			strerror(errno));
+		err = 1;
+	} else if (!seen) {
+		fprintf(stderr, "ERR: No token(s) read from stdin\n");
+		err = 1;
+	}
+
+	return err;
+}
+
 int main(int argc, char *argv[])
 {
 	jwt_checker_auto_t *checker = NULL;
@@ -111,6 +193,7 @@ int main(int argc, char *argv[])
 	int oc, err, verbose = 0;
 	int quiet = 0;
 	int signed_only;
+	int want_help = 0, want_list = 0;
 
 	char *optstr = "hk:r:P:a:lvqp:";
 	struct option opttbl[] = {
@@ -135,18 +218,11 @@ int main(int argc, char *argv[])
 	while ((oc = getopt_long(argc, argv, optstr, opttbl, NULL)) != -1) {
 		switch (oc) {
 		case 'h':
-			usage(NULL, EXIT_SUCCESS);
+			want_help = 1;
+			break;
 
 		case 'l':
-			printf("Algorithms supported:\n");
-			for (alg = JWT_ALG_NONE; alg < JWT_ALG_INVAL; alg++) {
-				const char *name = jwt_alg_str(alg);
-				/* An alg compiled out of this build (e.g.
-				 * ML-DSA without WITH_ML_DSA) has no name. */
-				if (name != NULL)
-					printf("    %s\n", name);
-			}
-			exit(EXIT_SUCCESS);
+			want_list = 1;
 			break;
 
 		case 'p':
@@ -201,11 +277,36 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	/* -h/-l print and exit 0 only when they are the sole argument. Given
+	 * with a token (or a key, or any other option) they would otherwise
+	 * exit 0 while the tokens went unverified (GHSA-g7xw-4cjw-2247), so
+	 * that is now a usage error. A later bad option still fails first. */
+	if (want_help || want_list) {
+		if (argc != 2)
+			usage("--help and --list take no other arguments",
+			      EXIT_FAILURE);
+		if (want_help)
+			usage(NULL, EXIT_SUCCESS);
+		printf("Algorithms supported:\n");
+		for (alg = JWT_ALG_NONE; alg < JWT_ALG_INVAL; alg++) {
+			const char *name = jwt_alg_str(alg);
+			/* An alg compiled out of this build (e.g. ML-DSA
+			 * without WITH_ML_DSA) has no name. */
+			if (name != NULL)
+				printf("    %s\n", name);
+		}
+		exit(EXIT_SUCCESS);
+	}
+
 	argc -= optind;
 	argv += optind;
 
 	if (argc == 0)
 		usage("No token(s) given", EXIT_FAILURE);
+
+	/* Tokens given after a - would never be verified. */
+	if (argc > 1 && !strcmp(argv[0], "-"))
+		usage("- must be the only token argument", EXIT_FAILURE);
 
 	/* A keyring's keys decide the algorithm of each signature. */
 	if (keyring_file && alg_given)
@@ -250,6 +351,10 @@ int main(int argc, char *argv[])
 
                 /* Get the first key */
                 item = jwks_item_get(jwk_set, 0);
+                if (item == NULL) {
+                        fprintf(stderr, "ERR: No key found in %s\n", key_file);
+                        exit(EXIT_FAILURE);
+                }
                 if (jwks_item_error(item)) {
                         fprintf(stderr, "ERR: Could not read JWK: %s\n",
                                 jwks_item_error_msg(item));
@@ -309,19 +414,20 @@ int main(int argc, char *argv[])
 	signed_only = keyring != NULL || alg != JWT_ALG_NONE;
 
 	if (!strcmp(argv[0], "-")) {
-		char token[BUFSIZ];
-		while (fgets(token, sizeof(token), stdin) != NULL) {
-			token[strcspn(token, "\n")] = '\0';
-
-			err += process_one(checker, signed_only, token, quiet);
-		}
+#ifdef _WIN32
+		/* Read stdin as binary, so a 0x1A (Ctrl-Z) byte does not end
+		 * the input and leave later lines unverified. */
+		_setmode(_fileno(stdin), _O_BINARY);
+#endif
+		err = process_stdin(checker, signed_only, quiet);
 	} else {
 		for (oc = 0; oc < argc; oc++) {
 			const char *token = argv[oc];
-			err += process_one(checker, signed_only, token, quiet);
+			err |= process_one(checker, signed_only, token, quiet);
 		}
 	}
 
-	exit(err);
+	/* Not the number of failures: an exit status keeps only 8 bits. */
+	exit(err ? EXIT_FAILURE : EXIT_SUCCESS);
 }
 

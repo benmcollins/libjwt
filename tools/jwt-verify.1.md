@@ -29,6 +29,11 @@ Tokens may be passed on the command line, after any options, separated
 by spaces, or passed via **stdin**, one per line. To use **stdin**, you
 must pass **-** as the last and only argument after any options.
 
+Each line of **stdin** is one token, and the last line does not need a
+newline. An empty line is a token that fails. A line of 1048576 bytes (1 MiB)
+or more, not counting its newline, or one that has a NUL byte in it, is not
+verified, not even in part, and counts as one token that failed.
+
 When using the **\-\-verbose** option, **jwt-verify** will print the JSON
 _HEADER_ and _PAYLOAD_ to **stdout**.
 
@@ -54,8 +59,8 @@ exit status from the program will cause verification to fail.
   to verifying the token.
 
 **\-q**, **\-\-quiet**
-  ~ Do not output anything except for hard errors. The exit value will be the
-  number of token validation failures.
+  ~ Do not output anything except for hard errors. The result is the exit
+  status: see **EXIT STATUS**.
 
 **\-a** _ALG_, **\-\-algorithm**=_ALG_
   ~ Specify the algorithm to be used when verifying the signature block of
@@ -84,6 +89,28 @@ exit status from the program will cause verification to fail.
 **\-p** _CMD_, **\-\-print**=_CMD_
   ~ Pipe JSON of header and payload to _CMD_ through its **stdin**. This option
   only makes sense with **\-\-verbose**.
+
+# EXIT STATUS
+
+**0**
+  ~ Every token was verified (its signature checked with **-k** or **-r**; with
+  neither, an unsigned token is only decoded).
+
+**1**
+  ~ A token failed, there was no token to verify (nothing to read on
+  **stdin**), or the program could not do its work: a bad option, a key or
+  keyring that could not be loaded, a read error.
+
+The exit status is not the number of tokens that failed. It is 1 for one
+failure and for any number of them.
+
+**\-\-help** and **\-\-list** verify nothing; given alone they exit 0, but given
+with anything else (a token, a key, another option) they are a usage error
+(exit 1). An argument that starts with **-** is read as an option unless it
+comes after **\-\-**, and a **-** on its own selects **stdin** even after
+**\-\-**. To check a string that comes from somewhere you do not trust, write it
+to **stdin** as a single line, or reject it first if it starts with **-**, which
+a token never does.
 
 # BUGS
 
