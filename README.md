@@ -184,7 +184,10 @@ small primitives that complete them are: `jwt_checker_require()` (assert claims
 are present, RFC 9068), `jwt_checker_enable_embedded_jwk()` (verify a
 self-contained token against the header `jwk`, confirmed by thumbprint — DPoP and
 OpenID4VCI), and `jwt_token_hash()` / `jwt_token_hash_half()` (DPoP `ath`, OIDC
-`at_hash`/`c_hash`). The **Application Profiles** page of the docs has worked
+`at_hash`/`c_hash`). The header `jwk` has to be the signer's public key: a
+token whose header `jwk` loads as a private key, carries any private member
+(`d`, `k`, ...), is a symmetric key, or is a JWK set (`keys`) is rejected. The
+**Application Profiles** page of the docs has worked
 build-and-verify recipes for `at+jwt` (RFC 9068), VAPID, PASSporT, OpenID4VCI,
 DPoP (RFC 9449), mTLS (RFC 8705), and JAdES, each mirrored by a test in
 `tests/jwt_profiles.c`.

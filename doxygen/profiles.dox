@@ -98,7 +98,11 @@ the signing key travels in the protected-header @c "jwk" (@rfc{7515,4.1.3}) and
 the issuer binds the credential to that key. Because the header key is supplied
 by the presenter, it must be confirmed — here against the holder-key thumbprint
 the issuer recorded for the request — with @ref jwt_checker_enable_embedded_jwk,
-which refuses to trust an embedded key without a pin.
+which refuses to trust an embedded key without a pin. The header has to hold the
+public JWK of the signing key (as @ref jwks_item_export gives it when its
+@c priv argument is zero): a private or a symmetric key, one that carries any
+private member, or a @c "keys" set is refused, so the signing key must have a
+public form (a seed-only private key has none).
 
 @code{.c}
 /* jkt is the thumbprint the issuer bound the credential request to. */
@@ -128,7 +132,8 @@ jwt_builder_setcnf_jkt(at_builder, client_key);   /* -> cnf.jkt */
 
 /* The proof carries the client key in its header and hashes the AT: */
 char *ath = jwt_token_hash(access_token, JWK_THUMBPRINT_SHA256);
-/* ...set proof header "jwk", claims htm/htu/jti/ath, sign with client_key... */
+/* ...set proof header "jwk" (the public JWK of client_key) and the claims
+ * htm/htu/jti/ath, sign with client_key... */
 
 /* Verify the proof at the resource server: */
 char *jkt = jwt_get_cnf(verified_access_token, "jkt");   /* the binding */

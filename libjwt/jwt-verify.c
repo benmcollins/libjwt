@@ -445,7 +445,8 @@ static int __verify_required(jwt_t *jwt)
  * in its allowlist (c->embedded_keyring), using c->embedded_alg. On success
  * returns a jwk_set_t that OWNS the key (the caller frees it) and points *out at
  * the contained item; returns NULL (with *out NULL) if embedded-jwk is not
- * enabled, the header carries no usable "jwk", or confirmation fails. */
+ * enabled, the header carries no usable "jwk", that key is not a public key, or
+ * confirmation fails. */
 jwk_set_t *jwt_embedded_jwk_key(struct jwt_common *c, jwt_json_t *headers,
 				const jwk_item_t **out)
 {
@@ -463,6 +464,22 @@ jwk_set_t *jwt_embedded_jwk_key(struct jwt_common *c, jwt_json_t *headers,
 
 	jwk = jwt_json_obj_get(headers, "jwk");
 	if (jwk == NULL || !jwt_json_is_object(jwk))
+		return NULL;
+
+	/* @rfc{7515,4.1.3} The header "jwk" is a single PUBLIC key. Refuse it
+	 * here, on the JSON and before any key is loaded, when it is not the
+	 * public form of a key:
+	 *  - a "keys" member makes jwks_create() read it as a JWK set, where
+	 *    only keys[0] would be confirmed while the rest are parsed on the
+	 *    attacker's say-so (a key-load DoS), and a set is not one public key;
+	 *  - a member that is private in some key type ("d", "k", "priv", ...),
+	 *    whatever its value: a public JWK has none. A private or symmetric
+	 *    key, the signer's own included, is thereby refused.
+	 * Testing the JSON before the key loads also makes a refused header the
+	 * same on every backend -- some load a key whose private member is not a
+	 * string as the public key it also is -- and on both JSON libraries,
+	 * where json-c hands out a JSON null member as absent. */
+	if (jwt_json_obj_has(jwk, "keys") || jwk_json_has_private(jwk))
 		return NULL;
 
 	jwk_str = jwt_json_serialize(jwk, 0);
@@ -489,6 +506,10 @@ jwk_set_t *jwt_embedded_jwk_key(struct jwt_common *c, jwt_json_t *headers,
 		return NULL;
 		// LCOV_EXCL_STOP
 	}
+
+	/* A header "jwk" that is a private or symmetric key, or that lists more
+	 * than one key, was already refused on its JSON above. A key that failed
+	 * to load (it has no thumbprint) is refused by the confirmation next. */
 
 	/* Confirm the attacker-supplied key against the pin or the allowlist. */
 	tp = jwks_item_thumbprint(item, c->embedded_alg);

@@ -607,6 +607,13 @@ int jwt_key2jwk(const char *key, size_t len, unsigned int flags,
 JWT_NO_EXPORT
 void jwt_gen_kid(jwt_json_t *jwk, jwk_key_type_t kty, unsigned int flags);
 
+/* Whether the JWK JSON object @jwk has a member that is private in some key
+ * type ("d", "k", "priv", ...), whatever its value: what a public export
+ * leaves out. Such a JWK is not the public form of a key, even if a backend
+ * also loaded it as a public one. Used to refuse a header "jwk". */
+JWT_NO_EXPORT
+int jwk_json_has_private(const jwt_json_t *jwk);
+
 /* Core @rfc{7638} JWK thumbprint: base64url(SHA-@bits) over the canonical JWK
  * assembled from @jwk's required members for key type @kty. @bits is 256/384/512.
  * Returns a malloc'd string (caller frees) or NULL. Shared by the public

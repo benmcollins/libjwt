@@ -1005,6 +1005,28 @@ jwk_set_t *jwks_create_generate(jwk_key_type_t kty, const char *param,
 	return jwks_generate(NULL, kty, param, alg, flags);
 }
 
+/* Every member that is private in some key type: RSA (@rfc{7518,6.3.2}, "oth"
+ * too), EC and OKP ("d"), oct ("k") and AKP ("priv"). None of them is a public
+ * member of another type. */
+static const char *const jwk_priv_names[] = { "d", "p", "q", "dp", "dq", "qi",
+					      "oth", "k", "priv", NULL };
+
+/* Whether a JWK JSON object has a member that is private in some key type,
+ * whatever its value (a JSON null too): what a public export strips. Such a
+ * JWK is not the public form of a key, even one that a backend also loaded as
+ * a public key by leaving a private member it could not read aside. */
+int jwk_json_has_private(const jwt_json_t *jwk)
+{
+	size_t i;
+
+	for (i = 0; jwk_priv_names[i] != NULL; i++) {
+		if (jwt_json_obj_has(jwk, jwk_priv_names[i]))
+			return 1;
+	}
+
+	return 0;
+}
+
 /* The private members for each key type, used to strip a JWK down to its
  * public form. The returned array is NULL-terminated. */
 static const char **jwk_priv_members(jwk_key_type_t kty)

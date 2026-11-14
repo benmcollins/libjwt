@@ -1237,9 +1237,24 @@ int jwt_checker_require(jwt_checker_t *checker, const char **claims,
  * confirmed key is still held to the usual key-type/algorithm binding. Combine
  * with jwt_checker_setalgs() to bound the acceptable algorithms.
  *
+ * The header key has to be a public key (@rfc{7515,4.1.3}). A @c "jwk" that
+ * is a private key, the signer's own included, or a symmetric (``"oct"``)
+ * key is refused like one that does not match the pin: verification fails
+ * with "Embedded JWK is missing or not confirmed" and no signature is
+ * checked. So is one that merely carries a member a public JWK does not have
+ * (``"d"``, ``"k"`` and the others that jwks_item_export() strips, whatever
+ * its value), or that is a JWK set (a ``"keys"`` member). Put the public JWK
+ * in the header, e.g. as jwks_item_export() gives it when its ``priv``
+ * argument is zero; the key must carry its public member (a seed-only private
+ * key has no public form to embed).
+ *
  * Passing a NULL or empty @p expected_jkt fails: there is no "trust whatever is
  * embedded" mode. Applies to the Compact Serialization (what DPoP/OpenID4VCI
  * use). Mutually exclusive with the keyring form; the last call wins.
+ *
+ * @note Before 3.6.3 a header @c "jwk" that was a private or a symmetric key
+ * was confirmed, and used to verify, like a public one
+ * (GHSA-vmf4-mvgm-7vpv).
  *
  * @param checker Pointer to a checker object
  * @param alg The hash for the thumbprint comparison (see @ref jwk_thumbprint_alg_t)
@@ -1264,6 +1279,10 @@ int jwt_checker_enable_embedded_jwk(jwt_checker_t *checker,
  * acceptable holder keys is known in advance rather than pinned per token. The
  * keyring is borrowed: the caller retains ownership and must keep it valid
  * for the lifetime of the checker.
+ *
+ * As with the pin, a header @c "jwk" that is a private or a symmetric key is
+ * refused, even if its thumbprint is that of a key in @p allowed. The keys in
+ * @p allowed may themselves be private keys: only their thumbprints are used.
  *
  * Passing a NULL @p allowed fails. Mutually exclusive with the pinned form; the
  * last call wins.
@@ -1537,10 +1556,10 @@ int jwt_checker_sig_verified(const jwt_checker_t *checker, unsigned int index);
  *  index is out of range. It is borrowed, so do not free it: it belongs to
  *  the keyring, or to whoever supplied it (jwt_checker_setkey() or the
  *  verify callback), except that a key confirmed by embedded-JWK
- *  verification belongs to the checker, which keeps it only until the next
- *  jwt_checker_verify() or jwt_checker_verify_detached() call on @p checker
- *  (even one that fails at once, as on a NULL or empty token) or
- *  jwt_checker_free().
+ *  verification (always a public key) belongs to the checker, which keeps it
+ *  only until the next jwt_checker_verify() or jwt_checker_verify_detached()
+ *  call on @p checker (even one that fails at once, as on a NULL or empty
+ *  token) or jwt_checker_free().
  * @since 3.6.0
  */
 JWT_EXPORT
