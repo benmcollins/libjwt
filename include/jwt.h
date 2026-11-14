@@ -208,7 +208,7 @@ typedef enum {
  * @since 3.0.0
  */
 typedef enum {
-	JWK_KEY_TYPE_NONE = 0,		/**< Unused on valid keys */
+	JWK_KEY_TYPE_NONE = 0,		/**< The ``kty`` was not recognised (such a key is in error) */
 	JWK_KEY_TYPE_EC,		/**< Elliptic Curve keys */
 	JWK_KEY_TYPE_RSA,		/**< RSA keys (RSA and RSA-PSS) */
 	JWK_KEY_TYPE_OKP,		/**< Octet Key Pair (e.g. EdDSA) */
@@ -2163,12 +2163,14 @@ int jwt_builder_setcnf_jkt(jwt_builder_t *builder, const jwk_item_t *key);
  * @rfc{7800,3.2}
  *
  * Sets @c "cnf" to a single @c "jwk" member holding the public JWK of @p key.
- * Only public parameters are embedded. Any existing @c "cnf" is replaced.
+ * Only public parameters are embedded: the public form of the key, as
+ * jwks_item_export() gives it. Any existing @c "cnf" is replaced.
  *
  * @note A key in error is refused, which includes a public key the active
- * crypto backend cannot load (it has no thumbprint and no public form, e.g.
- * an ``"AKP"`` public key in a build without ML-DSA). Before 3.6.3 a key in
- * error was embedded as it was loaded (GHSA-4jp4-6w6j-ff4q).
+ * crypto backend cannot load (it has no thumbprint, e.g. an ``"AKP"`` public
+ * key in a build without ML-DSA). Before 3.6.3 a key in error was embedded as
+ * it was loaded, and one whose ``kty`` was not recognised was embedded whole,
+ * private members included (GHSA-4jp4-6w6j-ff4q).
  *
  * @param builder Pointer to a builder object
  * @param key The proof-of-possession public key to embed
@@ -3438,8 +3440,9 @@ int jwks_item_is_private(const jwk_item_t *item);
  * certificate, or a leaf that does not hold the key of the JWK, see
  * jwks_item_x5c()). Such a key is unusable: LibJWT refuses it for signing,
  * verifying, encrypting and decrypting, and it has no thumbprint, certificate
- * chain or certificate thumbprints to read. jwks_item_error_msg() says what
- * is wrong with it.
+ * chain or certificate thumbprints to read -- nor any in its public form
+ * (jwks_item_export()), which drops its ``x5c`` binding too.
+ * jwks_item_error_msg() says what is wrong with it.
  *
  * @param item A JWK Item
  * @return 1 for true, 0 for false
@@ -3651,11 +3654,38 @@ const char *jwks_item_x5t_s256(const jwk_item_t *item);
  * Produces the JSON Web Key representation of this item. This is the
  * serialization counterpart to the jwks_load_fromkey() import path.
  *
+ * The JWK is serialized as it was loaded, whether or not it is in error
+ * (jwks_item_error()). With @p priv zero it is reduced to its public form:
+ * every member that is private in some key type is left out, whatever the
+ * type of this key (``d``, ``p``, ``q``, ``dp``, ``dq``, ``qi``, ``oth``,
+ * ``k`` and ``priv``). Nothing is added, so a private JWK that was loaded
+ * without its public members (an ``OKP`` key with ``d`` and no ``x``) has a
+ * public form that holds no key.
+ *
+ * A JWK whose ``kty`` LibJWT does not recognise at all (jwks_item_kty() is
+ * ::JWK_KEY_TYPE_NONE: the member is missing, is not a string, or names an
+ * unknown type) has no public form, because what is private in a key is known
+ * only for the key types LibJWT knows. With @p priv zero this returns NULL for
+ * it. A recognised type that this build cannot load -- an ``AKP`` (ML-DSA) key
+ * in a build without ML-DSA -- is in error but still has its public form.
+ *
+ * The public form of a key in error (jwks_item_error()) also leaves out any
+ * ``x5c``, ``x5t``, ``x5t#S256`` and ``x5u``: it was flagged over that X.509
+ * binding, or could not be loaded, and the accessors read as absent for it, so
+ * its public form carries no certificate binding for a relay to republish.
+ *
+ * @note Before 3.6.3 a JWK whose ``kty`` was not recognised was returned
+ * whole with @p priv zero, private members included. The public form of an
+ * RSA key kept ``oth``, that of a key in error kept the private members of
+ * every key type but the one its ``kty`` names, and it kept the ``x5c`` the
+ * key was rejected for (GHSA-4jp4-6w6j-ff4q).
+ *
  * @param item A JWK Item
- * @param priv If non-zero, include private key parameters when the item is a
- *   private key. If zero, only public parameters are emitted.
+ * @param priv If non-zero, the JWK is serialized as loaded, private members
+ *   included. If zero, only its public form is.
  * @return A newly allocated, nil-terminated JSON string the caller must free
- *   with free(), or NULL on error.
+ *   with free(). NULL on error, and when @p priv is zero and the JWK has no
+ *   public form.
  * @since 3.4.0
  */
 JWT_EXPORT
@@ -3665,11 +3695,18 @@ char *jwks_item_export(const jwk_item_t *item, int priv);
  * @brief Serialize a whole keyring to a JWKS JSON string
  *
  * Produces a JWK Set (an object with a @c "keys" array) containing every item
- * in the set.
+ * in the set, in error or not. With @p priv zero each item is in its public
+ * form, and an item that has none (its ``kty`` is not one LibJWT recognises,
+ * see jwks_item_export()) is left out. Such an item is always in error
+ * (jwks_item_error()); an item of a recognised type this build cannot load (an
+ * ``AKP`` key without ML-DSA) is in error too but keeps its public form.
+ *
+ * @note Before 3.6.3 an item whose ``kty`` was not recognised was exported
+ * whole with @p priv zero, private members included (GHSA-4jp4-6w6j-ff4q).
  *
  * @param jwk_set An existing jwk_set_t
- * @param priv If non-zero, include private key parameters for private keys. If
- *   zero, only public parameters are emitted.
+ * @param priv If non-zero, each JWK is serialized as loaded, private members
+ *   included. If zero, only public forms are.
  * @return A newly allocated, nil-terminated JSON string the caller must free
  *   with free(), or NULL on error.
  * @since 3.4.0

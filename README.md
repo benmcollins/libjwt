@@ -67,7 +67,10 @@ backend with ML-DSA support is present: OpenSSL >= 3.5, or GnuTLS >= 3.8.10
 built against a PQC provider (e.g. ``--with-leancrypto``). When built in, the
 public header defines ``LIBJWT_HAVE_ML_DSA``. ML-DSA keys use the ``"AKP"`` key
 type with a ``"pub"`` member and a ``"priv"`` member holding the 32-byte
-FIPS-204 seed. MbedTLS has no ML-DSA and rejects ``AKP`` keys.
+FIPS-204 seed. MbedTLS has no ML-DSA and rejects ``AKP`` keys. A build without
+ML-DSA still recognises ``"AKP"``: such a key is in error (no backend can load
+it) but keeps its public form, so a public `jwks_export` does not drop it; only
+a key whose ``kty`` LibJWT does not recognise at all has no public form.
 
 [^okp3813]: On the **GnuTLS** backend these specific cases need **GnuTLS >=
 3.8.13**: (a) loading an OKP *private* JWK supplied without its public

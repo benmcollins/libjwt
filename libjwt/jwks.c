@@ -574,9 +574,14 @@ static jwk_item_t *jwk_process_one(jwk_set_t *jwk_set, jwt_json_t *jwk)
 	} else if (!strcmp(kty, "OKP")) {
 		item->kty = JWK_KEY_TYPE_OKP;
 		jwt_ops->process_eddsa(item->json, item);
-#ifdef LIBJWT_HAVE_ML_DSA
 	} else if (!strcmp(kty, "AKP")) {
+		/* "AKP" is recognised in every build, so a public AKP key keeps
+		 * its type and its public form (jwks_export() minus "priv")
+		 * rather than falling to the unknown-type branch below, which
+		 * would strip nothing and leak the seed. Only a build with an
+		 * ML-DSA backend can load it; otherwise it stays in error. */
 		item->kty = JWK_KEY_TYPE_AKP;
+#ifdef LIBJWT_HAVE_ML_DSA
 		/* Unlike the other process_* ops, process_mldsa may be NULL:
 		 * only backends with ML-DSA support set it. Fail cleanly
 		 * rather than dereferencing a NULL pointer. */
@@ -587,6 +592,10 @@ static jwk_item_t *jwk_process_one(jwk_set_t *jwk_set, jwt_json_t *jwk)
 			return item;
 		}
 		jwt_ops->process_mldsa(item->json, item);
+#else
+		jwt_write_error(item, "ML-DSA (AKP) keys are not "
+				"supported in this build");
+		return item;
 #endif
 	} else if (!strcmp(kty, "oct")) {
 		item->kty = JWK_KEY_TYPE_OCT;
@@ -1321,45 +1330,49 @@ int jwk_json_has_private(const jwt_json_t *jwk)
 	return 0;
 }
 
-/* The private members for each key type, used to strip a JWK down to its
- * public form. The returned array is NULL-terminated. */
-static const char **jwk_priv_members(jwk_key_type_t kty)
+/* Strip the JWK JSON object @jwk (a clone of @item's) down to @item's public
+ * form, in place. Returns non-zero, with nothing stripped, for a key that has
+ * no public form. */
+static int jwk_strip_private(jwt_json_t *jwk, const jwk_item_t *item)
 {
-	static const char *rsa[] = { "d", "p", "q", "dp", "dq", "qi", NULL };
-	static const char *ec_okp[] = { "d", NULL };
-	static const char *oct[] = { "k", NULL };
-	static const char *none[] = { NULL };
-#ifdef LIBJWT_HAVE_ML_DSA
-	static const char *akp[] = { "priv", NULL };
-#endif
-
-	switch (kty) {
-	case JWK_KEY_TYPE_RSA:
-		return rsa;
-	case JWK_KEY_TYPE_EC:
-	case JWK_KEY_TYPE_OKP:
-		return ec_okp;
-	case JWK_KEY_TYPE_OCT:
-		return oct;
-#ifdef LIBJWT_HAVE_ML_DSA
-	case JWK_KEY_TYPE_AKP:
-		return akp;
-#endif
-	// LCOV_EXCL_START
-	default:
-		return none;
-	// LCOV_EXCL_STOP
-	}
-}
-
-/* Strip the private members from a JWK JSON object in place. */
-static void jwk_strip_private(jwt_json_t *jwk, jwk_key_type_t kty)
-{
-	const char **members = jwk_priv_members(kty);
+	/* All of jwk_priv_names go, whatever @kty is: a key in error need not
+	 * be what its "kty" says, and an RSA private key labelled "EC" must not
+	 * keep its primes. */
+	const char *const *members = jwk_priv_names;
 	size_t i;
+
+	/* What is private in a key is known for these types only. A key of
+	 * any other type has no public form: that is a key whose "kty" was
+	 * missing, not a string, or not known to this build. A known type
+	 * also means that @jwk is an object, which the deletes below rely on
+	 * (json-c crashes on anything else). */
+	switch (item->kty) {
+	case JWK_KEY_TYPE_EC:
+	case JWK_KEY_TYPE_RSA:
+	case JWK_KEY_TYPE_OKP:
+	case JWK_KEY_TYPE_OCT:
+	case JWK_KEY_TYPE_AKP:
+		break;
+	default:
+		return 1;
+	}
 
 	for (i = 0; members[i] != NULL; i++)
 		jwt_json_obj_del(jwk, members[i]);
+
+	/* A key in error (a foreign "x5c", an "x5t#S256" that is not its leaf's)
+	 * must not hand out in its public form the X.509 binding it was flagged
+	 * for: the accessors already read as absent for such a key, so a relay
+	 * cannot republish the rejected binding from it either. */
+	if (item->error) {
+		static const char *const certs[] = { "x5c", "x5t", "x5t#S256",
+						     "x5u", NULL };
+
+		for (i = 0; certs[i] != NULL; i++)
+			jwt_json_obj_del(jwk, certs[i]);
+	}
+
+	return 0;
 }
 
 char *jwks_item_export(const jwk_item_t *item, int priv)
@@ -1373,8 +1386,8 @@ char *jwks_item_export(const jwk_item_t *item, int priv)
 	if (clone == NULL)
 		return NULL; // LCOV_EXCL_LINE
 
-	if (!priv)
-		jwk_strip_private(clone, item->kty);
+	if (!priv && jwk_strip_private(clone, item))
+		return NULL;
 
 	return jwt_json_serialize(clone, JWT_JSON_INDENT(2));
 }
@@ -1407,8 +1420,11 @@ char *jwks_export(const jwk_set_t *jwk_set, int priv)
 		if (clone == NULL)
 			continue; // LCOV_EXCL_LINE
 
-		if (!priv)
-			jwk_strip_private(clone, item->kty);
+		/* A key with no public form is left out of a public set. */
+		if (!priv && jwk_strip_private(clone, item)) {
+			jwt_json_release(clone);
+			continue;
+		}
 
 		jwt_json_arr_append(keys, clone);
 	}
