@@ -385,7 +385,7 @@ int gnutls_process_ec(jwt_json_t *jwk, jwk_item_t *item)
 out:
 	if (key != NULL) {
 		if (key->priv)
-			gnutls_privkey_deinit(key->priv); // LCOV_EXCL_LINE
+			gnutls_privkey_deinit(key->priv);
 		if (key->pub)
 			gnutls_pubkey_deinit(key->pub);
 		jwt_freemem(key);
@@ -395,6 +395,47 @@ out:
 	jwt_scrub_and_free(k.data, k.size);
 
 	return ret;
+}
+
+/* @rfc{8037,2} Is @x the public key of the private OKP key @priv? GnuTLS keeps
+ * whatever public key @priv was imported with, so ask the key that JWS signs
+ * and verifies with instead: the one re-imported from the PKCS#8 form of @priv
+ * (item->pem, see set_pem() and sign-verify.c), whose public key GnuTLS derives
+ * from the private octets. Importing those octets alone would give it too, but
+ * crashes GnuTLS < 3.8.13. Any step that fails makes the answer no. */
+static int okp_pub_is(gnutls_privkey_t priv, const gnutls_datum_t *x)
+{
+	gnutls_datum_t p8 = { NULL, 0 }, gx = { NULL, 0 }, gy = { NULL, 0 };
+	gnutls_x509_privkey_t x509 = NULL;
+	gnutls_ecc_curve_t curve;
+	gnutls_privkey_t re = NULL;
+	gnutls_pubkey_t pub = NULL;
+	int same = 0;
+
+	if (!gnutls_privkey_export_x509(priv, &x509) &&
+	    !gnutls_x509_privkey_export2_pkcs8(x509, GNUTLS_X509_FMT_PEM, NULL,
+					       0, &p8) &&
+	    !gnutls_privkey_init(&re) &&
+	    !gnutls_privkey_import_x509_raw(re, &p8, GNUTLS_X509_FMT_PEM, NULL,
+					    0) &&
+	    !gnutls_pubkey_init(&pub) &&
+	    !gnutls_pubkey_import_privkey(pub, re, 0, 0) &&
+	    !gnutls_pubkey_export_ecc_raw(pub, &curve, &gx, &gy))
+		same = gx.size == x->size &&
+		       !memcmp(gx.data, x->data, x->size);
+
+	if (pub != NULL)
+		gnutls_pubkey_deinit(pub);
+	if (re != NULL)
+		gnutls_privkey_deinit(re);
+	if (x509 != NULL)
+		gnutls_x509_privkey_deinit(x509);
+	gnutls_free(gx.data);
+	gnutls_free(gy.data);
+	jwt_cleanse(p8.data, p8.size);
+	gnutls_free(p8.data);
+
+	return same;
 }
 
 /* @rfc{8037} Native GnuTLS OKP JWK (Ed25519/Ed448 for signing; X25519/X448 for
@@ -465,8 +506,8 @@ int gnutls_process_eddsa(jwt_json_t *jwk, jwk_item_t *item)
 #endif
 
 	if (jx != NULL && jwt_json_is_string(jx) && decode_member(jwk, "x", &x)) {
-		jwt_write_error(item, "Error decoding OKP x"); // LCOV_EXCL_LINE
-		goto out; // LCOV_EXCL_LINE
+		jwt_write_error(item, "Error decoding OKP x");
+		goto out;
 	}
 
 	key = jwt_malloc(sizeof(*key));
@@ -490,10 +531,23 @@ int gnutls_process_eddsa(jwt_json_t *jwk, jwk_item_t *item)
 		    gnutls_privkey_import_ecc_raw(key->priv, curve,
 						  x.data ? &x : NULL, NULL,
 						  &k)) {
-			// LCOV_EXCL_START
 			jwt_write_error(item, "Error importing OKP private key");
 			goto out;
-			// LCOV_EXCL_STOP
+		}
+		/* An "x" beside "d" is what names the key everywhere else
+		 * (thumbprint, public export), so it has to be the public key
+		 * of that "d". An "x" that is no octet string (and so was not
+		 * decoded above) is told apart from one that is the wrong key. */
+		if (jwt_json_obj_has(jwk, "x")) {
+			if (!jwt_json_is_string(jx)) {
+				jwt_write_error(item, "Invalid OKP x");
+				goto out;
+			}
+			if (!okp_pub_is(key->priv, &x)) {
+				jwt_write_error(item, "OKP private key "
+					"does not match its public key");
+				goto out;
+			}
 		}
 		if (gnutls_pubkey_import_privkey(key->pub, key->priv, 0, 0)) {
 			jwt_write_error(item, "Error deriving OKP public key"); // LCOV_EXCL_LINE
@@ -521,16 +575,14 @@ int gnutls_process_eddsa(jwt_json_t *jwk, jwk_item_t *item)
 	ret = 0;
 
 out:
-	/* Reached with key != NULL only on a post-allocation error path, all of
-	 * which are defensive (init/import failures). */
+	/* Reached with key != NULL on an error after its allocation: a private
+	 * key that does not match its "x", or an init/import failure. */
 	if (key != NULL) {
-		// LCOV_EXCL_START
 		if (key->priv)
 			gnutls_privkey_deinit(key->priv);
 		if (key->pub)
 			gnutls_pubkey_deinit(key->pub);
 		jwt_freemem(key);
-		// LCOV_EXCL_STOP
 	}
 	jwt_freemem(x.data);
 	jwt_scrub_and_free(k.data, k.size);
@@ -550,6 +602,30 @@ static const struct {
 	{ "ML-DSA-65", 0x12, 1952 },
 	{ "ML-DSA-87", 0x13, 2592 },
 };
+
+/* Is the "pub" member of @jwk the public key @key, which is @publen octets?
+ * GnuTLS has no raw ML-DSA export: the key is the tail of its
+ * SubjectPublicKeyInfo. Any step that fails makes the answer no. */
+static int mldsa_pub_is(gnutls_pubkey_t key, jwt_json_t *jwk, size_t publen)
+{
+	gnutls_datum_t pub = { NULL, 0 }, spki = { NULL, 0 };
+	int ret = 0;
+
+	/* A "pub" that is no usable octet string is -1, apart from a key or
+	 * length that is simply wrong (0). */
+	if (decode_member(jwk, "pub", &pub))
+		return -1;
+
+	if (!gnutls_pubkey_export2(key, GNUTLS_X509_FMT_DER, &spki) &&
+	    pub.size == publen && spki.size > publen &&
+	    !memcmp(spki.data + spki.size - publen, pub.data, publen))
+		ret = 1;
+
+	gnutls_free(spki.data);
+	jwt_freemem(pub.data);
+
+	return ret;
+}
 
 /* ML-DSA (FIPS 204 / RFC 9964), @rfc{9964}. GnuTLS has no raw ML-DSA import,
  * so build the encoded key from the JWK's raw "pub" (a SubjectPublicKeyInfo)
@@ -643,6 +719,20 @@ int gnutls_process_mldsa(jwt_json_t *jwk, jwk_item_t *item)
 			jwt_write_error(item, "Error deriving ML-DSA public key"); // LCOV_EXCL_LINE
 			goto out; // LCOV_EXCL_LINE
 		}
+		/* As for OKP: the key is the seed's, and a "pub" beside it,
+		 * which names the key everywhere else, has to be that key. An
+		 * unusable "pub" is told apart from one that is the wrong key. */
+		if (jwt_json_obj_has(jwk, "pub")) {
+			int m = mldsa_pub_is(key->pub, jwk,
+					     mldsa_variants[idx].publen);
+
+			if (m <= 0) {
+				jwt_write_error(item, m < 0 ? "Invalid AKP pub" :
+					"AKP private key does not match "
+					"its public key");
+				goto out;
+			}
+		}
 		item->is_private_key = priv = 1;
 	} else {
 		/* Public: SubjectPublicKeyInfo from the raw public key. */
@@ -695,10 +785,10 @@ int gnutls_process_mldsa(jwt_json_t *jwk, jwk_item_t *item)
 
 out:
 	if (key != NULL) {
-		/* key->priv is only set on the (unreachable) private-import
-		 * failure; reachable errors leave it NULL. */
+		/* key->priv is set for a private key that does not match its
+		 * "pub"; the other reachable errors leave it NULL. */
 		if (key->priv)
-			gnutls_privkey_deinit(key->priv); // LCOV_EXCL_LINE
+			gnutls_privkey_deinit(key->priv);
 		if (key->pub)
 			gnutls_pubkey_deinit(key->pub);
 		jwt_freemem(key);

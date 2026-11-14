@@ -146,23 +146,68 @@ static unsigned char *set_one_octet(OSSL_PARAM_BLD *build,
 	return bin;
 }
 
-static int pctx_to_pem(EVP_PKEY_CTX *pctx, OSSL_PARAM *params,
-		       jwk_item_t *item, int priv)
+/* Make the key that @params describe. Returns NULL, with the item's error set,
+ * if OpenSSL will not have them. */
+static EVP_PKEY *pctx_to_pkey(EVP_PKEY_CTX *pctx, OSSL_PARAM *params,
+			      jwk_item_t *item)
+{
+	EVP_PKEY *pkey = NULL;
+
+	if (EVP_PKEY_fromdata(pctx, &pkey, EVP_PKEY_KEYPAIR, params) <= 0 ||
+	    pkey == NULL) {
+		jwt_write_error(item, "Unable to create PEM from pkey");
+		return NULL;
+	}
+
+	return pkey;
+}
+
+/* Does @pub (the "x" of an OKP JWK, the "pub" of an AKP one) hold the public
+ * key of @pkey? 1 if it matches octet for octet, 0 if it is a base64url value
+ * that is the wrong key or length (a true mismatch), -1 if it is not a usable
+ * member at all (not a string, or not base64url), which the caller reports
+ * apart from a mismatch. */
+static int pkey_pub_is(EVP_PKEY *pkey, jwt_json_t *pub)
+{
+	unsigned char *want, *have = NULL;
+	size_t have_len = 0;
+	int want_len = 0, ret = 0;
+
+	if (!jwt_json_is_string(pub))
+		return -1;
+
+	want = jwt_base64uri_decode(jwt_json_str_val(pub), &want_len);
+	if (want == NULL || want_len <= 0) {
+		jwt_freemem(want);
+		return -1;
+	}
+
+	/* Ask for the length first: a key that does not fit the buffer is an
+	 * error on OpenSSL's queue, and a wrong length is only a mismatch. */
+	if (EVP_PKEY_get_octet_string_param(pkey, OSSL_PKEY_PARAM_PUB_KEY,
+					    NULL, 0, &have_len) &&
+	    have_len == (size_t)want_len)
+		have = jwt_malloc(have_len);
+
+	if (have != NULL &&
+	    EVP_PKEY_get_octet_string_param(pkey, OSSL_PKEY_PARAM_PUB_KEY,
+					    have, have_len, &have_len) &&
+	    have_len == (size_t)want_len)
+		ret = !memcmp(have, want, have_len);
+
+	jwt_freemem(have);
+	jwt_freemem(want);
+
+	return ret;
+}
+
+/* Hand @pkey to the item, which owns it from here on, and add its PEM. */
+static int pkey_to_pem(EVP_PKEY *pkey, jwk_item_t *item, int priv)
 {
 	BIO *bio = NULL;
-	EVP_PKEY *pkey = NULL;
 	char *src = NULL, *dest = NULL;
 	long len;
-	int ret = -1;
-
-	ret = EVP_PKEY_fromdata(pctx, &pkey, EVP_PKEY_KEYPAIR, params);
-
-	if (ret <= 0 || pkey == NULL) {
-		// LCOV_EXCL_START
-		jwt_write_error(item, "Unable to create PEM from pkey");
-		goto cleanup_pem;
-		// LCOV_EXCL_STOP
-	}
+	int ret;
 
 	item->provider = JWT_CRYPTO_OPS_OPENSSL;
 	item->provider_data = pkey;
@@ -206,6 +251,15 @@ cleanup_pem:
 	return ret;
 }
 
+/* Both steps in one, for the key types with nothing to check in between. */
+static int pctx_to_pem(EVP_PKEY_CTX *pctx, OSSL_PARAM *params,
+		       jwk_item_t *item, int priv)
+{
+	EVP_PKEY *pkey = pctx_to_pkey(pctx, params, item);
+
+	return pkey ? pkey_to_pem(pkey, item, priv) : -1;
+}
+
 /* For EdDSA keys */
 JWT_NO_EXPORT
 int openssl_process_eddsa(jwt_json_t *jwk, jwk_item_t *item)
@@ -214,6 +268,7 @@ int openssl_process_eddsa(jwt_json_t *jwk, jwk_item_t *item)
 	OSSL_PARAM *params = NULL;
 	OSSL_PARAM_BLD *build = NULL;
 	EVP_PKEY_CTX *pctx = NULL;
+	EVP_PKEY *pkey;
 	jwt_json_t *x, *d, *crv;
 	const char *crv_str;
 	int priv = 0;
@@ -305,8 +360,27 @@ int openssl_process_eddsa(jwt_json_t *jwk, jwk_item_t *item)
 		// LCOV_EXCL_STOP
 	}
 
-	/* Create PEM from params */
-	ret = pctx_to_pem(pctx, params, item, priv);
+	pkey = pctx_to_pkey(pctx, params, item);
+	if (pkey == NULL)
+		goto cleanup_eddsa;
+
+	/* @rfc{8037,2} A private key is made from "d" alone. An "x" beside it
+	 * is what names the key everywhere else (thumbprint, public export),
+	 * so it has to be the public key of that "d". An "x" that is no usable
+	 * octet string is told apart from one that is simply the wrong key. */
+	if (priv && jwt_json_obj_has(jwk, "x")) {
+		int m = pkey_pub_is(pkey, x);
+
+		if (m <= 0) {
+			jwt_write_error(item, m < 0 ? "Invalid OKP x" :
+				"OKP private key does not match its public key");
+			EVP_PKEY_free(pkey);
+			goto cleanup_eddsa;
+		}
+	}
+
+	/* Create PEM from the key */
+	ret = pkey_to_pem(pkey, item, priv);
 
 cleanup_eddsa:
 	OSSL_PARAM_free(params);
@@ -330,6 +404,7 @@ int openssl_process_mldsa(jwt_json_t *jwk, jwk_item_t *item)
 	OSSL_PARAM *params = NULL;
 	OSSL_PARAM_BLD *build = NULL;
 	EVP_PKEY_CTX *pctx = NULL;
+	EVP_PKEY *pkey;
 	jwt_json_t *pub, *priv, *alg;
 	const char *alg_str;
 	int is_priv = 0;
@@ -406,8 +481,26 @@ int openssl_process_mldsa(jwt_json_t *jwk, jwk_item_t *item)
 		// LCOV_EXCL_STOP
 	}
 
-	/* Create PEM from params */
-	ret = pctx_to_pem(pctx, params, item, is_priv);
+	pkey = pctx_to_pkey(pctx, params, item);
+	if (pkey == NULL)
+		goto cleanup_mldsa;
+
+	/* As for OKP: a private key is made from the seed alone, and a "pub"
+	 * beside it, which names the key, has to be that seed's public key. An
+	 * unusable "pub" is told apart from one that is simply the wrong key. */
+	if (is_priv && jwt_json_obj_has(jwk, "pub")) {
+		int m = pkey_pub_is(pkey, pub);
+
+		if (m <= 0) {
+			jwt_write_error(item, m < 0 ? "Invalid AKP pub" :
+				"AKP private key does not match its public key");
+			EVP_PKEY_free(pkey);
+			goto cleanup_mldsa;
+		}
+	}
+
+	/* Create PEM from the key */
+	ret = pkey_to_pem(pkey, item, is_priv);
 
 cleanup_mldsa:
 	OSSL_PARAM_free(params);

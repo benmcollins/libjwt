@@ -2920,6 +2920,26 @@ const unsigned char *jwe_checker_get_aad(const jwe_checker_t *checker,
  * jwks_error_any(). A JWK in error stays in the keyring, where LibJWT never
  * uses it (see ::jwk_item_t); jwks_item_free_bad() removes those.
  *
+ * A private key that also states its public key has to agree with itself:
+ * the ``x`` of an ``OKP`` key (@rfc{8037}) must be the public key of its
+ * ``d``, and the ``pub`` of an ``AKP`` key (ML-DSA) that of its ``priv``
+ * seed. The OpenSSL and GnuTLS backends compare the two, and a key whose
+ * public member is another key's is in error ("OKP private key does not
+ * match its public key", "AKP private key does not match its public key").
+ * So is one whose public member is there but cannot be read (not a string,
+ * not base64url, or of the wrong length). A private key without the public
+ * member is taken as it is. The MbedTLS backend does not compare them: it
+ * keeps ``x`` and ``d`` apart, encrypts to the one and decrypts with the
+ * other, and has no EdDSA and no ML-DSA. Nor are ``EC`` and ``RSA`` keys
+ * compared: every backend verifies and encrypts with their public members as
+ * stated.
+ *
+ * @note Before 3.6.3 the two members were not compared. Under OpenSSL and
+ * GnuTLS a key that stated another key's public member verified with the key
+ * of its private member (under OpenSSL it encrypted to that key as well),
+ * while its thumbprint (jwks_item_thumbprint()) and its public form were
+ * those of the member it stated (GHSA-vmf4-mvgm-7vpv).
+ *
  * @param jwk_set Either NULL to create a new set, or an existing jwt_set
  *   to add new keys to it.
  * @param jwk_json_str JSON string representation of a single key
@@ -3392,12 +3412,14 @@ int jwks_item_is_private(const jwk_item_t *item);
  * @brief Check the error condition for this JWK
  *
  * A key is in error when it could not be loaded (a malformed or unsupported
- * JWK, or one the active crypto backend rejected) or was flagged after it
- * loaded (an ``alg`` that is not a string, a malformed ``x5c``, or an
- * ``x5t#S256`` that is not that of its ``x5c`` leaf certificate). Such a key
- * is unusable: LibJWT refuses it for signing, verifying, encrypting and
- * decrypting, and it has no thumbprint, certificate chain or certificate
- * thumbprints to read. jwks_item_error_msg() says what is wrong with it.
+ * JWK, one the active crypto backend rejected, or a private ``OKP`` or
+ * ``AKP`` key that does not match the public key it states, see jwks_load())
+ * or was flagged after it loaded (an ``alg`` that is not a string, a
+ * malformed ``x5c``, or an ``x5t#S256`` that is not that of its ``x5c`` leaf
+ * certificate). Such a key is unusable: LibJWT refuses it for signing,
+ * verifying, encrypting and decrypting, and it has no thumbprint, certificate
+ * chain or certificate thumbprints to read. jwks_item_error_msg() says what
+ * is wrong with it.
  *
  * @param item A JWK Item
  * @return 1 for true, 0 for false
@@ -3610,6 +3632,12 @@ char *jwks_export(const jwk_set_t *jwk_set, int priv);
  *
  * The thumbprint is computed over public parameters and is identical whether
  * the item was loaded from a JWK or from a PEM/DER key.
+ *
+ * These are the public members as the JWK states them. A key in error has no
+ * thumbprint, and under the OpenSSL and GnuTLS backends that includes a
+ * private ``OKP`` or ``AKP`` key whose public member is not the public key of
+ * its private one (see jwks_load()): the key that verifies a signature is
+ * the key that the thumbprint names.
  *
  * @param item A JWK Item
  * @param alg The thumbprint hash algorithm (see @ref jwk_thumbprint_alg_t);

@@ -409,6 +409,9 @@ if (CHECK_FOUND)
 	list (APPEND UNIT_TESTS jwt_jwks jwt_jwks_errors
 		jwt_ec jwt_rsa jwt_hs jwt_jwks_pem jwt_thumbprint)
 
+	# A private JWK and the public member it states
+	list (APPEND UNIT_TESTS jwt_jwks_pair)
+
 	# Checker and Builder
 	list (APPEND UNIT_TESTS jwt_builder jwt_checker jwt_flipflop jwt_xbackend)
 
