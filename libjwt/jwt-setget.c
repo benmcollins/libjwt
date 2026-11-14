@@ -384,7 +384,9 @@ int jwt_builder_setcnf_jwk(jwt_builder_t *builder, const jwk_item_t *key)
 	char_auto *jwk_json = NULL;
 	jwt_json_t *jwk;
 
-	if (builder == NULL || key == NULL)
+	/* A key in error (jwks_item_error()) confirms nothing, as with
+	 * jwt_builder_setcnf_jkt(), which has no thumbprint for one. */
+	if (builder == NULL || key == NULL || key->error)
 		return 1;
 
 	cnf = jwt_json_create();

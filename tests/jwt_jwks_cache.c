@@ -24,6 +24,10 @@ static const char JWKS_BODY[] =
 	"\"x\":\"Y--DdSpCZ5oF3j__h-SdNJIwvB5aI4AXzpRErGUjWrM\","
 	"\"y\":\"_bSTCXlDeU-pZZbOKDUVLANspSIeuKZfTM8rtXFG_RU\"}]}";
 
+/* A JWKS that parses but whose every key is in error (an "oct" with no "k"):
+ * a refresh to this must not wipe the previously good cache. */
+static const char JWKS_BAD[] = "{\"keys\":[{\"kty\":\"oct\"}]}";
+
 static struct {
 	int listen_fd;
 	int port;
@@ -31,6 +35,7 @@ static struct {
 	int conditional;	/* GETs that carried If-None-Match	*/
 	int max_age;		/* Cache-Control: max-age to advertise	*/
 	int fail;		/* when set, respond 500			*/
+	int bad_body;		/* when set, 200 with an all-error JWKS	*/
 	pthread_t thread;
 	pthread_mutex_t lock;
 	volatile int stop;
@@ -73,7 +78,7 @@ static void *server_thread(void *arg)
 					"Content-Length: 0\r\n\r\n";
 			ssize_t w = write(fd, e, strlen(e));
 			(void)w;
-		} else if (cond) {
+		} else if (cond && !srv.bad_body) {
 			char hdr[256];
 			int hlen = snprintf(hdr, sizeof(hdr),
 				"HTTP/1.1 304 Not Modified\r\n"
@@ -83,6 +88,7 @@ static void *server_thread(void *arg)
 			ssize_t w = write(fd, hdr, hlen);
 			(void)w;
 		} else {
+			const char *body = srv.bad_body ? JWKS_BAD : JWKS_BODY;
 			char hdr[256];
 			int hlen = snprintf(hdr, sizeof(hdr),
 				"HTTP/1.1 200 OK\r\n"
@@ -90,9 +96,9 @@ static void *server_thread(void *arg)
 				"ETag: \"v1\"\r\n"
 				"Cache-Control: max-age=%d\r\n"
 				"Content-Length: %zu\r\n"
-				"\r\n", srv.max_age, strlen(JWKS_BODY));
+				"\r\n", srv.max_age, strlen(body));
 			ssize_t wh = write(fd, hdr, hlen);
-			ssize_t wb = write(fd, JWKS_BODY, strlen(JWKS_BODY));
+			ssize_t wb = write(fd, body, strlen(body));
 			(void)wh;
 			(void)wb;
 		}
@@ -275,6 +281,37 @@ START_TEST(test_refresh_keeps_keys_on_error)
 }
 END_TEST
 
+/* A 2xx refresh whose every key is in error (so none would ever be used) must
+ * not wipe the cache either: the previously cached keys are retained. */
+START_TEST(test_refresh_keeps_keys_on_bad_body)
+{
+	jwk_set_t *set = NULL;
+	jwks_url_config_t cfg = { .verify = 0, .ttl = 100, .cooldown = 0 };
+	char *url = make_url();
+	int n;
+
+	srv.max_age = 300;
+	srv.fail = 0;
+	srv.bad_body = 0;
+	req_reset();
+
+	set = jwks_load_fromurl_cached(NULL, url, &cfg);
+	n = (int)jwks_item_count(set);
+	ck_assert_int_gt(n, 0);
+
+	/* The origin now serves a JWKS whose only key is in error; a forced
+	 * refresh must keep the cached keys and report the failure. */
+	srv.bad_body = 1;
+	jwks_refresh_fromurl(set);
+	ck_assert_int_ne(jwks_error(set), 0);
+	ck_assert_int_eq((int)jwks_item_count(set), n);
+	srv.bad_body = 0;
+
+	jwks_free(set);
+	free(url);
+}
+END_TEST
+
 /* Only http(s) is accepted; file:// is rejected (SSRF guard). */
 START_TEST(test_scheme_guard)
 {
@@ -312,6 +349,7 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_test(tc_core, test_cache_ttl);
 	tcase_add_test(tc_core, test_cooldown);
 	tcase_add_test(tc_core, test_refresh_keeps_keys_on_error);
+	tcase_add_test(tc_core, test_refresh_keeps_keys_on_bad_body);
 	tcase_add_test(tc_core, test_scheme_guard);
 #else
 	tcase_add_test(tc_core, test_no_libcurl);

@@ -75,6 +75,59 @@ START_TEST(test_x5t_mismatch)
 }
 END_TEST
 
+/* A JWK in error exposes no certificate chain and no certificate thumbprint,
+ * whatever put it in error: a stated "x5t#S256" that is not that of its "x5c"
+ * leaf, in a key file and inline. Without the chain there is nothing to check
+ * the thumbprints against: the JWK is not in error, and both are returned as
+ * stated. */
+START_TEST(test_x5c_of_errored_key)
+{
+	static const char fmt[] = "{\"kty\":\"oct\",\"k\":"
+		"\"0gmNspkRljssLSrldySnYUS-zhtCo5sqeqo_yl7n2XA\","
+		"\"x5t\":\"c3RhdGVkLXNoYTE\","
+		"\"x5t#S256\":\"c3RhdGVkLXNoYTI1Ng\"%s}";
+	jwk_set_auto_t *ok = NULL, *bad = NULL, *file = NULL;
+	char *ok_json, *bad_json;
+	const jwk_item_t *item;
+	size_t der_len = 99;
+
+	SET_OPS();
+
+	ck_assert_int_gt(asprintf(&ok_json, fmt, ""), 0);
+	ck_assert_int_gt(asprintf(&bad_json, fmt, ",\"x5c\":[\"AAAA\"]"), 0);
+
+	ok = jwks_create(ok_json);
+	free(ok_json);
+	ck_assert_ptr_nonnull(ok);
+	item = jwks_item_get(ok, 0);
+	ck_assert_ptr_nonnull(item);
+	ck_assert_int_eq(jwks_item_error(item), 0);
+	ck_assert_str_eq(jwks_item_x5t(item), "c3RhdGVkLXNoYTE");
+	ck_assert_str_eq(jwks_item_x5t_s256(item), "c3RhdGVkLXNoYTI1Ng");
+
+	bad = jwks_create(bad_json);
+	free(bad_json);
+	ck_assert_ptr_nonnull(bad);
+	item = jwks_item_get(bad, 0);
+	ck_assert_ptr_nonnull(item);
+	ck_assert_int_ne(jwks_item_error(item), 0);
+	ck_assert_uint_eq(jwks_item_x5c_count(item), 0);
+	ck_assert_ptr_null(jwks_item_x5c(item, 0, &der_len));
+	ck_assert_uint_eq(der_len, 99);
+	ck_assert_ptr_null(jwks_item_x5t(item));
+	ck_assert_ptr_null(jwks_item_x5t_s256(item));
+
+	file = load("ec_key_x5c_bad_x5t.json");
+	item = jwks_item_get(file, 0);
+	ck_assert_ptr_nonnull(item);
+	ck_assert_int_ne(jwks_item_error(item), 0);
+	ck_assert_uint_eq(jwks_item_x5c_count(item), 0);
+	ck_assert_ptr_null(jwks_item_x5c(item, 0, &der_len));
+	ck_assert_uint_eq(der_len, 99);
+	ck_assert_ptr_null(jwks_item_x5t_s256(item));
+}
+END_TEST
+
 /* A JWK with no X.509 parameters exposes none. */
 START_TEST(test_no_x5c)
 {
@@ -108,6 +161,7 @@ static Suite *libjwt_suite(const char *title)
 
 	tcase_add_loop_test(tc_core, test_x5c_parse, 0, i);
 	tcase_add_loop_test(tc_core, test_x5t_mismatch, 0, i);
+	tcase_add_loop_test(tc_core, test_x5c_of_errored_key, 0, i);
 	tcase_add_loop_test(tc_core, test_no_x5c, 0, i);
 
 	tcase_set_timeout(tc_core, 30);

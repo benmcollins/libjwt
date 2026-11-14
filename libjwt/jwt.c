@@ -153,9 +153,31 @@ void jwt_free(jwt_t *jwt)
 	jwt_freemem(jwt);
 }
 
+/* The last line of defence: however a key got here (set on a builder or a
+ * checker, returned by a callback, offered by a keyring), one that is missing,
+ * in error (jwks_item_error()) or without a key object never reaches a
+ * backend. Every signing and verifying operation runs __check_hmac() or
+ * __check_key_bits() first. @provider_data shares its storage with the octets
+ * of an "oct" key, so the last test covers both kinds of key. */
+static int __check_key_error(jwt_t *jwt)
+{
+	if (jwt->key == NULL || jwt->key->error ||
+	    jwt->key->provider_data == NULL) {
+		jwt_write_error(jwt, "Key is in error and cannot be used");
+		return 1;
+	}
+
+	return 0;
+}
+
 static int __check_hmac(jwt_t *jwt)
 {
-	int key_bits = jwt->key->bits;
+	int key_bits;
+
+	if (__check_key_error(jwt))
+		return 1;
+
+	key_bits = jwt->key->bits;
 
 	/* Defensive: an HMAC algorithm requires an octet key. Without this
 	 * check, an RSA/EC/OKP key reaches the backend's HMAC routines, which
@@ -164,7 +186,8 @@ static int __check_hmac(jwt_t *jwt)
 	 * The earlier __setkey_check / __verify_config_post bindings make
 	 * this unreachable in practice, but keep the check as a backstop. */
 	// LCOV_EXCL_START
-	if (jwt->key->kty != JWK_KEY_TYPE_OCT) {
+	if (jwt->key->kty != JWK_KEY_TYPE_OCT ||
+	    jwt->key->provider != JWT_CRYPTO_OPS_ANY) {
 		jwt_write_error(jwt, "Key type does not match HMAC alg");
 		return 1;
 	}
@@ -202,7 +225,12 @@ static int __check_hmac(jwt_t *jwt)
 
 static int __check_key_bits(jwt_t *jwt)
 {
-	int key_bits = jwt->key->bits;
+	int key_bits;
+
+	if (__check_key_error(jwt))
+		return 1;
+
+	key_bits = jwt->key->bits;
 
 	switch (jwt->alg) {
 	case JWT_ALG_RS256:

@@ -371,6 +371,7 @@ START_TEST(unsupported_curve)
 {
 	jwe_builder_auto_t *builder = NULL;
 	char_auto *tok = NULL;
+	int ret;
 
 	SET_OPS();
 
@@ -378,6 +379,19 @@ START_TEST(unsupported_curve)
 	 * accepts it (EC kty), but generation must fail. */
 	read_json("ec_key_secp256k1_enc.json");
 	builder = jwe_builder_new();
+
+	/* A backend that cannot load secp256k1 at all (GnuTLS, for one) leaves
+	 * the key in error, and setkey refuses a key in error. */
+	if (jwks_item_error(g_item)) {
+		ret = jwe_builder_setkey(builder, JWE_ALG_ECDH_ES,
+					 JWE_ENC_A256GCM, g_item);
+		ck_assert_int_eq(ret, 1);
+		ck_assert_str_eq(jwe_builder_error_msg(builder),
+				 "Key is in error and cannot be used for JWE");
+		free_key();
+		return;
+	}
+
 	ck_assert_int_eq(jwe_builder_setkey(builder, JWE_ALG_ECDH_ES,
 					    JWE_ENC_A256GCM, g_item), 0);
 	tok = jwe_builder_generate(builder, (const unsigned char *)PT,

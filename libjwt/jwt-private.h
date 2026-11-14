@@ -113,10 +113,16 @@ struct jwt_common {
 	jwt_verify_policy_t policy;
 	unsigned int last_sig_count;	/* signatures in the last JSON token	*/
 
-	/* checker: @key_required is set once it is given a key or a keyring,
-	 * and cleared only by jwt_checker_setkey() with no key called outside
-	 * a verify; @verifying is set while jwt_checker_verify() runs, whose
-	 * callbacks may reconfigure the checker (GHSA-mhc9-xvg5-qg29). */
+	/* checker: @key_required is set once it is given a key or a keyring
+	 * (to 2 if all it was given is a key in error, which
+	 * jwt_checker_setkey() refused), and cleared only by
+	 * jwt_checker_setkey() with no key called outside a verify;
+	 * @verifying is set while jwt_checker_verify() runs, whose callbacks
+	 * may reconfigure the checker (GHSA-mhc9-xvg5-qg29). builder:
+	 * @key_required is 2 from the time jwt_builder_setkey() or
+	 * jwt_builder_add_signature() refuses a key in error until
+	 * jwt_builder_setkey() succeeds (a NULL key included); meanwhile
+	 * jwt_builder_generate() emits no unsigned token. */
 	int key_required;
 	int verifying;
 

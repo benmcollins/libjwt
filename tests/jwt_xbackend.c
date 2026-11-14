@@ -141,6 +141,65 @@ START_TEST(test_xbackend_jwe_ecdh)
 }
 END_TEST
 
+/* A key that one backend could not load is in error, and JWE refuses it
+ * whichever backend is active when it is used. Such a key has no origin
+ * backend, so it would otherwise be handed to the active one. secp256k1 does
+ * not load under GnuTLS, nor an 8192-bit RSA key under MbedTLS; where a key
+ * does load there is nothing to check. */
+START_TEST(test_xbackend_jwe_errored)
+{
+	static const struct {
+		const char *file;
+		jwe_key_alg_t alg;
+	} keys[] = {
+		{ "ec_key_secp256k1_enc.json", JWE_ALG_ECDH_ES },
+		{ "rsa_key_8192.json",         JWE_ALG_RSA_OAEP_256 },
+		/* A key flagged in error (a malformed "x5c") on EVERY backend, so
+		 * the refusal is exercised even in a single-backend build, where
+		 * the two above may load. "oct" keys are backend-agnostic. */
+		{ "oct_key_256_enc_bad_x5c.json", JWE_ALG_A256KW },
+	};
+	size_t k, p;
+
+	SET_OPS();
+
+	for (k = 0; k < ARRAY_SIZE(keys); k++) {
+		for (p = 0; p < ARRAY_SIZE(jwt_test_ops); p++) {
+			jwe_builder_auto_t *builder = NULL;
+			jwe_checker_auto_t *checker = NULL;
+			jwk_set_t *set;
+			const jwk_item_t *key;
+
+			set = load_under(p, keys[k].file);
+			key = jwks_item_get(set, 0);
+			ck_assert_ptr_nonnull(key);
+
+			ck_assert_int_eq(jwt_set_crypto_ops(
+				jwt_test_ops[_i].name), 0);
+
+			if (!jwks_item_error(key)) {
+				jwks_free(set);
+				continue;
+			}
+
+			builder = jwe_builder_new();
+			ck_assert_int_eq(jwe_builder_setkey(builder,
+				keys[k].alg, JWE_ENC_A256GCM, key), 1);
+			ck_assert_str_eq(jwe_builder_error_msg(builder),
+				"Key is in error and cannot be used for JWE");
+
+			checker = jwe_checker_new();
+			ck_assert_int_eq(jwe_checker_setkey(checker,
+				keys[k].alg, JWE_ENC_A256GCM, key), 1);
+			ck_assert_str_eq(jwe_checker_error_msg(checker),
+				"Key is in error and cannot be used for JWE");
+
+			jwks_free(set);
+		}
+	}
+}
+END_TEST
+
 /* Free a key while a DIFFERENT backend is active than the one that parsed it.
  * Only the origin backend can release the key's provider_data, so this must not
  * leak (issue #327, completing #320). The leak is proven absent by the
@@ -170,6 +229,131 @@ START_TEST(test_xbackend_free)
 }
 END_TEST
 
+/* A key that failed to load under one backend is never handed to another: it
+ * has no key object, and the active backend used to be given it all the same
+ * (OpenSSL then crashed on one that MbedTLS had refused). Every (parse, use)
+ * pair refuses such a key on every path a key takes. The tokens are a header
+ * for the key's "alg", an empty claim set ("e30") and a junk signature. */
+#define ERR_KEY		"Key is in error and cannot be used"
+#define ERR_POLICY_1	"Signature policy not met (0 of 1 verified)"
+
+static const jwk_item_t *bad_cb_key;
+
+static int bad_key_cb(jwt_t *jwt, jwt_config_t *config)
+{
+	(void)jwt;
+	config->key = bad_cb_key;
+
+	return 0;
+}
+
+START_TEST(test_xbackend_errored_key)
+{
+	static const struct {
+		const char *file;	/* a key file, or ...		*/
+		const char *jwk;	/* ... an inline JWK		*/
+		jwt_alg_t alg;
+		const char *tok;	/* without a "kid"		*/
+		const char *tok_kid;	/* with the key's "kid"		*/
+	} keys[] = {
+		/* Over the 4096 bits MbedTLS loads; fine elsewhere. */
+		{ "rsa_key_8192_pub.json", NULL, JWT_ALG_RS512,
+		  "eyJhbGciOiJSUzUxMiJ9.e30.AAAA",
+		  "eyJhbGciOiJSUzUxMiIsImtpZCI6IjgzZDQzMGU0LTU3OTctNGFiMC1i"
+		  "OGU3LWM2MjBlYTRjY2I1ZSJ9.e30.AAAA" },
+		/* A point that is not on the curve (and its private key). */
+		{ NULL, "{\"kty\":\"EC\",\"alg\":\"ES256\",\"kid\":\"bad\","
+		  "\"crv\":\"P-256\","
+		  "\"x\":\"Y--DdSpCZ5oF3j__h-SdNJIwvB5aI4AXzpRErGUjWrM\","
+		  "\"y\":\"795Zo2s891l9E7Jb57g9CEvRVGk_LJ7Hy0ixzGcV8UE\","
+		  "\"d\":\"wDvSCv8kxkqIVTYPpgEm4Efs6lKzf-95W8Qej4F1yEM\"}",
+		  JWT_ALG_ES256,
+		  "eyJhbGciOiJFUzI1NiJ9.e30.AAAA",
+		  "eyJhbGciOiJFUzI1NiIsImtpZCI6ImJhZCJ9.e30.AAAA" },
+		/* An X25519 "x" of the wrong length, offered for EdDSA. */
+		{ NULL, "{\"kty\":\"OKP\",\"alg\":\"EdDSA\",\"kid\":\"bad\","
+		  "\"crv\":\"X25519\",\"x\":\"AAAA\"}",
+		  JWT_ALG_EDDSA,
+		  "eyJhbGciOiJFZERTQSJ9.e30.AAAA",
+		  "eyJhbGciOiJFZERTQSIsImtpZCI6ImJhZCJ9.e30.AAAA" },
+	};
+	size_t k, p;
+
+	SET_OPS(); /* active ("use") backend = jwt_test_ops[_i] */
+
+	for (k = 0; k < ARRAY_SIZE(keys); k++) {
+		for (p = 0; p < ARRAY_SIZE(jwt_test_ops); p++) {
+			jwt_builder_auto_t *b = NULL;
+			jwt_checker_auto_t *c = NULL, *ccb = NULL, *cr = NULL;
+			jwk_set_t *set;
+			const jwk_item_t *key;
+
+			/* Parse under backend p ... */
+			if (keys[k].file != NULL) {
+				set = load_under(p, keys[k].file);
+			} else {
+				ck_assert_int_eq(jwt_set_crypto_ops(
+					jwt_test_ops[p].name), 0);
+				set = jwks_create(keys[k].jwk);
+				ck_assert_ptr_nonnull(set);
+			}
+			key = jwks_item_get(set, 0);
+			ck_assert_ptr_nonnull(key);
+
+			/* ... then switch the active backend to the use one. */
+			ck_assert_int_eq(jwt_set_crypto_ops(
+				jwt_test_ops[_i].name), 0);
+
+			/* Only a key the parse backend could not load. */
+			if (!jwks_item_error(key)) {
+				jwks_free(set);
+				continue;
+			}
+
+			/* Set on a checker or a builder. */
+			c = jwt_checker_new();
+			ck_assert_int_ne(jwt_checker_setkey(c, keys[k].alg,
+							    key), 0);
+			ck_assert_str_eq(jwt_checker_error_msg(c), ERR_KEY);
+			ck_assert_int_ne(jwt_checker_verify(c, keys[k].tok), 0);
+
+			b = jwt_builder_new();
+			ck_assert_int_ne(jwt_builder_setkey(b, keys[k].alg,
+							    key), 0);
+			ck_assert_str_eq(jwt_builder_error_msg(b), ERR_KEY);
+
+			/* Returned by a verify callback. */
+			ccb = jwt_checker_new();
+			bad_cb_key = key;
+			ck_assert_int_eq(jwt_checker_setcb(ccb, bad_key_cb,
+							   NULL), 0);
+			ck_assert_int_ne(jwt_checker_verify(ccb, keys[k].tok),
+					 0);
+			ck_assert_str_eq(jwt_checker_error_msg(ccb), ERR_KEY);
+
+			/* In a keyring: the scan, the "kid", and a callback. */
+			cr = jwt_checker_new();
+			ck_assert_int_eq(jwt_checker_setkeyring(cr, set,
+				JWT_VERIFY_POLICY_ANY), 0);
+			ck_assert_int_ne(jwt_checker_verify(cr, keys[k].tok), 0);
+			ck_assert_str_eq(jwt_checker_error_msg(cr),
+					 ERR_POLICY_1);
+			ck_assert_int_ne(jwt_checker_verify(cr,
+							    keys[k].tok_kid), 0);
+			ck_assert_str_eq(jwt_checker_error_msg(cr),
+					 ERR_POLICY_1);
+			ck_assert_int_eq(jwt_checker_setcb(cr, bad_key_cb,
+							   NULL), 0);
+			ck_assert_int_ne(jwt_checker_verify(cr, keys[k].tok), 0);
+			ck_assert_str_eq(jwt_checker_error_msg(cr),
+					 ERR_POLICY_1);
+
+			jwks_free(set);
+		}
+	}
+}
+END_TEST
+
 static Suite *libjwt_suite(const char *title)
 {
 	Suite *s;
@@ -183,7 +367,9 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, test_xbackend_sign_verify, 0, i);
 	tcase_add_loop_test(tc_core, test_xbackend_jwe_rsa, 0, i);
 	tcase_add_loop_test(tc_core, test_xbackend_jwe_ecdh, 0, i);
+	tcase_add_loop_test(tc_core, test_xbackend_jwe_errored, 0, i);
 	tcase_add_loop_test(tc_core, test_xbackend_free, 0, i);
+	tcase_add_loop_test(tc_core, test_xbackend_errored_key, 0, i);
 
 	tcase_set_timeout(tc_core, 60);
 

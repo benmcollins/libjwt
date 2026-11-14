@@ -46,6 +46,15 @@ typedef struct {
 	size_t priv_len;
 } mbedtls_jwk_t;
 
+/* The key material of an item this backend parsed, or NULL for anything else:
+ * a key that failed to load (no provider), an "oct" key (its octets share the
+ * union slot with provider_data) or a key owned by another backend. */
+static inline const mbedtls_jwk_t *mbedtls_item_key(const jwk_item_t *item)
+{
+	return (item != NULL && item->provider == JWT_CRYPTO_OPS_MBEDTLS) ?
+		item->provider_data : NULL;
+}
+
 /* Import a short-lived (volatile) PSA key from the stored JWK material with the
  * given algorithm/usage policy. @want_private selects the key-pair (private) vs
  * the public key. On success *kid holds a key the caller must release with

@@ -9,6 +9,18 @@
 #ifndef JWT_OPENSSL_H
 #define JWT_OPENSSL_H
 
+#include <openssl/evp.h>
+
+/* The EVP_PKEY of a key this backend parsed, or NULL for anything else: a key
+ * that failed to load (no provider), an "oct" key (its octets share the union
+ * slot with provider_data) or a key owned by another backend. Every operation
+ * takes its key through here and fails cleanly on NULL. */
+static inline EVP_PKEY *openssl_item_pkey(const jwk_item_t *item)
+{
+	return (item != NULL && item->provider == JWT_CRYPTO_OPS_OPENSSL) ?
+		item->provider_data : NULL;
+}
+
 int openssl_process_eddsa(jwt_json_t *jwk, jwk_item_t *item);
 #if defined(LIBJWT_HAVE_ML_DSA) && OPENSSL_VERSION_NUMBER >= 0x30500000L
 int openssl_process_mldsa(jwt_json_t *jwk, jwk_item_t *item);

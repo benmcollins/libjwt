@@ -600,7 +600,7 @@ int openssl_encrypt_cek_rsa(jwe_key_alg_t alg, const jwk_item_t *key,
 			    const unsigned char *cek, size_t cek_len,
 			    unsigned char **out, size_t *out_len)
 {
-	return rsa_oaep_encrypt_pkey(alg, (EVP_PKEY *)key->provider_data,
+	return rsa_oaep_encrypt_pkey(alg, openssl_item_pkey(key),
 				     cek, cek_len, out, out_len);
 }
 
@@ -655,7 +655,7 @@ int openssl_decrypt_cek_rsa(jwe_key_alg_t alg, const jwk_item_t *key,
 			    const unsigned char *in, size_t in_len,
 			    unsigned char **cek, size_t *cek_len)
 {
-	return rsa_oaep_decrypt_pkey(alg, (EVP_PKEY *)key->provider_data,
+	return rsa_oaep_decrypt_pkey(alg, openssl_item_pkey(key),
 				     in, in_len, cek, cek_len);
 }
 
@@ -1014,7 +1014,7 @@ int openssl_ecdh_derive(jwe_key_alg_t alg, jwe_enc_t enc,
 			const jwk_item_t *key, int for_encrypt, jwt_json_t *hdr,
 			unsigned char **dk, size_t *dk_len)
 {
-	EVP_PKEY *stat = (EVP_PKEY *)key->provider_data;
+	EVP_PKEY *stat = openssl_item_pkey(key);
 	EVP_PKEY *eph = NULL, *peer = NULL;
 	EVP_PKEY_CTX *gctx = NULL;
 	unsigned char *z = NULL, *apu = NULL, *apv = NULL, *out = NULL;

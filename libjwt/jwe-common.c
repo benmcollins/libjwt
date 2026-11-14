@@ -632,6 +632,16 @@ static int FUNC(wrap_recipient)(jwe_common_t *__cmd, struct jwe_recipient *r,
 	const unsigned char *k;
 	int ret;
 
+	/* Last line of defence: setkey and add_recipient refuse a key in error
+	 * (jwe_key_usage_check), so no recipient should ever hold one. */
+	if (jwks_item_error(r->key)) {
+		// LCOV_EXCL_START
+		jwt_write_error(__cmd,
+			"Key is in error and cannot be used for JWE");
+		return 1;
+		// LCOV_EXCL_STOP
+	}
+
 	/* The builder is reusable: drop any Encrypted Key produced by a previous
 	 * jwe_builder_generate() before wrapping this recipient again. */
 	jwt_freemem(r->enckey);
@@ -1062,6 +1072,16 @@ static unsigned char *FUNC(recover_and_decrypt)(jwe_common_t *__cmd,
 	int iv_len = 0, ct_len = 0, tag_len = 0, ek_len = 0, aad_owned = 0;
 	int have_ek = (ek_b64 != NULL && *ek_b64 != '\0');
 	const unsigned char *k;
+
+	/* Last line of defence: setkey refuses a key in error, so the checker
+	 * should never hold one. This depends on the key alone, never on the
+	 * token, so it is no oracle; fail as any wrong key does. */
+	if (jwks_item_error(recip->key)) {
+		// LCOV_EXCL_START
+		jwt_write_error(__cmd, "JWE authentication/decryption failed");
+		return NULL;
+		// LCOV_EXCL_STOP
+	}
 
 	/* @rfc{7516,5.2} CEK per the key management algorithm. */
 	if (jwe_alg_is_ecdh(alg)) {

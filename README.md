@@ -101,7 +101,8 @@ To verify a multi-signature token, supply a set of candidate keys (a JWKS) with
 accept if at least one signature verifies, e.g. multi-issuer or key rotation) or
 `JWT_VERIFY_POLICY_ALL` (every signature must verify, e.g. co-signing). Only
 keys meant for signatures are candidates: a key whose `use` is not `sig`, or
-whose `key_ops` names neither `verify` nor `sign`, is skipped. A signature
+whose `key_ops` names neither `verify` nor `sign`, is skipped, and so is a key
+that is in error (`jwks_item_error()`). A signature
 naming a `kid` (which must be a string) is verified only against that key (there
 is no fallback); a keyless one is tried against every candidate, always under
 the usual algorithm/key-type binding and the key's own `alg`, if it has one. A
@@ -158,7 +159,9 @@ A JWK's X.509 parameters are parsed and exposed: `jwks_item_x5c_count()` /
 index 0), and `jwks_item_x5t()` / `jwks_item_x5t_s256()` return the `x5t` /
 `x5t#S256` thumbprints. When a JWK carries both `x5c` and `x5t#S256`, the
 thumbprint is verified against the leaf certificate at parse time
-(`base64url(SHA-256(DER))`, RFC 7517 §4.9) and a mismatch is rejected.
+(`base64url(SHA-256(DER))`, RFC 7517 §4.9) and a mismatch is rejected: the JWK
+is marked in error (`jwks_item_error()`), LibJWT never signs, verifies, encrypts
+or decrypts with it, and these accessors return nothing for it.
 Certificate-chain validation and `x5u` fetching are intentionally left to the
 caller for now (chain/trust policy and SSRF are security-critical).
 

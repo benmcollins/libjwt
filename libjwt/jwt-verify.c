@@ -919,6 +919,9 @@ static int sig_kid(const struct jwt_signature *s, const char **kid)
 }
 
 /* @rfc{7517,4.2,4.3} May the keyring offer key @k to verify a signature? Not
+ * if it is in error (jwks_item_error()): it failed to load, or was flagged
+ * after it loaded, and a ring may well hold such a key (e.g. of a type this
+ * build cannot load, in a provider's JWKS), so it is skipped as if absent. Nor
  * if its "use" is present and is not "sig", nor if its "key_ops" is present
  * and includes neither "verify" nor "sign": such a key is meant for something
  * else, such as key wrapping, and is skipped as JWKS key selection commonly
@@ -933,6 +936,9 @@ static int ring_key_verifies(const jwk_item_t *k)
 	jwt_json_t *v, *op;
 	const char *s;
 	size_t i, n;
+
+	if (jwks_item_error(k))
+		return 0;
 
 	if (json_has(k->json, "use", &v) &&
 	    (!jwt_json_is_string(v) || strcmp(jwt_json_str_val(v), "sig")))

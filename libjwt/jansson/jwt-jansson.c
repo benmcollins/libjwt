@@ -257,6 +257,11 @@ int jwt_json_is_true(const jwt_json_t *json)
 	return json_is_true(to_json(json));
 }
 
+int jwt_json_is_null(const jwt_json_t *json)
+{
+	return json_is_null(to_json(json));
+}
+
 /* ================================================================
  * Value extraction
  * ================================================================ */

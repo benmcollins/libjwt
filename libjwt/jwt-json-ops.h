@@ -159,6 +159,12 @@ JWT_NO_EXPORT
 int jwt_json_is_bool(const jwt_json_t *json);
 JWT_NO_EXPORT
 int jwt_json_is_true(const jwt_json_t *json);
+/* A member whose value is JSON null. Jansson holds json_null() for it (so
+ * jwt_json_obj_get() is non-NULL); json-c stores it as a C NULL, which
+ * jwt_json_obj_get() already returns as absent. Lets a caller treat a null
+ * member as absent the same way on both backends. */
+JWT_NO_EXPORT
+int jwt_json_is_null(const jwt_json_t *json);
 
 /* ================================================================
  * Value extraction

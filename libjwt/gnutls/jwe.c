@@ -643,7 +643,7 @@ int gnutls_encrypt_cek_rsa(jwe_key_alg_t alg, const jwk_item_t *key,
 			   const unsigned char *cek, size_t cek_len,
 			   unsigned char **out, size_t *out_len)
 {
-	const gnutls_jwk_t *jk = key->provider_data;
+	const gnutls_jwk_t *jk = gnutls_item_key(key);
 	gnutls_digest_algorithm_t dig = oaep_dig(alg);
 	gnutls_x509_spki_t spki = NULL;
 	gnutls_pubkey_t pub = NULL;
@@ -711,7 +711,7 @@ int gnutls_decrypt_cek_rsa(jwe_key_alg_t alg, const jwk_item_t *key,
 			   const unsigned char *in, size_t in_len,
 			   unsigned char **cek, size_t *cek_len)
 {
-	const gnutls_jwk_t *jk = key->provider_data;
+	const gnutls_jwk_t *jk = gnutls_item_key(key);
 	gnutls_datum_t ct, pt = { NULL, 0 };
 	unsigned char *buf = NULL;
 	int ret = 1;
@@ -986,7 +986,7 @@ int gnutls_ecdh_derive(jwe_key_alg_t alg, jwe_enc_t enc,
 		       const jwk_item_t *key, int for_encrypt, jwt_json_t *hdr,
 		       unsigned char **dk, size_t *dk_len)
 {
-	const gnutls_jwk_t *jk = key->provider_data;
+	const gnutls_jwk_t *jk = gnutls_item_key(key);
 	const char *crv = jwks_item_curve(key);
 	gnutls_ecc_curve_t curve;
 	gnutls_privkey_t eph = NULL;

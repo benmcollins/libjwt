@@ -600,6 +600,11 @@ const char *jwe_key_usage_check(const jwk_item_t *key, jwe_key_alg_t alg,
 	if (key == NULL)
 		return "JWE requires a key"; // LCOV_EXCL_LINE
 
+	/* A key in error (jwks_item_error()) failed to load, or was flagged
+	 * while loading. It is never used, whatever else it carries. */
+	if (jwks_item_error(key))
+		return "Key is in error and cannot be used for JWE";
+
 	if (need == JWK_KEY_TYPE_NONE)
 		return "Unknown JWE key management algorithm"; // LCOV_EXCL_LINE
 

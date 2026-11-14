@@ -228,6 +228,15 @@ START_TEST(test_malformed_embedded_jwk)
 		"{\"kty\":\"frobnicate\"}",		/* unknown kty */
 		"{\"kty\":\"EC\",\"crv\":\"P-256\",\"x\":\"@\",\"y\":\"@\"}",
 		"{}",					/* empty object */
+		/* Key A itself, so the pinned thumbprint matches, but in
+		 * error: flagged after it parsed. */
+		"{\"kty\":\"EC\",\"crv\":\"P-256\","
+		"\"x\":\"Y--DdSpCZ5oF3j__h-SdNJIwvB5aI4AXzpRErGUjWrM\","
+		"\"y\":\"_bSTCXlDeU-pZZbOKDUVLANspSIeuKZfTM8rtXFG_RU\","
+		"\"x5c\":\"bogus\"}",
+		"{\"kty\":\"EC\",\"crv\":\"P-256\",\"alg\":5,"
+		"\"x\":\"Y--DdSpCZ5oF3j__h-SdNJIwvB5aI4AXzpRErGUjWrM\","
+		"\"y\":\"_bSTCXlDeU-pZZbOKDUVLANspSIeuKZfTM8rtXFG_RU\"}",
 	};
 	size_t n;
 

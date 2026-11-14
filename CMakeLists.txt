@@ -446,7 +446,7 @@ if (CHECK_FOUND)
 	list (APPEND UNIT_TESTS jwt_claims jwt_cnf)
 
 	# Security
-	list (APPEND UNIT_TESTS jwt_security jwt_alg_downgrade)
+	list (APPEND UNIT_TESTS jwt_security jwt_alg_downgrade jwt_key_error)
 
 	foreach (TEST ${UNIT_TESTS})
 		jwt_add_test(NAME ${TEST})

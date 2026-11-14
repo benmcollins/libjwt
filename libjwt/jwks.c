@@ -74,7 +74,11 @@ static void jwk_process_x5c(jwt_json_t *jwk, jwk_item_t *item)
 	size_t i, count;
 
 	j_x5c = jwt_json_obj_get(jwk, "x5c");
-	if (j_x5c == NULL)
+	/* A JSON null member is treated as absent, the same on both JSON
+	 * backends: json-c already hands out a null as NULL, while Jansson
+	 * would otherwise see json_null() here and flag the key "not an array",
+	 * a cross-backend divergence (an in-error key is never used). */
+	if (j_x5c == NULL || jwt_json_is_null(j_x5c))
 		return;
 	if (!jwt_json_is_array(j_x5c)) {
 		jwt_write_error(item, "Invalid JWK: \"x5c\" is not an array");
@@ -132,9 +136,11 @@ static void jwk_process_values(jwt_json_t *jwk, jwk_item_t *item)
 {
 	jwt_json_t *j_use, *j_ops_a, *j_kid, *j_alg;
 
-	/* Start with the ALG (4.4). */
+	/* Start with the ALG (4.4). A JSON null "alg" is treated as absent, the
+	 * same on both JSON backends (see jwk_process_x5c()): Jansson would
+	 * otherwise flag "Invalid alg type" where json-c reads it as absent. */
 	j_alg = jwt_json_obj_get(jwk, "alg");
-	if (j_alg) {
+	if (j_alg && !jwt_json_is_null(j_alg)) {
 		if (!jwt_json_is_string(j_alg)) {
 			 jwt_write_error(item, "Invalid alg type");
 			 return;
@@ -296,6 +302,15 @@ static jwk_item_t *jwk_process_one(jwk_set_t *jwk_set, jwt_json_t *jwk)
 		return item;
 	}
 
+	/* No backend bound a key to the item, so it failed to load, whether
+	 * or not the parser said why. Flag it, and leave nothing on it that a
+	 * later check could take for a usable key. */
+	if (item->provider == JWT_CRYPTO_OPS_NONE) {
+		jwt_write_error(item, "Failed to load key");
+		item->bits = 0;
+		item->is_private_key = 0;
+	}
+
 	jwk_process_values(item->json, item);
 
 	return item;
@@ -386,15 +401,18 @@ const char *jwks_item_pem(const jwk_item_t *item)
 	return item->pem;
 }
 
+/* A key in error vouches for nothing: its chain may be cut short, and its
+ * certificate thumbprints were not, or could not be, checked against it. All
+ * of these read as absent. */
 size_t jwks_item_x5c_count(const jwk_item_t *item)
 {
-	return item->x5c_count;
+	return item->error ? 0 : item->x5c_count;
 }
 
 const unsigned char *jwks_item_x5c(const jwk_item_t *item, size_t index,
 				   size_t *len)
 {
-	if (item->x5c == NULL || index >= item->x5c_count)
+	if (item->error || item->x5c == NULL || index >= item->x5c_count)
 		return NULL;
 
 	if (len != NULL)
@@ -405,15 +423,16 @@ const unsigned char *jwks_item_x5c(const jwk_item_t *item, size_t index,
 
 const char *jwks_item_x5t(const jwk_item_t *item)
 {
-	jwt_json_t *j = item->json ? jwt_json_obj_get(item->json, "x5t") : NULL;
+	jwt_json_t *j = (item->json && !item->error) ?
+		jwt_json_obj_get(item->json, "x5t") : NULL;
 
 	return (j != NULL && jwt_json_is_string(j)) ? jwt_json_str_val(j) : NULL;
 }
 
 const char *jwks_item_x5t_s256(const jwk_item_t *item)
 {
-	jwt_json_t *j = item->json ? jwt_json_obj_get(item->json, "x5t#S256")
-				   : NULL;
+	jwt_json_t *j = (item->json && !item->error) ?
+		jwt_json_obj_get(item->json, "x5t#S256") : NULL;
 
 	return (j != NULL && jwt_json_is_string(j)) ? jwt_json_str_val(j) : NULL;
 }
