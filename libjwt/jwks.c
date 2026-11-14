@@ -65,9 +65,290 @@ static char *cert_x5t_s256(const unsigned char *der, size_t der_len)
 	return b64;
 }
 
+/* A view of DER octets that are still to be read: @p[0] to @p[@len - 1]. */
+struct der {
+	const unsigned char *p;
+	size_t len;
+};
+
+/* Take the element at the front of @in, which must have the single-octet tag
+ * @tag and a definite length in its shortest form (DER) that fits in @in. On
+ * success @out is its contents and @in is what follows it; otherwise neither
+ * is changed. Returns 0 on success. */
+static int der_get(struct der *in, unsigned char tag, struct der *out)
+{
+	const unsigned char *p = in->p;
+	size_t left = in->len, len, n, i;
+
+	if (left < 2 || p[0] != tag)
+		return 1;
+
+	len = p[1];
+	p += 2;
+	left -= 2;
+
+	if (len & 0x80) {
+		/* Long form: 1 to 3 more octets hold the length (0 would be
+		 * the indefinite form), which must need that many: no leading
+		 * zero octet, and 128 or more. */
+		n = len & 0x7f;
+		if (n < 1 || n > 3 || n > left || p[0] == 0)
+			return 1;
+
+		for (len = 0, i = 0; i < n; i++)
+			len = (len << 8) | p[i];
+		if (len < 0x80)
+			return 1;
+
+		p += n;
+		left -= n;
+	}
+
+	if (len > left)
+		return 1;
+
+	out->p = p;
+	out->len = len;
+	in->p = p + len;
+	in->len = left - len;
+
+	return 0;
+}
+
+/* Take an INTEGER that is not negative from the front of @in: as der_get(),
+ * and the first octet has its top bit clear and is zero only where the value
+ * needs that as its sign octet. Returns 0 on success. */
+static int der_get_uint(struct der *in, struct der *out)
+{
+	return der_get(in, 0x02, out) || out->len == 0 || (out->p[0] & 0x80) ||
+	       (out->len > 1 && out->p[0] == 0 && !(out->p[1] & 0x80));
+}
+
+/* @rfc{5280,4.1} Walk the certificate @cert to its SubjectPublicKeyInfo. On
+ * success @alg is the contents of its AlgorithmIdentifier (the algorithm OID,
+ * then any parameters) and @key is the subjectPublicKey. The other fields are
+ * stepped over by tag and length, and what follows the key inside the
+ * tbsCertificate is not read. No name, date, extension or signature is looked
+ * at: validating the certificate and its chain is left to the caller of
+ * jwks_item_x5c(). Returns 0 on success. */
+static int x5c_cert_spki(struct der cert, struct der *alg, struct der *key)
+{
+	/* serialNumber, signature, issuer, validity, subject */
+	static const unsigned char tags[] = { 0x02, 0x30, 0x30, 0x30, 0x30 };
+	struct der body, tbs, spki, skip;
+	size_t i;
+
+	/* Certificate ::= SEQUENCE { tbsCertificate, signatureAlgorithm,
+	 * signatureValue }, and nothing after it. */
+	if (der_get(&cert, 0x30, &body) || cert.len ||
+	    der_get(&body, 0x30, &tbs) || der_get(&body, 0x30, &skip) ||
+	    der_get(&body, 0x03, &skip) || body.len)
+		return 1;
+
+	/* A version 1 certificate has no version [0]. If this fails, the
+	 * serialNumber is looked for in the same place. */
+	(void)der_get(&tbs, 0xa0, &skip);
+
+	for (i = 0; i < ARRAY_SIZE(tags); i++) {
+		if (der_get(&tbs, tags[i], &skip))
+			return 1;
+	}
+
+	/* SubjectPublicKeyInfo ::= SEQUENCE { algorithm AlgorithmIdentifier,
+	 * subjectPublicKey BIT STRING }. A BIT STRING starts with its count
+	 * of unused bits, which is 0 for every kind of key. */
+	if (der_get(&tbs, 0x30, &spki) || der_get(&spki, 0x30, alg) ||
+	    der_get(&spki, 0x03, key) || spki.len ||
+	    key->len < 1 || key->p[0] != 0)
+		return 1;
+
+	key->p++;
+	key->len--;
+
+	return 0;
+}
+
+/* What a SubjectPublicKeyInfo has to be for each "crv" (EC, OKP) and "alg"
+ * (AKP): the contents of its AlgorithmIdentifier, which DER can write in one
+ * way only (the algorithm OID and, for EC, the OID of the named curve), and
+ * the length of the key. */
+static const struct {
+	jwk_key_type_t kty;
+	const char *name;
+	size_t key_len;
+	size_t alg_len;
+	unsigned char alg[19];
+} x5c_spkis[] = {
+	/* @rfc{5480,2} id-ecPublicKey and a named curve; 04 || X || Y. */
+	{ JWK_KEY_TYPE_EC, "P-256", 65, 19,
+	  { 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01, 0x06, 0x08,
+	    0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07 } },
+	{ JWK_KEY_TYPE_EC, "P-384", 97, 16,
+	  { 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01, 0x06, 0x05,
+	    0x2b, 0x81, 0x04, 0x00, 0x22 } },
+	{ JWK_KEY_TYPE_EC, "P-521", 133, 16,
+	  { 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01, 0x06, 0x05,
+	    0x2b, 0x81, 0x04, 0x00, 0x23 } },
+	{ JWK_KEY_TYPE_EC, "secp256k1", 65, 16,
+	  { 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01, 0x06, 0x05,
+	    0x2b, 0x81, 0x04, 0x00, 0x0a } },
+	/* @rfc{8410,3} No parameters; the key as it is. */
+	{ JWK_KEY_TYPE_OKP, "X25519", 32, 5, { 0x06, 0x03, 0x2b, 0x65, 0x6e } },
+	{ JWK_KEY_TYPE_OKP, "X448", 56, 5, { 0x06, 0x03, 0x2b, 0x65, 0x6f } },
+	{ JWK_KEY_TYPE_OKP, "Ed25519", 32, 5,
+	  { 0x06, 0x03, 0x2b, 0x65, 0x70 } },
+	{ JWK_KEY_TYPE_OKP, "Ed448", 57, 5, { 0x06, 0x03, 0x2b, 0x65, 0x71 } },
+	/* id-ml-dsa-44, -65 and -87 (2.16.840.1.101.3.4.3.17 to 19): no
+	 * parameters; the key as it is. */
+	{ JWK_KEY_TYPE_AKP, "ML-DSA-44", 1312, 11,
+	  { 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x03,
+	    0x11 } },
+	{ JWK_KEY_TYPE_AKP, "ML-DSA-65", 1952, 11,
+	  { 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x03,
+	    0x12 } },
+	{ JWK_KEY_TYPE_AKP, "ML-DSA-87", 2592, 11,
+	  { 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x03,
+	    0x13 } },
+};
+
+/* The string member @name of @jwk, or "" if it has none. */
+static const char *x5c_member(jwt_json_t *jwk, const char *name)
+{
+	jwt_json_t *val = jwt_json_obj_get(jwk, name);
+
+	if (val == NULL || !jwt_json_is_string(val))
+		return "";
+
+	return jwt_json_str_val(val);
+}
+
+/* An unsigned big-endian integer without its leading zero octets. */
+static struct der x5c_uint(struct der val)
+{
+	while (val.len && val.p[0] == 0) {
+		val.p++;
+		val.len--;
+	}
+
+	return val;
+}
+
+/* Non-zero if the base64url member @name of @jwk decodes to the octets @want
+ * or, with @is_uint, to the same unsigned integer: every backend reads "n",
+ * "e" and the EC "x" and "y" as numbers, and not every producer pads them.
+ * The values are public, so the compare need not be constant-time. */
+static int x5c_member_eq(jwt_json_t *jwk, const char *name, struct der want,
+			 int is_uint)
+{
+	unsigned char *bin;
+	struct der have;
+	int len = 0, ret;
+
+	bin = jwt_base64uri_decode(x5c_member(jwk, name), &len);
+	if (bin == NULL)
+		return 0;
+
+	have.p = bin;
+	have.len = (size_t)len;
+	if (is_uint) {
+		have = x5c_uint(have);
+		want = x5c_uint(want);
+	}
+
+	ret = have.len == want.len && !memcmp(have.p, want.p, want.len);
+	jwt_freemem(bin);
+
+	return ret;
+}
+
+/* Non-zero if the SubjectPublicKeyInfo (@alg, @key) holds the public key that
+ * the members of @jwk represent. */
+static int x5c_spki_matches(jwt_json_t *jwk, const jwk_item_t *item,
+			    struct der alg, struct der key)
+{
+	int akp = item->kty == JWK_KEY_TYPE_AKP;
+	const char *name;
+	size_t i;
+
+	if (item->kty == JWK_KEY_TYPE_RSA) {
+		/* @rfc{4055,1.2} rsaEncryption (1.2.840.113549.1.1.1) or
+		 * id-RSASSA-PSS (1.2.840.113549.1.1.10), whose parameters
+		 * do not change the key: RSAPublicKey ::= SEQUENCE {
+		 * modulus INTEGER, publicExponent INTEGER } */
+		static const unsigned char oid[] = { 0x06, 0x09, 0x2a, 0x86,
+			0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01 };
+		struct der seq, n, e;
+
+		if (alg.len <= sizeof(oid) || memcmp(alg.p, oid, sizeof(oid)) ||
+		    (alg.p[sizeof(oid)] != 0x01 && alg.p[sizeof(oid)] != 0x0a))
+			return 0;
+
+		if (der_get(&key, 0x30, &seq) || key.len ||
+		    der_get_uint(&seq, &n) || der_get_uint(&seq, &e) || seq.len)
+			return 0;
+
+		return x5c_member_eq(jwk, "n", n, 1) &&
+		       x5c_member_eq(jwk, "e", e, 1);
+	}
+
+	/* The others are told apart by "crv", or for AKP (ML-DSA) by "alg". */
+	name = x5c_member(jwk, akp ? "alg" : "crv");
+	for (i = 0; i < ARRAY_SIZE(x5c_spkis); i++) {
+		if (x5c_spkis[i].kty == item->kty &&
+		    !strcmp(x5c_spkis[i].name, name))
+			break;
+	}
+
+	if (i == ARRAY_SIZE(x5c_spkis) || key.len != x5c_spkis[i].key_len ||
+	    alg.len != x5c_spkis[i].alg_len ||
+	    memcmp(alg.p, x5c_spkis[i].alg, alg.len))
+		return 0;
+
+	if (item->kty == JWK_KEY_TYPE_EC) {
+		/* @rfc{5480,2.2} The uncompressed point only: 04, then X and
+		 * Y, which are each half of what is left. */
+		struct der x = { key.p + 1, key.len / 2 };
+		struct der y = { x.p + x.len, x.len };
+
+		return key.p[0] == 0x04 && x5c_member_eq(jwk, "x", x, 1) &&
+		       x5c_member_eq(jwk, "y", y, 1);
+	}
+
+	return x5c_member_eq(jwk, akp ? "pub" : "x", key, 0);
+}
+
+/* @rfc{7517,4.7} "The key in the first certificate MUST match the public key
+ * represented by other members of the JWK." Otherwise anyone can put another
+ * party's certificate chain, which is public, on a key of their own. Compare
+ * the SubjectPublicKeyInfo of the leaf with the members of the JWK, and mark
+ * the item in error if they differ or cannot be compared. */
+static void jwk_check_x5c_leaf(jwt_json_t *jwk, jwk_item_t *item)
+{
+	struct der cert = { item->x5c[0].der, item->x5c[0].len };
+	struct der alg, key;
+
+	/* A certificate holds a public key, never a shared secret. */
+	if (item->kty == JWK_KEY_TYPE_OCT) {
+		jwt_write_error(item,
+			"Invalid JWK: \"x5c\" is not valid for an \"oct\" key");
+		return;
+	}
+
+	if (x5c_cert_spki(cert, &alg, &key)) {
+		jwt_write_error(item,
+			"Invalid JWK: \"x5c\" leaf is not a valid certificate");
+		return;
+	}
+
+	if (!x5c_spki_matches(jwk, item, alg, key))
+		jwt_write_error(item,
+			"\"x5c\" leaf certificate does not match the JWK's key");
+}
+
 /* @rfc{7517,4.7} Decode the "x5c" certificate chain (standard base64 DER) into
  * item->x5c. If "x5t#S256" is also present it MUST match the leaf cert's SHA-256
- * thumbprint (@rfc{7517,4.9}); a mismatch marks the item in error. */
+ * thumbprint (@rfc{7517,4.9}), and the leaf MUST hold the JWK's own public key;
+ * a mismatch of either marks the item in error. */
 static void jwk_process_x5c(jwt_json_t *jwk, jwk_item_t *item)
 {
 	jwt_json_t *j_x5c, *j_cert, *j_x5t256;
@@ -90,8 +371,12 @@ static void jwk_process_x5c(jwt_json_t *jwk, jwk_item_t *item)
 		return;
 
 	item->x5c = jwt_malloc(count * sizeof(struct jwk_cert));
-	if (item->x5c == NULL)
-		return; // LCOV_EXCL_LINE
+	if (item->x5c == NULL) {
+		// LCOV_EXCL_START
+		jwt_write_error(item, "Error allocating memory for x5c");
+		return;
+		// LCOV_EXCL_STOP
+	}
 	memset(item->x5c, 0, count * sizeof(struct jwk_cert));
 
 	jwt_json_arr_foreach(j_x5c, i, j_cert) {
@@ -108,8 +393,13 @@ static void jwk_process_x5c(jwt_json_t *jwk, jwk_item_t *item)
 		blen = strlen(b64);
 		/* Decoded DER is at most 3/4 of the base64 length. */
 		item->x5c[i].der = jwt_malloc(blen ? blen : 1);
-		if (item->x5c[i].der == NULL)
-			return; // LCOV_EXCL_LINE
+		if (item->x5c[i].der == NULL) {
+			// LCOV_EXCL_START
+			jwt_write_error(item,
+				"Error allocating memory for x5c");
+			return;
+			// LCOV_EXCL_STOP
+		}
 		item->x5c_count = i + 1;
 		item->x5c[i].len = base64_decode(b64, (unsigned int)blen,
 						 item->x5c[i].der);
@@ -130,6 +420,10 @@ static void jwk_process_x5c(jwt_json_t *jwk, jwk_item_t *item)
 			jwt_write_error(item,
 				"\"x5t#S256\" does not match the \"x5c\" leaf certificate");
 	}
+
+	/* A key already in error stays as it is, with its first message. */
+	if (!item->error)
+		jwk_check_x5c_leaf(jwk, item);
 }
 
 static void jwk_process_values(jwt_json_t *jwk, jwk_item_t *item)
@@ -401,9 +695,9 @@ const char *jwks_item_pem(const jwk_item_t *item)
 	return item->pem;
 }
 
-/* A key in error vouches for nothing: its chain may be cut short, and its
- * certificate thumbprints were not, or could not be, checked against it. All
- * of these read as absent. */
+/* A key in error vouches for nothing: its chain may be cut short or not be
+ * this key's at all, and its certificate thumbprints were not, or could not
+ * be, checked against it. All of these read as absent. */
 size_t jwks_item_x5c_count(const jwk_item_t *item)
 {
 	return item->error ? 0 : item->x5c_count;

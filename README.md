@@ -159,9 +159,17 @@ A JWK's X.509 parameters are parsed and exposed: `jwks_item_x5c_count()` /
 index 0), and `jwks_item_x5t()` / `jwks_item_x5t_s256()` return the `x5t` /
 `x5t#S256` thumbprints. When a JWK carries both `x5c` and `x5t#S256`, the
 thumbprint is verified against the leaf certificate at parse time
-(`base64url(SHA-256(DER))`, RFC 7517 §4.9) and a mismatch is rejected: the JWK
-is marked in error (`jwks_item_error()`), LibJWT never signs, verifies, encrypts
-or decrypts with it, and these accessors return nothing for it.
+(`base64url(SHA-256(DER))`, RFC 7517 §4.9). The leaf certificate also has to
+hold the JWK's own public key (RFC 7517 §4.7): LibJWT follows the leaf's ASN.1
+framing to its SubjectPublicKeyInfo and compares that public key with the
+members of the JWK. A JWK that fails either check is marked in error
+(`jwks_item_error()`): LibJWT never signs, verifies, encrypts or decrypts with
+it, and these accessors return nothing for it. Only the key is checked — not
+that the leaf is otherwise a well-formed certificate — and of a private JWK
+only its public members (a private member such as `d` or `priv` is not
+compared against the leaf). An EC leaf has to name its curve and use an
+uncompressed point, a private OKP or AKP JWK has to include its public member
+(`x` / `pub`) to carry a chain, and an `oct` key cannot carry one.
 Certificate-chain validation and `x5u` fetching are intentionally left to the
 caller for now (chain/trust policy and SSRF are security-critical).
 

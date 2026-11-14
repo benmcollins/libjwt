@@ -176,7 +176,12 @@ payload is conveyed out of band, not inside the token — with the signing
 certificate chain in the @c "x5c" header. Sign opaque bytes unencoded
 (@rfc{7797}) and detached, then verify with @ref jwt_checker_verify_detached,
 supplying the document. Read the chain with @ref jwks_item_x5c (parsed from a
-JWK's @c x5c); certificate-path validation is the caller's PKI policy.
+JWK's @c x5c); certificate-path validation is the caller's PKI policy. LibJWT
+only checks that the leaf holds the key of its JWK (a JWK whose leaf does not
+is in error): whether the chain is to be trusted is for the caller to decide.
+@ref jwks_item_x5c reads the @c "x5c" of a JWK; LibJWT does not itself read a
+token's protected-header @c "x5c", so an application that wants that chain
+reads the header and loads it into a JWK of its own.
 
 @code{.c}
 /* Sign a detached, unencoded document with the cert chain in x5c. */

@@ -3434,8 +3434,9 @@ int jwks_item_is_private(const jwk_item_t *item);
  * JWK, one the active crypto backend rejected, or a private ``OKP`` or
  * ``AKP`` key that does not match the public key it states, see jwks_load())
  * or was flagged after it loaded (an ``alg`` that is not a string, a
- * malformed ``x5c``, or an ``x5t#S256`` that is not that of its ``x5c`` leaf
- * certificate). Such a key is unusable: LibJWT refuses it for signing,
+ * malformed ``x5c``, an ``x5t#S256`` that is not that of its ``x5c`` leaf
+ * certificate, or a leaf that does not hold the key of the JWK, see
+ * jwks_item_x5c()). Such a key is unusable: LibJWT refuses it for signing,
  * verifying, encrypting and decrypting, and it has no thumbprint, certificate
  * chain or certificate thumbprints to read. jwks_item_error_msg() says what
  * is wrong with it.
@@ -3542,7 +3543,8 @@ const char *jwks_item_pem(const jwk_item_t *item);
  *
  * @param item A JWK Item
  * @return The number of X.509 certificates in the ``x5c`` chain, or 0 if the
- *  JWK has none (RFC 7517 §4.7) or is in error.
+ *  JWK has none (RFC 7517 §4.7; an empty ``x5c`` array is not an error) or
+ *  is in error.
  * @since 3.6.0
  */
 JWT_EXPORT
@@ -3552,13 +3554,48 @@ size_t jwks_item_x5c_count(const jwk_item_t *item);
  * @brief Get a certificate from the JWK ``x5c`` chain (DER)
  *
  * Returns the raw DER bytes of the certificate at @p index in the ``x5c``
- * chain (index 0 is the leaf, which holds the public key matching the JWK).
- * The bytes are owned by the JWK item and remain valid until it is freed; the
- * caller must not free them. Certificate-chain validation is the caller's
- * responsibility (libjwt does not build or verify the trust chain).
+ * chain. The bytes are owned by the JWK item and remain valid until it is
+ * freed; the caller must not free them.
  *
- * @note Before 3.6.3 the chain of a JWK in error was returned too, as was its
- * length by jwks_item_x5c_count() (GHSA-4jp4-6w6j-ff4q).
+ * Index 0 is the leaf. When the JWK was loaded, LibJWT followed the leaf's
+ * ASN.1 framing to its SubjectPublicKeyInfo and compared that public key with
+ * the key the other members of the JWK represent (RFC 7517 §4.7), so the leaf
+ * of a JWK that is not in error holds that JWK's key. A JWK whose leaf holds
+ * another key, or whose framing LibJWT cannot follow to a public key, is in
+ * error (see jwks_item_error()), and so is an ``oct`` key that has
+ * certificates. This confirms only that the leaf is bound to the key, not
+ * that the leaf is a certificate an X.509 library would otherwise accept.
+ *
+ * Only the key is compared, and of a private JWK only its public members: the
+ * leaf is matched against ``x``/``y``, ``n``/``e`` or ``x``/``pub`` whether
+ * the JWK is public or private, and a private member (``d``, ``priv``) is not
+ * checked against it. LibJWT does not verify the signature of any
+ * certificate, does not read its names, validity dates or extensions, and
+ * does not look at the certificates after the leaf: building and validating
+ * the chain is the caller's responsibility.
+ *
+ * What the leaf has to be, for each kind of key:
+ * - RSA: an rsaEncryption or id-RSASSA-PSS key (the parameters are not
+ *   read). ``n`` and ``e`` are compared as numbers. An id-RSASSA-PSS leaf
+ *   matches any RSA JWK: its PSS-only restriction is not read and does not
+ *   limit the algorithms the JWK may be used with.
+ * - EC: an id-ecPublicKey key on the named curve of ``crv`` (P-256, P-384,
+ *   P-521 or secp256k1) with an uncompressed point. ``x`` and ``y`` are
+ *   compared as numbers. A leaf with a compressed or hybrid point, or with
+ *   explicit curve parameters, does not match.
+ * - OKP (Ed25519, Ed448, X25519, X448) and AKP (ML-DSA-44, -65, -87): a key
+ *   of the algorithm that ``crv`` or ``alg`` names, without parameters.
+ *   ``x`` or ``pub`` is compared octet for octet, so a private JWK that
+ *   leaves it out cannot be compared, and is in error if it has
+ *   certificates.
+ *
+ * The elements LibJWT reads on the way to the key have to be DER: definite
+ * lengths in their shortest form, none of more than 16,777,215 octets. The
+ * rest of the certificate is not decoded, so its encoding is not checked.
+ *
+ * @note Before 3.6.3 the leaf was not compared with the key of the JWK, and
+ * the chain of a JWK in error was returned too, as was its length by
+ * jwks_item_x5c_count() (GHSA-4jp4-6w6j-ff4q).
  *
  * @param item A JWK Item
  * @param index The certificate index (0 is the leaf)
@@ -3590,7 +3627,9 @@ const char *jwks_item_x5t(const jwk_item_t *item);
  * If the JWK also carries an ``x5c`` chain, this value was verified at parse
  * time to equal ``base64url(SHA-256(DER(leaf)))`` (RFC 7517 §4.9); a JWK whose
  * ``x5t#S256`` disagrees with its ``x5c`` leaf is rejected (the item carries an
- * error), and for a JWK in error this returns NULL.
+ * error), and for a JWK in error this returns NULL. This comes before the
+ * comparison of the leaf with the key of the JWK (see jwks_item_x5c()): if
+ * both fail, this is the error reported.
  *
  * Without an ``x5c`` chain there is nothing to verify the value against: it
  * is returned as stated, and anyone can state any thumbprint.
