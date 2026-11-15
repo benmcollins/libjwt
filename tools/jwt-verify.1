@@ -52,7 +52,8 @@ One use is to pass it through \f[B]jq \-C\f[R] for indenting and
 colorization.
 Another would be to use an external program to validate the
 \f[I]PAYLOAD\f[R] contents.
-A non\-0 exit status from the program will cause verification to fail.
+A non\-0 exit status from the program will cause verification to fail,
+and so will the program being ended by a signal.
 .SS Options
 .TP
 \f[B]\-h\f[R], \f[B]\-\-help\f[R]

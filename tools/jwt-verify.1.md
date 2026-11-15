@@ -43,7 +43,8 @@ _PAYLOAD_.
 
 One use is to pass it through **jq -C** for indenting and colorization. Another
 would be to use an external program to validate the _PAYLOAD_ contents. A non-0
-exit status from the program will cause verification to fail.
+exit status from the program will cause verification to fail, and so will the
+program being ended by a signal.
 
 ## Options
 

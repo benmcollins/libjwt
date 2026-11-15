@@ -39,10 +39,13 @@ static inline int write_json(const char *title, const char *str)
 	if (pipe_fp) {
 		if (fwrite(str, 1, strlen(str), pipe_fp) < strlen(str)) {
 			perror("fwrite");
-			exit_code = -1;
+			exit_code = EXIT_FAILURE;
 		}
 
-		_pclose(pipe_fp);
+		/* A non-zero command status (or a failed close) fails the
+		 * token, as on the POSIX path. */
+		if (_pclose(pipe_fp) != 0)
+			exit_code = EXIT_FAILURE;
 	}
 #else
 	int pipe_fd[2];
@@ -92,8 +95,13 @@ static inline int write_json(const char *title, const char *str)
 #ifndef _WIN32
 	if (myfd) {
 		close(myfd);
-		waitpid(pid, &status, 0);
-		exit_code = WEXITSTATUS(status);
+		/* Only a command that ran to its end and exited 0 passes. One
+		 * that a signal ended (a crash, say) has no exit status, and
+		 * WEXITSTATUS() reads 0 for it. */
+		if (waitpid(pid, &status, 0) != pid || !WIFEXITED(status))
+			exit_code = EXIT_FAILURE;
+		else
+			exit_code = WEXITSTATUS(status);
 	}
 #endif
 

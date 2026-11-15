@@ -585,3 +585,23 @@ FORGED_TOK="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiJ9.AAAA"
 	echo "${output}" | grep -q 'No key found'
 	rm -f "${empty}"
 }
+
+# The --print command is a validator: a token passes only if the command runs
+# to its end and exits 0. One that a signal ends has no exit status, which
+# read as 0. Each command reads its input first, so that the tool never
+# writes to a pipe nobody reads.
+@test "A --print command that fails or is killed fails the token" {
+	run ./tools/jwt-verify -v -p 'cat > /dev/null' -k ${HS256_KEY} \
+		${HS256_RES}
+	[ "${status}" -eq 0 ]
+	run ./tools/jwt-verify -v -p 'cat > /dev/null; exit 3' \
+		-k ${HS256_KEY} ${HS256_RES}
+	[ "${status}" -eq 1 ]
+	run ./tools/jwt-verify -v -p 'cat > /dev/null; kill -9 $$' \
+		-k ${HS256_KEY} ${HS256_RES}
+	[ "${status}" -eq 1 ]
+	[ "$(echo "${output}" | grep -c 'Verified')" -eq 0 ]
+	run ./tools/jwt-generate -v -p 'cat > /dev/null; kill -9 $$' \
+		-a HS256 -k ${HS256_KEY}
+	[ "${status}" -ne 0 ]
+}
