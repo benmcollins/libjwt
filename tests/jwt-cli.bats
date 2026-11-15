@@ -619,3 +619,27 @@ FORGED_TOK="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiJ9.AAAA"
 	run ./tools/jwt-verify -v -k ${HS256_KEY} -p false ${HS256_RES}
 	[ "${status}" -eq 1 ]
 }
+
+# GHSA-g7xw-4cjw-2247: a forged token whose header "alg" carries a CR and escape
+# sequences once painted a fake green "[YES] ... Verified" line over its own
+# "[BAD]" line (the error message echoes the alg). Control bytes are now escaped,
+# so the real verified marker (with ESC bytes) never appears for a failed token.
+# VERIFIED is that exact success sequence.
+VERIFIED=$'\033[0;92m[YES]\033[0m Verified'
+# header {"alg":"\r\e[2K<thumbsup> \e[0;92m[YES]\e[0m Verified\e[8m"}.{"sub":"admin"}.AAAA
+SPOOF_TOK="eyJhbGciOiAiXHJcdTAwMWJbMktcdWQ4M2RcdWRjNGQgXHUwMDFiWzA7OTJtW1lFU11cdTAwMWJbMG0gVmVyaWZpZWRcdTAwMWJbOG0ifQ.eyJzdWIiOiJhZG1pbiJ9.AAAA"
+
+@test "A forged token cannot paint a fake verified line" {
+	# An honest token prints the real green verified marker (the control).
+	run ./tools/jwt-verify -k ${HS256_KEY} ${HS256_RES}
+	[ "${status}" -eq 0 ]
+	[ "$(printf '%s' "${output}" | grep -Fc "${VERIFIED}")" -eq 1 ]
+	# The forged token fails and cannot produce that marker, as an argument...
+	run ./tools/jwt-verify -k ${HS256_KEY} "${SPOOF_TOK}"
+	[ "${status}" -eq 1 ]
+	[ "$(printf '%s' "${output}" | grep -Fc "${VERIFIED}")" -eq 0 ]
+	# ...nor through stdin.
+	run ./tools/jwt-verify -k ${HS256_KEY} - <<< "${SPOOF_TOK}"
+	[ "${status}" -eq 1 ]
+	[ "$(printf '%s' "${output}" | grep -Fc "${VERIFIED}")" -eq 0 ]
+}

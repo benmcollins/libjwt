@@ -77,18 +77,39 @@ key2jwk(1).\n", get_progname());
 	exit(exit_state);
 }
 
+/* A control byte (below 0x20, or 0x7f) from a token or an error message is
+ * printed as \xNN, never sent to the terminal: a forged token could otherwise
+ * carry a CR and escape sequences that paint a fake "[YES] Verified" over its
+ * own "[BAD]" line. The colour and emoji framing around it is ours and is
+ * printed as is. */
+static void print_escaped(const char *str, size_t len)
+{
+	size_t i;
+
+	for (i = 0; i < len; i++) {
+		unsigned char c = (unsigned char)str[i];
+
+		if (c < 0x20 || c == 0x7f)
+			printf("\\x%02x", c);
+		else
+			putchar(c);
+	}
+}
+
 static void print_token_trunc(const char *str, size_t max_len)
 {
 	size_t len = strlen(str);
 
 	if (len <= max_len) {
-		printf("%s\n", str);
+		print_escaped(str, len);
 	} else {
 		size_t part_len = (max_len - 3) / 2;
 
-		printf("%.*s...%.*s\n", (int)part_len, str,
-		       (int)part_len, str + len - part_len);
+		print_escaped(str, part_len);
+		printf("...");
+		print_escaped(str + len - part_len, part_len);
 	}
+	putchar('\n');
 }
 
 static int process_one(jwt_checker_t *checker, int signed_only,
@@ -105,8 +126,13 @@ static int process_one(jwt_checker_t *checker, int signed_only,
 
 	if (jwt_checker_verify(checker, token)) {
 		if (!quiet) {
-			printf("\xF0\x9F\x91\x8E \033[0;91m[BAD]\033[0m %s\n",
-				jwt_checker_error_msg(checker));
+			const char *msg = jwt_checker_error_msg(checker);
+
+			/* The message echoes the token's "alg" header, so it
+			 * is escaped too. */
+			printf("\xF0\x9F\x91\x8E \033[0;91m[BAD]\033[0m ");
+			print_escaped(msg, strlen(msg));
+			putchar('\n');
 		}
 		err = 1;
 	} else if (!quiet) {
