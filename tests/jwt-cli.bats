@@ -605,3 +605,17 @@ FORGED_TOK="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiJ9.AAAA"
 		-a HS256 -k ${HS256_KEY}
 	[ "${status}" -ne 0 ]
 }
+
+# GHSA-g7xw-4cjw-2247: --print runs its validator only with --verbose. Without
+# -v the validator was silently skipped and the token passed on its signature
+# alone; it is now a usage error.
+@test "--print without --verbose is a usage error" {
+	run ./tools/jwt-verify -k ${HS256_KEY} -p false ${HS256_RES}
+	[ "${status}" -eq 1 ]
+	echo "${output}" | grep -q 'requires --verbose'
+	run ./tools/jwt-verify -q -k ${HS256_KEY} -p false ${HS256_RES}
+	[ "${status}" -eq 1 ]
+	# With -v the validator runs, and its non-zero status fails the token.
+	run ./tools/jwt-verify -v -k ${HS256_KEY} -p false ${HS256_RES}
+	[ "${status}" -eq 1 ]
+}

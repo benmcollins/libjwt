@@ -103,7 +103,8 @@ Multi\-signature acceptance policy when a keyring is used: \f[B]any\f[R]
 \f[B]\-p\f[R] \f[I]CMD\f[R], \f[B]\-\-print\f[R]=\f[I]CMD\f[R]
 Pipe JSON of header and payload to \f[I]CMD\f[R] through its
 \f[B]stdin\f[R].
-This option only makes sense with \f[B]\-\-verbose\f[R].
+Requires \f[B]\-\-verbose\f[R]; without it the command would never run,
+so it is a usage error.
 .SH EXIT STATUS
 .TP
 \f[B]0\f[R]

@@ -42,7 +42,7 @@ Decode and (optionally) verify the signature for a JSON Web Token\n\
   -l, --list            List supported algorithms and exit\n\
   -a, --algorithm=ALG   JWT algorithm to use (e.g. ES256). Only needed if the key\n\
                         provided with -k does not have an \"alg\" attribute\n\
-  -p, --print=CMD       When printing JSON, pipe through CMD\n\
+  -p, --print=CMD       When printing JSON, pipe through CMD (requires -v)\n\
   -k, --key=FILE        Filename containing a JSON Web Key\n\
   -r, --keyring=FILE    Filename containing a JWKS to verify against (RFC 7515),\n\
                         for Compact and (multi-signature) JSON tokens alike: a\n\
@@ -320,6 +320,11 @@ int main(int argc, char *argv[])
 	if (key_file && keyring_file)
 		usage("--key and --keyring are mutually exclusive",
 		      EXIT_FAILURE);
+
+	/* --print runs its command only with --verbose; without it the command
+	 * would be silently skipped and a token pass on its signature alone. */
+	if (pipe_cmd && !verbose)
+		usage("--print requires --verbose", EXIT_FAILURE);
 
 	/* Load a keyring (a JWKS) for multi-signature verification. */
 	if (keyring_file) {

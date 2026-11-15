@@ -88,8 +88,9 @@ program being ended by a signal.
   signature in the token must verify).
 
 **\-p** _CMD_, **\-\-print**=_CMD_
-  ~ Pipe JSON of header and payload to _CMD_ through its **stdin**. This option
-  only makes sense with **\-\-verbose**.
+  ~ Pipe JSON of header and payload to _CMD_ through its **stdin**. Requires
+  **\-\-verbose**; without it the command would never run, so it is a usage
+  error.
 
 # EXIT STATUS
 
