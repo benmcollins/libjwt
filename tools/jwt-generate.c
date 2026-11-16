@@ -257,6 +257,11 @@ int main(int argc, char *argv[])
 		}
 
 		it = jwks_item_get(sets[i], 0);
+		if (it == NULL) {
+			fprintf(stderr, "ERR: No key found in %s\n",
+				key_files[i]);
+			exit(EXIT_FAILURE);
+		}
 		if (jwks_item_error(it)) {
 			fprintf(stderr, "ERR: Could not read JWK: %s\n",
 				jwks_item_error_msg(it));
