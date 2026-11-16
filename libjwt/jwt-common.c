@@ -742,6 +742,19 @@ static int __verify(jwt_common_t *__cmd, const char *token)
 		return 1;
 	}
 
+	/* The token is copied whole and sliced into header, payload and
+	 * signature, each measured with a length held in int (jwt_parse(),
+	 * jwt_base64uri_decode(), and verify_entry() on the JSON path). A
+	 * length of INT_MAX or more does not fit that int, so a token that
+	 * long cannot be handled correctly. No real token is anywhere near
+	 * that large, so reject it here, before any of that runs. */
+	if (strlen(token) >= INT_MAX) {
+		// LCOV_EXCL_START
+		jwt_write_error(__cmd, "Token too large");
+		return 1;
+		// LCOV_EXCL_STOP
+	}
+
 	/* @rfc{7515,7.2} A token whose first non-whitespace byte is '{' is a
 	 * JWS JSON Serialization; otherwise it is the Compact form. */
 	{
