@@ -77,23 +77,19 @@ key2jwk(1).\n", get_progname());
 	exit(exit_state);
 }
 
-/* A control byte (below 0x20, or 0x7f) from a token or an error message is
- * printed as \xNN, never sent to the terminal: a forged token could otherwise
- * carry a CR and escape sequences that paint a fake "[YES] Verified" over its
- * own "[BAD]" line. The colour and emoji framing around it is ours and is
- * printed as is. */
+/* A token, or an error message (which can quote the token's "alg"), is
+ * printed on stdout with write_escaped() from jwt-util.h, so that a UTF-8
+ * terminal reads no control character from it. Each byte below 0x20, 0x7f,
+ * each byte that does not start well-formed UTF-8 (RFC 3629: no overlong
+ * form, no surrogate, nothing above U+10FFFF, nothing cut short) and both
+ * bytes of a C1 control (U+0080 to U+009F, encoded C2 80 to C2 9F) are
+ * printed as \xNN. Printable ASCII and all other well-formed UTF-8 are
+ * printed as they are. On a UTF-8 terminal, a CR, an ESC or a CSI from a
+ * token therefore cannot change the "[TOK]", "[BAD]" or "[YES]" lines. The
+ * colour and emoji framing around the text is ours and is printed as is. */
 static void print_escaped(const char *str, size_t len)
 {
-	size_t i;
-
-	for (i = 0; i < len; i++) {
-		unsigned char c = (unsigned char)str[i];
-
-		if (c < 0x20 || c == 0x7f)
-			printf("\\x%02x", c);
-		else
-			putchar(c);
-	}
+	write_escaped(stdout, str, len, 0);
 }
 
 static void print_token_trunc(const char *str, size_t max_len)

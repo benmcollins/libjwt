@@ -657,3 +657,167 @@ SPOOF_TOK="eyJhbGciOiAiXHJcdTAwMWJbMktcdWQ4M2RcdWRjNGQgXHUwMDFiWzA7OTJtW1lFU11cd
 	[ "${status}" -eq 1 ]
 	[ "$(printf '%s' "${output}" | grep -Fc "${VERIFIED}")" -eq 0 ]
 }
+
+# jwt-verify shows text from a token (the [TOK] line, a [BAD] message that
+# quotes its "alg", the --verbose dump) through one escaper, which jwt-generate
+# shares for its dump: a byte below 0x20, DEL, a byte that does not start
+# well-formed UTF-8 and both bytes of a C1 control (U+0080 to U+009F, encoded
+# C2 80 to C2 9F) are shown as \xNN. Printable ASCII and all other well-formed
+# UTF-8 are shown as they are. The output is matched with LC_ALL=C grep -a, as
+# it holds bytes from 0x80 up.
+#
+# MIXED_TOK is 57 bytes, so the [TOK] line shows all of it (it shortens a
+# token longer than 60): ESC, TAB, DEL, the C1 controls U+009B and U+009F (C2
+# 9B, C2 9F), a lone 9B, then U+00A0 (C2 A0), e-acute (C3 A9), the euro sign
+# (E2 82 AC) and an emoji (F0 9F 98 80). Then malformed UTF-8, each case read
+# from its first byte (after a "|", or after a whole character): C0 AF, E0 80
+# 80 and F0 8F BF BF (overlong forms), ED A0 80 (a surrogate), F4 90 80 80
+# (above U+10FFFF), F5 80 80 80 (no lead byte above F4), a lone 80, E2
+# followed by "A", E2 followed by e-acute, the emoji with "A" for its last
+# byte, and E2 82 cut off at the end.
+MIXED_TOK=$'\033\t\x7f\xc2\x9b\xc2\x9f\x9b'
+MIXED_TOK+=$'\xc2\xa0\xc3\xa9\xe2\x82\xac\xf0\x9f\x98\x80'
+MIXED_TOK+=$'\xc0\xaf|\xe0\x80\x80|\xf0\x8f\xbf\xbf|\xed\xa0\x80|'
+MIXED_TOK+=$'\xf4\x90\x80\x80|\xf5\x80\x80\x80|\x80'
+MIXED_TOK+=$'\xe2A\xe2\xc3\xa9\xf0\x9f\x98A\xe2\x82'
+# What the [TOK] line shows of it: the valid characters that are not controls
+# (C2 A0, C3 A9, E2 82 AC and F0 9F 98 80) as they are, every other byte below
+# 0x20 or from 0x7f up as \xNN, and each byte of a malformed case on its own,
+# so what follows it ("A", e-acute) as it is.
+MIXED_SHOWN='\x1b\x09\x7f\xc2\x9b\xc2\x9f\x9b'
+MIXED_SHOWN+=$'\xc2\xa0\xc3\xa9\xe2\x82\xac\xf0\x9f\x98\x80'
+MIXED_SHOWN+='\xc0\xaf|\xe0\x80\x80|\xf0\x8f\xbf\xbf|\xed\xa0\x80|'
+MIXED_SHOWN+='\xf4\x90\x80\x80|\xf5\x80\x80\x80|\x80'
+MIXED_SHOWN+='\xe2A\xe2'$'\xc3\xa9''\xf0\x9f\x98A\xe2\x82'
+# How a [TOK] line starts for a token checked without a key.
+TOK_NOKEY=$'\xf0\x9f\x94\x93 \033[0;93m[TOK]\033[0m '
+
+@test "The [TOK] line escapes control bytes and malformed UTF-8 only" {
+	[ "$(printf '%s' "${MIXED_TOK}" | wc -c)" -eq 57 ]
+	run ./tools/jwt-verify "${MIXED_TOK}"
+	[ "${status}" -eq 1 ]
+	[ "$(printf '%s\n' "${output}" | LC_ALL=C grep -a '\[TOK\]')" = \
+		"${TOK_NOKEY}${MIXED_SHOWN}" ]
+	run ./tools/jwt-verify - <<< "${MIXED_TOK}"
+	[ "${status}" -eq 1 ]
+	[ "$(printf '%s\n' "${output}" | LC_ALL=C grep -a '\[TOK\]')" = \
+		"${TOK_NOKEY}${MIXED_SHOWN}" ]
+}
+
+# Both sides of each edge of the UTF-8 ranges (RFC 3629). EDGE_TOK is well
+# formed and shown as it is: U+07FF (DF BF), U+0800 (E0 A0 80), U+D7FF (ED 9F
+# BF), U+E000 (EE 80 80), U+FFFD (EF BF BD), U+10000 (F0 90 80 80), U+40000
+# (F1 80 80 80) and U+10FFFF (F4 8F BF BF), but for U+0080 (C2 80), the first
+# C1 control, shown as \xNN. PAST_TOK is just past the edges, so each of its
+# bytes is shown as \xNN: C1 BF and E0 9F BF (overlong forms of U+007F and
+# U+07FF), then E2 with 7F or C0 (just outside 80-BF) as its second or third
+# byte. MIXED_TOK has the other side of the ED, F0 and F4 edges, F5, and C2 9F
+# and C2 A0 at the top of the C1 controls.
+EDGE_TOK=$'\xc2\x80\xdf\xbf\xe0\xa0\x80\xed\x9f\xbf\xee\x80\x80'
+EDGE_TOK+=$'\xef\xbf\xbd\xf0\x90\x80\x80\xf1\x80\x80\x80\xf4\x8f\xbf\xbf'
+EDGE_SHOWN='\xc2\x80'$'\xdf\xbf\xe0\xa0\x80\xed\x9f\xbf\xee\x80\x80'
+EDGE_SHOWN+=$'\xef\xbf\xbd\xf0\x90\x80\x80\xf1\x80\x80\x80\xf4\x8f\xbf\xbf'
+PAST_TOK=$'\xc1\xbf|\xe0\x9f\xbf|\xe2\x7f\x80|'
+PAST_TOK+=$'\xe2\xc0\x80|\xe2\x80\x7f|\xe2\x80\xc0'
+PAST_SHOWN='\xc1\xbf|\xe0\x9f\xbf|\xe2\x7f\x80|'
+PAST_SHOWN+='\xe2\xc0\x80|\xe2\x80\x7f|\xe2\x80\xc0'
+
+@test "The [TOK] line keeps UTF-8 at the edges of each range, not past them" {
+	run ./tools/jwt-verify "${EDGE_TOK}"
+	[ "${status}" -eq 1 ]
+	[ "$(printf '%s\n' "${output}" | LC_ALL=C grep -a '\[TOK\]')" = \
+		"${TOK_NOKEY}${EDGE_SHOWN}" ]
+	run ./tools/jwt-verify "${PAST_TOK}"
+	[ "${status}" -eq 1 ]
+	[ "$(printf '%s\n' "${output}" | LC_ALL=C grep -a '\[TOK\]')" = \
+		"${TOK_NOKEY}${PAST_SHOWN}" ]
+}
+
+# A token longer than 60 bytes is shown as its first 28 bytes, "..." and its
+# last 28. Each part is escaped on its own and no byte past it is read, so a
+# character the cut splits is shown as \xNN on both sides. Here the first part
+# ends in the first byte of a euro sign (E2 82 AC), the last part starts with
+# the last two bytes of another one and ends in a whole third one.
+@test "A character split where the [TOK] line is shortened is escaped" {
+	a27="$(printf 'a%.0s' {1..27})"
+	c23="$(printf 'c%.0s' {1..23})"
+	euro=$'\xe2\x82\xac'
+	tok="${a27}${euro}mmmm${euro}${c23}${euro}"
+	[ "$(printf '%s' "${tok}" | wc -c)" -eq 63 ]
+	run ./tools/jwt-verify "${tok}"
+	[ "${status}" -eq 1 ]
+	[ "$(printf '%s\n' "${output}" | LC_ALL=C grep -a '\[TOK\]')" = \
+		"${TOK_NOKEY}${a27}"'\xe2...\x82\xac'"${c23}${euro}" ]
+}
+
+# {"alg":"<U+009B as C2 9B>"} . {} . (no signature)
+C1_ALG_TOK="eyJhbGciOiLCmyJ9.e30."
+
+@test "The [BAD] line escapes a C1 control quoted from the alg" {
+	run ./tools/jwt-verify -k ${HS256_KEY} "${C1_ALG_TOK}"
+	[ "${status}" -eq 1 ]
+	printf '%s\n' "${output}" | LC_ALL=C grep -a '\[BAD\]' |
+		LC_ALL=C grep -aqF '[\xc2\x9b]'
+	[ "$(printf '%s\n' "${output}" | LC_ALL=C grep -acF $'\xc2\x9b')" -eq 0 ]
+}
+
+# A string claim of U+009B (C2 9B), DEL and e-acute (C3 A9), which the JSON
+# encoders leave as they are, and the way the dump shows it.
+C1_CLAIM=$'\xc2\x9b\x7f\xc3\xa9'
+C1_SHOWN='"note": "\xc2\x9b\x7f'$'\xc3\xa9''"'
+
+# Check the --verbose output in ${output} for a token whose payload holds only
+# the claim "note". Jansson spreads a dump over indented lines and json-c
+# prints it on one, so the line of the claim must be Jansson's indented member
+# line or json-c's whole payload dump in its colour codes. Each of the two
+# dumps (header and payload) starts with its colour code and ends its own
+# line with the reset, so the [PAYLOAD] title has a line to itself. No line
+# break or tab of a dump is shown as \xNN.
+check_note_dump() {
+	local line
+
+	line="$(printf '%s\n' "${output}" | LC_ALL=C grep -aF '"note": ')"
+	[ "${line}" = "    ${C1_SHOWN}" ] ||
+		[ "${line}" = $'\033[0;96m{'"${C1_SHOWN}"$'}\033[0m' ]
+	[ "$(printf '%s\n' "${output}" |
+		LC_ALL=C grep -acF $'\xc2\x9b')" -eq 0 ]
+	[ "$(printf '%s\n' "${output}" | LC_ALL=C grep -acF $'\x7f')" -eq 0 ]
+	[ "$(printf '%s\n' "${output}" |
+		LC_ALL=C grep -acF -e '\x0a' -e '\x09')" -eq 0 ]
+	[ "$(printf '%s\n' "${output}" |
+		LC_ALL=C grep -acF $'\033[0;96m{')" -eq 2 ]
+	[ "$(printf '%s\n' "${output}" |
+		LC_ALL=C grep -acF $'}\033[0m')" -eq 2 ]
+	[ "$(printf '%s\n' "${output}" |
+		LC_ALL=C grep -acxF $'\033[0;95m[PAYLOAD]\033[0m')" -eq 1 ]
+}
+
+@test "The --verbose dump escapes control bytes and keeps its layout" {
+	tok="$(./tools/jwt-generate -q -n -k ${HS256_KEY} -c "s:note=${C1_CLAIM}")"
+	run ./tools/jwt-verify -v -k ${HS256_KEY} "${tok}"
+	[ "${status}" -eq 0 ]
+	check_note_dump
+	# jwt-generate prints the same dump, on stderr.
+	run ./tools/jwt-generate -v -n -k ${HS256_KEY} -c "s:note=${C1_CLAIM}"
+	[ "${status}" -eq 0 ]
+	check_note_dump
+}
+
+# The command of --print is given the JSON as it is, not the shown text. It is
+# run once for the header and once for the payload.
+@test "--print gets the JSON unescaped" {
+	raw="${BATS_TMPDIR:-/tmp}/print_raw_$$.json"
+	tok="$(./tools/jwt-generate -q -n -k ${HS256_KEY} -c "s:note=${C1_CLAIM}")"
+	rm -f "${raw}"
+	run ./tools/jwt-verify -v -p "cat >> '${raw}'" -k ${HS256_KEY} "${tok}"
+	[ "${status}" -eq 0 ]
+	[ "$(LC_ALL=C grep -acF "${C1_CLAIM}" "${raw}")" -eq 1 ]
+	[ "$(LC_ALL=C grep -acF '\x' "${raw}")" -eq 0 ]
+	rm -f "${raw}"
+	run ./tools/jwt-generate -v -n -p "cat >> '${raw}'" -k ${HS256_KEY} \
+		-c "s:note=${C1_CLAIM}"
+	[ "${status}" -eq 0 ]
+	[ "$(LC_ALL=C grep -acF "${C1_CLAIM}" "${raw}")" -eq 1 ]
+	[ "$(LC_ALL=C grep -acF '\x' "${raw}")" -eq 0 ]
+	rm -f "${raw}"
+}
