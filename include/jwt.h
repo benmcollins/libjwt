@@ -208,7 +208,7 @@ typedef enum {
  * @since 3.0.0
  */
 typedef enum {
-	JWK_KEY_TYPE_NONE = 0,		/**< Unused on valid keys */
+	JWK_KEY_TYPE_NONE = 0,		/**< The ``kty`` was not recognised (such a key is in error) */
 	JWK_KEY_TYPE_EC,		/**< Elliptic Curve keys */
 	JWK_KEY_TYPE_RSA,		/**< RSA keys (RSA and RSA-PSS) */
 	JWK_KEY_TYPE_OKP,		/**< Octet Key Pair (e.g. EdDSA) */
@@ -317,6 +317,14 @@ typedef struct {
  * This object is produced by importing a JWK or JWKS into a  @ref jwk_set_t
  * object. It represents single key and is used when generating or verifying
  * JWT.
+ *
+ * A JWK that fails to load is still added to its keyring, marked in error
+ * (see jwks_item_error()). LibJWT never signs, verifies, encrypts or decrypts
+ * with a key in error: giving one to a builder or checker fails, and a keyring
+ * (jwt_checker_setkeyring()) skips it as if it were absent.
+ *
+ * @note Before 3.6.3 a key in error could still be used
+ * (GHSA-4jp4-6w6j-ff4q).
  * @since 3.0.0
  */
 typedef struct jwk_item jwk_item_t;
@@ -520,6 +528,13 @@ void jwt_builder_error_clear(jwt_builder_t *builder);
  * @warning The warning represents an insecure token. Using insecure tokens is
  * not very useful and strongly discouraged.
  *
+ * A key that is in error (jwks_item_error()) is refused, whatever @p alg is,
+ * and the builder keeps the key it has. A builder that has none is not left to
+ * produce unsigned tokens for an application that ignores the failure:
+ * jwt_builder_generate() fails rather than emit one, until this function
+ * succeeds (with a key that works, or with ::JWT_ALG_NONE and a NULL key to
+ * ask for unsigned tokens) or a callback supplies the key.
+ *
  * @param builder Pointer to a builder object
  * @param alg A valid jwt_alg_t type
  * @param key A JWK key object
@@ -588,9 +603,13 @@ int jwt_builder_set_format(jwt_builder_t *builder, jwt_serialization_t format);
  * ::JWT_FORMAT_JSON_GENERAL: in ::JWT_FORMAT_COMPACT, jwt_builder_generate()
  * fails rather than emit a token without it.
  *
+ * A key that is in error (jwks_item_error()) is refused, and no signer is
+ * added. As with jwt_builder_setkey(), the builder then emits no unsigned
+ * token in its place.
+ *
  * @param builder Pointer to a builder object
  * @param alg A valid ::jwt_alg_t type (not ::JWT_ALG_NONE)
- * @param key A JWK private key matching @p alg
+ * @param key A JWK private key matching @p alg (one in error is refused)
  * @return A borrowed ::jwt_signature_t handle (owned by the builder), or NULL
  *  on error with the error set in the builder
  * @since 3.6.0
@@ -1015,7 +1034,12 @@ void jwt_checker_error_clear(jwt_checker_t *checker);
  * key's ``"alg"``), not merely one the key could check (e.g. RS512 or PS256
  * when pinned to RS256). A verify callback that sets config->alg pins that
  * algorithm instead. The key is used whatever its ``"use"`` or
- * ``"key_ops"``, unlike the keys of a keyring (see jwt_checker_setkeyring()).
+ * ``"key_ops"``, unlike the keys of a keyring (see jwt_checker_setkeyring()),
+ * but a key that is in error (jwks_item_error()) is refused. The checker keeps
+ * the key or keyring it has, and one that has neither is not left unkeyed: it
+ * rejects every token, an unsigned one included, until it is given a key or
+ * keyring, its verify callback supplies the key, or this is called with a
+ * NULL key.
  *
  * A NULL key (with ::JWT_ALG_NONE) also drops a keyring. Unless embedded-JWK
  * verification is enabled (this does not turn it off), the checker is then
@@ -1063,11 +1087,13 @@ typedef enum {
  * a JSON Serialization signature by signature, and a Compact token exactly as
  * the equivalent one-signature (Flattened) JSON token.
  *
- * Only ring keys meant for signatures are candidates: not a key whose
- * ``"use"`` is present and is not ``"sig"``, nor one whose ``"key_ops"`` is
- * present and includes neither ``"verify"`` nor ``"sign"`` (e.g. a
- * key-wrapping key). Every key that libjwt imports (jwks_load_fromkey()) or
- * generates (jwks_generate()) is a candidate. A signature whose protected
+ * Only ring keys that loaded and are meant for signatures are candidates: not
+ * a key in error (jwks_item_error()), nor one whose ``"use"`` is present and
+ * is not ``"sig"``, nor one whose ``"key_ops"`` is present and includes
+ * neither ``"verify"`` nor ``"sign"`` (e.g. a key-wrapping key). A key that is
+ * not a candidate is skipped as if it were not in the ring, and the other
+ * keys are used as usual. Every key that libjwt imports (jwks_load_fromkey())
+ * or generates (jwks_generate()) is a candidate. A signature whose protected
  * header names a ``kid`` is verified only against the candidate with that
  * ``kid``; if there is none, that signature does not verify (there is no
  * fallback to the other keys). A ``kid`` that is not a string, in either
@@ -1081,8 +1107,8 @@ typedef enum {
  * ends the verification), the claim checks and the jti check all apply, and
  * an unsigned (``"alg":"none"``) token is never accepted. The callback may
  * supply the key, which is then the only one tried, whatever its ``"use"`` or
- * ``"key_ops"``; if it sets config->alg, a signature with another ``"alg"``
- * does not verify.
+ * ``"key_ops"`` (unless it is in error: then none is); if it sets
+ * config->alg, a signature with another ``"alg"`` does not verify.
  *
  * A ring key is not tied to an issuer: when the ring holds the keys of several
  * issuers, a token without a ``kid`` verifies with whichever of them signed
@@ -1119,6 +1145,9 @@ typedef enum {
  * all: a checker given only a keyring rejected every signed Compact token
  * (unless its verify callback supplied the key) and accepted an unsigned one
  * (GHSA-mhc9-xvg5-qg29).
+ *
+ * @note Before 3.6.3 a ring key in error was still a candidate, as was a key
+ * in error that the callback supplied (GHSA-4jp4-6w6j-ff4q).
  *
  * @param checker Pointer to a checker object
  * @param keyring A JWKS of candidate keys (borrowed, not freed by the checker)
@@ -1208,9 +1237,24 @@ int jwt_checker_require(jwt_checker_t *checker, const char **claims,
  * confirmed key is still held to the usual key-type/algorithm binding. Combine
  * with jwt_checker_setalgs() to bound the acceptable algorithms.
  *
+ * The header key has to be a public key (@rfc{7515,4.1.3}). A @c "jwk" that
+ * is a private key, the signer's own included, or a symmetric (``"oct"``)
+ * key is refused like one that does not match the pin: verification fails
+ * with "Embedded JWK is missing or not confirmed" and no signature is
+ * checked. So is one that merely carries a member a public JWK does not have
+ * (``"d"``, ``"k"`` and the others that jwks_item_export() strips, whatever
+ * its value), or that is a JWK set (a ``"keys"`` member). Put the public JWK
+ * in the header, e.g. as jwks_item_export() gives it when its ``priv``
+ * argument is zero; the key must carry its public member (a seed-only private
+ * key has no public form to embed).
+ *
  * Passing a NULL or empty @p expected_jkt fails: there is no "trust whatever is
  * embedded" mode. Applies to the Compact Serialization (what DPoP/OpenID4VCI
  * use). Mutually exclusive with the keyring form; the last call wins.
+ *
+ * @note Before 3.6.3 a header @c "jwk" that was a private or a symmetric key
+ * was confirmed, and used to verify, like a public one
+ * (GHSA-vmf4-mvgm-7vpv).
  *
  * @param checker Pointer to a checker object
  * @param alg The hash for the thumbprint comparison (see @ref jwk_thumbprint_alg_t)
@@ -1230,10 +1274,15 @@ int jwt_checker_enable_embedded_jwk(jwt_checker_t *checker,
  *
  * As jwt_checker_enable_embedded_jwk(), but the protected-header @c "jwk" is
  * accepted only if its JWK Thumbprint (@p alg) matches that of some key in @p
- * allowed (via jwks_find_bythumbprint()). Use this when the set of acceptable
- * holder keys is known in advance rather than pinned per token. The keyring is
- * borrowed: the caller retains ownership and must keep it valid for the
- * lifetime of the checker.
+ * allowed (via jwks_find_bythumbprint()). A key in error, in the header or in
+ * @p allowed, has no thumbprint and so never matches. Use this when the set of
+ * acceptable holder keys is known in advance rather than pinned per token. The
+ * keyring is borrowed: the caller retains ownership and must keep it valid
+ * for the lifetime of the checker.
+ *
+ * As with the pin, a header @c "jwk" that is a private or a symmetric key is
+ * refused, even if its thumbprint is that of a key in @p allowed. The keys in
+ * @p allowed may themselves be private keys: only their thumbprints are used.
  *
  * Passing a NULL @p allowed fails. Mutually exclusive with the pinned form; the
  * last call wins.
@@ -1274,6 +1323,8 @@ int jwt_checker_enable_embedded_jwk_keyring(jwt_checker_t *checker,
  * verified.
  *
  * The callback can also set the key and algorithm used to verify the signature.
+ * A key in error (jwks_item_error()) is never used: the signature it was set
+ * for does not verify.
  * If the callback returns non-zero, then processing will stop and return an
  * error, except as described next for a JWS JSON Serialization. A JWS JSON
  * Serialization needs a key or keyring on the checker: one with neither fails
@@ -1505,10 +1556,10 @@ int jwt_checker_sig_verified(const jwt_checker_t *checker, unsigned int index);
  *  index is out of range. It is borrowed, so do not free it: it belongs to
  *  the keyring, or to whoever supplied it (jwt_checker_setkey() or the
  *  verify callback), except that a key confirmed by embedded-JWK
- *  verification belongs to the checker, which keeps it only until the next
- *  jwt_checker_verify() or jwt_checker_verify_detached() call on @p checker
- *  (even one that fails at once, as on a NULL or empty token) or
- *  jwt_checker_free().
+ *  verification (always a public key) belongs to the checker, which keeps it
+ *  only until the next jwt_checker_verify() or jwt_checker_verify_detached()
+ *  call on @p checker (even one that fails at once, as on a NULL or empty
+ *  token) or jwt_checker_free().
  * @since 3.6.0
  */
 JWT_EXPORT
@@ -2099,7 +2150,8 @@ jwt_value_error_t jwt_claim_del(jwt_t *jwt, const char *claim);
  *
  * @param builder Pointer to a builder object
  * @param key The proof-of-possession public key to bind the token to
- * @return 0 on success, non-zero on error
+ * @return 0 on success, non-zero on error (including a key in error, which
+ *  has no thumbprint)
  * @since 3.6.0
  */
 JWT_EXPORT
@@ -2111,11 +2163,18 @@ int jwt_builder_setcnf_jkt(jwt_builder_t *builder, const jwk_item_t *key);
  * @rfc{7800,3.2}
  *
  * Sets @c "cnf" to a single @c "jwk" member holding the public JWK of @p key.
- * Only public parameters are embedded. Any existing @c "cnf" is replaced.
+ * Only public parameters are embedded: the public form of the key, as
+ * jwks_item_export() gives it. Any existing @c "cnf" is replaced.
+ *
+ * @note A key in error is refused, which includes a public key the active
+ * crypto backend cannot load (it has no thumbprint, e.g. an ``"AKP"`` public
+ * key in a build without ML-DSA). Before 3.6.3 a key in error was embedded as
+ * it was loaded, and one whose ``kty`` was not recognised was embedded whole,
+ * private members included (GHSA-4jp4-6w6j-ff4q).
  *
  * @param builder Pointer to a builder object
  * @param key The proof-of-possession public key to embed
- * @return 0 on success, non-zero on error
+ * @return 0 on success, non-zero on error (including a key in error)
  * @since 3.6.0
  */
 JWT_EXPORT
@@ -2437,10 +2496,14 @@ void jwe_builder_error_clear(jwe_builder_t *builder);
 /**
  * @brief Set the key and algorithms for a JWE builder
  *
+ * A key that is in error (jwks_item_error()) is refused, and the builder keeps
+ * the key it has, as for jwt_builder_setkey().
+ *
  * @param builder Pointer to a JWE builder object
  * @param alg The JWE key management algorithm (``"alg"`` header)
  * @param enc The JWE content encryption algorithm (``"enc"`` header)
- * @param key The recipient key (a JWK) used for key management
+ * @param key The recipient key (a JWK) used for key management (one in
+ *  error is refused)
  * @return 0 on success, non-zero otherwise with error set in the builder
  * @since 3.4.0
  */
@@ -2486,7 +2549,7 @@ int jwe_builder_set_partyinfo(jwe_builder_t *builder,
  *
  * @param builder Pointer to a JWE builder object
  * @param alg The recipient's key management algorithm (``"alg"`` header)
- * @param key The recipient's key (a JWK)
+ * @param key The recipient's key (a JWK; one in error is refused)
  * @return A borrowed recipient handle (owned by the builder, valid until it is
  *  freed) on success, or NULL on error (with the error set in the builder)
  *
@@ -2754,10 +2817,14 @@ void jwe_checker_error_clear(jwe_checker_t *checker);
 /**
  * @brief Set the key and algorithms for a JWE checker
  *
+ * A key that is in error (jwks_item_error()) is refused, and the checker keeps
+ * the key it has, as for jwt_checker_setkey().
+ *
  * @param checker Pointer to a JWE checker object
  * @param alg The expected JWE key management algorithm (``"alg"`` header)
  * @param enc The expected JWE content encryption algorithm (``"enc"`` header)
- * @param key The key (a JWK) used to recover the CEK
+ * @param key The key (a JWK) used to recover the CEK (one in error is
+ *  refused)
  * @return 0 on success, non-zero otherwise with error set in the checker
  * @since 3.4.0
  */
@@ -2871,7 +2938,28 @@ const unsigned char *jwe_checker_get_aad(const jwe_checker_t *checker,
  * If non-NULL is returned, you should then check to make sure there
  * is no error with jwks_error(). There may be errors on individual
  * JWK items in the set. You can check if there are any with
- * jwks_error_any().
+ * jwks_error_any(). A JWK in error stays in the keyring, where LibJWT never
+ * uses it (see ::jwk_item_t); jwks_item_free_bad() removes those.
+ *
+ * A private key that also states its public key has to agree with itself:
+ * the ``x`` of an ``OKP`` key (@rfc{8037}) must be the public key of its
+ * ``d``, and the ``pub`` of an ``AKP`` key (ML-DSA) that of its ``priv``
+ * seed. The OpenSSL and GnuTLS backends compare the two, and a key whose
+ * public member is another key's is in error ("OKP private key does not
+ * match its public key", "AKP private key does not match its public key").
+ * So is one whose public member is there but cannot be read (not a string,
+ * not base64url, or of the wrong length). A private key without the public
+ * member is taken as it is. The MbedTLS backend does not compare them: it
+ * keeps ``x`` and ``d`` apart, encrypts to the one and decrypts with the
+ * other, and has no EdDSA and no ML-DSA. Nor are ``EC`` and ``RSA`` keys
+ * compared: every backend verifies and encrypts with their public members as
+ * stated.
+ *
+ * @note Before 3.6.3 the two members were not compared. Under OpenSSL and
+ * GnuTLS a key that stated another key's public member verified with the key
+ * of its private member (under OpenSSL it encrypted to that key as well),
+ * while its thumbprint (jwks_item_thumbprint()) and its public form were
+ * those of the member it stated (GHSA-vmf4-mvgm-7vpv).
  *
  * @param jwk_set Either NULL to create a new set, or an existing jwt_set
  *   to add new keys to it.
@@ -3317,7 +3405,9 @@ const jwk_item_t *jwks_item_get(const jwk_set_t *jwk_set, size_t index);
  * @brief Find a jwk_item_t with a specific kid (Key ID)
  *
  * LibJWT does not ensure that kid's are unique in a given keyring, so care
- * must be taken. This will return the first match.
+ * must be taken. This will return the first match, which can be a key in
+ * error (check jwks_item_error()) even if a later key with that ``kid`` is
+ * not. A keyring given to jwt_checker_setkeyring() skips keys in error itself.
  *
  * @param jwk_set An existing jwk_set_t
  * @param kid String representing a ``kid`` to find
@@ -3331,7 +3421,9 @@ jwk_item_t *jwks_find_bykid(jwk_set_t *jwk_set, const char *kid);
  * @brief Whether this key is private (or public)
  *
  * @param item A JWK Item
- * @return 1 for true, 0 for false
+ * @return 1 for a private key, 0 for a public key. Also 0 for a key that
+ *  failed to load (jwks_item_error()): a backend need not have learned whether
+ *  it was private, so 0 here does not by itself mean the key is public.
  * @since 3.0.0
  */
 JWT_EXPORT
@@ -3339,6 +3431,18 @@ int jwks_item_is_private(const jwk_item_t *item);
 
 /**
  * @brief Check the error condition for this JWK
+ *
+ * A key is in error when it could not be loaded (a malformed or unsupported
+ * JWK, one the active crypto backend rejected, or a private ``OKP`` or
+ * ``AKP`` key that does not match the public key it states, see jwks_load())
+ * or was flagged after it loaded (an ``alg`` that is not a string, a
+ * malformed ``x5c``, an ``x5t#S256`` that is not that of its ``x5c`` leaf
+ * certificate, or a leaf that does not hold the key of the JWK, see
+ * jwks_item_x5c()). Such a key is unusable: LibJWT refuses it for signing,
+ * verifying, encrypting and decrypting, and it has no thumbprint, certificate
+ * chain or certificate thumbprints to read -- nor any in its public form
+ * (jwks_item_export()), which drops its ``x5c`` binding too.
+ * jwks_item_error_msg() says what is wrong with it.
  *
  * @param item A JWK Item
  * @return 1 for true, 0 for false
@@ -3426,7 +3530,9 @@ jwk_key_op_t jwks_item_key_ops(const jwk_item_t *item);
  * @brief The PEM generated for the JWK
  *
  * This is an optional field that may or may not be supported depending on
- * which crypto backend is in use. It is provided as a courtesy.
+ * which crypto backend is in use. It is provided as a courtesy. A key in
+ * error can have one too, when it parsed and was rejected afterwards: check
+ * jwks_item_error() before using it.
  *
  * @param item A JWK Item
  * @return A string of the PEM file for this key or NULL if none exists
@@ -3440,7 +3546,8 @@ const char *jwks_item_pem(const jwk_item_t *item);
  *
  * @param item A JWK Item
  * @return The number of X.509 certificates in the ``x5c`` chain, or 0 if the
- *  JWK has none (RFC 7517 §4.7).
+ *  JWK has none (RFC 7517 §4.7; an empty ``x5c`` array is not an error) or
+ *  is in error.
  * @since 3.6.0
  */
 JWT_EXPORT
@@ -3450,15 +3557,54 @@ size_t jwks_item_x5c_count(const jwk_item_t *item);
  * @brief Get a certificate from the JWK ``x5c`` chain (DER)
  *
  * Returns the raw DER bytes of the certificate at @p index in the ``x5c``
- * chain (index 0 is the leaf, which holds the public key matching the JWK).
- * The bytes are owned by the JWK item and remain valid until it is freed; the
- * caller must not free them. Certificate-chain validation is the caller's
- * responsibility (libjwt does not build or verify the trust chain).
+ * chain. The bytes are owned by the JWK item and remain valid until it is
+ * freed; the caller must not free them.
+ *
+ * Index 0 is the leaf. When the JWK was loaded, LibJWT followed the leaf's
+ * ASN.1 framing to its SubjectPublicKeyInfo and compared that public key with
+ * the key the other members of the JWK represent (RFC 7517 §4.7), so the leaf
+ * of a JWK that is not in error holds that JWK's key. A JWK whose leaf holds
+ * another key, or whose framing LibJWT cannot follow to a public key, is in
+ * error (see jwks_item_error()), and so is an ``oct`` key that has
+ * certificates. This confirms only that the leaf is bound to the key, not
+ * that the leaf is a certificate an X.509 library would otherwise accept.
+ *
+ * Only the key is compared, and of a private JWK only its public members: the
+ * leaf is matched against ``x``/``y``, ``n``/``e`` or ``x``/``pub`` whether
+ * the JWK is public or private, and a private member (``d``, ``priv``) is not
+ * checked against it. LibJWT does not verify the signature of any
+ * certificate, does not read its names, validity dates or extensions, and
+ * does not look at the certificates after the leaf: building and validating
+ * the chain is the caller's responsibility.
+ *
+ * What the leaf has to be, for each kind of key:
+ * - RSA: an rsaEncryption or id-RSASSA-PSS key (the parameters are not
+ *   read). ``n`` and ``e`` are compared as numbers. An id-RSASSA-PSS leaf
+ *   matches any RSA JWK: its PSS-only restriction is not read and does not
+ *   limit the algorithms the JWK may be used with.
+ * - EC: an id-ecPublicKey key on the named curve of ``crv`` (P-256, P-384,
+ *   P-521 or secp256k1) with an uncompressed point. ``x`` and ``y`` are
+ *   compared as numbers. A leaf with a compressed or hybrid point, or with
+ *   explicit curve parameters, does not match.
+ * - OKP (Ed25519, Ed448, X25519, X448) and AKP (ML-DSA-44, -65, -87): a key
+ *   of the algorithm that ``crv`` or ``alg`` names, without parameters.
+ *   ``x`` or ``pub`` is compared octet for octet, so a private JWK that
+ *   leaves it out cannot be compared, and is in error if it has
+ *   certificates.
+ *
+ * The elements LibJWT reads on the way to the key have to be DER: definite
+ * lengths in their shortest form, none of more than 16,777,215 octets. The
+ * rest of the certificate is not decoded, so its encoding is not checked.
+ *
+ * @note Before 3.6.3 the leaf was not compared with the key of the JWK, and
+ * the chain of a JWK in error was returned too, as was its length by
+ * jwks_item_x5c_count() (GHSA-4jp4-6w6j-ff4q).
  *
  * @param item A JWK Item
  * @param index The certificate index (0 is the leaf)
  * @param len If not NULL, set to the length of the DER in bytes
- * @return The DER bytes, or NULL if @p index is out of range
+ * @return The DER bytes, or NULL if @p index is out of range or the JWK is in
+ *  error
  * @since 3.6.0
  */
 JWT_EXPORT
@@ -3469,8 +3615,10 @@ const unsigned char *jwks_item_x5c(const jwk_item_t *item, size_t index,
  * @brief The JWK ``x5t`` (SHA-1 certificate thumbprint)
  *
  * @param item A JWK Item
- * @return The base64url ``x5t`` value (RFC 7517 §4.8), or NULL if absent. The
- *  legacy SHA-1 thumbprint is exposed as-is and not recomputed.
+ * @return The base64url ``x5t`` value (RFC 7517 §4.8), or NULL if absent or
+ *  the JWK is in error. The legacy SHA-1 thumbprint is exposed as stated:
+ *  LibJWT never checks it against ``x5c``, so do not trust a key because of
+ *  it.
  * @since 3.6.0
  */
 JWT_EXPORT
@@ -3482,10 +3630,19 @@ const char *jwks_item_x5t(const jwk_item_t *item);
  * If the JWK also carries an ``x5c`` chain, this value was verified at parse
  * time to equal ``base64url(SHA-256(DER(leaf)))`` (RFC 7517 §4.9); a JWK whose
  * ``x5t#S256`` disagrees with its ``x5c`` leaf is rejected (the item carries an
- * error).
+ * error), and for a JWK in error this returns NULL. This comes before the
+ * comparison of the leaf with the key of the JWK (see jwks_item_x5c()): if
+ * both fail, this is the error reported.
+ *
+ * Without an ``x5c`` chain there is nothing to verify the value against: it
+ * is returned as stated, and anyone can state any thumbprint.
+ *
+ * @note Before 3.6.3 the stated value was returned for a JWK in error too
+ * (GHSA-4jp4-6w6j-ff4q).
  *
  * @param item A JWK Item
- * @return The base64url ``x5t#S256`` value, or NULL if absent
+ * @return The base64url ``x5t#S256`` value, or NULL if absent or the JWK is in
+ *  error
  * @since 3.6.0
  */
 JWT_EXPORT
@@ -3497,11 +3654,38 @@ const char *jwks_item_x5t_s256(const jwk_item_t *item);
  * Produces the JSON Web Key representation of this item. This is the
  * serialization counterpart to the jwks_load_fromkey() import path.
  *
+ * The JWK is serialized as it was loaded, whether or not it is in error
+ * (jwks_item_error()). With @p priv zero it is reduced to its public form:
+ * every member that is private in some key type is left out, whatever the
+ * type of this key (``d``, ``p``, ``q``, ``dp``, ``dq``, ``qi``, ``oth``,
+ * ``k`` and ``priv``). Nothing is added, so a private JWK that was loaded
+ * without its public members (an ``OKP`` key with ``d`` and no ``x``) has a
+ * public form that holds no key.
+ *
+ * A JWK whose ``kty`` LibJWT does not recognise at all (jwks_item_kty() is
+ * ::JWK_KEY_TYPE_NONE: the member is missing, is not a string, or names an
+ * unknown type) has no public form, because what is private in a key is known
+ * only for the key types LibJWT knows. With @p priv zero this returns NULL for
+ * it. A recognised type that this build cannot load -- an ``AKP`` (ML-DSA) key
+ * in a build without ML-DSA -- is in error but still has its public form.
+ *
+ * The public form of a key in error (jwks_item_error()) also leaves out any
+ * ``x5c``, ``x5t``, ``x5t#S256`` and ``x5u``: it was flagged over that X.509
+ * binding, or could not be loaded, and the accessors read as absent for it, so
+ * its public form carries no certificate binding for a relay to republish.
+ *
+ * @note Before 3.6.3 a JWK whose ``kty`` was not recognised was returned
+ * whole with @p priv zero, private members included. The public form of an
+ * RSA key kept ``oth``, that of a key in error kept the private members of
+ * every key type but the one its ``kty`` names, and it kept the ``x5c`` the
+ * key was rejected for (GHSA-4jp4-6w6j-ff4q).
+ *
  * @param item A JWK Item
- * @param priv If non-zero, include private key parameters when the item is a
- *   private key. If zero, only public parameters are emitted.
+ * @param priv If non-zero, the JWK is serialized as loaded, private members
+ *   included. If zero, only its public form is.
  * @return A newly allocated, nil-terminated JSON string the caller must free
- *   with free(), or NULL on error.
+ *   with free(). NULL on error, and when @p priv is zero and the JWK has no
+ *   public form.
  * @since 3.4.0
  */
 JWT_EXPORT
@@ -3511,11 +3695,18 @@ char *jwks_item_export(const jwk_item_t *item, int priv);
  * @brief Serialize a whole keyring to a JWKS JSON string
  *
  * Produces a JWK Set (an object with a @c "keys" array) containing every item
- * in the set.
+ * in the set, in error or not. With @p priv zero each item is in its public
+ * form, and an item that has none (its ``kty`` is not one LibJWT recognises,
+ * see jwks_item_export()) is left out. Such an item is always in error
+ * (jwks_item_error()); an item of a recognised type this build cannot load (an
+ * ``AKP`` key without ML-DSA) is in error too but keeps its public form.
+ *
+ * @note Before 3.6.3 an item whose ``kty`` was not recognised was exported
+ * whole with @p priv zero, private members included (GHSA-4jp4-6w6j-ff4q).
  *
  * @param jwk_set An existing jwk_set_t
- * @param priv If non-zero, include private key parameters for private keys. If
- *   zero, only public parameters are emitted.
+ * @param priv If non-zero, each JWK is serialized as loaded, private members
+ *   included. If zero, only public forms are.
  * @return A newly allocated, nil-terminated JSON string the caller must free
  *   with free(), or NULL on error.
  * @since 3.4.0
@@ -3536,6 +3727,12 @@ char *jwks_export(const jwk_set_t *jwk_set, int priv);
  *
  * The thumbprint is computed over public parameters and is identical whether
  * the item was loaded from a JWK or from a PEM/DER key.
+ *
+ * These are the public members as the JWK states them. A key in error has no
+ * thumbprint, and under the OpenSSL and GnuTLS backends that includes a
+ * private ``OKP`` or ``AKP`` key whose public member is not the public key of
+ * its private one (see jwks_load()): the key that verifies a signature is
+ * the key that the thumbprint names.
  *
  * @param item A JWK Item
  * @param alg The thumbprint hash algorithm (see @ref jwk_thumbprint_alg_t);
@@ -3608,7 +3805,9 @@ jwk_item_t *jwks_find_bythumbprint_uri(jwk_set_t *jwk_set, const char *uri);
 /**
  * @brief Retrieve binary octet data of a key
  *
- * Only valid for JWT_KEY_TYPE_OCT.
+ * Only valid for JWK_KEY_TYPE_OCT. A key in error can have its octets too,
+ * when it loaded and was flagged afterwards: check jwks_item_error() before
+ * using them.
  *
  * @param item A JWK Item
  * @param buf Pointer to a pointer buffer
@@ -3628,7 +3827,8 @@ int jwks_item_key_oct(const jwk_item_t *item, const unsigned char **buf,
  * 2048 bits, and an EC key would be 256, 384, or 521 bits, etc.
  *
  * @param item A JWK Item
- * @return The number of bits for the key
+ * @return The number of bits for the key, or 0 for a key that failed to load
+ *  (see jwks_item_error())
  * @since 3.0.0
  */
 JWT_EXPORT
@@ -3798,6 +3998,12 @@ jwt_crypto_provider_t jwt_get_crypto_ops_t(void);
  *  origin backend, regardless of the backend selected here. So changing the
  *  active backend after loading keys is safe — each key keeps working. (Keys
  *  with no backend-specific material, i.e. @c "oct", use the active backend.)
+ *  A key that the backend active at load time could not parse belongs to no
+ *  backend: it stays in error (jwks_item_error()) and is never used, whichever
+ *  backend is selected later. Load it again under a backend that supports it.
+ *
+ * @note Before 3.6.3 such a key reached the active backend, and the OpenSSL
+ *  one crashed on a key that MbedTLS had rejected (GHSA-4jp4-6w6j-ff4q).
  *
  * @param opname the name of the crypto operation to set
  * @return 0 on success, 1 for error

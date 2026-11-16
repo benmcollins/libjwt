@@ -67,7 +67,10 @@ backend with ML-DSA support is present: OpenSSL >= 3.5, or GnuTLS >= 3.8.10
 built against a PQC provider (e.g. ``--with-leancrypto``). When built in, the
 public header defines ``LIBJWT_HAVE_ML_DSA``. ML-DSA keys use the ``"AKP"`` key
 type with a ``"pub"`` member and a ``"priv"`` member holding the 32-byte
-FIPS-204 seed. MbedTLS has no ML-DSA and rejects ``AKP`` keys.
+FIPS-204 seed. MbedTLS has no ML-DSA and rejects ``AKP`` keys. A build without
+ML-DSA still recognises ``"AKP"``: such a key is in error (no backend can load
+it) but keeps its public form, so a public `jwks_export` does not drop it; only
+a key whose ``kty`` LibJWT does not recognise at all has no public form.
 
 [^okp3813]: On the **GnuTLS** backend these specific cases need **GnuTLS >=
 3.8.13**: (a) loading an OKP *private* JWK supplied without its public
@@ -101,7 +104,8 @@ To verify a multi-signature token, supply a set of candidate keys (a JWKS) with
 accept if at least one signature verifies, e.g. multi-issuer or key rotation) or
 `JWT_VERIFY_POLICY_ALL` (every signature must verify, e.g. co-signing). Only
 keys meant for signatures are candidates: a key whose `use` is not `sig`, or
-whose `key_ops` names neither `verify` nor `sign`, is skipped. A signature
+whose `key_ops` names neither `verify` nor `sign`, is skipped, and so is a key
+that is in error (`jwks_item_error()`). A signature
 naming a `kid` (which must be a string) is verified only against that key (there
 is no fallback); a keyless one is tried against every candidate, always under
 the usual algorithm/key-type binding and the key's own `alg`, if it has one. A
@@ -158,7 +162,17 @@ A JWK's X.509 parameters are parsed and exposed: `jwks_item_x5c_count()` /
 index 0), and `jwks_item_x5t()` / `jwks_item_x5t_s256()` return the `x5t` /
 `x5t#S256` thumbprints. When a JWK carries both `x5c` and `x5t#S256`, the
 thumbprint is verified against the leaf certificate at parse time
-(`base64url(SHA-256(DER))`, RFC 7517 §4.9) and a mismatch is rejected.
+(`base64url(SHA-256(DER))`, RFC 7517 §4.9). The leaf certificate also has to
+hold the JWK's own public key (RFC 7517 §4.7): LibJWT follows the leaf's ASN.1
+framing to its SubjectPublicKeyInfo and compares that public key with the
+members of the JWK. A JWK that fails either check is marked in error
+(`jwks_item_error()`): LibJWT never signs, verifies, encrypts or decrypts with
+it, and these accessors return nothing for it. Only the key is checked — not
+that the leaf is otherwise a well-formed certificate — and of a private JWK
+only its public members (a private member such as `d` or `priv` is not
+compared against the leaf). An EC leaf has to name its curve and use an
+uncompressed point, a private OKP or AKP JWK has to include its public member
+(`x` / `pub`) to carry a chain, and an `oct` key cannot carry one.
 Certificate-chain validation and `x5u` fetching are intentionally left to the
 caller for now (chain/trust policy and SSRF are security-critical).
 
@@ -181,7 +195,10 @@ small primitives that complete them are: `jwt_checker_require()` (assert claims
 are present, RFC 9068), `jwt_checker_enable_embedded_jwk()` (verify a
 self-contained token against the header `jwk`, confirmed by thumbprint — DPoP and
 OpenID4VCI), and `jwt_token_hash()` / `jwt_token_hash_half()` (DPoP `ath`, OIDC
-`at_hash`/`c_hash`). The **Application Profiles** page of the docs has worked
+`at_hash`/`c_hash`). The header `jwk` has to be the signer's public key: a
+token whose header `jwk` loads as a private key, carries any private member
+(`d`, `k`, ...), is a symmetric key, or is a JWK set (`keys`) is rejected. The
+**Application Profiles** page of the docs has worked
 build-and-verify recipes for `at+jwt` (RFC 9068), VAPID, PASSporT, OpenID4VCI,
 DPoP (RFC 9449), mTLS (RFC 8705), and JAdES, each mirrored by a test in
 `tests/jwt_profiles.c`.

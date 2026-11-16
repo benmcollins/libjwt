@@ -296,6 +296,7 @@ START_TEST(test_errors)
 	jwt_builder_auto_t *builder = NULL;
 	jwk_set_t *seed_set;
 	const jwk_item_t *seed_key;
+	char_auto *cnf = NULL;
 	char *p;
 	int ret;
 
@@ -329,6 +330,26 @@ START_TEST(test_errors)
 	seed_key = jwks_item_get(seed_set, 0);
 	ck_assert_ptr_nonnull(seed_key);
 	ck_assert_int_ne(jwt_builder_setcnf_jkt(builder, seed_key), 0);
+
+	jwks_free(seed_set);
+
+	/* A key in error (here flagged after it parsed, by an "x5c" that is
+	 * not an array) is not vouched for, in either form, and the "cnf"
+	 * the builder has is left alone. */
+	seed_set = jwks_create("{\"kty\":\"EC\",\"crv\":\"P-256\","
+		"\"x\":\"Y--DdSpCZ5oF3j__h-SdNJIwvB5aI4AXzpRErGUjWrM\","
+		"\"y\":\"_bSTCXlDeU-pZZbOKDUVLANspSIeuKZfTM8rtXFG_RU\","
+		"\"x5c\":\"bogus\"}");
+	ck_assert_ptr_nonnull(seed_set);
+	seed_key = jwks_item_get(seed_set, 0);
+	ck_assert_ptr_nonnull(seed_key);
+	ck_assert_int_ne(jwks_item_error(seed_key), 0);
+	ck_assert_int_eq(jwt_builder_setcnf(builder, "kid", "kept"), 0);
+	ck_assert_int_ne(jwt_builder_setcnf_jkt(builder, seed_key), 0);
+	ck_assert_int_ne(jwt_builder_setcnf_jwk(builder, seed_key), 0);
+	cnf = get_builder_cnf(builder);
+	ck_assert_ptr_nonnull(cnf);
+	ck_assert_str_eq(cnf, "{\"kid\":\"kept\"}");
 
 	jwks_free(seed_set);
 	jwks_free(set);

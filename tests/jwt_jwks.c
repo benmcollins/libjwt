@@ -55,10 +55,14 @@ START_TEST(test_jwks_keyring_load)
 
 		/* MbedTLS (PSA) rejects RSA keys larger than the crypto build's
 		 * PSA_VENDOR_RSA_MAX_KEY_BITS (4096 by default) at parse, so the
-		 * two 8192-bit keys in this ring are flagged bad there. */
+		 * two 8192-bit keys in this ring are flagged bad there. A key
+		 * that failed to load reports no size, so they are told apart
+		 * by the reason instead. */
 		if (jwt_test_ops[_i].type == JWT_CRYPTO_OPS_MBEDTLS &&
-		    jwks_item_key_bits(item) > 4096) {
-			ck_assert_int_ne(jwks_item_error(item), 0);
+		    jwks_item_error(item) &&
+		    strstr(jwks_item_error_msg(item),
+			   "exceeds the backend maximum") != NULL) {
+			ck_assert_int_eq(jwks_item_key_bits(item), 0);
 			continue;
 		}
 
@@ -250,11 +254,24 @@ START_TEST(test_jwks_keyring_all_bad)
 	ck_assert_int_eq(i, 14);
 
 	for (i = 0; (item = jwks_item_get(jwk_set, i)); i++) {
+		const unsigned char *buf = NULL;
+		size_t len = 0;
+
 		if (!jwks_item_error(item)) {
 			fprintf(stderr, "KID: %s\n",
 				jwks_item_kid(item));
 		}
 		ck_assert_int_ne(jwks_item_error(item), 0);
+
+		/* A key that failed to load describes no key: no size, no
+		 * private part, no PEM, whichever backend rejected it. Only
+		 * the "oct" key flagged for its "alg" after it loaded still
+		 * has its octets. */
+		if (jwks_item_key_oct(item, &buf, &len)) {
+			ck_assert_int_eq(jwks_item_key_bits(item), 0);
+			ck_assert_int_eq(jwks_item_is_private(item), 0);
+			ck_assert_ptr_null(jwks_item_pem(item));
+		}
 	}
 
 	ck_assert_int_eq(i, 14);
@@ -264,6 +281,36 @@ START_TEST(test_jwks_keyring_all_bad)
 
 	i = jwks_item_count(jwk_set);
 	ck_assert_int_eq(i, 0);
+}
+END_TEST
+
+/* An OKP key's "x"/"d" have to be strings to be usable key material. A real
+ * private key loads and reports private; a key whose only private member is
+ * not a string, and which therefore has no decodable component at all, is in
+ * error -- on every backend. MbedTLS used to accept the latter as an empty
+ * "private" item (is_private with no material), which this guards against. */
+START_TEST(test_jwks_okp_member_validity)
+{
+	jwk_set_t *set;
+	const jwk_item_t *key;
+
+	SET_OPS();
+
+	set = jwks_create_fromfile(KEYDIR "/eddsa_key_ed25519.json");
+	ck_assert_ptr_nonnull(set);
+	key = jwks_item_get(set, 0);
+	ck_assert_ptr_nonnull(key);
+	ck_assert_int_eq(jwks_item_error(key), 0);
+	ck_assert_int_eq(jwks_item_is_private(key), 1);
+	jwks_free(set);
+
+	set = jwks_create("{\"kty\":\"OKP\",\"crv\":\"Ed25519\",\"d\":5}");
+	ck_assert_ptr_nonnull(set);
+	key = jwks_item_get(set, 0);
+	ck_assert_ptr_nonnull(key);
+	ck_assert_int_ne(jwks_item_error(key), 0);
+	ck_assert_int_eq(jwks_item_is_private(key), 0);
+	jwks_free(set);
 }
 END_TEST
 
@@ -331,6 +378,7 @@ static Suite *libjwt_suite(const char *title)
 	/* Load a whole keyring */
 	tcase_add_loop_test(tc_core, test_jwks_keyring_load, 0, i);
 	tcase_add_loop_test(tc_core, test_jwks_keyring_all_bad, 0, i);
+	tcase_add_loop_test(tc_core, test_jwks_okp_member_validity, 0, i);
 
 	tcase_add_loop_test(tc_core, load_fromurl, 0, i);
 #ifdef HAVE_LIBCURL

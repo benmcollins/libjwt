@@ -134,7 +134,10 @@ static int openssl_sign_sha_pem(jwt_t *jwt, char **out, unsigned int *len,
 	unsigned char *sig = NULL;
 	size_t slen;
 
-	pkey = jwt->key->provider_data;
+	/* EVP_PKEY_id() below dereferences its argument. */
+	pkey = openssl_item_pkey(jwt->key);
+	if (pkey == NULL)
+		SIGN_ERROR("Key is not compatible"); // LCOV_EXCL_LINE
 
 	switch (jwt->alg) {
 	/* RSA */
@@ -298,7 +301,10 @@ static int openssl_verify_sha_pem(jwt_t *jwt, const char *head,
 	unsigned char *old_sig = NULL;
 	BIO *bufkey = NULL;
 
-	pkey = jwt->key->provider_data;
+	/* EVP_PKEY_id() below dereferences its argument. */
+	pkey = openssl_item_pkey(jwt->key);
+	if (pkey == NULL)
+		VERIFY_ERROR("Key is not compatible"); // LCOV_EXCL_LINE
 
 	switch (jwt->alg) {
 	/* RSA */

@@ -165,6 +165,20 @@ RSAENC="../tests/keys/rsa_key_2048_enc.json"
 	[ "${status}" -ne 0 ]
 }
 
+# The same key as OCT256B, flagged in error when loaded (a malformed "x5c").
+OCT256B_ERR="../tests/keys/oct_key_256_enc_bad_x5c.json"
+
+@test "JWE tools refuse a key in error" {
+	run ./tools/jwe-encrypt -k ${OCT256B_ERR} -a A256KW -e A256GCM -j '{}'
+	[ "${status}" -ne 0 ]
+	echo "${output}" | grep -q "Key is in error"
+
+	tok="$(./tools/jwe-encrypt -k ${OCT256B} -a A256KW -e A256GCM -j '{}')"
+	run bash -c "echo '${tok}' | ./tools/jwe-decrypt -k ${OCT256B_ERR} -a A256KW -e A256GCM"
+	[ "${status}" -ne 0 ]
+	echo "${output}" | grep -q "Key is in error"
+}
+
 @test "JWE encrypt rejects unknown algorithm" {
 	run ./tools/jwe-encrypt -k ${OCT256} -a BOGUS -e A256GCM -j '{}'
 	[ "${status}" -ne 0 ]

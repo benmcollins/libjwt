@@ -22,6 +22,15 @@ typedef struct {
 	gnutls_privkey_t priv;	/* NULL for public-only keys */
 } gnutls_jwk_t;
 
+/* The native key of an item this backend parsed, or NULL for anything else: a
+ * key that failed to load (no provider), an "oct" key (its octets share the
+ * union slot with provider_data) or a key owned by another backend. */
+static inline const gnutls_jwk_t *gnutls_item_key(const jwk_item_t *item)
+{
+	return (item != NULL && item->provider == JWT_CRYPTO_OPS_GNUTLS) ?
+		item->provider_data : NULL;
+}
+
 /* JWK parsing: build native GnuTLS key handles into provider_data. */
 JWT_NO_EXPORT
 int gnutls_process_eddsa(jwt_json_t *jwk, jwk_item_t *item);

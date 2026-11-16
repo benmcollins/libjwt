@@ -343,6 +343,13 @@ int jwt_json_is_true(const jwt_json_t *json)
 	       json_object_get_boolean(to_jc(json));
 }
 
+int jwt_json_is_null(const jwt_json_t *json)
+{
+	/* json-c stores a JSON null as a C NULL, which jwt_json_obj_get()
+	 * already returns as absent, so a non-NULL value here is never null. */
+	return json_object_is_type(to_jc(json), json_type_null);
+}
+
 /* ================================================================
  * Value extraction
  * ================================================================ */

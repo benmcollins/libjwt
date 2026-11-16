@@ -628,7 +628,7 @@ int mbedtls_encrypt_cek_rsa(jwe_key_alg_t alg, const jwk_item_t *key,
 			    const unsigned char *cek, size_t cek_len,
 			    unsigned char **out, size_t *out_len)
 {
-	const mbedtls_jwk_t *jk = key->provider_data;
+	const mbedtls_jwk_t *jk = mbedtls_item_key(key);
 	mbedtls_svc_key_id_t kid = MBEDTLS_SVC_KEY_ID_INIT;
 	psa_algorithm_t hash = oaep_hash(alg), oalg;
 	unsigned char *buf = NULL;
@@ -670,7 +670,7 @@ int mbedtls_decrypt_cek_rsa(jwe_key_alg_t alg, const jwk_item_t *key,
 			    const unsigned char *in, size_t in_len,
 			    unsigned char **cek, size_t *cek_len)
 {
-	const mbedtls_jwk_t *jk = key->provider_data;
+	const mbedtls_jwk_t *jk = mbedtls_item_key(key);
 	mbedtls_svc_key_id_t kid = MBEDTLS_SVC_KEY_ID_INIT;
 	psa_algorithm_t hash = oaep_hash(alg), oalg;
 	unsigned char *buf = NULL;
@@ -978,7 +978,7 @@ int mbedtls_ecdh_derive(jwe_key_alg_t alg, jwe_enc_t enc,
 			const jwk_item_t *key, int for_encrypt, jwt_json_t *hdr,
 			unsigned char **dk, size_t *dk_len)
 {
-	const mbedtls_jwk_t *jk = key->provider_data;
+	const mbedtls_jwk_t *jk = mbedtls_item_key(key);
 	mbedtls_svc_key_id_t kid = MBEDTLS_SVC_KEY_ID_INIT;
 	const char *crv = key->curve, *algid = NULL;
 	unsigned char zbuf[PSA_BITS_TO_BYTES(521)];

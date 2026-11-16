@@ -113,10 +113,16 @@ struct jwt_common {
 	jwt_verify_policy_t policy;
 	unsigned int last_sig_count;	/* signatures in the last JSON token	*/
 
-	/* checker: @key_required is set once it is given a key or a keyring,
-	 * and cleared only by jwt_checker_setkey() with no key called outside
-	 * a verify; @verifying is set while jwt_checker_verify() runs, whose
-	 * callbacks may reconfigure the checker (GHSA-mhc9-xvg5-qg29). */
+	/* checker: @key_required is set once it is given a key or a keyring
+	 * (to 2 if all it was given is a key in error, which
+	 * jwt_checker_setkey() refused), and cleared only by
+	 * jwt_checker_setkey() with no key called outside a verify;
+	 * @verifying is set while jwt_checker_verify() runs, whose callbacks
+	 * may reconfigure the checker (GHSA-mhc9-xvg5-qg29). builder:
+	 * @key_required is 2 from the time jwt_builder_setkey() or
+	 * jwt_builder_add_signature() refuses a key in error until
+	 * jwt_builder_setkey() succeeds (a NULL key included); meanwhile
+	 * jwt_builder_generate() emits no unsigned token. */
 	int key_required;
 	int verifying;
 
@@ -600,6 +606,13 @@ int jwt_key2jwk(const char *key, size_t len, unsigned int flags,
  * @flags (used by jwt_key2jwk and the oct path of jwks_generate). */
 JWT_NO_EXPORT
 void jwt_gen_kid(jwt_json_t *jwk, jwk_key_type_t kty, unsigned int flags);
+
+/* Whether the JWK JSON object @jwk has a member that is private in some key
+ * type ("d", "k", "priv", ...), whatever its value: what a public export
+ * leaves out. Such a JWK is not the public form of a key, even if a backend
+ * also loaded it as a public one. Used to refuse a header "jwk". */
+JWT_NO_EXPORT
+int jwk_json_has_private(const jwt_json_t *jwk);
 
 /* Core @rfc{7638} JWK thumbprint: base64url(SHA-@bits) over the canonical JWK
  * assembled from @jwk's required members for key type @kty. @bits is 256/384/512.

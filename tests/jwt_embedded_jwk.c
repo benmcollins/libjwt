@@ -20,6 +20,16 @@
 	"\"x\":\"Y--DdSpCZ5oF3j__h-SdNJIwvB5aI4AXzpRErGUjWrM\"," \
 	"\"y\":\"_bSTCXlDeU-pZZbOKDUVLANspSIeuKZfTM8rtXFG_RU\"}"
 
+/* The same with a "d" that is not key A's private key (it is A's "x", any 32
+ * octets below the group order being one). */
+#define MIXED_JWK_P256 \
+	"{\"kty\":\"EC\",\"crv\":\"P-256\"," \
+	"\"x\":\"Y--DdSpCZ5oF3j__h-SdNJIwvB5aI4AXzpRErGUjWrM\"," \
+	"\"y\":\"_bSTCXlDeU-pZZbOKDUVLANspSIeuKZfTM8rtXFG_RU\"," \
+	"\"d\":\"Y--DdSpCZ5oF3j__h-SdNJIwvB5aI4AXzpRErGUjWrM\"}"
+
+#define NOT_CONFIRMED	"Embedded JWK is missing or not confirmed"
+
 static jwk_set_t *load_key_a(void)
 {
 	jwk_set_t *set = jwks_create_fromfile(KEYDIR "/ec_key_prime256v1.json");
@@ -29,15 +39,15 @@ static jwk_set_t *load_key_a(void)
 }
 
 /* A self-contained proof: header "jwk" = @jwk_hdr (or none), signed with
- * @signing_key, typ @typ. Caller frees the token. */
-static char *make_proof(const jwk_item_t *signing_key, char *jwk_hdr,
-			const char *typ)
+ * @signing_key and @alg, typ @typ. Caller frees the token. */
+static char *make_proof_alg(jwt_alg_t alg, const jwk_item_t *signing_key,
+			    char *jwk_hdr, const char *typ)
 {
 	jwt_builder_auto_t *b = jwt_builder_new();
 	jwt_value_t v;
 
 	ck_assert_ptr_nonnull(b);
-	ck_assert_int_eq(jwt_builder_setkey(b, JWT_ALG_ES256, signing_key), 0);
+	ck_assert_int_eq(jwt_builder_setkey(b, alg, signing_key), 0);
 	if (typ != NULL)
 		ck_assert_int_eq(jwt_builder_settyp(b, typ), 0);
 	if (jwk_hdr != NULL) {
@@ -49,6 +59,13 @@ static char *make_proof(const jwk_item_t *signing_key, char *jwk_hdr,
 	ck_assert_int_eq(jwt_builder_claim_set(b, &v), JWT_VALUE_ERR_NONE);
 
 	return jwt_builder_generate(b);
+}
+
+/* The same, signed with ES256. */
+static char *make_proof(const jwk_item_t *signing_key, char *jwk_hdr,
+			const char *typ)
+{
+	return make_proof_alg(JWT_ALG_ES256, signing_key, jwk_hdr, typ);
 }
 
 START_TEST(test_pin_confirms)
@@ -228,6 +245,15 @@ START_TEST(test_malformed_embedded_jwk)
 		"{\"kty\":\"frobnicate\"}",		/* unknown kty */
 		"{\"kty\":\"EC\",\"crv\":\"P-256\",\"x\":\"@\",\"y\":\"@\"}",
 		"{}",					/* empty object */
+		/* Key A itself, so the pinned thumbprint matches, but in
+		 * error: flagged after it parsed. */
+		"{\"kty\":\"EC\",\"crv\":\"P-256\","
+		"\"x\":\"Y--DdSpCZ5oF3j__h-SdNJIwvB5aI4AXzpRErGUjWrM\","
+		"\"y\":\"_bSTCXlDeU-pZZbOKDUVLANspSIeuKZfTM8rtXFG_RU\","
+		"\"x5c\":\"bogus\"}",
+		"{\"kty\":\"EC\",\"crv\":\"P-256\",\"alg\":5,"
+		"\"x\":\"Y--DdSpCZ5oF3j__h-SdNJIwvB5aI4AXzpRErGUjWrM\","
+		"\"y\":\"_bSTCXlDeU-pZZbOKDUVLANspSIeuKZfTM8rtXFG_RU\"}",
 	};
 	size_t n;
 
@@ -451,6 +477,271 @@ START_TEST(test_callback_cannot_strip_key)
 }
 END_TEST
 
+/* Verify @token by its header key, confirmed by the pin @jkt or, if that is
+ * NULL, by the allow-list @ring. It must verify if @ok and otherwise fail at
+ * the confirmation of the header key, before any signature is looked at. */
+static void embedded(const char *token, const char *jkt, const jwk_set_t *ring,
+		     int ok)
+{
+	jwt_checker_auto_t *c = jwt_checker_new();
+	int ret;
+
+	ck_assert_ptr_nonnull(c);
+	if (jkt != NULL)
+		ret = jwt_checker_enable_embedded_jwk(c, JWK_THUMBPRINT_SHA256,
+						      jkt);
+	else
+		ret = jwt_checker_enable_embedded_jwk_keyring(c,
+					JWK_THUMBPRINT_SHA256, ring);
+	ck_assert_int_eq(ret, 0);
+
+	ret = jwt_checker_verify(c, token);
+	if (ok) {
+		ck_assert_msg(ret == 0, "%s", jwt_checker_error_msg(c));
+		ck_assert_uint_eq(jwt_checker_sig_count(c), 1);
+	} else {
+		ck_assert_int_ne(ret, 0);
+		ck_assert_str_eq(jwt_checker_error_msg(c), NOT_CONFIRMED);
+		ck_assert_uint_eq(jwt_checker_sig_count(c), 0);
+	}
+}
+
+/* The header "jwk" is the signer's PUBLIC key (RFC 7515 section 4.1.3). A
+ * proof that carries the private key in it is refused, although that key has
+ * the pinned thumbprint and did sign the token; so is one whose private member
+ * is not even the key's own. Only the public JWK of the same key passes. */
+START_TEST(test_private_header_jwk)
+{
+	jwk_set_t *set;
+	const jwk_item_t *key;
+	char_auto *jkt = NULL, *priv_jwk = NULL, *pub_jwk = NULL;
+	char_auto *t_priv = NULL, *t_mixed = NULL, *t_pub = NULL;
+
+	SET_OPS();
+
+	set = load_key_a();
+	key = jwks_item_get(set, 0);
+	jkt = jwks_item_thumbprint(key, JWK_THUMBPRINT_SHA256);
+	ck_assert_ptr_nonnull(jkt);
+
+	priv_jwk = jwks_item_export(key, 1);
+	pub_jwk = jwks_item_export(key, 0);
+	ck_assert_ptr_nonnull(priv_jwk);
+	ck_assert_ptr_nonnull(pub_jwk);
+	ck_assert_ptr_nonnull(strstr(priv_jwk, "\"d\""));
+	ck_assert_ptr_null(strstr(pub_jwk, "\"d\""));
+
+	t_priv = make_proof(key, priv_jwk, "dpop+jwt");
+	t_mixed = make_proof(key, MIXED_JWK_P256, "dpop+jwt");
+	t_pub = make_proof(key, pub_jwk, "dpop+jwt");
+	ck_assert_ptr_nonnull(t_priv);
+	ck_assert_ptr_nonnull(t_mixed);
+	ck_assert_ptr_nonnull(t_pub);
+
+	/* With the thumbprint pin, and with key A on the allow-list. */
+	embedded(t_priv, jkt, NULL, 0);
+	embedded(t_priv, NULL, set, 0);
+	embedded(t_mixed, jkt, NULL, 0);
+	embedded(t_mixed, NULL, set, 0);
+	embedded(t_pub, jkt, NULL, 1);
+	embedded(t_pub, NULL, set, 1);
+
+	jwks_free(set);
+}
+END_TEST
+
+/* A private member counts whatever its value is, so the refusal does not
+ * depend on the backend loading it (the GnuTLS and MbedTLS parsers leave a
+ * private member that is not a string aside, and with json-c a JSON null
+ * member looks absent to every backend) and is the same in every build. The
+ * last header has a member that is private in another key type. */
+START_TEST(test_private_member_any_type)
+{
+	static const char * const hdrs[] = {
+		"{\"kty\":\"EC\",\"crv\":\"P-256\","
+		"\"x\":\"Y--DdSpCZ5oF3j__h-SdNJIwvB5aI4AXzpRErGUjWrM\","
+		"\"y\":\"_bSTCXlDeU-pZZbOKDUVLANspSIeuKZfTM8rtXFG_RU\","
+		"\"d\":5}",
+		"{\"kty\":\"EC\",\"crv\":\"P-256\","
+		"\"x\":\"Y--DdSpCZ5oF3j__h-SdNJIwvB5aI4AXzpRErGUjWrM\","
+		"\"y\":\"_bSTCXlDeU-pZZbOKDUVLANspSIeuKZfTM8rtXFG_RU\","
+		"\"d\":null}",
+		"{\"kty\":\"EC\",\"crv\":\"P-256\","
+		"\"x\":\"Y--DdSpCZ5oF3j__h-SdNJIwvB5aI4AXzpRErGUjWrM\","
+		"\"y\":\"_bSTCXlDeU-pZZbOKDUVLANspSIeuKZfTM8rtXFG_RU\","
+		"\"d\":\"\"}",
+		"{\"kty\":\"EC\",\"crv\":\"P-256\","
+		"\"x\":\"Y--DdSpCZ5oF3j__h-SdNJIwvB5aI4AXzpRErGUjWrM\","
+		"\"y\":\"_bSTCXlDeU-pZZbOKDUVLANspSIeuKZfTM8rtXFG_RU\","
+		"\"k\":true}",
+	};
+	jwk_set_t *set;
+	const jwk_item_t *key;
+	char_auto *jkt = NULL;
+	size_t n;
+
+	SET_OPS();
+
+	set = load_key_a();
+	key = jwks_item_get(set, 0);
+	jkt = jwks_item_thumbprint(key, JWK_THUMBPRINT_SHA256);
+	ck_assert_ptr_nonnull(jkt);
+
+	for (n = 0; n < ARRAY_SIZE(hdrs); n++) {
+		char_auto *token = make_proof(key, (char *)hdrs[n], "dpop+jwt");
+
+		ck_assert_ptr_nonnull(token);
+		embedded(token, jkt, NULL, 0);
+		embedded(token, NULL, set, 0);
+	}
+
+	jwks_free(set);
+}
+END_TEST
+
+/* A header "jwk" with a "keys" member is a JWK set, not one public key:
+ * jwks_create() would read it as a set and confirm only keys[0], parsing the
+ * rest on the attacker's say-so. It is refused before any key is loaded,
+ * whether the outer object is itself a private key with the public one listed,
+ * or a bare set of the pinned public key followed by a private or an "oct"
+ * one. The pinned public key alone (no "keys") still passes. */
+START_TEST(test_header_jwk_keys_wrapper)
+{
+	jwk_set_t *set, *oct_set;
+	const jwk_item_t *key;
+	char_auto *jkt = NULL, *pub_jwk = NULL, *oct_jwk = NULL;
+	char_auto *h_priv_keys = NULL, *h_keys_priv = NULL, *h_keys_oct = NULL;
+	char_auto *t1 = NULL, *t2 = NULL, *t3 = NULL, *t_ok = NULL;
+
+	SET_OPS();
+
+	set = load_key_a();
+	key = jwks_item_get(set, 0);
+	jkt = jwks_item_thumbprint(key, JWK_THUMBPRINT_SHA256);
+	ck_assert_ptr_nonnull(jkt);
+	pub_jwk = jwks_item_export(key, 0);
+	ck_assert_ptr_nonnull(pub_jwk);
+
+	oct_set = jwks_create_fromfile(KEYDIR "/oct_key_256.json");
+	ck_assert_ptr_nonnull(oct_set);
+	oct_jwk = jwks_item_export(jwks_item_get(oct_set, 0), 1);
+	ck_assert_ptr_nonnull(oct_jwk);
+
+	/* Key A's own private JWK, with its public key listed in "keys". */
+	ck_assert_int_gt(asprintf(&h_priv_keys,
+		"{\"kty\":\"EC\",\"crv\":\"P-256\","
+		"\"x\":\"Y--DdSpCZ5oF3j__h-SdNJIwvB5aI4AXzpRErGUjWrM\","
+		"\"y\":\"_bSTCXlDeU-pZZbOKDUVLANspSIeuKZfTM8rtXFG_RU\","
+		"\"d\":\"wDvSCv8kxkqIVTYPpgEm4Efs6lKzf-95W8Qej4F1yEM\","
+		"\"keys\":[%s]}", pub_jwk), 0);
+	/* A set: the pinned public key and then a private key, or an "oct". */
+	ck_assert_int_gt(asprintf(&h_keys_priv, "{\"keys\":[%s,%s]}",
+				  pub_jwk, MIXED_JWK_P256), 0);
+	ck_assert_int_gt(asprintf(&h_keys_oct, "{\"keys\":[%s,%s]}",
+				  pub_jwk, oct_jwk), 0);
+
+	t1 = make_proof(key, h_priv_keys, "dpop+jwt");
+	t2 = make_proof(key, h_keys_priv, "dpop+jwt");
+	t3 = make_proof(key, h_keys_oct, "dpop+jwt");
+	t_ok = make_proof(key, pub_jwk, "dpop+jwt");
+	ck_assert_ptr_nonnull(t1);
+	ck_assert_ptr_nonnull(t2);
+	ck_assert_ptr_nonnull(t3);
+	ck_assert_ptr_nonnull(t_ok);
+
+	/* All three refused -- by pin and by allow-list -- the honest one passes. */
+	embedded(t1, jkt, NULL, 0);
+	embedded(t1, NULL, set, 0);
+	embedded(t2, jkt, NULL, 0);
+	embedded(t2, NULL, set, 0);
+	embedded(t3, jkt, NULL, 0);
+	embedded(t3, NULL, set, 0);
+	embedded(t_ok, jkt, NULL, 1);
+	embedded(t_ok, NULL, set, 1);
+
+	jwks_free(oct_set);
+	jwks_free(set);
+}
+END_TEST
+
+/* The same for an OKP key, where the key object is made from the private
+ * member: a header key with its own, matching "d" is still no public key. */
+START_TEST(test_private_header_jwk_okp)
+{
+	jwk_set_t *set;
+	const jwk_item_t *key;
+	char_auto *jkt = NULL, *priv_jwk = NULL, *pub_jwk = NULL;
+	char_auto *t_priv = NULL, *t_pub = NULL;
+
+	SET_OPS();
+
+	set = jwks_create_fromfile(KEYDIR "/eddsa_key_ed25519.json");
+	ck_assert_ptr_nonnull(set);
+	key = jwks_item_get(set, 0);
+	ck_assert_ptr_nonnull(key);
+	ck_assert_int_eq(jwks_item_error(key), 0);
+	jkt = jwks_item_thumbprint(key, JWK_THUMBPRINT_SHA256);
+	ck_assert_ptr_nonnull(jkt);
+
+	priv_jwk = jwks_item_export(key, 1);
+	pub_jwk = jwks_item_export(key, 0);
+	ck_assert_ptr_nonnull(priv_jwk);
+	ck_assert_ptr_nonnull(pub_jwk);
+	ck_assert_ptr_nonnull(strstr(priv_jwk, "\"d\""));
+	ck_assert_ptr_null(strstr(pub_jwk, "\"d\""));
+
+	/* Not every backend has EdDSA to sign the proof with: one without it
+	 * loads the key and has nothing to test here. */
+	t_pub = make_proof_alg(JWT_ALG_EDDSA, key, pub_jwk, "dpop+jwt");
+	if (t_pub == NULL) {
+		jwks_free(set);
+		return;
+	}
+
+	t_priv = make_proof_alg(JWT_ALG_EDDSA, key, priv_jwk, "dpop+jwt");
+	ck_assert_ptr_nonnull(t_priv);
+
+	embedded(t_priv, jkt, NULL, 0);
+	embedded(t_priv, NULL, set, 0);
+	embedded(t_pub, jkt, NULL, 1);
+	embedded(t_pub, NULL, set, 1);
+
+	jwks_free(set);
+}
+END_TEST
+
+/* A symmetric key in the header is the secret itself: whoever reads the token
+ * can sign the next one. It has a thumbprint like any key, and is refused. */
+START_TEST(test_symmetric_header_jwk)
+{
+	jwk_set_t *set;
+	const jwk_item_t *key;
+	char_auto *jkt = NULL, *jwk = NULL, *token = NULL;
+
+	SET_OPS();
+
+	set = jwks_create_fromfile(KEYDIR "/oct_key_256.json");
+	ck_assert_ptr_nonnull(set);
+	key = jwks_item_get(set, 0);
+	ck_assert_ptr_nonnull(key);
+	ck_assert_int_eq(jwks_item_error(key), 0);
+	jkt = jwks_item_thumbprint(key, JWK_THUMBPRINT_SHA256);
+	ck_assert_ptr_nonnull(jkt);
+
+	jwk = jwks_item_export(key, 1);
+	ck_assert_ptr_nonnull(jwk);
+	ck_assert_ptr_nonnull(strstr(jwk, "\"k\""));
+
+	token = make_proof_alg(JWT_ALG_HS256, key, jwk, "dpop+jwt");
+	ck_assert_ptr_nonnull(token);
+
+	embedded(token, jkt, NULL, 0);
+	embedded(token, NULL, set, 0);
+
+	jwks_free(set);
+}
+END_TEST
+
 static Suite *libjwt_suite(const char *title)
 {
 	Suite *s;
@@ -470,6 +761,11 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, test_checker_reuse, 0, i);
 	tcase_add_loop_test(tc_core, test_enable_errors, 0, i);
 	tcase_add_loop_test(tc_core, test_callback_cannot_strip_key, 0, i);
+	tcase_add_loop_test(tc_core, test_private_header_jwk, 0, i);
+	tcase_add_loop_test(tc_core, test_private_member_any_type, 0, i);
+	tcase_add_loop_test(tc_core, test_header_jwk_keys_wrapper, 0, i);
+	tcase_add_loop_test(tc_core, test_private_header_jwk_okp, 0, i);
+	tcase_add_loop_test(tc_core, test_symmetric_header_jwk, 0, i);
 
 	tcase_set_timeout(tc_core, 30);
 

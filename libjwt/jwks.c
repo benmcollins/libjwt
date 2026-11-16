@@ -65,16 +65,301 @@ static char *cert_x5t_s256(const unsigned char *der, size_t der_len)
 	return b64;
 }
 
+/* A view of DER octets that are still to be read: @p[0] to @p[@len - 1]. */
+struct der {
+	const unsigned char *p;
+	size_t len;
+};
+
+/* Take the element at the front of @in, which must have the single-octet tag
+ * @tag and a definite length in its shortest form (DER) that fits in @in. On
+ * success @out is its contents and @in is what follows it; otherwise neither
+ * is changed. Returns 0 on success. */
+static int der_get(struct der *in, unsigned char tag, struct der *out)
+{
+	const unsigned char *p = in->p;
+	size_t left = in->len, len, n, i;
+
+	if (left < 2 || p[0] != tag)
+		return 1;
+
+	len = p[1];
+	p += 2;
+	left -= 2;
+
+	if (len & 0x80) {
+		/* Long form: 1 to 3 more octets hold the length (0 would be
+		 * the indefinite form), which must need that many: no leading
+		 * zero octet, and 128 or more. */
+		n = len & 0x7f;
+		if (n < 1 || n > 3 || n > left || p[0] == 0)
+			return 1;
+
+		for (len = 0, i = 0; i < n; i++)
+			len = (len << 8) | p[i];
+		if (len < 0x80)
+			return 1;
+
+		p += n;
+		left -= n;
+	}
+
+	if (len > left)
+		return 1;
+
+	out->p = p;
+	out->len = len;
+	in->p = p + len;
+	in->len = left - len;
+
+	return 0;
+}
+
+/* Take an INTEGER that is not negative from the front of @in: as der_get(),
+ * and the first octet has its top bit clear and is zero only where the value
+ * needs that as its sign octet. Returns 0 on success. */
+static int der_get_uint(struct der *in, struct der *out)
+{
+	return der_get(in, 0x02, out) || out->len == 0 || (out->p[0] & 0x80) ||
+	       (out->len > 1 && out->p[0] == 0 && !(out->p[1] & 0x80));
+}
+
+/* @rfc{5280,4.1} Walk the certificate @cert to its SubjectPublicKeyInfo. On
+ * success @alg is the contents of its AlgorithmIdentifier (the algorithm OID,
+ * then any parameters) and @key is the subjectPublicKey. The other fields are
+ * stepped over by tag and length, and what follows the key inside the
+ * tbsCertificate is not read. No name, date, extension or signature is looked
+ * at: validating the certificate and its chain is left to the caller of
+ * jwks_item_x5c(). Returns 0 on success. */
+static int x5c_cert_spki(struct der cert, struct der *alg, struct der *key)
+{
+	/* serialNumber, signature, issuer, validity, subject */
+	static const unsigned char tags[] = { 0x02, 0x30, 0x30, 0x30, 0x30 };
+	struct der body, tbs, spki, skip;
+	size_t i;
+
+	/* Certificate ::= SEQUENCE { tbsCertificate, signatureAlgorithm,
+	 * signatureValue }, and nothing after it. */
+	if (der_get(&cert, 0x30, &body) || cert.len ||
+	    der_get(&body, 0x30, &tbs) || der_get(&body, 0x30, &skip) ||
+	    der_get(&body, 0x03, &skip) || body.len)
+		return 1;
+
+	/* A version 1 certificate has no version [0]. If this fails, the
+	 * serialNumber is looked for in the same place. */
+	(void)der_get(&tbs, 0xa0, &skip);
+
+	for (i = 0; i < ARRAY_SIZE(tags); i++) {
+		if (der_get(&tbs, tags[i], &skip))
+			return 1;
+	}
+
+	/* SubjectPublicKeyInfo ::= SEQUENCE { algorithm AlgorithmIdentifier,
+	 * subjectPublicKey BIT STRING }. A BIT STRING starts with its count
+	 * of unused bits, which is 0 for every kind of key. */
+	if (der_get(&tbs, 0x30, &spki) || der_get(&spki, 0x30, alg) ||
+	    der_get(&spki, 0x03, key) || spki.len ||
+	    key->len < 1 || key->p[0] != 0)
+		return 1;
+
+	key->p++;
+	key->len--;
+
+	return 0;
+}
+
+/* What a SubjectPublicKeyInfo has to be for each "crv" (EC, OKP) and "alg"
+ * (AKP): the contents of its AlgorithmIdentifier, which DER can write in one
+ * way only (the algorithm OID and, for EC, the OID of the named curve), and
+ * the length of the key. */
+static const struct {
+	jwk_key_type_t kty;
+	const char *name;
+	size_t key_len;
+	size_t alg_len;
+	unsigned char alg[19];
+} x5c_spkis[] = {
+	/* @rfc{5480,2} id-ecPublicKey and a named curve; 04 || X || Y. */
+	{ JWK_KEY_TYPE_EC, "P-256", 65, 19,
+	  { 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01, 0x06, 0x08,
+	    0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07 } },
+	{ JWK_KEY_TYPE_EC, "P-384", 97, 16,
+	  { 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01, 0x06, 0x05,
+	    0x2b, 0x81, 0x04, 0x00, 0x22 } },
+	{ JWK_KEY_TYPE_EC, "P-521", 133, 16,
+	  { 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01, 0x06, 0x05,
+	    0x2b, 0x81, 0x04, 0x00, 0x23 } },
+	{ JWK_KEY_TYPE_EC, "secp256k1", 65, 16,
+	  { 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01, 0x06, 0x05,
+	    0x2b, 0x81, 0x04, 0x00, 0x0a } },
+	/* @rfc{8410,3} No parameters; the key as it is. */
+	{ JWK_KEY_TYPE_OKP, "X25519", 32, 5, { 0x06, 0x03, 0x2b, 0x65, 0x6e } },
+	{ JWK_KEY_TYPE_OKP, "X448", 56, 5, { 0x06, 0x03, 0x2b, 0x65, 0x6f } },
+	{ JWK_KEY_TYPE_OKP, "Ed25519", 32, 5,
+	  { 0x06, 0x03, 0x2b, 0x65, 0x70 } },
+	{ JWK_KEY_TYPE_OKP, "Ed448", 57, 5, { 0x06, 0x03, 0x2b, 0x65, 0x71 } },
+	/* id-ml-dsa-44, -65 and -87 (2.16.840.1.101.3.4.3.17 to 19): no
+	 * parameters; the key as it is. */
+	{ JWK_KEY_TYPE_AKP, "ML-DSA-44", 1312, 11,
+	  { 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x03,
+	    0x11 } },
+	{ JWK_KEY_TYPE_AKP, "ML-DSA-65", 1952, 11,
+	  { 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x03,
+	    0x12 } },
+	{ JWK_KEY_TYPE_AKP, "ML-DSA-87", 2592, 11,
+	  { 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x03,
+	    0x13 } },
+};
+
+/* The string member @name of @jwk, or "" if it has none. */
+static const char *x5c_member(jwt_json_t *jwk, const char *name)
+{
+	jwt_json_t *val = jwt_json_obj_get(jwk, name);
+
+	if (val == NULL || !jwt_json_is_string(val))
+		return "";
+
+	return jwt_json_str_val(val);
+}
+
+/* An unsigned big-endian integer without its leading zero octets. */
+static struct der x5c_uint(struct der val)
+{
+	while (val.len && val.p[0] == 0) {
+		val.p++;
+		val.len--;
+	}
+
+	return val;
+}
+
+/* Non-zero if the base64url member @name of @jwk decodes to the octets @want
+ * or, with @is_uint, to the same unsigned integer: every backend reads "n",
+ * "e" and the EC "x" and "y" as numbers, and not every producer pads them.
+ * The values are public, so the compare need not be constant-time. */
+static int x5c_member_eq(jwt_json_t *jwk, const char *name, struct der want,
+			 int is_uint)
+{
+	unsigned char *bin;
+	struct der have;
+	int len = 0, ret;
+
+	bin = jwt_base64uri_decode(x5c_member(jwk, name), &len);
+	if (bin == NULL)
+		return 0;
+
+	have.p = bin;
+	have.len = (size_t)len;
+	if (is_uint) {
+		have = x5c_uint(have);
+		want = x5c_uint(want);
+	}
+
+	ret = have.len == want.len && !memcmp(have.p, want.p, want.len);
+	jwt_freemem(bin);
+
+	return ret;
+}
+
+/* Non-zero if the SubjectPublicKeyInfo (@alg, @key) holds the public key that
+ * the members of @jwk represent. */
+static int x5c_spki_matches(jwt_json_t *jwk, const jwk_item_t *item,
+			    struct der alg, struct der key)
+{
+	int akp = item->kty == JWK_KEY_TYPE_AKP;
+	const char *name;
+	size_t i;
+
+	if (item->kty == JWK_KEY_TYPE_RSA) {
+		/* @rfc{4055,1.2} rsaEncryption (1.2.840.113549.1.1.1) or
+		 * id-RSASSA-PSS (1.2.840.113549.1.1.10), whose parameters
+		 * do not change the key: RSAPublicKey ::= SEQUENCE {
+		 * modulus INTEGER, publicExponent INTEGER } */
+		static const unsigned char oid[] = { 0x06, 0x09, 0x2a, 0x86,
+			0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01 };
+		struct der seq, n, e;
+
+		if (alg.len <= sizeof(oid) || memcmp(alg.p, oid, sizeof(oid)) ||
+		    (alg.p[sizeof(oid)] != 0x01 && alg.p[sizeof(oid)] != 0x0a))
+			return 0;
+
+		if (der_get(&key, 0x30, &seq) || key.len ||
+		    der_get_uint(&seq, &n) || der_get_uint(&seq, &e) || seq.len)
+			return 0;
+
+		return x5c_member_eq(jwk, "n", n, 1) &&
+		       x5c_member_eq(jwk, "e", e, 1);
+	}
+
+	/* The others are told apart by "crv", or for AKP (ML-DSA) by "alg". */
+	name = x5c_member(jwk, akp ? "alg" : "crv");
+	for (i = 0; i < ARRAY_SIZE(x5c_spkis); i++) {
+		if (x5c_spkis[i].kty == item->kty &&
+		    !strcmp(x5c_spkis[i].name, name))
+			break;
+	}
+
+	if (i == ARRAY_SIZE(x5c_spkis) || key.len != x5c_spkis[i].key_len ||
+	    alg.len != x5c_spkis[i].alg_len ||
+	    memcmp(alg.p, x5c_spkis[i].alg, alg.len))
+		return 0;
+
+	if (item->kty == JWK_KEY_TYPE_EC) {
+		/* @rfc{5480,2.2} The uncompressed point only: 04, then X and
+		 * Y, which are each half of what is left. */
+		struct der x = { key.p + 1, key.len / 2 };
+		struct der y = { x.p + x.len, x.len };
+
+		return key.p[0] == 0x04 && x5c_member_eq(jwk, "x", x, 1) &&
+		       x5c_member_eq(jwk, "y", y, 1);
+	}
+
+	return x5c_member_eq(jwk, akp ? "pub" : "x", key, 0);
+}
+
+/* @rfc{7517,4.7} "The key in the first certificate MUST match the public key
+ * represented by other members of the JWK." Otherwise anyone can put another
+ * party's certificate chain, which is public, on a key of their own. Compare
+ * the SubjectPublicKeyInfo of the leaf with the members of the JWK, and mark
+ * the item in error if they differ or cannot be compared. */
+static void jwk_check_x5c_leaf(jwt_json_t *jwk, jwk_item_t *item)
+{
+	struct der cert = { item->x5c[0].der, item->x5c[0].len };
+	struct der alg, key;
+
+	/* A certificate holds a public key, never a shared secret. */
+	if (item->kty == JWK_KEY_TYPE_OCT) {
+		jwt_write_error(item,
+			"Invalid JWK: \"x5c\" is not valid for an \"oct\" key");
+		return;
+	}
+
+	if (x5c_cert_spki(cert, &alg, &key)) {
+		jwt_write_error(item,
+			"Invalid JWK: \"x5c\" leaf is not a valid certificate");
+		return;
+	}
+
+	if (!x5c_spki_matches(jwk, item, alg, key))
+		jwt_write_error(item,
+			"\"x5c\" leaf certificate does not match the JWK's key");
+}
+
 /* @rfc{7517,4.7} Decode the "x5c" certificate chain (standard base64 DER) into
  * item->x5c. If "x5t#S256" is also present it MUST match the leaf cert's SHA-256
- * thumbprint (@rfc{7517,4.9}); a mismatch marks the item in error. */
+ * thumbprint (@rfc{7517,4.9}), and the leaf MUST hold the JWK's own public key;
+ * a mismatch of either marks the item in error. */
 static void jwk_process_x5c(jwt_json_t *jwk, jwk_item_t *item)
 {
 	jwt_json_t *j_x5c, *j_cert, *j_x5t256;
 	size_t i, count;
 
 	j_x5c = jwt_json_obj_get(jwk, "x5c");
-	if (j_x5c == NULL)
+	/* A JSON null member is treated as absent, the same on both JSON
+	 * backends: json-c already hands out a null as NULL, while Jansson
+	 * would otherwise see json_null() here and flag the key "not an array",
+	 * a cross-backend divergence (an in-error key is never used). */
+	if (j_x5c == NULL || jwt_json_is_null(j_x5c))
 		return;
 	if (!jwt_json_is_array(j_x5c)) {
 		jwt_write_error(item, "Invalid JWK: \"x5c\" is not an array");
@@ -86,8 +371,12 @@ static void jwk_process_x5c(jwt_json_t *jwk, jwk_item_t *item)
 		return;
 
 	item->x5c = jwt_malloc(count * sizeof(struct jwk_cert));
-	if (item->x5c == NULL)
-		return; // LCOV_EXCL_LINE
+	if (item->x5c == NULL) {
+		// LCOV_EXCL_START
+		jwt_write_error(item, "Error allocating memory for x5c");
+		return;
+		// LCOV_EXCL_STOP
+	}
 	memset(item->x5c, 0, count * sizeof(struct jwk_cert));
 
 	jwt_json_arr_foreach(j_x5c, i, j_cert) {
@@ -104,8 +393,13 @@ static void jwk_process_x5c(jwt_json_t *jwk, jwk_item_t *item)
 		blen = strlen(b64);
 		/* Decoded DER is at most 3/4 of the base64 length. */
 		item->x5c[i].der = jwt_malloc(blen ? blen : 1);
-		if (item->x5c[i].der == NULL)
-			return; // LCOV_EXCL_LINE
+		if (item->x5c[i].der == NULL) {
+			// LCOV_EXCL_START
+			jwt_write_error(item,
+				"Error allocating memory for x5c");
+			return;
+			// LCOV_EXCL_STOP
+		}
 		item->x5c_count = i + 1;
 		item->x5c[i].len = base64_decode(b64, (unsigned int)blen,
 						 item->x5c[i].der);
@@ -126,15 +420,21 @@ static void jwk_process_x5c(jwt_json_t *jwk, jwk_item_t *item)
 			jwt_write_error(item,
 				"\"x5t#S256\" does not match the \"x5c\" leaf certificate");
 	}
+
+	/* A key already in error stays as it is, with its first message. */
+	if (!item->error)
+		jwk_check_x5c_leaf(jwk, item);
 }
 
 static void jwk_process_values(jwt_json_t *jwk, jwk_item_t *item)
 {
 	jwt_json_t *j_use, *j_ops_a, *j_kid, *j_alg;
 
-	/* Start with the ALG (4.4). */
+	/* Start with the ALG (4.4). A JSON null "alg" is treated as absent, the
+	 * same on both JSON backends (see jwk_process_x5c()): Jansson would
+	 * otherwise flag "Invalid alg type" where json-c reads it as absent. */
 	j_alg = jwt_json_obj_get(jwk, "alg");
-	if (j_alg) {
+	if (j_alg && !jwt_json_is_null(j_alg)) {
 		if (!jwt_json_is_string(j_alg)) {
 			 jwt_write_error(item, "Invalid alg type");
 			 return;
@@ -274,9 +574,14 @@ static jwk_item_t *jwk_process_one(jwk_set_t *jwk_set, jwt_json_t *jwk)
 	} else if (!strcmp(kty, "OKP")) {
 		item->kty = JWK_KEY_TYPE_OKP;
 		jwt_ops->process_eddsa(item->json, item);
-#ifdef LIBJWT_HAVE_ML_DSA
 	} else if (!strcmp(kty, "AKP")) {
+		/* "AKP" is recognised in every build, so a public AKP key keeps
+		 * its type and its public form (jwks_export() minus "priv")
+		 * rather than falling to the unknown-type branch below, which
+		 * would strip nothing and leak the seed. Only a build with an
+		 * ML-DSA backend can load it; otherwise it stays in error. */
 		item->kty = JWK_KEY_TYPE_AKP;
+#ifdef LIBJWT_HAVE_ML_DSA
 		/* Unlike the other process_* ops, process_mldsa may be NULL:
 		 * only backends with ML-DSA support set it. Fail cleanly
 		 * rather than dereferencing a NULL pointer. */
@@ -287,6 +592,10 @@ static jwk_item_t *jwk_process_one(jwk_set_t *jwk_set, jwt_json_t *jwk)
 			return item;
 		}
 		jwt_ops->process_mldsa(item->json, item);
+#else
+		jwt_write_error(item, "ML-DSA (AKP) keys are not "
+				"supported in this build");
+		return item;
 #endif
 	} else if (!strcmp(kty, "oct")) {
 		item->kty = JWK_KEY_TYPE_OCT;
@@ -294,6 +603,15 @@ static jwk_item_t *jwk_process_one(jwk_set_t *jwk_set, jwt_json_t *jwk)
 	} else {
 		jwt_write_error(item, "Unknown or unsupported kty type '%s'", kty);
 		return item;
+	}
+
+	/* No backend bound a key to the item, so it failed to load, whether
+	 * or not the parser said why. Flag it, and leave nothing on it that a
+	 * later check could take for a usable key. */
+	if (item->provider == JWT_CRYPTO_OPS_NONE) {
+		jwt_write_error(item, "Failed to load key");
+		item->bits = 0;
+		item->is_private_key = 0;
 	}
 
 	jwk_process_values(item->json, item);
@@ -386,15 +704,18 @@ const char *jwks_item_pem(const jwk_item_t *item)
 	return item->pem;
 }
 
+/* A key in error vouches for nothing: its chain may be cut short or not be
+ * this key's at all, and its certificate thumbprints were not, or could not
+ * be, checked against it. All of these read as absent. */
 size_t jwks_item_x5c_count(const jwk_item_t *item)
 {
-	return item->x5c_count;
+	return item->error ? 0 : item->x5c_count;
 }
 
 const unsigned char *jwks_item_x5c(const jwk_item_t *item, size_t index,
 				   size_t *len)
 {
-	if (item->x5c == NULL || index >= item->x5c_count)
+	if (item->error || item->x5c == NULL || index >= item->x5c_count)
 		return NULL;
 
 	if (len != NULL)
@@ -405,15 +726,16 @@ const unsigned char *jwks_item_x5c(const jwk_item_t *item, size_t index,
 
 const char *jwks_item_x5t(const jwk_item_t *item)
 {
-	jwt_json_t *j = item->json ? jwt_json_obj_get(item->json, "x5t") : NULL;
+	jwt_json_t *j = (item->json && !item->error) ?
+		jwt_json_obj_get(item->json, "x5t") : NULL;
 
 	return (j != NULL && jwt_json_is_string(j)) ? jwt_json_str_val(j) : NULL;
 }
 
 const char *jwks_item_x5t_s256(const jwk_item_t *item)
 {
-	jwt_json_t *j = item->json ? jwt_json_obj_get(item->json, "x5t#S256")
-				   : NULL;
+	jwt_json_t *j = (item->json && !item->error) ?
+		jwt_json_obj_get(item->json, "x5t#S256") : NULL;
 
 	return (j != NULL && jwt_json_is_string(j)) ? jwt_json_str_val(j) : NULL;
 }
@@ -986,45 +1308,71 @@ jwk_set_t *jwks_create_generate(jwk_key_type_t kty, const char *param,
 	return jwks_generate(NULL, kty, param, alg, flags);
 }
 
-/* The private members for each key type, used to strip a JWK down to its
- * public form. The returned array is NULL-terminated. */
-static const char **jwk_priv_members(jwk_key_type_t kty)
-{
-	static const char *rsa[] = { "d", "p", "q", "dp", "dq", "qi", NULL };
-	static const char *ec_okp[] = { "d", NULL };
-	static const char *oct[] = { "k", NULL };
-	static const char *none[] = { NULL };
-#ifdef LIBJWT_HAVE_ML_DSA
-	static const char *akp[] = { "priv", NULL };
-#endif
+/* Every member that is private in some key type: RSA (@rfc{7518,6.3.2}, "oth"
+ * too), EC and OKP ("d"), oct ("k") and AKP ("priv"). None of them is a public
+ * member of another type. */
+static const char *const jwk_priv_names[] = { "d", "p", "q", "dp", "dq", "qi",
+					      "oth", "k", "priv", NULL };
 
-	switch (kty) {
-	case JWK_KEY_TYPE_RSA:
-		return rsa;
-	case JWK_KEY_TYPE_EC:
-	case JWK_KEY_TYPE_OKP:
-		return ec_okp;
-	case JWK_KEY_TYPE_OCT:
-		return oct;
-#ifdef LIBJWT_HAVE_ML_DSA
-	case JWK_KEY_TYPE_AKP:
-		return akp;
-#endif
-	// LCOV_EXCL_START
-	default:
-		return none;
-	// LCOV_EXCL_STOP
+/* Whether a JWK JSON object has a member that is private in some key type,
+ * whatever its value (a JSON null too): what a public export strips. Such a
+ * JWK is not the public form of a key, even one that a backend also loaded as
+ * a public key by leaving a private member it could not read aside. */
+int jwk_json_has_private(const jwt_json_t *jwk)
+{
+	size_t i;
+
+	for (i = 0; jwk_priv_names[i] != NULL; i++) {
+		if (jwt_json_obj_has(jwk, jwk_priv_names[i]))
+			return 1;
 	}
+
+	return 0;
 }
 
-/* Strip the private members from a JWK JSON object in place. */
-static void jwk_strip_private(jwt_json_t *jwk, jwk_key_type_t kty)
+/* Strip the JWK JSON object @jwk (a clone of @item's) down to @item's public
+ * form, in place. Returns non-zero, with nothing stripped, for a key that has
+ * no public form. */
+static int jwk_strip_private(jwt_json_t *jwk, const jwk_item_t *item)
 {
-	const char **members = jwk_priv_members(kty);
+	/* All of jwk_priv_names go, whatever @kty is: a key in error need not
+	 * be what its "kty" says, and an RSA private key labelled "EC" must not
+	 * keep its primes. */
+	const char *const *members = jwk_priv_names;
 	size_t i;
+
+	/* What is private in a key is known for these types only. A key of
+	 * any other type has no public form: that is a key whose "kty" was
+	 * missing, not a string, or not known to this build. A known type
+	 * also means that @jwk is an object, which the deletes below rely on
+	 * (json-c crashes on anything else). */
+	switch (item->kty) {
+	case JWK_KEY_TYPE_EC:
+	case JWK_KEY_TYPE_RSA:
+	case JWK_KEY_TYPE_OKP:
+	case JWK_KEY_TYPE_OCT:
+	case JWK_KEY_TYPE_AKP:
+		break;
+	default:
+		return 1;
+	}
 
 	for (i = 0; members[i] != NULL; i++)
 		jwt_json_obj_del(jwk, members[i]);
+
+	/* A key in error (a foreign "x5c", an "x5t#S256" that is not its leaf's)
+	 * must not hand out in its public form the X.509 binding it was flagged
+	 * for: the accessors already read as absent for such a key, so a relay
+	 * cannot republish the rejected binding from it either. */
+	if (item->error) {
+		static const char *const certs[] = { "x5c", "x5t", "x5t#S256",
+						     "x5u", NULL };
+
+		for (i = 0; certs[i] != NULL; i++)
+			jwt_json_obj_del(jwk, certs[i]);
+	}
+
+	return 0;
 }
 
 char *jwks_item_export(const jwk_item_t *item, int priv)
@@ -1038,8 +1386,8 @@ char *jwks_item_export(const jwk_item_t *item, int priv)
 	if (clone == NULL)
 		return NULL; // LCOV_EXCL_LINE
 
-	if (!priv)
-		jwk_strip_private(clone, item->kty);
+	if (!priv && jwk_strip_private(clone, item))
+		return NULL;
 
 	return jwt_json_serialize(clone, JWT_JSON_INDENT(2));
 }
@@ -1072,8 +1420,11 @@ char *jwks_export(const jwk_set_t *jwk_set, int priv)
 		if (clone == NULL)
 			continue; // LCOV_EXCL_LINE
 
-		if (!priv)
-			jwk_strip_private(clone, item->kty);
+		/* A key with no public form is left out of a public set. */
+		if (!priv && jwk_strip_private(clone, item)) {
+			jwt_json_release(clone);
+			continue;
+		}
 
 		jwt_json_arr_append(keys, clone);
 	}

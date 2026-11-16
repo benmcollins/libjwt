@@ -372,7 +372,6 @@ int mbedtls_process_rsa(jwt_json_t *jwk, jwk_item_t *item)
 		goto cleanup; // LCOV_EXCL_LINE
 
 	key->bits = be_bitlen(n, (size_t)n_l);
-	item->bits = key->bits;
 
 	/* PSA caps RSA at PSA_VENDOR_RSA_MAX_KEY_BITS (a property of the linked
 	 * crypto build, 4096 by default). The classic API had no such limit, so a
@@ -407,9 +406,12 @@ int mbedtls_process_rsa(jwt_json_t *jwk, jwk_item_t *item)
 					       qi, qi_l, &key->priv_len);
 		if (key->priv == NULL)
 			goto cleanup; // LCOV_EXCL_LINE
-		item->is_private_key = key->is_private = 1;
+		key->is_private = 1;
 	}
 
+	/* The key is good: only now does the item describe it. */
+	item->bits = key->bits;
+	item->is_private_key = key->is_private;
 	item->provider = JWT_CRYPTO_OPS_MBEDTLS;
 	item->provider_data = key;
 
@@ -485,7 +487,6 @@ int mbedtls_process_ec(jwt_json_t *jwk, jwk_item_t *item)
 		goto cleanup; // LCOV_EXCL_LINE
 	key->ecc_family = fam;
 	key->bits = bits;
-	item->bits = bits;
 
 	x = decode_member(jwk, "x", &x_l);
 	y = decode_member(jwk, "y", &y_l);
@@ -521,7 +522,7 @@ int mbedtls_process_ec(jwt_json_t *jwk, jwk_item_t *item)
 			goto cleanup; // LCOV_EXCL_LINE
 		memset(key->priv, 0, key->priv_len);
 		memcpy(key->priv + (fieldlen - (size_t)d_l), d, (size_t)d_l);
-		item->is_private_key = key->is_private = priv = 1;
+		key->is_private = priv = 1;
 	}
 
 	/* Validate the public point (on-curve) via a throwaway PSA import. */
@@ -545,6 +546,9 @@ int mbedtls_process_ec(jwt_json_t *jwk, jwk_item_t *item)
 	if (priv)
 		psa_destroy_key(kid);
 
+	/* The key is good: only now does the item describe it. */
+	item->bits = bits;
+	item->is_private_key = priv;
 	item->provider = JWT_CRYPTO_OPS_MBEDTLS;
 	item->provider_data = key;
 
@@ -580,7 +584,7 @@ int mbedtls_process_eddsa(jwt_json_t *jwk, jwk_item_t *item)
 	jwt_json_t *jcrv, *jx, *jd;
 	const char *crv;
 	mbedtls_jwk_t *key = NULL;
-	size_t keylen = 0;
+	size_t keylen = 0, bits;
 	int is_ed, ret = -1;
 
 	jcrv = jwt_json_obj_get(jwk, "crv");
@@ -611,20 +615,17 @@ int mbedtls_process_eddsa(jwt_json_t *jwk, jwk_item_t *item)
 	/* Bit sizes (matches the JWS key-length validation in jwt.c). Ed448 is
 	 * conventionally reported as 456. */
 	if (!strcmp(crv, "Ed25519") || !strcmp(crv, "X25519"))
-		item->bits = 256;
+		bits = 256;
 	else if (!strcmp(crv, "Ed448"))
-		item->bits = 456;
+		bits = 456;
 	else
-		item->bits = 448; /* X448 */
+		bits = 448; /* X448 */
 
 	key = jwk_new(JWK_KEY_TYPE_OKP);
 	if (key == NULL)
 		goto cleanup; // LCOV_EXCL_LINE
 	key->okp_is_ed = is_ed;
-	key->bits = item->bits;
-
-	if (jd != NULL)
-		item->is_private_key = key->is_private = 1;
+	key->bits = bits;
 
 	if (is_ed) {
 		/* Ed-curves: store raw material only (no EdDSA support here). */
@@ -635,6 +636,8 @@ int mbedtls_process_eddsa(jwt_json_t *jwk, jwk_item_t *item)
 		if (jd != NULL && jwt_json_is_string(jd)) {
 			key->priv = decode_member(jwk, "d", &d_l);
 			key->priv_len = key->priv ? (size_t)d_l : 0;
+			if (key->priv != NULL)
+				key->is_private = 1;
 		}
 	} else {
 		/* X-curves: PSA-importable little-endian material. The decoded
@@ -670,10 +673,24 @@ int mbedtls_process_eddsa(jwt_json_t *jwk, jwk_item_t *item)
 			}
 			key->priv = d;
 			key->priv_len = (size_t)d_l;
+			key->is_private = 1;
 			d = NULL;
 		}
 	}
 
+	/* A private member that is not a string ("d":5) is left aside above, as
+	 * is a non-string "x": a key with neither public nor private material
+	 * decoded is not a usable key, and must not pass as an empty private
+	 * item (is_private is set only where real "d" material was decoded). */
+	if (key->pub == NULL && key->priv == NULL) {
+		jwt_write_error(item,
+			"Need an 'x' or 'd' component and found neither");
+		goto cleanup;
+	}
+
+	/* The key is good: only now does the item describe it. */
+	item->bits = bits;
+	item->is_private_key = key->is_private;
 	item->provider = JWT_CRYPTO_OPS_MBEDTLS;
 	item->provider_data = key;
 	key = NULL;

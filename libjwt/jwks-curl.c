@@ -303,10 +303,22 @@ static void cache_apply(jwk_set_t *jwk_set, struct curl_result *r)
 		/* Not Modified: keep the existing keys. */
 	} else if (r->status >= 200 && r->status < 300) {
 		/* Replace, but only if the new body is a usable JWKS; a 2xx with
-		 * a garbage/empty body must not wipe a previously good cache. */
+		 * a garbage/empty body, or one whose every key is in error (and
+		 * so would never be used), must not wipe a previously good
+		 * cache. */
 		jwk_set_t *tmp = jwks_create(r->body);
-		int ok = (tmp != NULL && !jwks_error(tmp) &&
-			  jwks_item_count(tmp) > 0);
+		int ok = 0;
+
+		if (tmp != NULL && !jwks_error(tmp)) {
+			size_t i, n = jwks_item_count(tmp);
+
+			for (i = 0; i < n; i++) {
+				if (!jwks_item_error(jwks_item_get(tmp, i))) {
+					ok = 1;
+					break;
+				}
+			}
+		}
 
 		jwks_free(tmp);
 		if (!ok) {

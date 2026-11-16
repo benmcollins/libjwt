@@ -114,6 +114,16 @@ static int __setkey_check(jwt_common_t *__cmd, const jwt_alg_t alg,
 	if (__cmd == NULL)
 		return 1;
 
+	/* A key in error (jwks_item_error()) failed to load, or was flagged
+	 * after it loaded (e.g. an "x5t#S256" that is not its certificate's).
+	 * It is never used, whether the application sets it or a callback
+	 * returns it. Checked first: a failed load says nothing reliable
+	 * about the key, not even whether it is private. */
+	if (key && key->error) {
+		jwt_write_error(__cmd, "Key is in error and cannot be used");
+		return 1;
+	}
+
 #ifdef JWT_BUILDER
 	if (key && !key->is_private_key) {
 		jwt_write_error(__cmd, "Signing requires a private key");
@@ -158,11 +168,40 @@ static int __setkey_check(jwt_common_t *__cmd, const jwt_alg_t alg,
 	return 1;
 }
 
+/* Refusing a key in error must not leave a checker or a builder that has no
+ * key unkeyed, where it would verify, or produce, unsigned tokens for an
+ * application that ignores the failure. It was given a key, so it requires
+ * one: see @key_required. The key or keyring it already has stays in place. */
+static void __key_refused(jwt_common_t *__cmd, const jwt_alg_t alg,
+			  const jwk_item_t *key)
+{
+	(void)alg;
+
+	if (__cmd == NULL || key == NULL || !key->error ||
+	    __cmd->c.key_required)
+		return;
+
+	__cmd->c.key_required = 2;
+
+#ifdef JWT_CHECKER
+	/* Keep the alg jwt_checker_setkey() was asked for pinned, so a verify
+	 * callback that then supplies a key of its own (one that carries no
+	 * "alg") still verifies with that alg, as it did before the key was
+	 * refused. With no callback the checker has no key and fails closed on
+	 * this key_required latch (see __verify()). The builder restores the
+	 * alg differently, from the replacement key (see FUNC(generate)), since
+	 * pinning c.alg would break a later jwt_builder_add_signature() build. */
+	__cmd->c.alg = alg;
+#endif
+}
+
 int FUNC(setkey)(jwt_common_t *__cmd, const jwt_alg_t alg,
 		 const jwk_item_t *key)
 {
-	if (__setkey_check(__cmd, alg, key))
+	if (__setkey_check(__cmd, alg, key)) {
+		__key_refused(__cmd, alg, key);
 		return 1;
+	}
 
 	__cmd->c.alg = alg;
 	__cmd->c.key = key;
@@ -183,6 +222,9 @@ int FUNC(setkey)(jwt_common_t *__cmd, const jwt_alg_t alg,
 #endif
 
 #ifdef JWT_BUILDER
+	/* Any key the builder accepts, or no key at all, settles a refusal. */
+	__cmd->c.key_required = 0;
+
 	/* @rfc{7515,7.2} Mirror the primary signer into the first signature, so
 	 * a JSON-format build (and any later add_signature) sees it in the list.
 	 * Repeated setkey() updates that same first node rather than appending. */
@@ -788,9 +830,12 @@ static int __verify(jwt_common_t *__cmd, const char *token)
 	     __cmd->c.embedded_jwk || __cmd->c.key_required) &&
 	    config.key == NULL) {
 		/* With no verify callback, only a callback's earlier removal of
-		 * the key (see FUNC(setkey)) gets here. */
+		 * the key (see FUNC(setkey)), or a key in error that
+		 * FUNC(setkey) refused, gets here. */
 		jwt_write_error(__cmd, "%s", had_cb ?
 				"Callback left no verification key" :
+				__cmd->c.key_required == 2 ?
+				"Key is in error and cannot be used" :
 				"A callback removed the checker's key");
 		return 1;
 	}
@@ -1208,10 +1253,12 @@ jwt_signature_t *jwt_builder_add_signature(jwt_builder_t *builder,
 		return NULL;
 	}
 
-	/* Same alg/key validation as setkey (private key, alg<->kty binding,
-	 * alg<->key match). */
-	if (__setkey_check(builder, alg, key))
+	/* Same alg/key validation as setkey (key not in error, private key,
+	 * alg<->kty binding, alg<->key match). */
+	if (__setkey_check(builder, alg, key)) {
+		__key_refused(builder, alg, key);
 		return NULL;
+	}
 
 	s = jwt_signature_append(&builder->c);
 	if (s == NULL) {
@@ -1300,6 +1347,17 @@ char *FUNC(generate)(jwt_common_t *__cmd)
 		jwt_write_error(__cmd, "User callback returned error");
 		return NULL;
 	}
+
+	/* A key set earlier was refused for being in error (key_required) and a
+	 * callback supplied a replacement but no alg: sign with that key's own
+	 * "alg", so the token is signed as it was before the key was refused,
+	 * not emitted unsigned ("alg":"none"). Without a replacement key the
+	 * Compact path below still withholds the unsigned token (__key_refused).
+	 * A callback that sets the alg itself, or a key that carries none, is
+	 * unaffected. */
+	if (__cmd->c.key_required && config.alg == JWT_ALG_NONE &&
+	    config.key != NULL)
+		config.alg = config.key->alg;
 
 	/* Callback may have changed this */
 	if (__setkey_check(__cmd, config.alg, config.key)) {
@@ -1414,6 +1472,15 @@ char *FUNC(generate)(jwt_common_t *__cmd)
 				"carry a jwt_builder_add_signature() signer");
 			return NULL;
 		}
+	}
+
+	/* The token is about to go out unsigned. Not if that is only because
+	 * a key in error was refused (by FUNC(setkey) or
+	 * jwt_builder_add_signature()) and nothing took its place: see
+	 * __key_refused(). */
+	if (jwt->key == NULL && __cmd->c.key_required) {
+		jwt_write_error(__cmd, "Key is in error and cannot be used");
+		return NULL;
 	}
 
 	if (jwt_head_setup(jwt))
