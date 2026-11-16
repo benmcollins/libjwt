@@ -76,6 +76,37 @@ static size_t decode_flags(size_t flags)
  * Internal: map jansson json_error_t to jwt_json_error_t
  * ================================================================ */
 
+#define UNICODE_MSG	"invalid Unicode"
+#define OPEN_MSG	"unable to open "
+
+/* Report Jansson's message without the input text it quotes, as the json-c
+ * backend does with its fixed descriptions. Most messages end in
+ * " near '<text being read>'": cut there. A " near end of file" ending quotes
+ * nothing and stays. The "invalid Unicode" messages quote the escape itself
+ * as well: cut those at their first single quote. "unable to open <path>:
+ * <reason>" has no " near" ending and stays whole, even when the path it
+ * names has " near '" in it. */
+static void map_error_text(char *dst, const char *text)
+{
+	const char *cut = strstr(text, " near '");
+	size_t len;
+
+	if (!strncmp(text, OPEN_MSG, sizeof(OPEN_MSG) - 1))
+		cut = NULL;
+	len = cut ? (size_t)(cut - text) : strlen(text);
+
+	if (!strncmp(text, UNICODE_MSG, sizeof(UNICODE_MSG) - 1)) {
+		cut = memchr(text, '\'', len);
+		if (cut) {
+			len = (size_t)(cut - text);
+			while (len > 0 && text[len - 1] == ' ')
+				len--;
+		}
+	}
+
+	snprintf(dst, JWT_JSON_ERROR_TEXT_LENGTH, "%.*s", (int)len, text);
+}
+
 static void map_error(jwt_json_error_t *dst, const json_error_t *src)
 {
 	if (!dst)
@@ -84,8 +115,7 @@ static void map_error(jwt_json_error_t *dst, const json_error_t *src)
 	memset(dst, 0, sizeof(*dst));
 
 	if (src) {
-		snprintf(dst->text, JWT_JSON_ERROR_TEXT_LENGTH,
-			 "%s", src->text);
+		map_error_text(dst->text, src->text);
 		snprintf(dst->source, JWT_JSON_ERROR_SOURCE_LENGTH,
 			 "%s", src->source);
 		dst->line = src->line;
