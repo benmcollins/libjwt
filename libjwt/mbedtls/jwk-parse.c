@@ -534,17 +534,32 @@ int mbedtls_process_ec(jwt_json_t *jwk, jwk_item_t *item)
 	}
 	psa_destroy_key(kid);
 
-	/* Validate the private scalar, when present, the same way. */
+	/* Validate the private scalar, when present, the same way. This import
+	 * also rejects d = 0 and d >= n (PSA requires 1 <= d < n). */
 	if (priv &&
 	    mbedtls_jwk_to_psa(key, 1, PSA_ALG_ECDSA(PSA_ALG_ANY_HASH),
 			       PSA_KEY_USAGE_SIGN_MESSAGE, &kid)) {
-		// LCOV_EXCL_START
 		jwt_write_error(item, "Error importing EC private key");
 		goto cleanup;
-		// LCOV_EXCL_STOP
 	}
-	if (priv)
+	/* @rfc{7518,6.2.2.1} "d" must be the private key for (x, y): the public
+	 * key PSA derives from the imported scalar must equal the JWK's
+	 * 0x04 || X || Y, or an in-range "d" that is the wrong key slips in. */
+	if (priv) {
+		unsigned char pub[1 + 2 * PSA_BITS_TO_BYTES(521)];
+		size_t publen = 0;
+		psa_status_t st = psa_export_public_key(kid, pub,
+							sizeof(pub), &publen);
+
+		if (st != PSA_SUCCESS || publen != key->pub_len ||
+		    memcmp(pub, key->pub, publen)) {
+			psa_destroy_key(kid);
+			jwt_write_error(item,
+				"EC private key does not match its public key");
+			goto cleanup;
+		}
 		psa_destroy_key(kid);
+	}
 
 	/* The key is good: only now does the item describe it. */
 	item->bits = bits;
