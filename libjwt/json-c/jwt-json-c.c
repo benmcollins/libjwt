@@ -615,29 +615,62 @@ static void set_error(jwt_json_error_t *error, const char *source,
 			 "%s", source);
 }
 
-/* Jansson refuses "\u0000" in a string or an object key (libjwt never sets
- * JSON_ALLOW_NUL). json-c decodes it: it cuts an object key short at the NUL,
- * and keeps it in a string, which libjwt then reads as a C string. Either way
- * whatever follows the NUL is dropped without a word, so a claim "api\u0000x"
- * would match "api". Refuse the escape before parsing, as Jansson does. JSON
- * has a backslash only in a string, where it starts an escape, so stepping
- * over each escape finds every "\u0000" and never mistakes an escaped
- * backslash followed by "u0000" for one. */
+/* json-c's default tokener is lenient: it accepts a raw control character
+ * (U+0000 to U+001F) inside a string, a "\u0000" escape, single-quoted strings
+ * and /-comments, all of which RFC 8259 forbids and Jansson's parser rejects.
+ * No json-c flag rejects exactly this set across the 0.16+ range libjwt
+ * supports (JSON_TOKENER_STRICT on 0.18 also rejects valid non-ASCII UTF-8),
+ * so scan the input here first, as Jansson's parser would.
+ *
+ * The scan follows double-quoted strings, so a raw control character is caught
+ * only inside a string (where it is illegal) and not outside one (a DEL 0x7F,
+ * an apostrophe or a slash inside a string stays valid). It steps over each
+ * escape, so a "\u0000" is found and an escaped quote or backslash does not end
+ * the string early. It must also reject the single quotes and /-comments json-c
+ * would honour: a '"' inside one would otherwise flip the string tracking and
+ * hide a later control character. A backslash followed by a raw control
+ * character is stepped over here but json-c rejects it ("invalid string
+ * sequence"), so it is still refused.
+ *
+ * Deliberately left to json-c (still accepted; an inconsistency with Jansson,
+ * but not a security problem since the JSON is either signed or untrusted):
+ * trailing commas, NaN/Infinity/-Infinity, case-insensitive literals, leading
+ * zeros and "1.", a lone surrogate escape, and invalid or overlong UTF-8. */
 #define NUL_ESCAPE_ERROR	"\\u0000 is not allowed"
+#define CTRL_CHAR_ERROR		"control character in string"
+#define SQUOTE_ERROR		"single quote outside a string"
+#define COMMENT_ERROR		"comment outside a string"
 
-static int has_nul_escape(const char *buf, size_t len)
+static const char *scan_json(const char *buf, size_t len)
 {
 	size_t i;
+	int in_str = 0;
 
 	for (i = 0; i < len; i++) {
-		if (buf[i] != '\\')
-			continue;
-		if (len - i >= 6 && !memcmp(buf + i + 1, "u0000", 5))
-			return 1;
-		i++;	/* the escaped character */
+		unsigned char c = (unsigned char)buf[i];
+
+		if (in_str) {
+			if (c < 0x20)
+				return CTRL_CHAR_ERROR;
+			if (c == '\\') {
+				if (len - i >= 6 &&
+				    !memcmp(buf + i + 1, "u0000", 5))
+					return NUL_ESCAPE_ERROR;
+				i++;	/* step over the escaped character */
+			} else if (c == '"') {
+				in_str = 0;
+			}
+		} else if (c == '"') {
+			in_str = 1;
+		} else if (c == '\'') {
+			return SQUOTE_ERROR;
+		} else if (c == '/' && i + 1 < len &&
+			   (buf[i + 1] == '*' || buf[i + 1] == '/')) {
+			return COMMENT_ERROR;
+		}
 	}
 
-	return 0;
+	return NULL;
 }
 
 /*
@@ -698,6 +731,7 @@ jwt_json_t *jwt_json_parse(const char *input, size_t flags,
 	struct json_tokener *tok;
 	struct json_object *obj;
 	enum json_tokener_error jerr;
+	const char *scan_err;
 
 	if (!input) {
 		set_error(error, "<string>", "NULL input");
@@ -710,8 +744,9 @@ jwt_json_t *jwt_json_parse(const char *input, size_t flags,
 		return NULL;
 	}
 
-	if (has_nul_escape(input, slen)) {
-		set_error(error, "<string>", NUL_ESCAPE_ERROR);
+	scan_err = scan_json(input, slen);
+	if (scan_err) {
+		set_error(error, "<string>", scan_err);
 		return NULL;
 	}
 
@@ -742,6 +777,7 @@ jwt_json_t *jwt_json_parse_buf(const char *buffer, size_t buflen,
 	struct json_tokener *tok;
 	struct json_object *obj;
 	enum json_tokener_error jerr;
+	const char *scan_err;
 
 	if (!buffer) {
 		set_error(error, "<buffer>", "NULL buffer");
@@ -753,8 +789,9 @@ jwt_json_t *jwt_json_parse_buf(const char *buffer, size_t buflen,
 		return NULL;
 	}
 
-	if (has_nul_escape(buffer, buflen)) {
-		set_error(error, "<buffer>", NUL_ESCAPE_ERROR);
+	scan_err = scan_json(buffer, buflen);
+	if (scan_err) {
+		set_error(error, "<buffer>", scan_err);
 		return NULL;
 	}
 
@@ -847,8 +884,10 @@ jwt_json_t *jwt_json_parse_fp(FILE *input, size_t flags,
 		return NULL;
 	}
 
-	buf[len] = '\0';
-	result = jwt_json_parse(buf, flags, error);
+	/* Parse by length, not as a C string, so a NUL embedded in the file is
+	 * seen as trailing data by validate_parsed() instead of truncating the
+	 * input (and letting whatever follows it escape every check). */
+	result = jwt_json_parse_buf(buf, len, flags, error);
 	free(buf);
 
 	return result;

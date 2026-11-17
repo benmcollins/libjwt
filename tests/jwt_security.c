@@ -2461,6 +2461,230 @@ START_TEST(test_jwks_member_type_confusion)
 }
 END_TEST
 
+/* === #360: raw control characters and json-c's lenient extensions ===
+ *
+ * A raw control character (U+0000-U+001F) inside a string, and json-c's
+ * non-standard single-quoted strings and /-comments, are JSON that Jansson
+ * refuses and json-c's lenient default accepted. libjwt now scans the input
+ * the way Jansson's parser would, so both backends reject them alike, while
+ * valid UTF-8 and a raw DEL (0x7F, which RFC 8259 allows) still pass.
+ */
+
+/* In a Compact token's payload, a member value or a member name; and in the
+ * outer object of a JWS JSON token. */
+START_TEST(test_json_control_char_in_token)
+{
+	/* setpayload stores raw bytes verbatim, so the token builds; the
+	 * control character is only seen (and refused) when the payload is
+	 * parsed at verify time. The first entry is the clean control. */
+	const char * const payloads[] = {
+		"{\"sub\":\"ab\"}",
+		"{\"sub\":\"a\tb\"}",		/* TAB (0x09) in a value */
+		"{\"sub\":\"a\x01" "b\"}",	/* 0x01 in a value */
+		"{\"sub\":\"a\x1f" "b\"}",	/* 0x1F in a value */
+		"{\"s\tub\":\"ab\"}",		/* TAB in a member name */
+	};
+	size_t i;
+	int ret;
+
+	SET_OPS();
+
+	read_json("oct_key_256.json");
+
+	for (i = 0; i < ARRAY_SIZE(payloads); i++) {
+		jwt_builder_auto_t *b = jwt_builder_new();
+		jwt_checker_auto_t *c = jwt_checker_new();
+		char_auto *tok = NULL;
+
+		ck_assert_ptr_nonnull(b);
+		ck_assert_ptr_nonnull(c);
+		ret = jwt_builder_setkey(b, JWT_ALG_HS256, g_item);
+		ck_assert_int_eq(ret, 0);
+		ret = jwt_builder_setpayload(b,
+				(const unsigned char *)payloads[i],
+				strlen(payloads[i]));
+		ck_assert_int_eq(ret, 0);
+		tok = jwt_builder_generate(b);
+		ck_assert_ptr_nonnull(tok);
+
+		ret = jwt_checker_setkey(c, JWT_ALG_HS256, g_item);
+		ck_assert_int_eq(ret, 0);
+
+		ret = jwt_checker_verify(c, tok);
+		if (i == 0)
+			ck_assert_int_eq(ret, 0);
+		else
+			ck_assert_int_ne(ret, 0);
+	}
+
+	/* An otherwise-valid signed token with an extra top-level member that
+	 * holds a control character: json-c used to verify it (the member is
+	 * ignored), Jansson rejected the outer JSON. */
+	{
+		char_auto *plain = hdr_compact(&hdr_plain);
+		char_auto *flat = hdr_flat(&hdr_plain, ",\"x\":\"a\x01" "b\"");
+		char_auto *general = hdr_general(&hdr_plain, "",
+						 ",\"x\":\"a\x01" "b\"");
+
+		ck_assert_ptr_null(hdr_verify(plain, 0, NULL));
+		ck_assert_ptr_nonnull(hdr_verify(flat, 0, NULL));
+		ck_assert_ptr_nonnull(hdr_verify(general, 0, NULL));
+	}
+
+	free_key();
+}
+END_TEST
+
+/* Likewise in a JWK or JWKS, from a string, a buffer, a FILE * or a file. */
+START_TEST(test_json_control_char_in_jwks)
+{
+	/* A valid oct key, with a raw TAB in its "kid" value or a member name:
+	 * loaded with json-c, refused by Jansson. */
+	const char value[] = "{\"kty\":\"oct\",\"kid\":\"a\tb\","
+		"\"k\":\"0gmNspkRljssLSrldySnYUS-zhtCo5sqeqo_yl7n2XA\"}";
+	const char name[] = "{\"k\tty\":\"oct\","
+		"\"k\":\"0gmNspkRljssLSrldySnYUS-zhtCo5sqeqo_yl7n2XA\"}";
+	char path[] = "/tmp/libjwt_ctrl_XXXXXX";
+	jwk_set_t *set;
+	FILE *fp;
+	int fd;
+
+	SET_OPS();
+
+	set = jwks_create(value);
+	ck_assert_ptr_nonnull(set);
+	ck_assert_int_ne(jwks_error(set), 0);
+	jwks_free(set);
+
+	set = jwks_create_strn(value, strlen(value));
+	ck_assert_ptr_nonnull(set);
+	ck_assert_int_ne(jwks_error(set), 0);
+	jwks_free(set);
+
+	set = jwks_create(name);
+	ck_assert_ptr_nonnull(set);
+	ck_assert_int_ne(jwks_error(set), 0);
+	jwks_free(set);
+
+	fd = mkstemp(path);
+	ck_assert_int_ge(fd, 0);
+	fp = fdopen(fd, "w+");
+	ck_assert_ptr_nonnull(fp);
+	ck_assert_int_ge(fputs(value, fp), 0);
+	ck_assert_int_eq(fflush(fp), 0);
+	rewind(fp);
+
+	set = jwks_create_fromfp(fp);
+	fclose(fp);
+	ck_assert_ptr_nonnull(set);
+	ck_assert_int_ne(jwks_error(set), 0);
+	jwks_free(set);
+
+	set = jwks_create_fromfile(path);
+	unlink(path);
+	ck_assert_ptr_nonnull(set);
+	ck_assert_int_ne(jwks_error(set), 0);
+	jwks_free(set);
+}
+END_TEST
+
+/* A raw NUL after the value in a JWKS file: json-c read the file as a C
+ * string, so the NUL truncated the input and the key before it loaded with
+ * whatever followed ignored. The file is now parsed by its length, so the
+ * trailing bytes are refused as they are from a buffer. */
+START_TEST(test_json_file_nul_trailing)
+{
+	static const char doc[] =
+		"{\"kty\":\"oct\",\"kid\":\"k1\","
+		"\"k\":\"0gmNspkRljssLSrldySnYUS-zhtCo5sqeqo_yl7n2XA\"}"
+		"\0{\"kty\":\"oct\"}";
+	size_t doclen = sizeof(doc) - 1;	/* the value, a NUL, then junk */
+	char path[] = "/tmp/libjwt_fnul_XXXXXX";
+	jwk_set_t *set;
+	FILE *fp;
+	int fd;
+
+	SET_OPS();
+
+	fd = mkstemp(path);
+	ck_assert_int_ge(fd, 0);
+	fp = fdopen(fd, "w+");
+	ck_assert_ptr_nonnull(fp);
+	ck_assert_uint_eq(fwrite(doc, 1, doclen, fp), doclen);
+	ck_assert_int_eq(fflush(fp), 0);
+	rewind(fp);
+
+	set = jwks_create_fromfp(fp);
+	fclose(fp);
+	ck_assert_ptr_nonnull(set);
+	ck_assert_int_ne(jwks_error(set), 0);
+	ck_assert_ptr_null(jwks_item_get(set, 0));
+	jwks_free(set);
+
+	set = jwks_create_fromfile(path);
+	unlink(path);
+	ck_assert_ptr_nonnull(set);
+	ck_assert_int_ne(jwks_error(set), 0);
+	ck_assert_ptr_null(jwks_item_get(set, 0));
+	jwks_free(set);
+}
+END_TEST
+
+/* Valid non-ASCII UTF-8, a raw DEL (0x7F), and a backslash escape are not
+ * control characters and must still load on both backends. */
+START_TEST(test_json_must_still_pass)
+{
+	static const char * const values[] = {
+		"{\"kty\":\"oct\",\"kid\":\"\xc3\xa9\","		/* U+00E9 */
+			"\"k\":\"0gmNspkRljssLSrldySnYUS-zhtCo5sqeqo_yl7n2XA\"}",
+		"{\"kty\":\"oct\",\"kid\":\"\xf0\x9f\x98\x80\","	/* emoji */
+			"\"k\":\"0gmNspkRljssLSrldySnYUS-zhtCo5sqeqo_yl7n2XA\"}",
+		"{\"kty\":\"oct\",\"kid\":\"a\x7f" "b\","	/* DEL */
+			"\"k\":\"0gmNspkRljssLSrldySnYUS-zhtCo5sqeqo_yl7n2XA\"}",
+		"{\"kty\":\"oct\",\"kid\":\"a\\nb\","		/* escape */
+			"\"k\":\"0gmNspkRljssLSrldySnYUS-zhtCo5sqeqo_yl7n2XA\"}",
+	};
+	size_t i;
+
+	SET_OPS();
+
+	for (i = 0; i < ARRAY_SIZE(values); i++) {
+		jwk_set_auto_t *set = jwks_create(values[i]);
+
+		ck_assert_ptr_nonnull(set);
+		ck_assert_int_eq(jwks_error_any(set), 0);
+		ck_assert_ptr_nonnull(jwks_item_get(set, 0));
+	}
+}
+END_TEST
+
+/* json-c's lenient single-quoted strings and /-comments are refused, as
+ * Jansson refuses them. Each wraps a valid oct key json-c used to load. */
+START_TEST(test_json_lenient_extensions_rejected)
+{
+#define OCT_FULL "\"kty\":\"oct\",\"k\":" \
+	"\"0gmNspkRljssLSrldySnYUS-zhtCo5sqeqo_yl7n2XA\""
+	static const char * const docs[] = {
+		"{'kty':'oct','k':"
+			"'0gmNspkRljssLSrldySnYUS-zhtCo5sqeqo_yl7n2XA'}",
+		"/* c */{" OCT_FULL "}",
+		"//c\n{" OCT_FULL "}",
+		"{" OCT_FULL "}/x",	/* a slash that is not a comment */
+	};
+#undef OCT_FULL
+	size_t i;
+
+	SET_OPS();
+
+	for (i = 0; i < ARRAY_SIZE(docs); i++) {
+		jwk_set_auto_t *set = jwks_create(docs[i]);
+
+		ck_assert_ptr_nonnull(set);
+		ck_assert_int_ne(jwks_error(set), 0);
+	}
+}
+END_TEST
+
 /*
  * === Suite Setup ===
  */
@@ -2599,6 +2823,12 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_json_parity, test_json_null_array_element, 0, i);
 	tcase_add_loop_test(tc_json_parity, test_json_null_member, 0, i);
 	tcase_add_loop_test(tc_json_parity, test_jwks_member_type_confusion, 0, i);
+	tcase_add_loop_test(tc_json_parity, test_json_control_char_in_token, 0, i);
+	tcase_add_loop_test(tc_json_parity, test_json_control_char_in_jwks, 0, i);
+	tcase_add_loop_test(tc_json_parity, test_json_file_nul_trailing, 0, i);
+	tcase_add_loop_test(tc_json_parity, test_json_must_still_pass, 0, i);
+	tcase_add_loop_test(tc_json_parity, test_json_lenient_extensions_rejected,
+			    0, i);
 
 	tcase_set_timeout(tc_json_parity, 30);
 	suite_add_tcase(s, tc_json_parity);

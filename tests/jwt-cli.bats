@@ -57,6 +57,15 @@ CLAIM_RES="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZG1pbiI6ZmFsc2UsImV4cCI6MTgz
 	./tools/jwt-verify -v -k ${HS256_KEY} ${CLAIM_RES}
 }
 
+# issue #360: a token whose payload base64url-decodes to {"sub":"a<TAB>b"} (a
+# raw control character in a string) is refused on both JSON backends; json-c
+# used to accept it in its lenient mode and report "[YES] Verified".
+@test "Verify refuses a raw control character in the payload" {
+	token="eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhCWIifQ.ysAzm8THucw2RI47Xm8hCXDT2WPTWJsLXeDuQKCMexU"
+	run ./tools/jwt-verify -k ${HS256_KEY} "${token}"
+	[ "${status}" -ne 0 ]
+}
+
 # A key without an "alg" needs -a/--algorithm, and both spellings must work.
 NOALG_KEY="../tests/keys/oct_key_256_sig.json"
 
