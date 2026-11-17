@@ -114,6 +114,27 @@ EOF
 )
 }
 
+# #364: key2jwk must free the set it has built so far (not lose it) when a later
+# file fails to load, and release everything on its error exits. The first key
+# loads, the second does not: the tool fails but does not leak under ASan/LSan.
+@test "key2jwk fails but keeps its set when a later file is missing" {
+	run ./tools/key2jwk -o - \
+		${SRCDIR}/tests/keys/pem-files/rsa_key_2048.pem \
+		${SRCDIR}/tests/keys/pem-files/does-not-exist.pem
+	[ "${status}" -ne 0 ]
+	echo "${output}" | grep -q "Error parsing key file"
+}
+
+# A non-key file with --disable-hmac (no HMAC fallback) is flagged in error,
+# exercising key2jwk's jwks_error exit path.
+@test "key2jwk with --disable-hmac rejects a non-key file" {
+	nonkey="${BATS_TMPDIR:-/tmp}/notakey_$$.txt"
+	printf 'this is not a key\n' > "${nonkey}"
+	run ./tools/key2jwk -m -o - "${nonkey}"
+	rm -f "${nonkey}"
+	[ "${status}" -ne 0 ]
+}
+
 @test "Convert JWK to PEM - RSA" {
 	rm -f rsa_1024_0023a6e1-f093-448d-9038-9ff168611b86.pem
 	./tools/jwk2key -d . ${SRCDIR}/tests/keys/rsa_key_1024.json
@@ -243,6 +264,30 @@ ECENC="../tests/keys/ec_key_prime256v1_enc.json"
 	run ./tools/jwe-encrypt -k ${OCT256B} -a A256KW -e A256GCM \
 		-r noColonHere -j '{}'
 	[ "${status}" -ne 0 ]
+}
+
+# #364: the tools must release what they allocated on their error exits too, so
+# the suite is clean under LeakSanitizer. These exercise the jwe tools' key-load
+# error paths (a missing file and an empty key set).
+@test "jwe-encrypt reports a missing key file" {
+	run ./tools/jwe-encrypt -k /nonexistent/key.json -a dir -e A256GCM -j '{}'
+	[ "${status}" -ne 0 ]
+	echo "${output}" | grep -q "Could not load key"
+}
+
+@test "jwe-decrypt reports a missing key file" {
+	run ./tools/jwe-decrypt -k /nonexistent/key.json -a dir -e A256GCM x.y.z
+	[ "${status}" -ne 0 ]
+	echo "${output}" | grep -q "Could not load key"
+}
+
+@test "jwe-decrypt reports an empty key set" {
+	empty="${BATS_TMPDIR:-/tmp}/jwe_empty_$$.json"
+	echo '{"keys":[]}' > "${empty}"
+	run ./tools/jwe-decrypt -k "${empty}" -a dir -e A256GCM x.y.z
+	rm -f "${empty}"
+	[ "${status}" -ne 0 ]
+	echo "${output}" | grep -q "No key found"
 }
 
 # Regression for #264: an oct JWK with a very large `k` makes the key

@@ -112,7 +112,7 @@ int main(int argc, char **argv)
 	FILE *outfp = NULL;
 	FILE *msg = stdout;
 	unsigned int flags;
-	int i, oc;
+	int i, oc, ret = EXIT_SUCCESS;
 
 	char *optstr = "hlqo:km";
 	struct option opttbl[] = {
@@ -189,15 +189,22 @@ int main(int argc, char **argv)
 		fprintf(msg, "Parsing %d files (", argc);
 
 	for (i = 0; i < argc; i++) {
-		jwk_set = jwks_load_fromkey_file(jwk_set, argv[i], flags);
-		if (jwk_set == NULL) {
+		/* Keep the set built so far if a later file fails to load:
+		 * jwks_load_fromkey_file() returns NULL (and does not free its
+		 * input) when a file cannot be opened, so assign through a temp
+		 * and leave jwk_set pointing at the good set for cleanup. */
+		jwk_set_t *tmp = jwks_load_fromkey_file(jwk_set, argv[i], flags);
+		if (tmp == NULL) {
 			fprintf(stderr, "Error parsing key file: %s\n", argv[i]);
-			exit(EXIT_FAILURE);
+			ret = EXIT_FAILURE;
+			goto out;
 		}
+		jwk_set = tmp;
 		if (jwks_error(jwk_set)) {
 			fprintf(stderr, "%s: %s\n", argv[i],
 				jwks_error_msg(jwk_set));
-			exit(EXIT_FAILURE);
+			ret = EXIT_FAILURE;
+			goto out;
 		}
 		if (!quiet)
 			fprintf(msg, ".");
@@ -209,13 +216,17 @@ int main(int argc, char **argv)
 
 	jwk_str = jwks_export(jwk_set, 1);
 	if (jwk_str == NULL) {
-		fprintf(stderr, "Error generating JWKS output\n"); // LCOV_EXCL_LINE
-		exit(EXIT_FAILURE); // LCOV_EXCL_LINE
+		// LCOV_EXCL_START
+		fprintf(stderr, "Error generating JWKS output\n");
+		ret = EXIT_FAILURE;
+		goto out;
+		// LCOV_EXCL_STOP
 	}
 
 	write_jwks(outfp, jwk_str);
 
+out:
+	/* Return (not exit()) so the jwk_set_auto_t cleanup frees the set. */
 	free(jwk_str);
-
-	exit(EXIT_SUCCESS);
+	return ret;
 }

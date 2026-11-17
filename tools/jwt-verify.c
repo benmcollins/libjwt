@@ -380,7 +380,7 @@ int main(int argc, char *argv[])
                 item = jwks_item_get(jwk_set, 0);
                 if (item == NULL) {
                         fprintf(stderr, "ERR: No key found in %s\n", key_file);
-                        exit(EXIT_FAILURE);
+                        return EXIT_FAILURE;
                 }
                 if (jwks_item_error(item)) {
                         fprintf(stderr, "ERR: Could not read JWK: %s\n",
@@ -454,7 +454,8 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	/* Not the number of failures: an exit status keeps only 8 bits. */
-	exit(err ? EXIT_FAILURE : EXIT_SUCCESS);
+	/* Not the number of failures: an exit status keeps only 8 bits.
+	 * Return (not exit()) so the checker/key-set auto_t cleanups run. */
+	return err ? EXIT_FAILURE : EXIT_SUCCESS;
 }
 
