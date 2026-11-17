@@ -583,12 +583,22 @@ static int jwt_typ_matches(const char *want, const char *got)
 }
 
 /* @rfc{8725} Does the parsed header (@jwt->headers) and algorithm (@jwt->alg)
- * satisfy the checker's "typ" expectation and algorithm allowlist? Returns 1 if
- * acceptable (or nothing is configured), 0 if it should be rejected. */
-static int jwt_typ_alg_ok(jwt_t *jwt)
+ * satisfy the checker's "typ" expectation and algorithm policy? Returns 1 if
+ * acceptable, 0 if it should be rejected; on a 0 return @reason (when not NULL)
+ * is set to a static message naming the cause.
+ *
+ * @rfc{8725,3.2} With no explicit allowlist (jwt_checker_setalgs()), any signed
+ * algorithm is accepted but an unsigned ("alg":"none") token is not: consuming
+ * one requires opting in by listing ::JWT_ALG_NONE. A non-empty allowlist is
+ * authoritative either way, so JWT_ALG_NONE in it opts in and a signed-only
+ * allowlist keeps unsigned tokens out, as before. */
+static int jwt_typ_alg_ok(jwt_t *jwt, const char **reason)
 {
 	jwt_checker_t *checker = jwt->checker;
 	size_t i;
+
+	if (reason != NULL)
+		*reason = "Token rejected by \"typ\" or algorithm policy";
 
 	if (checker == NULL)
 		return 1; // LCOV_EXCL_LINE
@@ -609,16 +619,27 @@ static int jwt_typ_alg_ok(jwt_t *jwt)
 		return 0;
 	}
 
+	/* @rfc{8725,3.2} No allowlist: accept any signed algorithm, but an
+	 * unsigned token only when JWT_ALG_NONE was listed (handled above). */
+	if (jwt->alg == JWT_ALG_NONE) {
+		if (reason != NULL)
+			*reason = "Unsigned tokens are not allowed";
+		return 0;
+	}
+
 	return 1;
 }
 
 static int __verify_config_post(jwt_t *jwt, const jwt_config_t *config,
 				unsigned int sig_len)
 {
-	/* @rfc{8725} Enforce the typ expectation / algorithm allowlist first. */
-	if (!jwt_typ_alg_ok(jwt)) {
-		jwt_write_error(jwt,
-			"Token rejected by \"typ\" or algorithm policy");
+	const char *reason;
+
+	/* @rfc{8725} Enforce the typ expectation / algorithm policy first. This
+	 * also rejects an unsigned ("alg":"none") token by default
+	 * (@rfc{8725,3.2}); @reason names which it was. */
+	if (!jwt_typ_alg_ok(jwt, &reason)) {
+		jwt_write_error(jwt, "%s", reason);
 		return 1;
 	}
 
@@ -1083,8 +1104,11 @@ static int verify_entry(jwt_checker_t *checker, jwt_t *jwt,
 	}
 
 	/* @rfc{8725} A signature whose "typ"/alg does not meet the checker's
-	 * expectation is simply not accepted (skipped), so the policy decides. */
-	if (!jwt_typ_alg_ok(jwt)) {
+	 * expectation is simply not accepted (skipped), so the policy decides.
+	 * (The unsigned-token default never fires here: build_sig_entry()
+	 * already refuses "alg":"none" in a JSON serialization, so this is the
+	 * typ/allowlist policy only, and the reason is not reported.) */
+	if (!jwt_typ_alg_ok(jwt, NULL)) {
 		jwt->headers = NULL;
 		return 0;
 	}

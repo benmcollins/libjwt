@@ -101,6 +101,17 @@ static inline void jwt_freememp(char **mem) {
 }
 #define char_auto char  __attribute__((cleanup(jwt_freememp)))
 
+/* @rfc{8725,3.2} A checker rejects an unsigned ("alg":"none") token by
+ * default (issue #352); listing ::JWT_ALG_NONE via jwt_checker_setalgs() is
+ * the opt-in that accepts one. A test that verifies a genuine unsigned token
+ * calls this on its checker first. */
+static inline void checker_allow_none(jwt_checker_t *checker)
+{
+	const jwt_alg_t algs[] = { JWT_ALG_NONE };
+
+	ck_assert_int_eq(jwt_checker_setalgs(checker, algs, 1), 0);
+}
+
 __attribute__((unused)) static jwk_set_t *g_jwk_set;
 __attribute__((unused)) static const jwk_item_t *g_item;
 

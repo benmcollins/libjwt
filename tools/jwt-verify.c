@@ -41,7 +41,9 @@ Decode and (optionally) verify the signature for a JSON Web Token\n\
   -h, --help            This help information\n\
   -l, --list            List supported algorithms and exit\n\
   -a, --algorithm=ALG   JWT algorithm to use (e.g. ES256). Only needed if the key\n\
-                        provided with -k does not have an \"alg\" attribute\n\
+                        provided with -k does not have an \"alg\" attribute. With\n\
+                        no key, \"-a none\" accepts an unsigned (\"alg\":\"none\")\n\
+                        token; without it such a token is rejected\n\
   -p, --print=CMD       When printing JSON, pipe through CMD (requires -v)\n\
   -k, --key=FILE        Filename containing a JSON Web Key\n\
   -r, --keyring=FILE    Filename containing a JWKS to verify against (RFC 7515),\n\
@@ -57,8 +59,9 @@ If - is given as the only argument to token, then tokens will be read\n\
 from stdin, one per line.\n\
 \n\
 The exit status is 0 if every token was verified (its signature checked\n\
-with -k or -r; with neither, an unsigned token is only decoded). It is 1\n\
-if any token failed, or if there was no token to verify.\n\
+with -k or -r). With neither, a token is rejected unless it is unsigned and\n\
+\"-a none\" was given, which decodes it without checking a signature. It is\n\
+1 if any token failed, or if there was no token to verify.\n\
 \n\
 -h and -l verify nothing and exit 0 only when given alone. An argument that\n\
 starts with - is read as an option unless it comes after --. To check a\n\
@@ -410,6 +413,26 @@ int main(int argc, char *argv[])
                                 jwt_checker_error_msg(checker));
                         return EXIT_FAILURE;
                 }
+	}
+
+	/* With neither a key nor a keyring the checker is keyless and, by
+	 * default, rejects every token -- an unsigned ("alg":"none") one
+	 * included (RFC 8725 §3.2). An explicit "-a none" is how the caller
+	 * opts in to unsigned tokens, the one thing a keyless checker still
+	 * accepts (it only decodes them). Wire it to the allowlist so the
+	 * library applies the policy. */
+	if (key_file == NULL && keyring_file == NULL && alg_given &&
+	    alg == JWT_ALG_NONE) {
+		const jwt_alg_t none_alg[] = { JWT_ALG_NONE };
+
+		if (jwt_checker_setalgs(checker, none_alg, 1)) {
+			// LCOV_EXCL_START - defensive: setalgs with a valid
+			// algorithm on a fresh checker does not fail
+			fprintf(stderr, "ERR allowing unsigned tokens: %s\n",
+				jwt_checker_error_msg(checker));
+			return EXIT_FAILURE;
+			// LCOV_EXCL_STOP
+		}
 	}
 
 	if (verbose && jwt_checker_setcb(checker, __jwt_wcb, NULL)) {

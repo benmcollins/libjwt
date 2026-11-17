@@ -842,6 +842,9 @@ START_TEST(test_jwt_alg_none_empty)
 	checker = jwt_checker_new();
 	ck_assert_ptr_nonnull(checker);
 
+	/* An unsigned token verifies only with the opt-in (issue #352). */
+	checker_allow_none(checker);
+
 	/* {"alg":"none"} . {} . (empty sig) */
 	ret = jwt_checker_verify(checker,
 		"eyJhbGciOiJub25lIn0.e30.");
@@ -1416,6 +1419,9 @@ START_TEST(test_dup_members_rejected)
 	checker = jwt_checker_new();
 	ck_assert_ptr_nonnull(checker);
 	ck_assert_int_eq(jwt_checker_setkey(checker, JWT_ALG_NONE, NULL), 0);
+	/* These are unsigned tokens; the duplicate-member check is what is
+	 * under test, so opt in past the unsigned-token default (issue #352). */
+	checker_allow_none(checker);
 
 	ret = jwt_checker_verify(checker, dup_hdr);
 #ifdef HAVE_JSON_C
@@ -1450,6 +1456,7 @@ START_TEST(test_missing_exp_passes)
 	checker = jwt_checker_new();
 	ck_assert_ptr_nonnull(checker);
 	ck_assert_int_eq(jwt_checker_setkey(checker, JWT_ALG_NONE, NULL), 0);
+	checker_allow_none(checker);	/* unsigned token (issue #352) */
 
 	/* The default checker enables EXP/NBF, but a token lacking them is
 	 * accepted (absence is not a failure). */
@@ -1554,18 +1561,24 @@ START_TEST(test_callback_cannot_strip_key)
 			ck_assert_int_ne(jwt_checker_verify(c, signed_tok), 0);
 			ck_assert_str_eq(jwt_checker_error_msg(c), nokey);
 
-			/* Replacing the key is still allowed. */
+			/* Replacing the key is still allowed. The forged
+			 * unsigned token is now turned away by the
+			 * unsigned-token default (issue #352) before the
+			 * missing-signature check the keyed checker used to
+			 * report; either way it does not verify. */
 			ks.key = g_item;
 			ks.clear_alg = 0;
 			ck_assert_int_eq(jwt_checker_verify(c, signed_tok), 0);
 			ck_assert_int_ne(jwt_checker_verify(c, forged), 0);
 			ck_assert_str_eq(jwt_checker_error_msg(c),
-					 "Expected a signature, but JWT has none");
+					 "Unsigned tokens are not allowed");
 		}
 	}
 
-	/* Unchanged: a checker given no key at all, whose callback finds none
-	 * either, verifies only unsigned tokens (see jwt_checker_setcb()). */
+	/* @rfc{8725,3.2} A checker given no key at all, whose callback finds
+	 * none either, now rejects the forged unsigned token by default
+	 * (issue #352): leaving config->key NULL is no longer enough to accept
+	 * it. A signed token still needs a key. */
 	{
 		jwt_checker_auto_t *c = jwt_checker_new();
 
@@ -1573,10 +1586,18 @@ START_TEST(test_callback_cannot_strip_key)
 		ks.key = NULL;
 		ks.clear_alg = 0;
 		ck_assert_int_eq(jwt_checker_setcb(c, key_swap_cb, &ks), 0);
-		ck_assert_int_eq(jwt_checker_verify(c, forged), 0);
+		ck_assert_int_ne(jwt_checker_verify(c, forged), 0);
+		ck_assert_str_eq(jwt_checker_error_msg(c),
+				 "Unsigned tokens are not allowed");
+		ck_assert_uint_eq(jwt_checker_sig_count(c), 0);
 		ck_assert_int_ne(jwt_checker_verify(c, signed_tok), 0);
 		ck_assert_str_eq(jwt_checker_error_msg(c),
 				 "JWT has signature, but no key was given");
+
+		/* Opting in with JWT_ALG_NONE accepts the unsigned token on
+		 * purpose, for an application that wants exactly that. */
+		checker_allow_none(c);
+		ck_assert_int_eq(jwt_checker_verify(c, forged), 0);
 	}
 
 	free_key();
@@ -1752,9 +1773,13 @@ START_TEST(test_callback_unkey_does_not_last)
 	ck_assert_str_eq(jwt_checker_error_msg(c),
 			 "A callback removed the checker's key");
 
-	/* The application itself can still make the checker unkeyed. */
+	/* The application itself can still take the key back, outside a verify.
+	 * The checker is then unkeyed, and with the unsigned-token opt-in
+	 * (issue #352) it accepts the forged unsigned token on purpose, while a
+	 * signed one has no key (and is not in the allowlist) to verify with. */
 	ck_assert_int_eq(jwt_checker_setjti(c, NULL, NULL), 0);
 	ck_assert_int_eq(jwt_checker_setkey(c, JWT_ALG_NONE, NULL), 0);
+	checker_allow_none(c);
 	ck_assert_int_eq(jwt_checker_verify(c, forged), 0);
 	ck_assert_int_ne(jwt_checker_verify(c, signed_tok), 0);
 
