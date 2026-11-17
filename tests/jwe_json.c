@@ -236,6 +236,67 @@ START_TEST(reserved_header_rejected)
 }
 END_TEST
 
+/* #358: a bare number or boolean value is accepted (and emitted as a JSON
+ * scalar), a bare null and trailing data are refused - alike on both JSON
+ * backends. json-c used to refuse numbers/booleans (its tokener needs the
+ * terminating NUL to end a value with no delimiter), and Jansson used to
+ * accept a null json-c cannot store. */
+START_TEST(json_scalar_header_values)
+{
+	static const char * const ok[] = { "1", "-1", "1.5", "true", "false" };
+	static const char * const bad[] = { "null", "1 2", "{} x" };
+	size_t i;
+
+	SET_OPS();
+	read_json("oct_key_256_enc.json");
+
+	for (i = 0; i < ARRAY_SIZE(ok); i++) {
+		jwe_builder_auto_t *b = jwe_builder_new();
+
+		ck_assert_int_eq(jwe_builder_setkey(b, JWE_ALG_A256KW,
+						    JWE_ENC_A256GCM, g_item), 0);
+		ck_assert_int_eq(jwe_builder_add_protected_json(b, "p", ok[i]),
+				 0);
+		ck_assert_int_eq(jwe_builder_add_unprotected_json(b, "u",
+								  ok[i]), 0);
+	}
+
+	for (i = 0; i < ARRAY_SIZE(bad); i++) {
+		jwe_builder_auto_t *b = jwe_builder_new();
+
+		ck_assert_int_eq(jwe_builder_setkey(b, JWE_ALG_A256KW,
+						    JWE_ENC_A256GCM, g_item), 0);
+		ck_assert_int_ne(jwe_builder_add_protected_json(b, "p", bad[i]),
+				 0);
+		jwe_builder_error_clear(b);
+		ck_assert_int_ne(jwe_builder_add_unprotected_json(b, "u",
+								  bad[i]), 0);
+	}
+
+	/* A number and a boolean are emitted as JSON scalars, not strings. */
+	{
+		jwe_builder_auto_t *b = jwe_builder_new();
+		char_auto *tok = NULL;
+
+		ck_assert_int_eq(jwe_builder_setkey(b, JWE_ALG_A256KW,
+						    JWE_ENC_A256GCM, g_item), 0);
+		ck_assert_int_eq(jwe_builder_set_format(b,
+							JWE_FORMAT_JSON_FLAT), 0);
+		ck_assert_int_eq(jwe_builder_add_unprotected_json(b, "n", "1"),
+				 0);
+		ck_assert_int_eq(jwe_builder_add_unprotected_json(b, "y",
+								  "true"), 0);
+		tok = jwe_builder_generate(b, (const unsigned char *)PT,
+					   strlen(PT));
+		ck_assert_ptr_nonnull(tok);
+		ck_assert_ptr_nonnull(strstr(tok, "\"n\":1"));
+		ck_assert_ptr_nonnull(strstr(tok, "\"y\":true"));
+	}
+
+	free_key();
+}
+END_TEST
+
 /* The Compact Serialization cannot carry a shared unprotected header or aad. */
 START_TEST(compact_rejects_json_only)
 {
@@ -503,6 +564,7 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, alg_in_recipient_header, 0, i);
 	tcase_add_loop_test(tc_core, app_headers, 0, i);
 	tcase_add_loop_test(tc_core, reserved_header_rejected, 0, i);
+	tcase_add_loop_test(tc_core, json_scalar_header_values, 0, i);
 	tcase_add_loop_test(tc_core, compact_rejects_json_only, 0, i);
 	tcase_add_loop_test(tc_core, bad_format_rejected, 0, i);
 	tcase_add_loop_test(tc_core, json_structural_negatives, 0, i);

@@ -684,23 +684,24 @@ static const char *scan_json(const char *buf, size_t len)
 /**
  * Common post-parse validation for all parse functions.
  * Checks trailing garbage and enforces DECODE_ANY semantics.
+ *
+ * @parse_end is the offset one past the last byte json-c consumed. The caller
+ * passes it in rather than reading it from the tokener, because the buffer
+ * parser may call json_tokener_parse_ex() a second time (to end a bare scalar)
+ * and that resets json-c's parse-end counter.
  */
-static jwt_json_t *validate_parsed(struct json_tokener *tok,
-				   struct json_object *obj,
-				   size_t input_len, size_t flags,
-				   const char *source,
+static jwt_json_t *validate_parsed(struct json_object *obj,
+				   size_t parse_end, size_t input_len,
+				   size_t flags, const char *source,
 				   jwt_json_error_t *error)
 {
 	/* Reject trailing garbage */
-	if (json_tokener_get_parse_end(tok) < input_len) {
+	if (parse_end < input_len) {
 		set_error(error, source, "Trailing data after JSON value");
-		json_tokener_free(tok);
 		if (obj)
 			json_object_put(obj);
 		return NULL;
 	}
-
-	json_tokener_free(tok);
 
 	/* Without DECODE_ANY, only accept objects and arrays
 	 * (matches jansson default behavior) */
@@ -732,6 +733,7 @@ jwt_json_t *jwt_json_parse(const char *input, size_t flags,
 	struct json_object *obj;
 	enum json_tokener_error jerr;
 	const char *scan_err;
+	size_t parse_end;
 
 	if (!input) {
 		set_error(error, "<string>", "NULL input");
@@ -739,7 +741,7 @@ jwt_json_t *jwt_json_parse(const char *input, size_t flags,
 	}
 
 	size_t slen = strlen(input);
-	if (slen > INT_MAX) {
+	if (slen >= INT_MAX) {
 		set_error(error, "<string>", "Input too large");
 		return NULL;
 	}
@@ -756,19 +758,22 @@ jwt_json_t *jwt_json_parse(const char *input, size_t flags,
 		return NULL;
 	}
 
-	obj = json_tokener_parse_ex(tok, input, (int)slen);
+	/* Pass slen + 1 so json-c sees the terminating NUL and can end a bare
+	 * scalar (a number or a literal) that has no closing delimiter. */
+	obj = json_tokener_parse_ex(tok, input, (int)(slen + 1));
 	jerr = json_tokener_get_error(tok);
+	parse_end = json_tokener_get_parse_end(tok);
+	json_tokener_free(tok);
 
 	if (jerr != json_tokener_success) {
 		set_error(error, "<string>",
 			  json_tokener_error_desc(jerr));
-		json_tokener_free(tok);
 		if (obj)
 			json_object_put(obj);
 		return NULL;
 	}
 
-	return validate_parsed(tok, obj, slen, flags, "<string>", error);
+	return validate_parsed(obj, parse_end, slen, flags, "<string>", error);
 }
 
 jwt_json_t *jwt_json_parse_buf(const char *buffer, size_t buflen,
@@ -778,6 +783,7 @@ jwt_json_t *jwt_json_parse_buf(const char *buffer, size_t buflen,
 	struct json_object *obj;
 	enum json_tokener_error jerr;
 	const char *scan_err;
+	size_t parse_end;
 
 	if (!buffer) {
 		set_error(error, "<buffer>", "NULL buffer");
@@ -803,17 +809,30 @@ jwt_json_t *jwt_json_parse_buf(const char *buffer, size_t buflen,
 
 	obj = json_tokener_parse_ex(tok, buffer, (int)buflen);
 	jerr = json_tokener_get_error(tok);
+	parse_end = json_tokener_get_parse_end(tok);
+
+	/* A bare scalar at the exact end of the buffer has no delimiter, so
+	 * json-c cannot tell it has ended and asks for more input. The buffer
+	 * is not NUL-terminated, so signal the end with a lone NUL, as a C
+	 * string's terminator would. The second call restarts json-c's
+	 * parse-end counter, so the trailing-data check uses the end saved
+	 * from the first call. */
+	if (jerr == json_tokener_continue) {
+		obj = json_tokener_parse_ex(tok, "", 1);
+		jerr = json_tokener_get_error(tok);
+	}
+	json_tokener_free(tok);
 
 	if (jerr != json_tokener_success) {
 		set_error(error, "<buffer>",
 			  json_tokener_error_desc(jerr));
-		json_tokener_free(tok);
 		if (obj)
 			json_object_put(obj);
 		return NULL;
 	}
 
-	return validate_parsed(tok, obj, buflen, flags, "<buffer>", error);
+	return validate_parsed(obj, parse_end, buflen, flags, "<buffer>",
+			       error);
 }
 
 jwt_json_t *jwt_json_parse_file(const char *path, size_t flags,
