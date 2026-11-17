@@ -333,6 +333,18 @@ jwt_json_t *jwt_json_parse(const char *input, size_t flags,
 	if (!obj && error)
 		map_error(error, &jerr);
 
+	/* json-c has no object for a bare JSON null (it represents one as a C
+	 * NULL, which every jwt_json_* caller reads as absent/failure), so the
+	 * JSON header setters refuse one with json-c. Refuse it here too, so the
+	 * two backends agree. Only a DECODE_ANY caller reaches this: the default
+	 * mode already rejects a top-level value that is not an array or object,
+	 * and the setters pass a NULL error, so no message is set (the setter
+	 * reports its own). */
+	if (obj && json_is_null(obj)) {
+		json_decref(obj);
+		return NULL;
+	}
+
 	return from_json(obj);
 }
 

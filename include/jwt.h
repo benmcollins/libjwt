@@ -2642,9 +2642,10 @@ int jwe_builder_set_format(jwe_builder_t *builder, jwe_serialization_t format);
  *
  * @p value_json is parsed as JSON, so a string value must include its quotes
  * (the four-byte fragment quote-p-r-o-d-quote for the string @c prod); objects,
- * arrays, numbers and booleans are accepted as written. The same parameter name
- * must not also appear in the shared unprotected or any per-recipient header
- * (@rfc{7516,7.2.1}).
+ * arrays, numbers and booleans are accepted as written. A bare ``null`` is
+ * refused (the json-c backend cannot store one, so both backends refuse it
+ * alike). The same parameter name must not also appear in the shared
+ * unprotected or any per-recipient header (@rfc{7516,7.2.1}).
  *
  * @param builder Pointer to a JWE builder object
  * @param key The header parameter name

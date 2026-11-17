@@ -429,6 +429,75 @@ START_TEST(test_edges)
 }
 END_TEST
 
+/* #358: a per-signature header value that is a bare number or boolean is
+ * accepted (and emitted as a JSON scalar), a bare null and trailing data are
+ * refused - alike on both JSON backends. */
+START_TEST(test_sig_scalar_header)
+{
+	jwk_set_t *eks;
+	const jwk_item_t *ec;
+	static const char * const ok[] = { "1", "-1", "1.5", "true", "false" };
+	static const char * const bad[] = { "null", "1 2", "{} x" };
+	size_t i;
+
+	SET_OPS();
+
+	eks = load_one("ec_key_prime256v1.json");
+	ec = jwks_item_get(eks, 0);
+
+	for (i = 0; i < ARRAY_SIZE(ok); i++) {
+		jwt_builder_auto_t *b = jwt_builder_new();
+		jwt_signature_t *sig = jwt_builder_add_signature(b,
+						JWT_ALG_ES256, ec);
+
+		ck_assert_ptr_nonnull(sig);
+		ck_assert_int_eq(jwt_signature_add_protected_json(sig, "p",
+								  ok[i]), 0);
+		ck_assert_int_eq(jwt_signature_add_header_json(sig, "h",
+							       ok[i]), 0);
+	}
+
+	for (i = 0; i < ARRAY_SIZE(bad); i++) {
+		jwt_builder_auto_t *b = jwt_builder_new();
+		jwt_signature_t *sig = jwt_builder_add_signature(b,
+						JWT_ALG_ES256, ec);
+
+		ck_assert_ptr_nonnull(sig);
+		ck_assert_int_ne(jwt_signature_add_protected_json(sig, "p",
+								  bad[i]), 0);
+		ck_assert_int_ne(jwt_signature_add_header_json(sig, "h",
+							       bad[i]), 0);
+	}
+
+	/* A number and a boolean round-trip in the unprotected per-signature
+	 * header as JSON scalars, and the token still verifies. */
+	{
+		jwt_builder_auto_t *b = jwt_builder_new();
+		jwt_checker_auto_t *c = jwt_checker_new();
+		jwt_signature_t *sig = jwt_builder_add_signature(b,
+						JWT_ALG_ES256, ec);
+		char_auto *tok = NULL;
+
+		ck_assert_ptr_nonnull(sig);
+		ck_assert_int_eq(jwt_signature_add_header_json(sig, "n", "1"),
+				 0);
+		ck_assert_int_eq(jwt_signature_add_header_json(sig, "y",
+							       "true"), 0);
+		ck_assert_int_eq(jwt_builder_set_format(b,
+							JWT_FORMAT_JSON_FLAT), 0);
+		tok = jwt_builder_generate(b);
+		ck_assert_ptr_nonnull(tok);
+		ck_assert_ptr_nonnull(strstr(tok, "\"n\":1"));
+		ck_assert_ptr_nonnull(strstr(tok, "\"y\":true"));
+
+		ck_assert_int_eq(jwt_checker_setkey(c, JWT_ALG_ES256, ec), 0);
+		ck_assert_int_eq(jwt_checker_verify(c, tok), 0);
+	}
+
+	jwks_free(eks);
+}
+END_TEST
+
 /* ====================================================================
  * GHSA-mhc9-xvg5-qg29: a keyring checker verifies a Compact token as the
  * equivalent one-signature JWS -- the same kid binding and kid-less scan,
@@ -1797,6 +1866,7 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, test_malformed, 0, i);
 	tcase_add_loop_test(tc_core, test_none_rejected_builder, 0, i);
 	tcase_add_loop_test(tc_core, test_edges, 0, i);
+	tcase_add_loop_test(tc_core, test_sig_scalar_header, 0, i);
 	tcase_add_loop_test(tc_core, test_compact_keyring, 0, i);
 	tcase_add_loop_test(tc_core, test_compact_keyring_none, 0, i);
 	tcase_add_loop_test(tc_core, test_compact_keyring_confusion, 0, i);

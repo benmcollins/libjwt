@@ -82,10 +82,11 @@ START_TEST(test_jwks_parse_error_bare_word)
 }
 END_TEST
 
-/* A control character inside a string. json-c takes such a string as it is,
- * so the comma after it is left out too, for json-c to report. The second
- * string has " near '" in it, so the cut has to be at the first one, where
- * Jansson's own ending starts. */
+/* A control character inside a string. Both backends refuse it on the control
+ * character itself now (json-c via libjwt's pre-parse scan, which no longer
+ * lets the lenient tokener keep the string and report the following missing
+ * comma). The second string has " near '" in it, so Jansson's cut has to be at
+ * the first one, where its own ending starts. */
 START_TEST(test_jwks_parse_error_control_char)
 {
 	SET_OPS();

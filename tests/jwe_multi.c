@@ -214,6 +214,17 @@ START_TEST(add_recipient_errors)
 	ck_assert_int_ne(jwe_recipient_add_header_json(r, "x", NULL), 0);
 	ck_assert_int_ne(jwe_recipient_add_header_json(r, "x", "{bad json"), 0);
 
+	/* #358: a bare number or boolean is accepted, a bare null and trailing
+	 * data are refused - alike on both JSON backends. */
+	ck_assert_int_eq(jwe_recipient_add_header_json(r, "n1", "1"), 0);
+	ck_assert_int_eq(jwe_recipient_add_header_json(r, "n2", "-1"), 0);
+	ck_assert_int_eq(jwe_recipient_add_header_json(r, "n3", "1.5"), 0);
+	ck_assert_int_eq(jwe_recipient_add_header_json(r, "b1", "true"), 0);
+	ck_assert_int_eq(jwe_recipient_add_header_json(r, "b2", "false"), 0);
+	ck_assert_int_ne(jwe_recipient_add_header_json(r, "z1", "null"), 0);
+	ck_assert_int_ne(jwe_recipient_add_header_json(r, "z2", "1 2"), 0);
+	ck_assert_int_ne(jwe_recipient_add_header_json(r, "z3", "{} x"), 0);
+
 	free_key();
 }
 END_TEST
