@@ -193,14 +193,20 @@ jobs:
   #
   # All three backends + WITH_ML_DSA so every tool path the suite drives - the
   # JWE round-trips and the ML-DSA key2jwk conversion among them - runs
-  # instrumented. UBSan is left non-fatal at runtime (print-only): the build is
-  # the #363 guard and LSan is the #364 guard, and gating every run on UB is out
-  # of scope here.
+  # instrumented. UBSan is build-fatal (-Werror); at runtime it is fatal on the
+  # error-exit bats tests that call refute_sanitizer (they grep for "runtime
+  # error:") and print-only elsewhere. The build is the #363 guard, LSan the
+  # #364 guard.
   build-linux-sanitizer:
     name: "Sanitizer (ASan+UBSan+LSan)"
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/benmcollins/libjwt/gnutls-leancrypto-mbedtls:latest
+      # LeakSanitizer's stop-the-world uses ptrace/process_vm_readv, which the
+      # default container seccomp profile can block ("LeakSanitizer has
+      # encountered a fatal error"); grant it so a real leak, not a sandbox
+      # limit, is what turns this row red.
+      options: --cap-add=SYS_PTRACE --security-opt seccomp=unconfined
     steps:
     - uses: actions/checkout@v5
 

@@ -171,7 +171,8 @@ int main(int argc, char *argv[])
 	item = jwks_item_get(jwk_set, 0);
 	if (item == NULL) {
 		fprintf(stderr, "ERROR: No key found in file\n");
-		exit(EXIT_FAILURE);
+		ret = EXIT_FAILURE;
+		goto out;
 	}
 
 	/* Plaintext from -j or stdin. */
@@ -183,8 +184,12 @@ int main(int argc, char *argv[])
 	}
 
 	builder = jwe_builder_new();
-	if (builder == NULL)
-		exit(EXIT_FAILURE);
+	if (builder == NULL) {
+		// LCOV_EXCL_START
+		ret = EXIT_FAILURE;
+		goto out;
+		// LCOV_EXCL_STOP
+	}
 
 	if (jwe_builder_setkey(builder, alg, enc, item)) {
 		fprintf(stderr, "ERROR: %s\n", jwe_builder_error_msg(builder));

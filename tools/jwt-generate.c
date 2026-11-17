@@ -70,11 +70,15 @@ int main(int argc, char *argv[])
 	char* json = NULL;
 	jwt_builder_auto_t *builder = NULL;
 	jwt_value_t jval;
-	char *token;
+	char *token = NULL;
 #define MAX_KEYS 16
+#define MAX_CLAIMS 32
 	char *key_files[MAX_KEYS];
 	int n_keys = 0;
+	char *claim_specs[MAX_CLAIMS];
+	int n_claims = 0;
 	jwk_set_t *sets[MAX_KEYS] = { NULL };
+	int ret = EXIT_SUCCESS;
 	char *key_file = NULL;
 	jwt_alg_t alg = JWT_ALG_NONE;
 	jwt_serialization_t fmt = JWT_FORMAT_COMPACT;
@@ -99,12 +103,6 @@ int main(int argc, char *argv[])
 		{ "verbose",    no_argument,		NULL, 'v' },
 		{ NULL, 0, 0, 0 },
 	};
-
-	builder = jwt_builder_new();
-	if (builder == NULL) {
-		fprintf(stderr, "Could not allocate builder context\n");
-		exit(EXIT_FAILURE);
-	}
 
 	while ((oc = getopt_long(argc, argv, optstr, opttbl, NULL)) != -1) {
 		switch (oc) {
@@ -169,48 +167,12 @@ int main(int argc, char *argv[])
 			break;
 
 		case 'c':
-			t = strtok(optarg, ":");
-			if (t == NULL) {
-				fprintf(stderr, "Invalid claim format [%s]\n",
-					optarg);
-				exit(EXIT_FAILURE);
-			}
-			k = strtok(NULL, "=");
-			if (k == NULL) {
-				fprintf(stderr, "Invalid claim format [%s]\n",
-					optarg);
-				exit(EXIT_FAILURE);
-			}
-			v = strtok(NULL, "=");
-			if (v == NULL) {
-				fprintf(stderr, "Invalid claim format [%s]\n",
-					optarg);
-				exit(EXIT_FAILURE);
-			}
-
-			switch (t[0]) {
-			case 's':
-				jwt_set_SET_STR(&jval, k, v);
-				break;
-			case 'i':
-				jwt_set_SET_INT(&jval, k, strtol(v, NULL, 0));
-				break;
-			case 'b':
-				if (v[0] == 'f' || v[0] == 'F' || v[0] == '0')
-					jwt_set_SET_BOOL(&jval, k, 0);
-				else
-					jwt_set_SET_BOOL(&jval, k, 1);
-				break;
-			default:
-				usage("Invalid --claim format",
-						EXIT_FAILURE);
-			}
-			if (jwt_builder_claim_set(builder, &jval)) {
-				fprintf(stderr, "Error setting %s:%s=%s\n",
-					t, k, v);
-				exit(EXIT_FAILURE);
-			}
-
+			/* Stash the spec; it is parsed and applied after the
+			 * builder is allocated (below), so an option-parse error
+			 * exits with nothing outstanding. */
+			if (n_claims >= MAX_CLAIMS)
+				usage("Too many --claim options", EXIT_FAILURE);
+			claim_specs[n_claims++] = optarg;
 			break;
 		case 'j':
 			json = optarg;
@@ -237,11 +199,66 @@ int main(int argc, char *argv[])
 	if (n_keys > 1 && fmt == JWT_FORMAT_COMPACT)
 		fmt = JWT_FORMAT_JSON_GENERAL;
 
+	/* Allocate the builder only now, after option parsing, so the usage()
+	 * and option-error exits above leak nothing. The -c claim specs stashed
+	 * during parsing are applied here. Every error from here returns via the
+	 * out: label so the builder and key sets are freed. */
+	builder = jwt_builder_new();
+	if (builder == NULL) {
+		// LCOV_EXCL_START
+		fprintf(stderr, "Could not allocate builder context\n");
+		return EXIT_FAILURE;
+		// LCOV_EXCL_STOP
+	}
+
 	jwt_builder_enable_iat(builder, emit_iat);
 
 	if (jwt_builder_set_format(builder, fmt)) {
+		// LCOV_EXCL_START - defensive: fmt is always a valid enum
 		fprintf(stderr, "ERR: %s\n", jwt_builder_error_msg(builder));
-		exit(EXIT_FAILURE);
+		ret = EXIT_FAILURE;
+		goto out;
+		// LCOV_EXCL_STOP
+	}
+
+	for (i = 0; i < n_claims; i++) {
+		char *spec = claim_specs[i];
+
+		t = strtok(spec, ":");
+		k = t ? strtok(NULL, "=") : NULL;
+		v = k ? strtok(NULL, "=") : NULL;
+		if (v == NULL) {
+			fprintf(stderr, "Invalid claim format [%s]\n", spec);
+			ret = EXIT_FAILURE;
+			goto out;
+		}
+
+		switch (t[0]) {
+		case 's':
+			jwt_set_SET_STR(&jval, k, v);
+			break;
+		case 'i':
+			jwt_set_SET_INT(&jval, k, strtol(v, NULL, 0));
+			break;
+		case 'b':
+			if (v[0] == 'f' || v[0] == 'F' || v[0] == '0')
+				jwt_set_SET_BOOL(&jval, k, 0);
+			else
+				jwt_set_SET_BOOL(&jval, k, 1);
+			break;
+		default:
+			fprintf(stderr, "Invalid --claim type [%s]\n", spec);
+			ret = EXIT_FAILURE;
+			goto out;
+		}
+		if (jwt_builder_claim_set(builder, &jval)) {
+			// LCOV_EXCL_START - defensive: a parsed claim does not
+			// fail to set in practice
+			fprintf(stderr, "Error setting %s:%s=%s\n", t, k, v);
+			ret = EXIT_FAILURE;
+			goto out;
+			// LCOV_EXCL_STOP
+		}
 	}
 
 	/* The first key is the primary signer (setkey); each additional --key is
@@ -253,39 +270,49 @@ int main(int argc, char *argv[])
 		if (sets[i] == NULL || jwks_error(sets[i])) {
 			fprintf(stderr, "ERR: Could not read JWK: %s\n",
 				jwks_error_msg(sets[i]));
-			exit(EXIT_FAILURE);
+			ret = EXIT_FAILURE;
+			goto out;
 		}
 
 		it = jwks_item_get(sets[i], 0);
 		if (it == NULL) {
 			fprintf(stderr, "ERR: No key found in %s\n",
 				key_files[i]);
-			exit(EXIT_FAILURE);
+			ret = EXIT_FAILURE;
+			goto out;
 		}
 		if (jwks_item_error(it)) {
 			fprintf(stderr, "ERR: Could not read JWK: %s\n",
 				jwks_item_error_msg(it));
-			exit(EXIT_FAILURE);
+			ret = EXIT_FAILURE;
+			goto out;
 		}
 
 		if (i == 0) {
 			if (jwks_item_alg(it) == JWT_ALG_NONE &&
 			    alg == JWT_ALG_NONE && n_keys == 1) {
-				usage("No \"alg\" attribute in key and --alg not given",
-				      EXIT_FAILURE);
+				fprintf(stderr, "ERR: No \"alg\" attribute in "
+					"key and --algorithm not given\n");
+				ret = EXIT_FAILURE;
+				goto out;
 			}
 			item = it;
 			key_file = key_files[0];
 			if (jwt_builder_setkey(builder, alg, it)) {
 				fprintf(stderr, "ERR Loading key: %s\n",
 					jwt_builder_error_msg(builder));
-				exit(EXIT_FAILURE);
+				ret = EXIT_FAILURE;
+				goto out;
 			}
 		} else if (jwt_builder_add_signature(builder,
 				jwks_item_alg(it), it) == NULL) {
+			// LCOV_EXCL_START - defensive: an extra key that loads
+			// cleanly but add_signature then rejects
 			fprintf(stderr, "ERR adding signer (key %d): %s\n",
 				i + 1, jwt_builder_error_msg(builder));
-			exit(EXIT_FAILURE);
+			ret = EXIT_FAILURE;
+			goto out;
+			// LCOV_EXCL_STOP
 		}
 	}
 
@@ -294,14 +321,19 @@ int main(int argc, char *argv[])
 				jwt_set_SET_JSON(&jval, NULL, json))) {
 			fprintf(stderr, "Error setting JSON (%d)\n",
 				jval.error);
-			exit(EXIT_FAILURE);
+			ret = EXIT_FAILURE;
+			goto out;
 		}
 	}
 
 	if (verbose && jwt_builder_setcb(builder, __jwt_wcb, NULL)) {
+		// LCOV_EXCL_START - defensive: setting our own static callback
+		// does not fail in practice
 		fprintf(stderr, "ERR setting callback: %s\n",
 			jwt_builder_error_msg(builder));
-		exit(EXIT_FAILURE);
+		ret = EXIT_FAILURE;
+		goto out;
+		// LCOV_EXCL_STOP
 	}
 
 	json_fp = stderr;
@@ -329,7 +361,8 @@ int main(int argc, char *argv[])
 	if (token == NULL) {
 		fprintf(stderr, "ERR Generating Token: %s\n",
 			jwt_builder_error_msg(builder));
-		exit(EXIT_FAILURE);
+		ret = EXIT_FAILURE;
+		goto out;
 	}
 
 	if (quiet) {
@@ -343,10 +376,11 @@ int main(int argc, char *argv[])
 
 	free(token);
 
+out:
 	/* The builder borrows the keys, so free it before their sets. */
 	jwt_builder_freep(&builder);
 	for (i = 0; i < n_keys; i++)
 		jwks_free(sets[i]);
 
-	return 0;
+	return ret;
 }

@@ -2,6 +2,22 @@
 
 BASIC_RES="eyJhbGciOiJub25lIn0.e30."
 
+# Fail the test if a sanitizer (ASan/LSan/UBSan) reported in a tool's output.
+# The CI "Sanitizer" row builds everything with -fsanitize and runs the suite
+# under LeakSanitizer; there, an error-path "run" can exit non-zero from a
+# detected *leak* rather than the error under test, with the report captured in
+# $output instead of flushed. A bare "[ status -ne 0 ]" would then pass on that
+# leak, so the error-exit tests below call this too. Off a sanitizer build
+# $output never holds these strings, so it is a no-op for a normal run.
+refute_sanitizer() {
+	if printf '%s\n' "${output}" | \
+	    grep -qE 'AddressSanitizer|LeakSanitizer|UndefinedBehaviorSanitizer|runtime error:'; then
+		printf 'sanitizer report in tool output:\n%s\n' "${output}" >&2
+		return 1
+	fi
+	return 0
+}
+
 @test "Generate a JWT with alg none" {
 	result="$(./tools/jwt-generate -v -a none -n)"
 	[ "$result" = ${BASIC_RES} ]
@@ -64,6 +80,21 @@ NOALG_KEY="../tests/keys/oct_key_256_sig.json"
 	# others silently fall back to an "oct" key via TRY_HMAC). OpenSSL is the
 	# only backend that yields EC for secp256k1 AND OKP for Ed25519, so probe
 	# both and skip otherwise.
+	#
+	# #364: run key2jwk as a captured command on each probe key first, so a
+	# tool failure (e.g. a leak abort under LeakSanitizer, whose report lands
+	# in $output) FAILS this test here, instead of the capability probe below
+	# silently turning it into a skip. A backend that merely lacks a curve
+	# still exits 0 (it falls back to oct), so this trips only on a real
+	# key2jwk failure, not a capability gap.
+	run ./tools/key2jwk -o - \
+		${SRCDIR}/tests/keys/pem-files/ec_key_secp256k1.pem
+	[ "${status}" -eq 0 ]
+	refute_sanitizer
+	run ./tools/key2jwk -o - \
+		${SRCDIR}/tests/keys/pem-files/eddsa_key_ed25519.pem
+	[ "${status}" -eq 0 ]
+	refute_sanitizer
 	k1=$(./tools/key2jwk -o - \
 		${SRCDIR}/tests/keys/pem-files/ec_key_secp256k1.pem 2>/dev/null \
 		| jq -r '.keys[0].kty')
@@ -123,6 +154,7 @@ EOF
 		${SRCDIR}/tests/keys/pem-files/does-not-exist.pem
 	[ "${status}" -ne 0 ]
 	echo "${output}" | grep -q "Error parsing key file"
+	refute_sanitizer
 }
 
 # A non-key file with --disable-hmac (no HMAC fallback) is flagged in error,
@@ -133,6 +165,7 @@ EOF
 	run ./tools/key2jwk -m -o - "${nonkey}"
 	rm -f "${nonkey}"
 	[ "${status}" -ne 0 ]
+	refute_sanitizer
 }
 
 @test "Convert JWK to PEM - RSA" {
@@ -268,17 +301,37 @@ ECENC="../tests/keys/ec_key_prime256v1_enc.json"
 
 # #364: the tools must release what they allocated on their error exits too, so
 # the suite is clean under LeakSanitizer. These exercise the jwe tools' key-load
-# error paths (a missing file and an empty key set).
+# error paths (a missing file, an empty key set, a bad --recipient spec).
 @test "jwe-encrypt reports a missing key file" {
 	run ./tools/jwe-encrypt -k /nonexistent/key.json -a dir -e A256GCM -j '{}'
 	[ "${status}" -ne 0 ]
 	echo "${output}" | grep -q "Could not load key"
+	refute_sanitizer
+}
+
+@test "jwe-encrypt reports an empty key set" {
+	empty="${BATS_TMPDIR:-/tmp}/jwe_empty_$$.json"
+	echo '{"keys":[]}' > "${empty}"
+	run ./tools/jwe-encrypt -k "${empty}" -a dir -e A256GCM -j '{}'
+	rm -f "${empty}"
+	[ "${status}" -ne 0 ]
+	echo "${output}" | grep -q "No key found"
+	refute_sanitizer
+}
+
+@test "jwe-encrypt rejects a malformed --recipient" {
+	run ./tools/jwe-encrypt -k ${OCT256} -a dir -e A256GCM \
+		-r no-colon-here -j '{}'
+	[ "${status}" -ne 0 ]
+	echo "${output}" | grep -q "recipient must be ALG:FILE"
+	refute_sanitizer
 }
 
 @test "jwe-decrypt reports a missing key file" {
 	run ./tools/jwe-decrypt -k /nonexistent/key.json -a dir -e A256GCM x.y.z
 	[ "${status}" -ne 0 ]
 	echo "${output}" | grep -q "Could not load key"
+	refute_sanitizer
 }
 
 @test "jwe-decrypt reports an empty key set" {
@@ -288,6 +341,101 @@ ECENC="../tests/keys/ec_key_prime256v1_enc.json"
 	rm -f "${empty}"
 	[ "${status}" -ne 0 ]
 	echo "${output}" | grep -q "No key found"
+	refute_sanitizer
+}
+
+# #364: jwt-verify allocates its checker only after option parsing, and every
+# key/keyring load error returns (not exit()) so the auto_t cleanups run. These
+# drive those error exits so the suite stays leak-clean under LeakSanitizer.
+@test "jwt-verify reports an unreadable key file" {
+	run ./tools/jwt-verify -k /nonexistent/key.json ${BASIC_RES}
+	[ "${status}" -ne 0 ]
+	echo "${output}" | grep -q "Could not read JWK"
+	refute_sanitizer
+}
+
+@test "jwt-verify reports an unreadable keyring" {
+	run ./tools/jwt-verify -r /nonexistent/ring.json ${BASIC_RES}
+	[ "${status}" -ne 0 ]
+	echo "${output}" | grep -q "Could not read keyring"
+	refute_sanitizer
+}
+
+@test "jwt-verify rejects an algorithm that mismatches the key" {
+	run ./tools/jwt-verify -a ES256 -k ${HS256_KEY} ${BASIC_RES}
+	[ "${status}" -ne 0 ]
+	refute_sanitizer
+}
+
+@test "jwt-verify reports a malformed key" {
+	badkey="${BATS_TMPDIR:-/tmp}/badjwk_$$.json"
+	printf '{"kty":"RSA","n":"@@@","e":"AQAB"}\n' > "${badkey}"
+	run ./tools/jwt-verify -k "${badkey}" ${BASIC_RES}
+	rm -f "${badkey}"
+	[ "${status}" -ne 0 ]
+	echo "${output}" | grep -q "Could not read JWK"
+	refute_sanitizer
+}
+
+@test "jwt-verify needs an algorithm for a key that has none" {
+	run ./tools/jwt-verify -k ${NOALG_KEY} ${BASIC_RES}
+	[ "${status}" -ne 0 ]
+	echo "${output}" | grep -q "does not contain an"
+	refute_sanitizer
+}
+
+# #364: jwt-generate allocates its builder only after option parsing and routes
+# every error through a single cleanup label, so these error exits are leak-free
+# under LeakSanitizer.
+@test "jwt-generate error exits are leak-clean" {
+	# A --claim with no key:value:value structure.
+	run ./tools/jwt-generate -q -n -c nocolonhere
+	[ "${status}" -ne 0 ]
+	echo "${output}" | grep -q "Invalid claim format"
+	refute_sanitizer
+	# A --claim with an unknown type letter.
+	run ./tools/jwt-generate -q -n -c x:key=val
+	[ "${status}" -ne 0 ]
+	echo "${output}" | grep -q "Invalid --claim type"
+	refute_sanitizer
+	# A key file that does not exist.
+	run ./tools/jwt-generate -q -n -a HS256 -k /nonexistent/key.json
+	[ "${status}" -ne 0 ]
+	refute_sanitizer
+	# A key file that parses but whose key is malformed.
+	badkey="${BATS_TMPDIR:-/tmp}/gen_badjwk_$$.json"
+	printf '{"kty":"RSA","n":"@@@","e":"AQAB"}\n' > "${badkey}"
+	run ./tools/jwt-generate -q -n -k "${badkey}"
+	rm -f "${badkey}"
+	[ "${status}" -ne 0 ]
+	refute_sanitizer
+	# A key with no "alg" and no --algorithm.
+	run ./tools/jwt-generate -q -n -k ${NOALG_KEY}
+	[ "${status}" -ne 0 ]
+	echo "${output}" | grep -q 'No .alg. attribute'
+	refute_sanitizer
+	# An --algorithm that mismatches the key.
+	run ./tools/jwt-generate -q -n -a ES256 -k ${HS256_KEY}
+	[ "${status}" -ne 0 ]
+	refute_sanitizer
+	# An invalid JSON body.
+	run ./tools/jwt-generate -q -n -a HS256 -k ${HS256_KEY} -j 'notjson'
+	[ "${status}" -ne 0 ]
+	refute_sanitizer
+}
+
+@test "jwt-generate accepts a true boolean claim" {
+	run ./tools/jwt-generate -q -n -a HS256 -k ${HS256_KEY} -c b:flag=true
+	[ "${status}" -eq 0 ]
+	refute_sanitizer
+}
+
+@test "jwt-generate rejects too many --claim options" {
+	args=""
+	for n in $(seq 1 33); do args="${args} -c s:k${n}=v${n}"; done
+	run ./tools/jwt-generate -q -n -a HS256 -k ${HS256_KEY} ${args}
+	[ "${status}" -ne 0 ]
+	refute_sanitizer
 }
 
 # Regression for #264: an oct JWK with a very large `k` makes the key
@@ -642,6 +790,7 @@ FORGED_TOK="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiJ9.AAAA"
 	run ./tools/jwt-generate -a HS256 -k "${empty}"
 	[ "${status}" -eq 1 ]
 	echo "${output}" | grep -q 'No key found'
+	refute_sanitizer
 	rm -f "${empty}"
 }
 

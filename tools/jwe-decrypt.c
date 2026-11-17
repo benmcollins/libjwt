@@ -129,8 +129,12 @@ int main(int argc, char *argv[])
 	}
 
 	checker = jwe_checker_new();
-	if (checker == NULL)
-		exit(EXIT_FAILURE);
+	if (checker == NULL) {
+		// LCOV_EXCL_START
+		ret = EXIT_FAILURE;
+		goto out;
+		// LCOV_EXCL_STOP
+	}
 
 	if (jwe_checker_setkey(checker, alg, enc, item)) {
 		fprintf(stderr, "ERROR: %s\n", jwe_checker_error_msg(checker));

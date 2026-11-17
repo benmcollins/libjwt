@@ -231,12 +231,6 @@ int main(int argc, char *argv[])
 		{ NULL, 0, 0, 0 },
 	};
 
-	checker = jwt_checker_new();
-	if (checker == NULL) {
-		fprintf(stderr, "Could not allocate checker context\n");
-		exit(EXIT_FAILURE);
-	}
-
 	while ((oc = getopt_long(argc, argv, optstr, opttbl, NULL)) != -1) {
 		switch (oc) {
 		case 'h':
@@ -348,18 +342,34 @@ int main(int argc, char *argv[])
 	if (pipe_cmd && !verbose)
 		usage("--print requires --verbose", EXIT_FAILURE);
 
+	/* Allocate the checker only now, after all option parsing and the
+	 * usage() checks above, so those exit() paths leave nothing allocated
+	 * (allocate after option parsing, as the jwe-* tools do). Every error
+	 * path from here returns (not exit()) so the *_auto_t cleanups for the
+	 * checker, jwk_set and keyring run. */
+	checker = jwt_checker_new();
+	if (checker == NULL) {
+		// LCOV_EXCL_START
+		fprintf(stderr, "Could not allocate checker context\n");
+		return EXIT_FAILURE;
+		// LCOV_EXCL_STOP
+	}
+
 	/* Load a keyring (a JWKS) for multi-signature verification. */
 	if (keyring_file) {
 		keyring = jwks_create_fromfile(keyring_file);
 		if (keyring == NULL || jwks_error(keyring)) {
 			fprintf(stderr, "ERR: Could not read keyring: %s\n",
 				jwks_error_msg(keyring));
-			exit(EXIT_FAILURE);
+			return EXIT_FAILURE;
 		}
 		if (jwt_checker_setkeyring(checker, keyring, policy)) {
+			// LCOV_EXCL_START - defensive: a keyring that read
+			// cleanly but setkeyring then rejects
 			fprintf(stderr, "ERR setting keyring: %s\n",
 				jwt_checker_error_msg(checker));
-			exit(EXIT_FAILURE);
+			return EXIT_FAILURE;
+			// LCOV_EXCL_STOP
 		}
 		if (!quiet)
 			printf("\xF0\x9F\x94\x91 \033[0;92m[RING]\033[0m %s "
@@ -373,7 +383,7 @@ int main(int argc, char *argv[])
                 if (jwk_set == NULL || jwks_error(jwk_set)) {
                         fprintf(stderr, "ERR: Could not read JWK: %s\n",
                                 jwks_error_msg(jwk_set));
-                        exit(EXIT_FAILURE);
+                        return EXIT_FAILURE;
                 }
 
                 /* Get the first key */
@@ -385,26 +395,30 @@ int main(int argc, char *argv[])
                 if (jwks_item_error(item)) {
                         fprintf(stderr, "ERR: Could not read JWK: %s\n",
                                 jwks_item_error_msg(item));
-                        exit(EXIT_FAILURE);
+                        return EXIT_FAILURE;
                 }
 
 		if (jwks_item_alg(item) == JWT_ALG_NONE &&
 		    alg == JWT_ALG_NONE) {
-			usage("Key does not contain an \"alg\" attribute and no --alg given",
-			      EXIT_FAILURE);
+			fprintf(stderr, "ERR: Key does not contain an \"alg\" "
+				"attribute and no --algorithm given\n");
+			return EXIT_FAILURE;
 		}
 
                 if (jwt_checker_setkey(checker, alg, item)) {
                         fprintf(stderr, "ERR Loading key: %s\n",
                                 jwt_checker_error_msg(checker));
-                        exit(EXIT_FAILURE);
+                        return EXIT_FAILURE;
                 }
 	}
 
 	if (verbose && jwt_checker_setcb(checker, __jwt_wcb, NULL)) {
+		// LCOV_EXCL_START - defensive: setting our own static callback
+		// does not fail in practice
 		fprintf(stderr, "ERR setting callback: %s\n",
 			jwt_checker_error_msg(checker));
-		exit(EXIT_FAILURE);
+		return EXIT_FAILURE;
+		// LCOV_EXCL_STOP
 	}
 
 	if (item && !quiet) {
