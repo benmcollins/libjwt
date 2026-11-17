@@ -1366,6 +1366,17 @@ int jwt_checker_verify_detached(jwt_checker_t *checker, const char *token,
 		jwt_write_error(checker, "Must pass a token");
 		return 1;
 	}
+	/* Reject an oversized token before it is decoded or reconstructed, as
+	 * jwt_checker_verify() does: this path base64-decodes the protected
+	 * header and (for a JSON token) parses the raw token before it hands
+	 * the rebuilt token to jwt_checker_verify(), all with lengths held in
+	 * int. No real token is anywhere near INT_MAX bytes. */
+	if (strlen(token) >= INT_MAX) {
+		// LCOV_EXCL_START
+		jwt_write_error(checker, "Token too large");
+		return 1;
+		// LCOV_EXCL_STOP
+	}
 	if (payload == NULL && len > 0) {
 		jwt_write_error(checker, "Must pass a payload");
 		return 1;
