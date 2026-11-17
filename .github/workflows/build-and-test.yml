@@ -178,3 +178,43 @@ jobs:
         files: ${{ github.workspace }}/build/check-code-coverage.info
         disable_search: true
         verbose: true
+
+  # Hardened sanitizer row (#363, #364). Builds the whole project - library,
+  # tools and tests - at -O2 under AddressSanitizer + UndefinedBehaviorSanitizer
+  # with the project's -Werror, then runs the full suite (unit tests + the bats
+  # CLI tests) under LeakSanitizer.
+  #
+  #   - #363: at -O2 the -fsanitize instrumentation revives a gcc 15
+  #     -Wstringop-truncation in jwt_copy_error() that -Werror makes fatal, so a
+  #     regression turns the *build* red. The forky CI image ships gcc 15.2, the
+  #     compiler the report used; a plain -O2 build does not show it.
+  #   - #364: a CLI tool that leaks (exit() skipping the *_auto_t cleanups)
+  #     turns the *run* red under LeakSanitizer.
+  #
+  # All three backends + WITH_ML_DSA so every tool path the suite drives - the
+  # JWE round-trips and the ML-DSA key2jwk conversion among them - runs
+  # instrumented. UBSan is left non-fatal at runtime (print-only): the build is
+  # the #363 guard and LSan is the #364 guard, and gating every run on UB is out
+  # of scope here.
+  build-linux-sanitizer:
+    name: "Sanitizer (ASan+UBSan+LSan)"
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/benmcollins/libjwt/gnutls-leancrypto-mbedtls:latest
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: "Build (ASan+UBSan, -O2 -Werror)"
+      run: |
+        cmake -B build \
+          -DWITH_OPENSSL=ON -DWITH_GNUTLS=ON -DWITH_MBEDTLS=ON \
+          -DWITH_ML_DSA=ON -DWITH_LIBCURL=ON \
+          -DCMAKE_C_FLAGS="-O2 -g -fno-omit-frame-pointer -fsanitize=address,undefined"
+        cmake --build build -- all
+
+    - name: "Test (LeakSanitizer)"
+      working-directory: ${{ github.workspace }}/build
+      env:
+        ASAN_OPTIONS: "detect_leaks=1"
+        UBSAN_OPTIONS: "print_stacktrace=1"
+      run: ctest --output-on-failure
