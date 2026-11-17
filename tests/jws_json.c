@@ -1366,6 +1366,142 @@ START_TEST(test_json_alg_pin)
 }
 END_TEST
 
+struct cb_none_ctx {
+	const jwk_item_t *key;	/* given to config->key when @setkey */
+	int setkey;
+};
+
+/* A verify callback that FORCES config->alg = JWT_ALG_NONE (cb_pin only sets
+ * it for a non-NONE pin), to prove this no longer unpins the JWS JSON path. */
+static int cb_none(jwt_t *jwt, jwt_config_t *config)
+{
+	struct cb_none_ctx *x = config->ctx;
+
+	(void)jwt;
+	config->alg = JWT_ALG_NONE;
+	if (x != NULL && x->setkey)
+		config->key = x->key;
+
+	return 0;
+}
+
+/* ---- A callback resetting the pin to JWT_ALG_NONE verifies nothing with an
+ * alg-less key, and only the key's own "alg" with one, in EVERY serialization
+ * (issue #353: it used to unpin the JWS JSON Serialization path, so any alg of
+ * the key's type verified there while the Compact path rejected it) ---- */
+START_TEST(test_json_alg_none_cb)
+{
+	/* The RSA key with and without an "alg" are byte-identical but for
+	 * that member, so one set of tokens verifies against either, and both
+	 * carry this "kid". */
+	static const char kid[] = "28c243a4-a9ac-473f-ab61-d3a68f408279";
+	static const jwt_alg_t algs[] = {
+		JWT_ALG_RS256, JWT_ALG_RS512, JWT_ALG_PS256,
+	};
+	struct cb_none_ctx none = { NULL, 0 };
+	jwk_set_t *ks_noalg, *ks_alg;
+	const jwk_item_t *k_noalg, *k_alg;
+	struct cb_none_ctx supply;
+	char_auto *kid_hdr = NULL;
+	size_t f, a;
+
+	SET_OPS();
+
+	ks_noalg = load_one("rsa_key_2048_no_alg.json");
+	ks_alg = load_one("rsa_key_2048.json");
+	k_noalg = jwks_item_get(ks_noalg, 0);
+	k_alg = jwks_item_get(ks_alg, 0);
+	supply.key = k_noalg;
+	supply.setkey = 1;
+
+	ck_assert_int_gt(asprintf(&kid_hdr, "{\"kid\":\"%s\"}", kid), 0);
+
+	/* The same verdict must hold in Compact, Flattened and General. */
+	for (f = 0; f < ARRAY_SIZE(all_fmt); f++) {
+		for (a = 0; a < ARRAY_SIZE(algs); a++) {
+			char_auto *tok = fmt_tok(algs[a], k_noalg, NULL,
+						 all_fmt[f]);
+			char_auto *ktok = fmt_tok(algs[a], k_noalg, kid_hdr,
+						  all_fmt[f]);
+			int is_rs256 = (algs[a] == JWT_ALG_RS256);
+			jwt_checker_auto_t *cA = NULL, *cB = NULL, *cC = NULL;
+			jwt_checker_auto_t *cC2 = NULL, *cD = NULL, *cE = NULL;
+
+			/* A. A single alg-less key with the pin reset to NONE
+			 * means "the key's alg"; it has none, so no token
+			 * verifies, whatever its alg. */
+			cA = jwt_checker_new();
+			ck_assert_int_eq(jwt_checker_setkey(cA, JWT_ALG_RS256,
+							    k_noalg), 0);
+			ck_assert_int_eq(jwt_checker_setcb(cA, cb_none, &none),
+					 0);
+			ck_assert_int_ne(jwt_checker_verify(cA, tok), 0);
+
+			/* B. A single alg-bearing key: NONE resolves to its
+			 * "alg" (RS256), so only RS256 verifies. */
+			cB = jwt_checker_new();
+			ck_assert_int_eq(jwt_checker_setkey(cB, JWT_ALG_RS256,
+							    k_alg), 0);
+			ck_assert_int_eq(jwt_checker_setcb(cB, cb_none, &none),
+					 0);
+			if (is_rs256)
+				ck_assert_int_eq(jwt_checker_verify(cB, tok), 0);
+			else
+				ck_assert_int_ne(jwt_checker_verify(cB, tok), 0);
+
+			/* C. A keyring of the alg-less key, token with no
+			 * "kid" (a scan): the alg-less candidate is skipped,
+			 * so nothing verifies. */
+			cC = jwt_checker_new();
+			ck_assert_int_eq(jwt_checker_setkeyring(cC, ks_noalg,
+				JWT_VERIFY_POLICY_ANY), 0);
+			ck_assert_int_eq(jwt_checker_setcb(cC, cb_none, &none),
+					 0);
+			ck_assert_int_ne(jwt_checker_verify(cC, tok), 0);
+
+			/* C2. A keyring of the alg-bearing key, scan: the
+			 * candidate's "alg" (RS256) is pinned, so only RS256
+			 * verifies. Keeps the scan skip's second operand
+			 * (kalg == JWT_ALG_NONE) covered on its false side. */
+			cC2 = jwt_checker_new();
+			ck_assert_int_eq(jwt_checker_setkeyring(cC2, ks_alg,
+				JWT_VERIFY_POLICY_ANY), 0);
+			ck_assert_int_eq(jwt_checker_setcb(cC2, cb_none, &none),
+					 0);
+			if (is_rs256)
+				ck_assert_int_eq(jwt_checker_verify(cC2, tok),
+						 0);
+			else
+				ck_assert_int_ne(jwt_checker_verify(cC2, tok),
+						 0);
+
+			/* D. A keyring of the alg-less key, token WITH the
+			 * matching "kid" (a kid-named explicit candidate): the
+			 * alg-less key verifies nothing. */
+			cD = jwt_checker_new();
+			ck_assert_int_eq(jwt_checker_setkeyring(cD, ks_noalg,
+				JWT_VERIFY_POLICY_ANY), 0);
+			ck_assert_int_eq(jwt_checker_setcb(cD, cb_none, &none),
+					 0);
+			ck_assert_int_ne(jwt_checker_verify(cD, ktok), 0);
+
+			/* E. A keyring of the alg-less key, the callback both
+			 * resets the pin and supplies that alg-less key: still
+			 * nothing verifies. */
+			cE = jwt_checker_new();
+			ck_assert_int_eq(jwt_checker_setkeyring(cE, ks_noalg,
+				JWT_VERIFY_POLICY_ANY), 0);
+			ck_assert_int_eq(jwt_checker_setcb(cE, cb_none,
+							   &supply), 0);
+			ck_assert_int_ne(jwt_checker_verify(cE, tok), 0);
+		}
+	}
+
+	jwks_free(ks_noalg);
+	jwks_free(ks_alg);
+}
+END_TEST
+
 /* ---- A keyring needs any "kid" to be a string ---- */
 START_TEST(test_keyring_kid_type)
 {
@@ -1670,6 +1806,7 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, test_compact_keyring_reuse, 0, i);
 	tcase_add_loop_test(tc_core, test_compact_keyring_embedded, 0, i);
 	tcase_add_loop_test(tc_core, test_json_alg_pin, 0, i);
+	tcase_add_loop_test(tc_core, test_json_alg_none_cb, 0, i);
 	tcase_add_loop_test(tc_core, test_keyring_kid_type, 0, i);
 	tcase_add_loop_test(tc_core, test_keyring_key_use, 0, i);
 

@@ -1031,15 +1031,16 @@ void jwt_checker_error_clear(jwt_checker_t *checker);
  *
  * A signature, of a Compact token or of a JWS JSON Serialization alike,
  * verifies only if it uses exactly that algorithm (with ::JWT_ALG_NONE, the
- * key's ``"alg"``), not merely one the key could check (e.g. RS512 or PS256
- * when pinned to RS256). A verify callback that sets config->alg pins that
- * algorithm instead. The key is used whatever its ``"use"`` or
- * ``"key_ops"``, unlike the keys of a keyring (see jwt_checker_setkeyring()),
- * but a key that is in error (jwks_item_error()) is refused. The checker keeps
- * the key or keyring it has, and one that has neither is not left unkeyed: it
- * rejects every token, an unsigned one included, until it is given a key or
- * keyring, its verify callback supplies the key, or this is called with a
- * NULL key.
+ * key's ``"alg"``, and a key with none verifies nothing), not merely one the
+ * key could check (e.g. RS512 or PS256 when pinned to RS256). A verify
+ * callback that sets config->alg pins that algorithm instead. The key is
+ * used whatever its ``"use"`` or ``"key_ops"``, unlike the keys of a
+ * keyring (see jwt_checker_setkeyring()), but a key that is in error
+ * (jwks_item_error()) is refused. The checker keeps the key or keyring it
+ * has, and one that has neither is not left unkeyed: it rejects every
+ * token, an unsigned one included, until it is given a key or keyring,
+ * its verify callback supplies the key, or this is called with a NULL
+ * key.
  *
  * A NULL key (with ::JWT_ALG_NONE) also drops a keyring. Unless embedded-JWK
  * verification is enabled (this does not turn it off), the checker is then
@@ -1108,7 +1109,9 @@ typedef enum {
  * an unsigned (``"alg":"none"``) token is never accepted. The callback may
  * supply the key, which is then the only one tried, whatever its ``"use"`` or
  * ``"key_ops"`` (unless it is in error: then none is); if it sets
- * config->alg, a signature with another ``"alg"`` does not verify.
+ * config->alg, a signature with another ``"alg"`` does not verify, and if it
+ * sets it to ::JWT_ALG_NONE each candidate is pinned to the candidate's own
+ * ``"alg"`` (a candidate without one then verifies nothing).
  *
  * A ring key is not tied to an issuer: when the ring holds the keys of several
  * issuers, a token without a ``kid`` verifies with whichever of them signed
@@ -1339,7 +1342,8 @@ int jwt_checker_enable_embedded_jwk_keyring(jwt_checker_t *checker,
  * algorithm given to jwt_checker_setkey(), if any, or else that signature's
  * own ``"alg"``, and the signature verifies only if its ``"alg"`` is the one
  * in config->alg when the callback returns (for ::JWT_ALG_NONE, the key's
- * ``"alg"``, if it has one). A non-zero return only leaves that signature
+ * ``"alg"``, if it has one, and nothing if it has none, just as on the
+ * single-key Compact path). A non-zero return only leaves that signature
  * unverified, for the ::jwt_verify_policy_t to decide: under
  * ::JWT_VERIFY_POLICY_ANY the token is still accepted if another of its
  * signatures verifies, and under ::JWT_VERIFY_POLICY_ALL it is rejected. A
@@ -1384,6 +1388,12 @@ int jwt_checker_enable_embedded_jwk_keyring(jwt_checker_t *checker,
  * @note Calling this with a NULL cb param and a new ctx param after already
  * setting the callback will allow updating the ctx passed to the callback.
  * Calling with both values as NULL will disable the callback completely.
+ *
+ * @note Before 3.7.0 a verify callback that set config->alg to ::JWT_ALG_NONE
+ * unpinned the algorithm on the JWS JSON Serialization path (and on a Compact
+ * token checked against a keyring, which takes that path): any algorithm of
+ * the key's type then verified, instead of the key's own ``"alg"`` (or
+ * nothing, for a key without one) as on the single-key Compact path (#353).
  *
  * @param checker Pointer to a checker object
  * @param cb Pointer to a callback function

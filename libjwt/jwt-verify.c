@@ -1110,6 +1110,23 @@ static int verify_entry(jwt_checker_t *checker, jwt_t *jwt,
 		return 0;
 	}
 
+	/* @rfc{8725,3.1} Resolve a JWT_ALG_NONE pin to the explicit key's
+	 * own "alg", as the Compact path's __setkey_check() does: a
+	 * callback that sets config->alg = JWT_ALG_NONE means "the key's
+	 * alg", so a key that carries one pins it and a key without one
+	 * verifies nothing, rather than dropping the pin and letting any
+	 * alg of the right key type through (the pinning bypass, #353).
+	 * The seed is never JWT_ALG_NONE (a JSON signature has no
+	 * "alg":"none"), so only the callback reaches here with it NONE.
+	 * The keyring scan applies the same rule per candidate below. */
+	if (config.alg == JWT_ALG_NONE && config.key != NULL) {
+		config.alg = jwks_item_alg(config.key);
+		if (config.alg == JWT_ALG_NONE) {
+			jwt->headers = NULL;
+			return 0;
+		}
+	}
+
 	/* @rfc{8725,3.1} Pin the EXACT algorithm, as the Compact path does: a
 	 * signature whose "alg" is not the one pinned (by jwt_checker_setkey()
 	 * or in config->alg by the callback) does not verify, even with a key
@@ -1129,6 +1146,13 @@ static int verify_entry(jwt_checker_t *checker, jwt_t *jwt,
 			const jwk_item_t *k = jwks_item_get(ring, i);
 			jwt_alg_t kalg = jwks_item_alg(k);
 
+			/* config.alg is JWT_ALG_NONE here only if the
+			 * callback reset the pin to the key's own alg (the
+			 * seed is this signature's concrete alg): a ring key
+			 * with no "alg" then verifies nothing, matching the
+			 * explicit-key rule above (#353). */
+			if (config.alg == JWT_ALG_NONE && kalg == JWT_ALG_NONE)
+				continue;
 			if (kalg != JWT_ALG_NONE && kalg != s->alg)
 				continue;
 			if (!ring_key_verifies(k))
