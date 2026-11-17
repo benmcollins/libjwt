@@ -328,6 +328,108 @@ START_TEST(test_jwks_okp_x25519_bad_d_len)
 }
 END_TEST
 
+/* @rfc{7518,6.2.2.1} An EC private JWK's "d" must be the private key for its
+ * public point (x, y): 1 <= d < n and d*G == (x, y). A "d" that is out of
+ * range or simply the wrong scalar used to load on one or more backends; every
+ * backend must now reject it. The x/y below are ec_key_prime256v1.json's real
+ * public point and only "d" is tampered with. The failure message is backend-
+ * and input-specific, so these assert the error flag only. */
+START_TEST(test_jwks_ec_private_d_zero)
+{
+	/* d = 0 (32 zero bytes): out of range, needs 1 <= d < n. */
+	const char *json = "{\"kty\":\"EC\",\"crv\":\"P-256\","
+		"\"x\":\"Y--DdSpCZ5oF3j__h-SdNJIwvB5aI4AXzpRErGUjWrM\","
+		"\"y\":\"_bSTCXlDeU-pZZbOKDUVLANspSIeuKZfTM8rtXFG_RU\","
+		"\"d\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\"}";
+	jwk_set_t *jwk_set = NULL;
+	const jwk_item_t *item;
+
+	SET_OPS();
+
+	jwk_set = jwks_create(json);
+	ck_assert_ptr_nonnull(jwk_set);
+
+	item = jwks_item_get(jwk_set, 0);
+	ck_assert_ptr_nonnull(item);
+	ck_assert_int_ne(jwks_item_error(item), 0);
+
+	jwks_free(jwk_set);
+}
+END_TEST
+
+/* As above, d = n (the P-256 group order): out of range, needs d < n. */
+START_TEST(test_jwks_ec_private_d_order)
+{
+	const char *json = "{\"kty\":\"EC\",\"crv\":\"P-256\","
+		"\"x\":\"Y--DdSpCZ5oF3j__h-SdNJIwvB5aI4AXzpRErGUjWrM\","
+		"\"y\":\"_bSTCXlDeU-pZZbOKDUVLANspSIeuKZfTM8rtXFG_RU\","
+		"\"d\":\"_____wAAAAD__________7zm-q2nF56E87nKwvxjJVE\"}";
+	jwk_set_t *jwk_set = NULL;
+	const jwk_item_t *item;
+
+	SET_OPS();
+
+	jwk_set = jwks_create(json);
+	ck_assert_ptr_nonnull(jwk_set);
+
+	item = jwks_item_get(jwk_set, 0);
+	ck_assert_ptr_nonnull(item);
+	ck_assert_int_ne(jwks_item_error(item), 0);
+
+	jwks_free(jwk_set);
+}
+END_TEST
+
+/* As above, d = 1: in range but not the private key for (x, y). */
+START_TEST(test_jwks_ec_private_d_mismatch)
+{
+	const char *json = "{\"kty\":\"EC\",\"crv\":\"P-256\","
+		"\"x\":\"Y--DdSpCZ5oF3j__h-SdNJIwvB5aI4AXzpRErGUjWrM\","
+		"\"y\":\"_bSTCXlDeU-pZZbOKDUVLANspSIeuKZfTM8rtXFG_RU\","
+		"\"d\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE\"}";
+	jwk_set_t *jwk_set = NULL;
+	const jwk_item_t *item;
+
+	SET_OPS();
+
+	jwk_set = jwks_create(json);
+	ck_assert_ptr_nonnull(jwk_set);
+
+	item = jwks_item_get(jwk_set, 0);
+	ck_assert_ptr_nonnull(item);
+	ck_assert_int_ne(jwks_item_error(item), 0);
+
+	jwks_free(jwk_set);
+}
+END_TEST
+
+/* As above but P-521 (ec_key_secp521r1.json's x/y) with d = 1, to exercise the
+ * 66-byte coordinate comparison in the MbedTLS backend. */
+START_TEST(test_jwks_ec_private_d_mismatch_p521)
+{
+	const char *json = "{\"kty\":\"EC\",\"crv\":\"P-521\","
+		"\"x\":\"_axE26pXWXesAjcTP_2Tfe4EcF4A3LuqgpIFzrftiztViq0-5deUvfcxuP"
+		"IFk-ANVinlAOzgZWpFS0kheI7KJAY\","
+		"\"y\":\"3fOHn5ZTU08AAjau0CoZe9GSPUC4cnSy1nqetiKBW0YpBvhaY5FXnngvfHU"
+		"HdmkFSVLCS6N-LXoi_dm0Fbo6snE\","
+		"\"d\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+		"AAAAAAAAAAAAAAAAAAAAAAAAAAAB\"}";
+	jwk_set_t *jwk_set = NULL;
+	const jwk_item_t *item;
+
+	SET_OPS();
+
+	jwk_set = jwks_create(json);
+	ck_assert_ptr_nonnull(jwk_set);
+
+	item = jwks_item_get(jwk_set, 0);
+	ck_assert_ptr_nonnull(item);
+	ck_assert_int_ne(jwks_item_error(item), 0);
+
+	jwks_free(jwk_set);
+}
+END_TEST
+
 /* RSA JWK with partial private key (some but not all components) */
 START_TEST(test_jwks_rsa_partial_private_key)
 {
@@ -2325,6 +2427,10 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_jwks_json, test_jwks_eddsa_missing_x, 0, i);
 	tcase_add_loop_test(tc_jwks_json, test_jwks_okp_x25519_bad_x_len, 0, i);
 	tcase_add_loop_test(tc_jwks_json, test_jwks_okp_x25519_bad_d_len, 0, i);
+	tcase_add_loop_test(tc_jwks_json, test_jwks_ec_private_d_zero, 0, i);
+	tcase_add_loop_test(tc_jwks_json, test_jwks_ec_private_d_order, 0, i);
+	tcase_add_loop_test(tc_jwks_json, test_jwks_ec_private_d_mismatch, 0, i);
+	tcase_add_loop_test(tc_jwks_json, test_jwks_ec_private_d_mismatch_p521, 0, i);
 	tcase_add_loop_test(tc_jwks_json, test_jwks_rsa_partial_private_key, 0, i);
 	tcase_add_loop_test(tc_jwks_json, test_jwks_rsa_wrong_value_types, 0, i);
 	tcase_add_loop_test(tc_jwks_json, test_jwks_deeply_nested, 0, i);

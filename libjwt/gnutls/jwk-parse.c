@@ -357,14 +357,20 @@ int gnutls_process_ec(jwt_json_t *jwk, jwk_item_t *item)
 		if (gnutls_privkey_init(&key->priv) ||
 		    gnutls_privkey_import_ecc_raw(key->priv, curve, &x, &y,
 						  &k)) {
-			// LCOV_EXCL_START
 			jwt_write_error(item, "Error importing EC private key");
 			goto out;
-			// LCOV_EXCL_STOP
 		}
 		if (gnutls_pubkey_import_privkey(key->pub, key->priv, 0, 0)) {
 			jwt_write_error(item, "Error deriving EC public key"); // LCOV_EXCL_LINE
 			goto out; // LCOV_EXCL_LINE
+		}
+		/* @rfc{7518,6.2.2.1} "d" must be the private key for (x, y). The
+		 * import above rejects d = 0; verify_params rejects an in-range
+		 * or oversized "d" whose d*G is not the public point (x, y). */
+		if (gnutls_privkey_verify_params(key->priv)) {
+			jwt_write_error(item,
+				"EC private key does not match its public key");
+			goto out;
 		}
 		item->is_private_key = priv = 1;
 	} else {

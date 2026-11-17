@@ -251,11 +251,35 @@ cleanup_pem:
 	return ret;
 }
 
-/* Both steps in one, for the key types with nothing to check in between. */
+/* 1 if @pkey passes its pairwise consistency check, 0 if it fails or the check
+ * could not be set up. For an EC private key this is @rfc{7518,6.2.2.1}: the
+ * private scalar "d" is in range and d*G is the public point (x, y). */
+static int pkey_pairwise_ok(EVP_PKEY *pkey)
+{
+	EVP_PKEY_CTX *cc = EVP_PKEY_CTX_new_from_pkey(NULL, pkey, NULL);
+	int ok = (cc != NULL && EVP_PKEY_pairwise_check(cc) == 1);
+
+	EVP_PKEY_CTX_free(cc);
+
+	return ok;
+}
+
+/* Both steps in one, for the key types with nothing to check in between. With
+ * @check set (a private EC key), the made key must also pass a pairwise
+ * consistency check, so a "d" that is not the private key for (x, y) is
+ * rejected rather than silently loaded. */
 static int pctx_to_pem(EVP_PKEY_CTX *pctx, OSSL_PARAM *params,
-		       jwk_item_t *item, int priv)
+		       jwk_item_t *item, int priv, int check)
 {
 	EVP_PKEY *pkey = pctx_to_pkey(pctx, params, item);
+
+	if (pkey != NULL && check && !pkey_pairwise_ok(pkey)) {
+		ERR_clear_error();
+		jwt_write_error(item,
+			"EC private key does not match its public key");
+		EVP_PKEY_free(pkey);
+		pkey = NULL;
+	}
 
 	return pkey ? pkey_to_pem(pkey, item, priv) : -1;
 }
@@ -616,7 +640,7 @@ int openssl_process_rsa(jwt_json_t *jwk, jwk_item_t *item)
 	}
 
 	/* Create PEM from params */
-	ret = pctx_to_pem(pctx, params, item, priv);
+	ret = pctx_to_pem(pctx, params, item, priv, 0);
 
 cleanup_rsa:
 	OSSL_PARAM_free(params);
@@ -733,8 +757,8 @@ int openssl_process_ec(jwt_json_t *jwk, jwk_item_t *item)
 		// LCOV_EXCL_STOP
 	}
 
-	/* Create PEM from params */
-	ret = pctx_to_pem(pctx, params, item, priv);
+	/* Create PEM from params (a private EC key is pairwise-checked). */
+	ret = pctx_to_pem(pctx, params, item, priv, priv);
 
 cleanup_ec:
 	OSSL_PARAM_free(params);
