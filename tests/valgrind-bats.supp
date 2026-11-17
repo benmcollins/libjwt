@@ -1,0 +1,20 @@
+# Valgrind leak suppressions for the memcheck job (ctest -T memcheck).
+#
+# The bats CLI test (jwt_cli) runs the shell and helper tools with
+# --trace-children=yes, so valgrind also traces bash, mktemp, jq and friends.
+# Those system binaries report definite leaks of their own, which would fail the
+# test for reasons that have nothing to do with libjwt. Suppress definite leaks
+# whose stack passes through a /usr/bin binary.
+#
+# This is deliberately scoped to obj:/usr/bin/* so it can ONLY match the system
+# programs installed there. libjwt's library, tools and test binaries live in
+# the build tree, never under /usr/bin, so a leak in libjwt's own code can never
+# match this suppression and is still reported.
+
+{
+   leaks-in-system-binaries-run-by-bats
+   Memcheck:Leak
+   match-leak-kinds: definite
+   ...
+   obj:/usr/bin/*
+}
