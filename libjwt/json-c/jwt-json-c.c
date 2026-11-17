@@ -356,7 +356,11 @@ int jwt_json_is_null(const jwt_json_t *json)
 
 const char *jwt_json_str_val(const jwt_json_t *json)
 {
-	if (!json)
+	/* json_object_get_string() serializes a non-string to its JSON text
+	 * (the int 12345 becomes "12345"), which a JWK parser would then
+	 * base64url-decode as key material. Guard the type so this matches
+	 * Jansson's json_string_value(), which returns NULL for a non-string. */
+	if (!json || !json_object_is_type(to_jc(json), json_type_string))
 		return NULL;
 	return json_object_get_string(to_jc(json));
 }

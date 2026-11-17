@@ -2395,6 +2395,72 @@ START_TEST(test_json_null_member)
 }
 END_TEST
 
+/* @rfc{7517,4} A JWK key component ("n"/"e"/"d" of RSA, "d" of EC, "x"/"d" of
+ * OKP) is a base64url-encoded string. Given a number or boolean instead, it
+ * must never be read as key material. json-c's jwt_json_str_val() used to
+ * serialize a non-string to its JSON text (the int 12345678 becomes "12345678",
+ * a valid base64url string that decodes to 6 bytes), which the OpenSSL parser
+ * then built a key from: a bogus 48-bit RSA key loaded, and a "d":<number>
+ * beside a real public key materialized a *private* key. Jansson returned NULL
+ * for a non-string all along, and GnuTLS/MbedTLS type-check their members; now
+ * json-c returns NULL too, so the two JSON backends agree.
+ *
+ * The invariant that holds on every crypto backend is is_private == 0: a
+ * non-string component is never read as a private key. When the corrupt member
+ * is a *required public* one (RSA "n", OKP "x"), no key can load at all, so the
+ * item is in error with no bits. When it is the optional private "d" beside a
+ * valid public key, OpenSSL rejects the whole key while GnuTLS and MbedTLS
+ * ignore the non-string "d" and load the public key — neither forges a private
+ * key, which is the point. */
+START_TEST(test_jwks_member_type_confusion)
+{
+	static const struct {
+		const char *json;
+		int pub_corrupt;	/* the non-string member is a required
+					 * public one, so no key can load */
+	} cases[] = {
+		/* RSA "n" as a number ("12345678" is valid base64url). */
+		{ "{\"kty\":\"RSA\",\"n\":12345678,\"e\":\"AQAB\"}", 1 },
+		/* EC private "d" as a number over a real P-256 public key. */
+		{ "{\"kty\":\"EC\",\"crv\":\"P-256\","
+		  "\"x\":\"Y--DdSpCZ5oF3j__h-SdNJIwvB5aI4AXzpRErGUjWrM\","
+		  "\"y\":\"_bSTCXlDeU-pZZbOKDUVLANspSIeuKZfTM8rtXFG_RU\","
+		  "\"d\":123}", 0 },
+		/* OKP public "x" as a boolean. */
+		{ "{\"kty\":\"OKP\",\"crv\":\"Ed25519\",\"x\":true}", 1 },
+		/* OKP private "d" as a number over a real Ed25519 public key. */
+		{ "{\"kty\":\"OKP\",\"crv\":\"Ed25519\","
+		  "\"x\":\"HUj-14kN6N4i5qNVkfEhwKiCf-tSrvRHstQdtV8a5QM\","
+		  "\"d\":123}", 0 },
+	};
+	size_t j;
+
+	SET_OPS();
+
+	for (j = 0; j < ARRAY_SIZE(cases); j++) {
+		jwk_set_auto_t *jwk_set = jwks_create(cases[j].json);
+		const jwk_item_t *item;
+
+		ck_assert_ptr_nonnull(jwk_set);
+		/* The set parses; any failure is carried on the item. */
+		ck_assert_int_eq(jwks_error(jwk_set), 0);
+
+		item = jwks_item_get(jwk_set, 0);
+		ck_assert_ptr_nonnull(item);
+
+		/* Never a private key built from a non-string component. */
+		ck_assert_int_eq(jwks_item_is_private(item), 0);
+
+		if (cases[j].pub_corrupt) {
+			/* A required public component is non-string, so no key
+			 * loads on any backend. */
+			ck_assert_int_ne(jwks_item_error(item), 0);
+			ck_assert_int_eq(jwks_item_key_bits(item), 0);
+		}
+	}
+}
+END_TEST
+
 /*
  * === Suite Setup ===
  */
@@ -2532,6 +2598,7 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_json_parity, test_jwks_file_trailing_data, 0, i);
 	tcase_add_loop_test(tc_json_parity, test_json_null_array_element, 0, i);
 	tcase_add_loop_test(tc_json_parity, test_json_null_member, 0, i);
+	tcase_add_loop_test(tc_json_parity, test_jwks_member_type_confusion, 0, i);
 
 	tcase_set_timeout(tc_json_parity, 30);
 	suite_add_tcase(s, tc_json_parity);
