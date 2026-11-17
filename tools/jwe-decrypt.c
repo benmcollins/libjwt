@@ -49,7 +49,7 @@ int main(int argc, char *argv[])
 	jwe_enc_t enc = JWE_ENC_NONE;
 	unsigned char *pt = NULL;
 	size_t pt_len = 0;
-	int oc;
+	int oc, ret = EXIT_SUCCESS;
 
 	char *optstr = "hk:a:e:";
 	struct option opttbl[] = {
@@ -118,34 +118,45 @@ int main(int argc, char *argv[])
 	if (jwk_set == NULL || jwks_error(jwk_set)) {
 		fprintf(stderr, "ERROR: Could not load key: %s\n",
 			jwk_set ? jwks_error_msg(jwk_set) : "(unknown)");
-		exit(EXIT_FAILURE);
+		ret = EXIT_FAILURE;
+		goto out;
 	}
 	item = jwks_item_get(jwk_set, 0);
 	if (item == NULL) {
 		fprintf(stderr, "ERROR: No key found in file\n");
-		exit(EXIT_FAILURE);
+		ret = EXIT_FAILURE;
+		goto out;
 	}
 
 	checker = jwe_checker_new();
-	if (checker == NULL)
-		exit(EXIT_FAILURE);
+	if (checker == NULL) {
+		// LCOV_EXCL_START
+		ret = EXIT_FAILURE;
+		goto out;
+		// LCOV_EXCL_STOP
+	}
 
 	if (jwe_checker_setkey(checker, alg, enc, item)) {
 		fprintf(stderr, "ERROR: %s\n", jwe_checker_error_msg(checker));
-		exit(EXIT_FAILURE);
+		ret = EXIT_FAILURE;
+		goto out;
 	}
 
 	pt = jwe_checker_decrypt_all(checker, token, &pt_len);
 	if (pt == NULL) {
 		fprintf(stderr, "ERROR: %s\n", jwe_checker_error_msg(checker));
-		exit(EXIT_FAILURE);
+		ret = EXIT_FAILURE;
+		goto out;
 	}
 
 	fwrite(pt, 1, pt_len, stdout);
 	fputc('\n', stdout);
 
+out:
+	/* Return (not exit()) so the jwk_set_auto_t cleanup runs. The checker
+	 * borrows item from jwk_set, so free it before the set it borrows. */
+	jwe_checker_freep(&checker);
 	free(pt);
 	free(tokbuf);
-
-	exit(EXIT_SUCCESS);
+	return ret;
 }

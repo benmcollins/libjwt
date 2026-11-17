@@ -64,9 +64,8 @@ struct jwt_crypto_ops *jwt_item_ops(const jwk_item_t *item);
 
 #define jwt_copy_error(__dst, __src)				\
 ({								\
-	strncpy((__dst)->error_msg, (__src)->error_msg,		\
-		sizeof((__dst)->error_msg) - 1);		\
-	(__dst)->error_msg[sizeof((__dst)->error_msg) - 1] = '\0';	\
+	snprintf((__dst)->error_msg, sizeof((__dst)->error_msg),\
+		 "%s", (__src)->error_msg);			\
 	(__dst)->error = (__src)->error;			\
 })
 

@@ -224,7 +224,7 @@ an attempt to create the file.\n", get_progname());
 
 int main(int argc, char **argv)
 {
-	jwk_set_t *jwk_set = NULL;
+	jwk_set_auto_t *jwk_set = NULL;
 	const jwk_item_t *item;
 	int i, oc;
 
@@ -292,5 +292,7 @@ int main(int argc, char **argv)
 	for (i = 0; (item = jwks_item_get(jwk_set, i)); i++)
 		write_key_file(item);
 
-	exit(EXIT_SUCCESS);
+	/* Return rather than exit() so the jwk_set_auto_t cleanup frees the
+	 * set (exit() skips __attribute__((cleanup)) handlers). */
+	return EXIT_SUCCESS;
 }

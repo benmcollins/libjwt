@@ -165,12 +165,14 @@ int main(int argc, char *argv[])
 	if (jwk_set == NULL || jwks_error(jwk_set)) {
 		fprintf(stderr, "ERROR: Could not load key: %s\n",
 			jwk_set ? jwks_error_msg(jwk_set) : "(unknown)");
-		exit(EXIT_FAILURE);
+		ret = EXIT_FAILURE;
+		goto out;
 	}
 	item = jwks_item_get(jwk_set, 0);
 	if (item == NULL) {
 		fprintf(stderr, "ERROR: No key found in file\n");
-		exit(EXIT_FAILURE);
+		ret = EXIT_FAILURE;
+		goto out;
 	}
 
 	/* Plaintext from -j or stdin. */
@@ -182,8 +184,12 @@ int main(int argc, char *argv[])
 	}
 
 	builder = jwe_builder_new();
-	if (builder == NULL)
-		exit(EXIT_FAILURE);
+	if (builder == NULL) {
+		// LCOV_EXCL_START
+		ret = EXIT_FAILURE;
+		goto out;
+		// LCOV_EXCL_STOP
+	}
 
 	if (jwe_builder_setkey(builder, alg, enc, item)) {
 		fprintf(stderr, "ERROR: %s\n", jwe_builder_error_msg(builder));
@@ -275,10 +281,15 @@ int main(int argc, char *argv[])
 	free(token);
 
 out:
+	/* Return (not exit()) so the auto_t cleanups run. The builder borrows
+	 * item from jwk_set and the -r recipient keys, so free it before the
+	 * key sets it borrowed from. */
+	jwe_builder_freep(&builder);
+
 	if (json == NULL)
 		free(plaintext);
 	for (i = 0; i < n_rsets; i++)
 		jwks_free(rsets[i]);
 
-	exit(ret);
+	return ret;
 }
