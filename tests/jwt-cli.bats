@@ -489,6 +489,244 @@ ECENC="../tests/keys/ec_key_prime256v1_enc.json"
 	[ "${have_out}" -eq 1 ]
 }
 
+# --- jwk2key exit status and error reporting (#374) ----------------------
+#
+# jwk2key used to exit 0 even when nothing was written: a bad input file, a key
+# that did not load, a skipped key, a missing/unwritable output directory, an
+# existing output file or a failed write all passed silently. It now exits 1
+# and names each key it could not write, and never passes a NULL PEM to
+# fputs() (which crashes on glibc). Each case works in its own ${BATS_TMPDIR}
+# directory with keys from ${SRCDIR}/tests/keys (#367).
+
+@test "jwk2key exits 1 on a missing input file" {
+	dir="${BATS_TMPDIR:-/tmp}/jwk2key_miss_$$"
+	mkdir -p "${dir}"
+	run ./tools/jwk2key -d "${dir}" "${dir}/nosuch.json"
+	nfiles=$(ls "${dir}" | wc -l)
+	rm -rf "${dir}"
+	[ "${status}" -eq 1 ]
+	echo "${output}" | grep -q "Error reading"
+	[ "${nfiles}" -eq 0 ]
+	refute_sanitizer
+}
+
+@test "jwk2key exits 1 on an input that is not JSON" {
+	dir="${BATS_TMPDIR:-/tmp}/jwk2key_njson_$$"
+	mkdir -p "${dir}"
+	printf 'not json\n' > "${dir}/notjson.json"
+	run ./tools/jwk2key -d "${dir}" "${dir}/notjson.json"
+	rm -rf "${dir}"
+	[ "${status}" -eq 1 ]
+	echo "${output}" | grep -q "Error reading"
+	refute_sanitizer
+}
+
+@test "jwk2key exits 1 when every key is bad and names each one" {
+	dir="${BATS_TMPDIR:-/tmp}/jwk2key_bad_$$"
+	mkdir -p "${dir}"
+	run ./tools/jwk2key -d "${dir}" ${SRCDIR}/tests/keys/bad_keys.json
+	nfiles=$(ls "${dir}" | wc -l)
+	rm -rf "${dir}"
+	[ "${status}" -eq 1 ]
+	[ "${nfiles}" -eq 0 ]
+	# bad_keys.json holds 14 keys; every one is reported.
+	[ "$(echo "${output}" | grep -c 'key [0-9]')" -eq 14 ]
+	refute_sanitizer
+}
+
+@test "jwk2key writes the good key, reports the bad one, exits 1" {
+	dir="${BATS_TMPDIR:-/tmp}/jwk2key_mix_$$"
+	mkdir -p "${dir}"
+	# One good RSA key and one EC key that cannot load (bogus x/y).
+	jq -c '{keys: [., {kty:"EC",crv:"P-256",x:"AA",y:"AA"}]}' \
+		${SRCDIR}/tests/keys/rsa_key_1024.json > "${dir}/mixed.json"
+	run ./tools/jwk2key -d "${dir}" "${dir}/mixed.json"
+	have_good=0
+	ls "${dir}"/rsa_1024_*.pem >/dev/null 2>&1 && have_good=1
+	rm -rf "${dir}"
+	[ "${status}" -eq 1 ]
+	[ "${have_good}" -eq 1 ]
+	# The second key (index 1) is the one reported.
+	echo "${output}" | grep -q "key 1"
+	refute_sanitizer
+}
+
+@test "jwk2key exits 1 on a key set with no keys" {
+	dir="${BATS_TMPDIR:-/tmp}/jwk2key_empty_$$"
+	mkdir -p "${dir}"
+	echo '{"keys":[]}' > "${dir}/empty.json"
+	run ./tools/jwk2key -d "${dir}" "${dir}/empty.json"
+	rm -rf "${dir}"
+	[ "${status}" -eq 1 ]
+	echo "${output}" | grep -q "No keys found"
+	refute_sanitizer
+}
+
+@test "jwk2key exits 1 on a missing output directory" {
+	dir="${BATS_TMPDIR:-/tmp}/jwk2key_nodir_$$"
+	rm -rf "${dir}"
+	run ./tools/jwk2key -d "${dir}" ${SRCDIR}/tests/keys/rsa_key_1024.json
+	[ "${status}" -eq 1 ]
+	echo "${output}" | grep -q "not an existing writable directory"
+	refute_sanitizer
+}
+
+@test "jwk2key exits 1 on an output path that is not a directory" {
+	dir="${BATS_TMPDIR:-/tmp}/jwk2key_notdir_$$"
+	mkdir -p "${dir}"
+	# A regular file is not a writable directory, so -d must reject it.
+	printf '' > "${dir}/afile"
+	run ./tools/jwk2key -d "${dir}/afile" ${SRCDIR}/tests/keys/rsa_key_1024.json
+	rm -rf "${dir}"
+	[ "${status}" -eq 1 ]
+	echo "${output}" | grep -q "not an existing writable directory"
+	refute_sanitizer
+}
+
+@test "jwk2key exits 1 on a read-only output directory" {
+	[ "$(id -u)" -ne 0 ] || skip "root can write to a read-only directory"
+	dir="${BATS_TMPDIR:-/tmp}/jwk2key_ro_$$"
+	mkdir -p "${dir}"
+	chmod 555 "${dir}"
+	run ./tools/jwk2key -d "${dir}" ${SRCDIR}/tests/keys/rsa_key_1024.json
+	chmod 755 "${dir}"
+	rm -rf "${dir}"
+	[ "${status}" -eq 1 ]
+	echo "${output}" | grep -q "not an existing writable directory"
+	refute_sanitizer
+}
+
+@test "jwk2key exits 1 when the output file already exists" {
+	dir="${BATS_TMPDIR:-/tmp}/jwk2key_exists_$$"
+	mkdir -p "${dir}"
+	./tools/jwk2key -d "${dir}" ${SRCDIR}/tests/keys/rsa_key_1024.json
+	run ./tools/jwk2key -d "${dir}" ${SRCDIR}/tests/keys/rsa_key_1024.json
+	rm -rf "${dir}"
+	[ "${status}" -eq 1 ]
+	echo "${output}" | grep -q "cannot create"
+	refute_sanitizer
+}
+
+@test "jwk2key exits 1 and writes nothing for an unsafe kid" {
+	dir="${BATS_TMPDIR:-/tmp}/jwk2key_unsafe_$$"
+	mkdir -p "${dir}"
+	printf '{"kty":"oct","kid":"../x","k":"%s"}' \
+		"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" > "${dir}/unsafe.json"
+	run ./tools/jwk2key -d "${dir}" "${dir}/unsafe.json"
+	# Only the input file is left; no key file escaped the directory.
+	nfiles=$(ls "${dir}" | wc -l)
+	rm -rf "${dir}"
+	[ "${status}" -eq 1 ]
+	echo "${output}" | grep -q "unsafe key id"
+	[ "${nfiles}" -eq 1 ]
+	refute_sanitizer
+}
+
+@test "jwk2key reports only the failed file and still writes the good one" {
+	dir="${BATS_TMPDIR:-/tmp}/jwk2key_isolate_$$"
+	mkdir -p "${dir}"
+	run ./tools/jwk2key -d "${dir}" "${dir}/nosuch.json" \
+		${SRCDIR}/tests/keys/rsa_key_1024.json
+	have_good=0
+	ls "${dir}"/rsa_1024_*.pem >/dev/null 2>&1 && have_good=1
+	rm -rf "${dir}"
+	[ "${status}" -eq 1 ]
+	[ "${have_good}" -eq 1 ]
+	# The good file's load is not reported with the missing file's error:
+	# exactly one "Error reading" line.
+	[ "$(echo "${output}" | grep -c 'Error reading')" -eq 1 ]
+	refute_sanitizer
+}
+
+@test "jwk2key exits 1 on a failed write and leaves no file behind" {
+	dir="${BATS_TMPDIR:-/tmp}/jwk2key_wfail_$$"
+	mkdir -p "${dir}"
+	# RLIMIT_FSIZE 0 with SIGXFSZ ignored makes the write fail; bats captures
+	# output through a pipe, so only the key file (not the test) is limited.
+	run bash -c "trap '' XFSZ; ulimit -f 0; \
+		./tools/jwk2key -d '${dir}' ${SRCDIR}/tests/keys/rsa_key_1024.json"
+	nfiles=$(ls "${dir}" | wc -l)
+	rm -rf "${dir}"
+	[ "${status}" -eq 1 ]
+	[ "${nfiles}" -eq 0 ]
+	refute_sanitizer
+}
+
+@test "jwk2key reads a JWK from stdin with -" {
+	dir="${BATS_TMPDIR:-/tmp}/jwk2key_stdin_$$"
+	mkdir -p "${dir}"
+	run bash -c "./tools/jwk2key -d '${dir}' - \
+		< ${SRCDIR}/tests/keys/oct_key_384.json"
+	have=0
+	ls "${dir}"/oct_384_*.bin >/dev/null 2>&1 && have=1
+	rm -rf "${dir}"
+	[ "${status}" -eq 0 ]
+	[ "${have}" -eq 1 ]
+	refute_sanitizer
+}
+
+# The existing "Convert JWK to PEM" cases above must still exit 0; add an AKP
+# (ML-DSA) conversion when the default backend can export it, so every key-type
+# branch of jwk2key is exercised.
+@test "jwk2key converts an ML-DSA key and exits 0" {
+	mldsa_supported || skip "ML-DSA not built in"
+	dir="${BATS_TMPDIR:-/tmp}/jwk2key_akp_$$"
+	mkdir -p "${dir}"
+	run ./tools/jwk2key -d "${dir}" ${SRCDIR}/tests/keys/mldsa_key_44.json
+	have_out=0
+	ls "${dir}"/mldsa_44_*.pem >/dev/null 2>&1 && have_out=1
+	rm -rf "${dir}"
+	[ "${status}" -eq 0 ]
+	[ "${have_out}" -eq 1 ]
+	refute_sanitizer
+}
+
+# With JWT_CRYPTO=mbedtls the OKP/ML-DSA export paths differ: MbedTLS has no PEM
+# for an Ed25519 key (a NULL that once reached fputs() and crashed on glibc),
+# and it cannot load an ML-DSA key at all. Both must exit 1, not crash, and
+# leave no file. Skipped when MbedTLS is not compiled in (it falls back and
+# prints "No such crypto ops").
+@test "jwk2key under MbedTLS: Ed25519 exits 1 without crashing or a file" {
+	env JWT_CRYPTO=mbedtls ./tools/jwk2key -h >/dev/null 2>/tmp/jwk2key_mb_$$ \
+		|| true
+	if grep -q "No such crypto ops" "/tmp/jwk2key_mb_$$"; then
+		rm -f "/tmp/jwk2key_mb_$$"
+		skip "MbedTLS backend not built in"
+	fi
+	rm -f "/tmp/jwk2key_mb_$$"
+	dir="${BATS_TMPDIR:-/tmp}/jwk2key_mbed_$$"
+	mkdir -p "${dir}"
+	run env JWT_CRYPTO=mbedtls ./tools/jwk2key -d "${dir}" \
+		${SRCDIR}/tests/keys/eddsa_key_ed25519.json
+	nfiles=$(ls "${dir}" | wc -l)
+	rm -rf "${dir}"
+	# Exit 1 (not 0 as on macOS, not a SIGSEGV 139 as on glibc), no file.
+	[ "${status}" -eq 1 ]
+	[ "${nfiles}" -eq 0 ]
+	echo "${output}" | grep -q "no PEM available"
+	refute_sanitizer
+}
+
+@test "jwk2key under MbedTLS: an ML-DSA key exits 1 with its error" {
+	env JWT_CRYPTO=mbedtls ./tools/jwk2key -h >/dev/null 2>/tmp/jwk2key_mb2_$$ \
+		|| true
+	if grep -q "No such crypto ops" "/tmp/jwk2key_mb2_$$"; then
+		rm -f "/tmp/jwk2key_mb2_$$"
+		skip "MbedTLS backend not built in"
+	fi
+	rm -f "/tmp/jwk2key_mb2_$$"
+	dir="${BATS_TMPDIR:-/tmp}/jwk2key_mbed2_$$"
+	mkdir -p "${dir}"
+	run env JWT_CRYPTO=mbedtls ./tools/jwk2key -d "${dir}" \
+		${SRCDIR}/tests/keys/mldsa_key_44.json
+	nfiles=$(ls "${dir}" | wc -l)
+	rm -rf "${dir}"
+	[ "${status}" -eq 1 ]
+	[ "${nfiles}" -eq 0 ]
+	echo "${output}" | grep -q "key 0"
+	refute_sanitizer
+}
+
 # --- ML-DSA (FIPS 204 / RFC 9964) ----------------------------------------
 #
 # These only run when the library was built with WITH_ML_DSA against a capable

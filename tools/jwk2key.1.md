@@ -51,6 +51,21 @@ Output file naming is based on (hopefully) unique characteristics, including:
 **\-d** _DIR_, **\-\-dir**=_DIR_
   ~ Directory to write key files to (default is '**.**').
 
+# EXIT STATUS
+
+**0**
+  ~ Every key in every input file was written.
+
+**1**
+  ~ An input file could not be read or parsed, or held no keys; or a key was
+  skipped, did not load, or its file could not be created or fully written.
+  The keys that do convert are still written.
+
+Each key that is not written is reported on **stderr**, naming the input file
+and the key (by index, and by **kid** when it has one) and the reason. The
+output **\-d** directory must already exist, be a directory, and be writable;
+this is checked before any input is read.
+
 # BUGS
 
 See GitHub Issues: <https://github.com/benmcollins/libjwt/issues>
