@@ -238,11 +238,17 @@ START_TEST(test_setkey_errored_fails_closed)
 	ck_assert_int_eq(jwt_checker_verify(c1, jtok), 0);
 	ck_assert_int_ne(jwt_checker_verify(c1, FORGED_NONE), 0);
 
-	/* or the application itself makes it unkeyed. */
+	/* or the application itself makes it unkeyed. The latch is then gone: an
+	 * unsigned token is turned away by the unsigned-token default (issue
+	 * #352), not ERR_KEY, and the JWT_ALG_NONE opt-in accepts it. */
 	c2 = jwt_checker_new();
 	ck_assert_ptr_nonnull(c2);
 	ck_assert_int_ne(jwt_checker_setkey(c2, JWT_ALG_ES256, bad), 0);
 	ck_assert_int_eq(jwt_checker_setkey(c2, JWT_ALG_NONE, NULL), 0);
+	ck_assert_int_ne(jwt_checker_verify(c2, FORGED_NONE), 0);
+	ck_assert_str_eq(jwt_checker_error_msg(c2),
+			 "Unsigned tokens are not allowed");
+	checker_allow_none(c2);
 	ck_assert_int_eq(jwt_checker_verify(c2, FORGED_NONE), 0);
 
 	/* A refused key does not replace the one the checker has. */
@@ -645,8 +651,8 @@ START_TEST(test_latch_boundary)
 	/* Checker: an alg/kty mismatch is refused, again not for being in error,
 	 * so the checker is simply left unkeyed (not the key_required
 	 * fail-closed): a latched checker would reject even an unsigned token
-	 * with ERR_KEY, where an unkeyed one takes it, as it would with no setkey
-	 * at all. */
+	 * with ERR_KEY, where an unkeyed one takes it (with the JWT_ALG_NONE
+	 * opt-in, issue #352), as it would with no setkey at all. */
 	{
 		jwt_checker_auto_t *c = jwt_checker_new();
 
@@ -655,6 +661,7 @@ START_TEST(test_latch_boundary)
 		ck_assert_str_eq(jwt_checker_error_msg(c),
 				 "Key type does not match algorithm");
 		jwt_checker_error_clear(c);
+		checker_allow_none(c);
 		ck_assert_int_eq(jwt_checker_verify(c, FORGED_NONE), 0);
 	}
 

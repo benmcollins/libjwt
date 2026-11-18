@@ -24,7 +24,16 @@ refute_sanitizer() {
 }
 
 @test "Verify a JWT with alg none" {
-	./tools/jwt-verify -v ${BASIC_RES}
+	# A keyless checker rejects unsigned tokens by default (issue #352);
+	# "-a none" is the explicit opt-in that accepts one.
+	./tools/jwt-verify -v -a none ${BASIC_RES}
+}
+
+@test "Verify rejects an unsigned token without -a none" {
+	run ./tools/jwt-verify ${BASIC_RES}
+	[ "${status}" -ne 0 ]
+	echo "${output}" | grep -q "Unsigned tokens are not allowed"
+	refute_sanitizer
 }
 
 HS256_RES="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.CM4dD95Nj0vSfMGtDas432AUW1HAo7feCiAbt5Yjuds"

@@ -34,8 +34,65 @@ START_TEST(verify)
 	ck_assert_ptr_nonnull(checker);
 	ck_assert_int_eq(jwt_checker_error(checker), 0);
 
+	/* @rfc{8725,3.2} An unsigned token verifies only when the application
+	 * opts in by listing JWT_ALG_NONE (issue #352). */
+	checker_allow_none(checker);
+
 	ret = jwt_checker_verify(checker, token);
 	ck_assert_int_eq(ret, 0);
+}
+END_TEST
+
+/* @rfc{8725,3.2} The default (no opt-in) rejects an unsigned token, with a
+ * specific error, whether or not a verify callback is set, and whether or not
+ * that callback leaves config->key NULL (issue #352, GHSA-mhc9-xvg5-qg29). */
+static int __leave_key_null(jwt_t *jwt, jwt_config_t *config)
+{
+	(void)jwt;
+	config->key = NULL;	/* e.g. a "kid" lookup that found nothing */
+	return 0;
+}
+
+START_TEST(verify_none_rejected_by_default)
+{
+	const char token[] = "eyJhbGciOiJub25lIn0.eyJpc3MiOiJka"
+		"XNrLnN3aXNzZGlzay5jb20ifQ.";
+	jwt_checker_auto_t *checker = NULL;
+	int ret;
+
+	SET_OPS();
+
+	/* No key, no keyring, no allowlist, no callback: rejected. */
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+	ret = jwt_checker_verify(checker, token);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_str_eq(jwt_checker_error_msg(checker),
+			 "Unsigned tokens are not allowed");
+	jwt_checker_free(checker);
+
+	/* A verify callback that leaves config->key NULL does not change it. */
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+	ck_assert_int_eq(jwt_checker_setcb(checker, __leave_key_null, NULL), 0);
+	ret = jwt_checker_verify(checker, token);
+	ck_assert_int_ne(ret, 0);
+	ck_assert_str_eq(jwt_checker_error_msg(checker),
+			 "Unsigned tokens are not allowed");
+
+	/* Opting in with JWT_ALG_NONE accepts it, callback and all. */
+	checker_allow_none(checker);
+	ret = jwt_checker_verify(checker, token);
+	ck_assert_int_eq(ret, 0);
+
+	/* And a signed-only allowlist (no JWT_ALG_NONE) keeps it out. */
+	{
+		const jwt_alg_t signed_only[] = { JWT_ALG_ES256 };
+
+		ck_assert_int_eq(jwt_checker_setalgs(checker, signed_only, 1), 0);
+		ret = jwt_checker_verify(checker, token);
+		ck_assert_int_ne(ret, 0);
+	}
 }
 END_TEST
 
@@ -51,6 +108,10 @@ START_TEST(alg_none_with_sig)
 	checker = jwt_checker_new();
 	ck_assert_ptr_nonnull(checker);
 	ck_assert_int_eq(jwt_checker_error(checker), 0);
+
+	/* Allow "none" so the malformed token reaches the signature-block
+	 * check rather than the unsigned-token default (issue #352). */
+	checker_allow_none(checker);
 
 	ret = jwt_checker_verify(checker, token);
 	ck_assert_int_ne(ret, 0);
@@ -225,6 +286,9 @@ START_TEST(verify_wcb)
 	ret = jwt_checker_setcb(checker, __verify_wcb, "testing");
 	ck_assert_int_eq(ret, 0);
 
+	/* This token is unsigned; opt in so the callback path is exercised. */
+	checker_allow_none(checker);
+
 	ret = jwt_checker_verify(checker, token);
 	ck_assert_int_eq(ret, 0);
 
@@ -246,6 +310,8 @@ START_TEST(verify_stress)
 	checker = jwt_checker_new();
 	ck_assert_ptr_nonnull(checker);
 	ck_assert_int_eq(jwt_checker_error(checker), 0);
+
+	checker_allow_none(checker);
 
 	for (i = 0; i < 1000; i++) {
 		int ret = jwt_checker_verify(checker, token);
@@ -903,6 +969,9 @@ START_TEST(claim_aud_array)
 	ret = jwt_checker_setkey(checker, JWT_ALG_NONE, NULL);
 	ck_assert_int_eq(ret, 0);
 
+	/* These tokens are unsigned; opt in so the "aud" checks are reached. */
+	checker_allow_none(checker);
+
 	ret = jwt_checker_claim_set(checker, JWT_CLAIM_AUD, "me");
 	ck_assert_int_eq(ret, 0);
 
@@ -1178,6 +1247,8 @@ START_TEST(crit_understood)
 	ret = jwt_checker_understands(checker, "exp1");
 	ck_assert_int_eq(ret, 0);
 
+	checker_allow_none(checker);	/* the token is unsigned (issue #352) */
+
 	ret = jwt_checker_verify(checker, token);
 	ck_assert_int_eq(ret, 0);
 }
@@ -1263,6 +1334,8 @@ START_TEST(crit_absent)
 	ret = jwt_checker_understands(checker, "exp2");
 	ck_assert_int_eq(ret, 0);
 
+	checker_allow_none(checker);	/* the token is unsigned (issue #352) */
+
 	ret = jwt_checker_verify(checker, token);
 	ck_assert_int_eq(ret, 0);
 }
@@ -1332,6 +1405,7 @@ START_TEST(crit_roundtrip)
 	jwt_checker_error_clear(checker);
 	ret = jwt_checker_understands(checker, "exp1");
 	ck_assert_int_eq(ret, 0);
+	checker_allow_none(checker);	/* the built token is unsigned (#352) */
 	ret = jwt_checker_verify(checker, out);
 	ck_assert_int_eq(ret, 0);
 }
@@ -1383,6 +1457,8 @@ START_TEST(crit_both_understood)
 	ck_assert_int_eq(ret, 0);
 	ret = jwt_checker_understands(checker, "exp2");
 	ck_assert_int_eq(ret, 0);
+
+	checker_allow_none(checker);	/* the token is unsigned (issue #352) */
 
 	ret = jwt_checker_verify(checker, token);
 	ck_assert_int_eq(ret, 0);
@@ -1443,6 +1519,8 @@ START_TEST(jti_verify)
 	ret = jwt_checker_setjti(checker, __jti_check, "pool");
 	ck_assert_int_eq(ret, 0);
 
+	checker_allow_none(checker);	/* the token is unsigned (issue #352) */
+
 	ret = jwt_checker_verify(checker, token);
 	ck_assert_int_eq(ret, 0);
 }
@@ -1470,6 +1548,10 @@ START_TEST(jti_verify_reject)
 
 	ret = jwt_checker_setjti(checker, __jti_reject, NULL);
 	ck_assert_int_eq(ret, 0);
+
+	/* Unsigned token: opt in so the jti check (not the unsigned-token
+	 * default) is what rejects it (issue #352). */
+	checker_allow_none(checker);
 
 	ret = jwt_checker_verify(checker, token);
 	ck_assert_int_ne(ret, 0);
@@ -1541,6 +1623,8 @@ START_TEST(jti_verify_missing)
 	ret = jwt_checker_setjti(checker, __jti_reject, NULL);
 	ck_assert_int_eq(ret, 0);
 
+	checker_allow_none(checker);	/* the token is unsigned (issue #352) */
+
 	ret = jwt_checker_verify(checker, token);
 	ck_assert_int_ne(ret, 0);
 	ck_assert_str_eq(jwt_checker_error_msg(checker),
@@ -1564,6 +1648,8 @@ START_TEST(jti_verify_not_string)
 	/* The cb must never be reached for a non-string jti. */
 	ret = jwt_checker_setjti(checker, __jti_reject, NULL);
 	ck_assert_int_eq(ret, 0);
+
+	checker_allow_none(checker);	/* the token is unsigned (issue #352) */
 
 	ret = jwt_checker_verify(checker, token);
 	ck_assert_int_ne(ret, 0);
@@ -1645,6 +1731,8 @@ START_TEST(jti_pool_roundtrip)
 	ck_assert_ptr_nonnull(checker);
 	ret = jwt_checker_setjti(checker, __jti_pool_check, &seen);
 	ck_assert_int_eq(ret, 0);
+
+	checker_allow_none(checker);	/* the built token is unsigned (#352) */
 
 	/* First use: accepted and consumed. */
 	ret = jwt_checker_verify(checker, out);
@@ -1965,6 +2053,7 @@ static Suite *libjwt_suite(const char *title)
 	tc_core = tcase_create("Verify");
 	tcase_set_timeout(tc_core, 30);
 	tcase_add_loop_test(tc_core, verify, 0, i);
+	tcase_add_loop_test(tc_core, verify_none_rejected_by_default, 0, i);
 	tcase_add_loop_test(tc_core, verify_bad_header, 0, i);
 	tcase_add_loop_test(tc_core, verify_bad_payload, 0, i);
 	tcase_add_loop_test(tc_core, verify_rsapss384, 0, i);
