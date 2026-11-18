@@ -1146,6 +1146,32 @@ FORGED_TOK="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiJ9.AAAA"
 	[ "$(echo "${output}" | grep -c 'Verified')" -eq 1 ]
 }
 
+# #373: read_line() looks at every byte of a line (so a NUL byte or an
+# over-long line fails the whole line), which is why it reads a byte at a
+# time. The reader was changed from an fgetc() loop to getc_unlocked() under
+# one flockfile()/funlockfile() per line -- the per-byte stream lock is most
+# of the run time on bulk input on macOS -- and must stay byte-for-byte the
+# same. Read a bulk stream of a few thousand lines that crosses the stdio
+# buffer many times and mixes valid tokens, an over-long line, a NUL-byte line
+# and a final line with no newline: each line is still scored as one token on
+# its own. A reader that split a long line or stopped at a NUL byte (the pre-
+# fix fgets() behaviour) would miscount these.
+@test "Bulk stdin is read one token per line, unchanged (#373)" {
+	run ./tools/jwt-verify -k ${HS256_KEY} - < <(
+		for _ in $(seq 1 1000); do printf '%s\n' ${HS256_RES}; done
+		printf '%0*d\n' 1048576 0                    # over-long: 1 failed token
+		printf '%s\0%s\n' ${HS256_RES} ${HS256_RES}  # NUL byte: 1 failed token
+		for _ in $(seq 1 1000); do printf '%s\n' ${HS256_RES}; done
+		printf '%s' ${HS256_RES})                    # last line needs no newline
+	[ "${status}" -eq 1 ]
+	# 2000 full lines + 1 final line with no newline, each verified once.
+	[ "$(echo "${output}" | grep -c 'Verified')" -eq 2001 ]
+	[ "$(echo "${output}" | grep -c '\[TOK\]')" -eq 2001 ]
+	# The over-long line and the NUL-byte line, each one failed token, nothing
+	# verified from either.
+	[ "$(echo "${output}" | grep -c 'Line is too long or has a NUL byte')" -eq 2 ]
+}
+
 # GHSA-g7xw-4cjw-2247: -h/-l print and exit 0 only as the sole argument and the
 # only option in it. In a token position (getopt permutes argv) they once exited
 # 0 while the tokens went unverified; clustered with another option into the one
