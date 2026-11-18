@@ -402,6 +402,27 @@ ECENC="../tests/keys/ec_key_prime256v1_enc.json"
 	refute_sanitizer
 }
 
+# issue #354: a keyring (-r) verify failure surfaces the SAME specific
+# per-signature reason the single-key path (-k) gives, not just the generic
+# "Signature policy not met" count. Here the ring holds a different HS256
+# secret, so the HMAC does not match.
+WRONG_KEY="${SRCDIR}/tests/keys/oct_key_256_issue1.json"
+
+@test "jwt-verify keyring failure reports the specific reason (#354)" {
+	token="$(./tools/jwt-generate -q -n -k ${HS256_KEY})"
+	# The single-key path already named the reason...
+	run ./tools/jwt-verify -k ${WRONG_KEY} "${token}"
+	[ "${status}" -ne 0 ]
+	echo "${output}" | grep -q "Token failed verification"
+	refute_sanitizer
+	# ...and now the keyring path names the same reason, not the count.
+	run ./tools/jwt-verify -r ${WRONG_KEY} "${token}"
+	[ "${status}" -ne 0 ]
+	echo "${output}" | grep -q "Token failed verification"
+	! echo "${output}" | grep -q "Signature policy not met"
+	refute_sanitizer
+}
+
 # #364: jwt-generate allocates its builder only after option parsing and routes
 # every error through a single cleanup label, so these error exits are leak-free
 # under LeakSanitizer.

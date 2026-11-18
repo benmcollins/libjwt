@@ -235,7 +235,6 @@ END_TEST
  * pair refuses such a key on every path a key takes. The tokens are a header
  * for the key's "alg", an empty claim set ("e30") and a junk signature. */
 #define ERR_KEY		"Key is in error and cannot be used"
-#define ERR_POLICY_1	"Signature policy not met (0 of 1 verified)"
 
 static const jwk_item_t *bad_cb_key;
 
@@ -255,12 +254,14 @@ START_TEST(test_xbackend_errored_key)
 		jwt_alg_t alg;
 		const char *tok;	/* without a "kid"		*/
 		const char *tok_kid;	/* with the key's "kid"		*/
+		const char *kid;	/* that "kid"			*/
 	} keys[] = {
 		/* Over the 4096 bits MbedTLS loads; fine elsewhere. */
 		{ "rsa_key_8192_pub.json", NULL, JWT_ALG_RS512,
 		  "eyJhbGciOiJSUzUxMiJ9.e30.AAAA",
 		  "eyJhbGciOiJSUzUxMiIsImtpZCI6IjgzZDQzMGU0LTU3OTctNGFiMC1i"
-		  "OGU3LWM2MjBlYTRjY2I1ZSJ9.e30.AAAA" },
+		  "OGU3LWM2MjBlYTRjY2I1ZSJ9.e30.AAAA",
+		  "83d430e4-5797-4ab0-b8e7-c620ea4ccb5e" },
 		/* A point that is not on the curve (and its private key). */
 		{ NULL, "{\"kty\":\"EC\",\"alg\":\"ES256\",\"kid\":\"bad\","
 		  "\"crv\":\"P-256\","
@@ -269,13 +270,13 @@ START_TEST(test_xbackend_errored_key)
 		  "\"d\":\"wDvSCv8kxkqIVTYPpgEm4Efs6lKzf-95W8Qej4F1yEM\"}",
 		  JWT_ALG_ES256,
 		  "eyJhbGciOiJFUzI1NiJ9.e30.AAAA",
-		  "eyJhbGciOiJFUzI1NiIsImtpZCI6ImJhZCJ9.e30.AAAA" },
+		  "eyJhbGciOiJFUzI1NiIsImtpZCI6ImJhZCJ9.e30.AAAA", "bad" },
 		/* An X25519 "x" of the wrong length, offered for EdDSA. */
 		{ NULL, "{\"kty\":\"OKP\",\"alg\":\"EdDSA\",\"kid\":\"bad\","
 		  "\"crv\":\"X25519\",\"x\":\"AAAA\"}",
 		  JWT_ALG_EDDSA,
 		  "eyJhbGciOiJFZERTQSJ9.e30.AAAA",
-		  "eyJhbGciOiJFZERTQSIsImtpZCI6ImJhZCJ9.e30.AAAA" },
+		  "eyJhbGciOiJFZERTQSIsImtpZCI6ImJhZCJ9.e30.AAAA", "bad" },
 	};
 	size_t k, p;
 
@@ -285,6 +286,7 @@ START_TEST(test_xbackend_errored_key)
 		for (p = 0; p < ARRAY_SIZE(jwt_test_ops); p++) {
 			jwt_builder_auto_t *b = NULL;
 			jwt_checker_auto_t *c = NULL, *ccb = NULL, *cr = NULL;
+			char_auto *want_scan = NULL, *want_kid = NULL;
 			jwk_set_t *set;
 			const jwk_item_t *key;
 
@@ -331,22 +333,28 @@ START_TEST(test_xbackend_errored_key)
 					 0);
 			ck_assert_str_eq(jwt_checker_error_msg(ccb), ERR_KEY);
 
-			/* In a keyring: the scan, the "kid", and a callback. */
+			/* In a keyring: the scan, the "kid", and a callback.
+			 * #354: the scan has no compatible key (the errored key
+			 * is skipped), the "kid" names no usable key, and the
+			 * callback's errored key reports its own error. */
 			cr = jwt_checker_new();
 			ck_assert_int_eq(jwt_checker_setkeyring(cr, set,
 				JWT_VERIFY_POLICY_ANY), 0);
 			ck_assert_int_ne(jwt_checker_verify(cr, keys[k].tok), 0);
-			ck_assert_str_eq(jwt_checker_error_msg(cr),
-					 ERR_POLICY_1);
+			ck_assert_int_gt(asprintf(&want_scan,
+				"No keyring key can verify \"%s\"",
+				jwt_alg_str(keys[k].alg)), 0);
+			ck_assert_str_eq(jwt_checker_error_msg(cr), want_scan);
 			ck_assert_int_ne(jwt_checker_verify(cr,
 							    keys[k].tok_kid), 0);
-			ck_assert_str_eq(jwt_checker_error_msg(cr),
-					 ERR_POLICY_1);
+			ck_assert_int_gt(asprintf(&want_kid,
+				"No signature key with \"kid\" \"%s\" "
+				"in the keyring", keys[k].kid), 0);
+			ck_assert_str_eq(jwt_checker_error_msg(cr), want_kid);
 			ck_assert_int_eq(jwt_checker_setcb(cr, bad_key_cb,
 							   NULL), 0);
 			ck_assert_int_ne(jwt_checker_verify(cr, keys[k].tok), 0);
-			ck_assert_str_eq(jwt_checker_error_msg(cr),
-					 ERR_POLICY_1);
+			ck_assert_str_eq(jwt_checker_error_msg(cr), ERR_KEY);
 
 			jwks_free(set);
 		}

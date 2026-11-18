@@ -10,6 +10,7 @@
 #include <string.h>
 #include <strings.h>
 #include <stdio.h>
+#include <stdarg.h>
 
 #include <jwt.h>
 
@@ -1021,19 +1022,41 @@ static const jwk_item_t *ring_find_kid(const jwk_set_t *ring, const char *kid)
 	return NULL;
 }
 
+/* @rfc{7515,7.2} Record why signature @s did not verify (#354). The checker
+ * surfaces it for a one-signature token -- the specific cause the single-key
+ * Compact path gives -- or appends the first unverified one's for several.
+ * Each caller sets the final word for its path; cleared when @s verifies. */
+__attribute__((format(printf, 2, 3)))
+static void sig_reason(struct jwt_signature *s, const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	vsnprintf(s->reason, sizeof(s->reason), fmt, ap);
+	va_end(ap);
+}
+
+/* The outcome of trying one candidate key against a signature. */
+enum try_result {
+	TRY_VERIFIED,	/* the signature verified (s->verified/s->key set)	*/
+	TRY_FAILED,	/* a verify ran and failed (s->reason holds its error)	*/
+	TRY_WRONG_TYPE,	/* the key type cannot carry this alg; not attempted	*/
+	TRY_WRONG_ALG,	/* the key's own "alg" is not this one; not attempted	*/
+};
+
 /* Try one candidate key against signature @s over @input. Applies the
  * algorithm/key-type anti-confusion gate (GHSA-q843-6q5f-w55g) before any
  * verify, and routes the crypto to the key's origin backend via jwt_item_ops()
- * inside jwt_verify_sig(). Sets s->verified/s->key on success. */
-static void try_candidate(jwt_t *jwt, struct jwt_signature *s,
-			  const jwk_item_t *key, const char *input,
-			  unsigned int input_len)
+ * inside jwt_verify_sig(). On success sets s->verified/s->key; on a failed
+ * verify KEEPS the backend's reason in s->reason (it was discarded before
+ * #354). The caller (verify_entry()) phrases a kty/alg rejection, which may be
+ * a mere skip for a scan candidate but the whole story for an explicit key. */
+static enum try_result try_candidate(jwt_t *jwt, struct jwt_signature *s,
+				     const jwk_item_t *key, const char *input,
+				     unsigned int input_len)
 {
-	if (key == NULL || s->verified)
-		return;
-
 	if (jwt_alg_required_kty(s->alg) != jwks_item_kty(key))
-		return;
+		return TRY_WRONG_TYPE;
 
 	/* @rfc{8725,3.1} Exact-alg pin: if the candidate key declares an "alg",
 	 * the signature's alg must match it exactly, not merely its family (the
@@ -1045,7 +1068,7 @@ static void try_candidate(jwt_t *jwt, struct jwt_signature *s,
 	 * covered too: without it a key declaring "RS256" would verify an
 	 * "RS512" signature. */
 	if (jwks_item_alg(key) != JWT_ALG_NONE && jwks_item_alg(key) != s->alg)
-		return;
+		return TRY_WRONG_ALG;
 
 	jwt->alg = s->alg;
 	jwt->key = key;
@@ -1057,11 +1080,20 @@ static void try_candidate(jwt_t *jwt, struct jwt_signature *s,
 	if (!jwt->error) {
 		s->verified = 1;
 		s->key = key;
+		s->reason[0] = '\0';
+		jwt->error = 0;
+		jwt->error_msg[0] = '\0';
+		return TRY_VERIFIED;
 	}
 
-	/* Don't let a failed attempt's error leak into the checker result. */
+	/* Keep this attempt's specific reason (e.g. the backend's "Failed to
+	 * verify signature", or "Key too short for RSA algs: 1024 bits") rather
+	 * than discard it, so a one-candidate check can surface it. */
+	sig_reason(s, "%s", jwt->error_msg);
 	jwt->error = 0;
 	jwt->error_msg[0] = '\0';
+
+	return TRY_FAILED;
 }
 
 /* Verify one signature entry: run the optional per-signature callback, hold
@@ -1075,7 +1107,7 @@ static int verify_entry(jwt_checker_t *checker, jwt_t *jwt,
 	JWT_CONFIG_DECLARE(config);
 	const jwk_set_t *ring = checker->c.keyring;
 	char_auto *input = NULL;
-	const char *kid = NULL;
+	const char *kid = NULL, *reason;
 	int prot_len, scan;
 
 	/* @rfc{7515,5.1} Signing input is the VERBATIM protected_b64 "." payload_b64. */
@@ -1107,8 +1139,9 @@ static int verify_entry(jwt_checker_t *checker, jwt_t *jwt,
 	 * expectation is simply not accepted (skipped), so the policy decides.
 	 * (The unsigned-token default never fires here: build_sig_entry()
 	 * already refuses "alg":"none" in a JSON serialization, so this is the
-	 * typ/allowlist policy only, and the reason is not reported.) */
-	if (!jwt_typ_alg_ok(jwt, NULL)) {
+	 * typ/allowlist policy only.) Keep its reason for the checker (#354). */
+	if (!jwt_typ_alg_ok(jwt, &reason)) {
+		sig_reason(s, "%s", reason);
 		jwt->headers = NULL;
 		return 0;
 	}
@@ -1130,6 +1163,7 @@ static int verify_entry(jwt_checker_t *checker, jwt_t *jwt,
 
 	if (checker->c.cb && checker->c.cb(jwt, &config)) {
 		/* Callback rejected this signature; not a hard error under ANY. */
+		sig_reason(s, "User callback returned error");
 		jwt->headers = NULL;
 		return 0;
 	}
@@ -1146,6 +1180,7 @@ static int verify_entry(jwt_checker_t *checker, jwt_t *jwt,
 	if (config.alg == JWT_ALG_NONE && config.key != NULL) {
 		config.alg = jwks_item_alg(config.key);
 		if (config.alg == JWT_ALG_NONE) {
+			sig_reason(s, "Key has no \"alg\" to verify the signature");
 			jwt->headers = NULL;
 			return 0;
 		}
@@ -1156,15 +1191,28 @@ static int verify_entry(jwt_checker_t *checker, jwt_t *jwt,
 	 * or in config->alg by the callback) does not verify, even with a key
 	 * that has no "alg" of its own to pin it in try_candidate(). */
 	if (config.alg != JWT_ALG_NONE && config.alg != s->alg) {
+		sig_reason(s, "Config alg does not match JWT");
 		jwt->headers = NULL;
 		return 0;
 	}
 
 	if (config.key != NULL) {
-		/* Explicit key (kid match, single key, or callback override). */
-		try_candidate(jwt, s, config.key, input, (unsigned int)strlen(input));
+		/* Explicit key (kid match, single key, or callback override):
+		 * its rejection IS this signature's reason (#354). */
+		switch (try_candidate(jwt, s, config.key, input,
+				      (unsigned int)strlen(input))) {
+		case TRY_WRONG_TYPE:
+			sig_reason(s, "Key type does not match JWT alg");
+			break;
+		case TRY_WRONG_ALG:
+			sig_reason(s, "Key alg does not match JWT");
+			break;
+		default:
+			break;	/* verified, or try_candidate set the reason */
+		}
 	} else if (scan) {
 		size_t i, n = jwks_item_count(ring);
+		int tried = 0;
 
 		for (i = 0; i < n && !s->verified; i++) {
 			const jwk_item_t *k = jwks_item_get(ring, i);
@@ -1181,13 +1229,78 @@ static int verify_entry(jwt_checker_t *checker, jwt_t *jwt,
 				continue;
 			if (!ring_key_verifies(k))
 				continue;
-			try_candidate(jwt, s, k, input, (unsigned int)strlen(input));
+			/* A kty mismatch is not an attempt; a verify (pass or
+			 * fail) is. */
+			if (try_candidate(jwt, s, k, input,
+					  (unsigned int)strlen(input)) !=
+			    TRY_WRONG_TYPE)
+				tried++;
 		}
+
+		/* #354 Summarize the scan: the single tried candidate keeps its
+		 * own reason; several, a count; no compatible key at all, the
+		 * algorithm no ring key could verify. */
+		if (!s->verified && tried == 0)
+			sig_reason(s, "No keyring key can verify \"%s\"",
+				   jwt_alg_str(s->alg));
+		else if (!s->verified && tried > 1)
+			sig_reason(s, "No keyring key verified the "
+				   "signature (%d tried)", tried);
+	} else if (kid != NULL) {
+		/* A "kid" that names no usable ring key: a binding assertion
+		 * with no fallback to the scan (#354). */
+		sig_reason(s, "No signature key with \"kid\" \"%s\" in the "
+			   "keyring", kid);
 	}
 
 	jwt->headers = NULL;
 
 	return 0;
+}
+
+/* @rfc{7515,7.2} Write the signature-policy failure to @checker. Since #354 a
+ * one-signature token (Compact or Flattened) surfaces that signature's own
+ * reason -- the same specific cause the single-key Compact path reports --
+ * rather than only the count; a multi-signature token keeps the policy summary
+ * and appends the first unverified signature's index and reason, clipped to
+ * the 256-byte error buffer. Every way a signature fails to verify records a
+ * reason, except when a per-signature callback removed its key: then (and in
+ * the unreachable no-unverified case) fall back to the bare summary. */
+static void jwt_report_policy(jwt_checker_t *checker, int n_verified,
+			      size_t n_entries)
+{
+	struct jwt_signature *s, *first = NULL;
+	int idx = 0, first_idx = 0;
+
+	list_for_each_entry(s, &checker->c.signatures, node) {
+		if (!s->verified) {
+			first = s;
+			first_idx = idx;
+			break;
+		}
+		idx++;
+	}
+
+	if (first == NULL || first->reason[0] == '\0') {
+		jwt_write_error(checker,
+			"Signature policy not met (%d of %zu verified)",
+			n_verified, n_entries);
+		return;
+	}
+
+	if (n_entries == 1) {
+		jwt_write_error(checker, "%s", first->reason);
+	} else {
+		/* Cap the appended reason: with the summary prefix a
+		 * full-length reason would overrun error_msg, which gcc
+		 * -Wformat-truncation rejects under -Werror. Reasons are short
+		 * in practice, so 150 never truncates a real one while keeping
+		 * the whole message inside the buffer. */
+		jwt_write_error(checker,
+			"Signature policy not met (%d of %zu verified); "
+			"signature %d: %.150s", n_verified, n_entries,
+			first_idx, first->reason);
+	}
 }
 
 int jwt_verify_json(jwt_checker_t *checker, const char *token)
@@ -1308,9 +1421,7 @@ int jwt_verify_json(jwt_checker_t *checker, const char *token)
 		sig_ok = (n_verified >= 1);
 
 	if (!sig_ok) {
-		jwt_write_error(checker,
-			"Signature policy not met (%d of %zu verified)",
-			n_verified, n_entries);
+		jwt_report_policy(checker, n_verified, n_entries);
 	} else if (__verify_claims(jwt)) {
 		jwt_write_error(checker, "%s", claims_error(jwt));
 	} else if (__verify_required(jwt)) {

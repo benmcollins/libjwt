@@ -13,8 +13,6 @@
  * absent, and the rest of the keyring keeps working. */
 
 #define ERR_KEY		"Key is in error and cannot be used"
-#define ERR_POLICY_1	"Signature policy not met (0 of 1 verified)"
-#define ERR_POLICY_2	"Signature policy not met (1 of 2 verified)"
 
 /* The members of tests/keys/ec_key_prime256v1.json ("ES256") and of
  * tests/keys/oct_key_256.json ("HS256"), which sign the tokens below. */
@@ -810,7 +808,7 @@ START_TEST(test_callback_errored_json)
 			cb_key = jwks_item_get(vset, 0);
 			ck_assert_int_eq(jwt_checker_setcb(c, key_cb, NULL), 0);
 			ck_assert_int_ne(jwt_checker_verify(c, tok), 0);
-			ck_assert_str_eq(jwt_checker_error_msg(c), ERR_POLICY_1);
+			ck_assert_str_eq(jwt_checker_error_msg(c), ERR_KEY);
 			ck_assert_uint_eq(jwt_checker_sig_count(c), 1);
 			ck_assert_int_eq(jwt_checker_sig_verified(c, 0), 0);
 			ck_assert_ptr_null(jwt_checker_sig_key(c, 0));
@@ -833,7 +831,7 @@ START_TEST(test_callback_errored_json)
 			cb_alg = flagged[i].alg;
 			cb_key = jwks_item_get(vset, 0);
 			ck_assert_int_ne(jwt_checker_verify(c, tok), 0);
-			ck_assert_str_eq(jwt_checker_error_msg(c), ERR_POLICY_1);
+			ck_assert_str_eq(jwt_checker_error_msg(c), ERR_KEY);
 			ck_assert_ptr_null(jwt_checker_sig_key(c, 0));
 		}
 
@@ -883,18 +881,18 @@ START_TEST(test_keyring_errored_scan)
 			ck_assert_int_eq(jwt_checker_setkeyring(c, only,
 							both_pol[p]), 0);
 			ck_assert_int_ne(jwt_checker_verify(c, tok), 0);
-			ck_assert_str_eq(jwt_checker_error_msg(c), ERR_POLICY_1);
+			ck_assert_str_eq(jwt_checker_error_msg(c), "No keyring key can verify \"ES256\"");
 			ck_assert_ptr_null(jwt_checker_sig_key(c, 0));
 
 			ck_assert_int_eq(jwt_checker_setkeyring(c, all_bad,
 							both_pol[p]), 0);
 			ck_assert_int_ne(jwt_checker_verify(c, tok), 0);
-			ck_assert_str_eq(jwt_checker_error_msg(c), ERR_POLICY_1);
+			ck_assert_str_eq(jwt_checker_error_msg(c), "No keyring key can verify \"ES256\"");
 
 			ck_assert_int_eq(jwt_checker_setkeyring(c, x5t,
 							both_pol[p]), 0);
 			ck_assert_int_ne(jwt_checker_verify(c, tok), 0);
-			ck_assert_str_eq(jwt_checker_error_msg(c), ERR_POLICY_1);
+			ck_assert_str_eq(jwt_checker_error_msg(c), "No keyring key can verify \"ES256\"");
 
 			ck_assert_int_eq(jwt_checker_setkeyring(c, mixed,
 							both_pol[p]), 0);
@@ -985,7 +983,7 @@ START_TEST(test_keyring_errored_kid)
 		cb_seen = signer;
 		cb_calls = 0;
 		ck_assert_int_ne(jwt_checker_verify(c, tok), 0);
-		ck_assert_str_eq(jwt_checker_error_msg(c), ERR_POLICY_1);
+		ck_assert_str_eq(jwt_checker_error_msg(c), "No signature key with \"kid\" \"k1\" in the keyring");
 		ck_assert_int_eq(cb_calls, 1);
 		ck_assert_ptr_null(cb_seen);
 		ck_assert_ptr_null(jwt_checker_sig_key(c, 0));
@@ -1039,7 +1037,9 @@ START_TEST(test_keyring_errored_policy)
 	ck_assert_int_eq(jwt_checker_setkeyring(c_all, ring,
 				JWT_VERIFY_POLICY_ALL), 0);
 	ck_assert_int_ne(jwt_checker_verify(c_all, tok), 0);
-	ck_assert_str_eq(jwt_checker_error_msg(c_all), ERR_POLICY_2);
+	ck_assert_str_eq(jwt_checker_error_msg(c_all), "Signature policy not met (1 of 2 verified); "
+		"signature 1: No signature key with \"kid\" \"oct\" "
+		"in the keyring");
 
 	jwks_free(ring);
 	jwks_free(oct_set);
