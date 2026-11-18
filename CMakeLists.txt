@@ -17,7 +17,19 @@ project(${LIBJWT_PROJECT}
 	HOMEPAGE_URL ${LIBJWT_HOMEPAGE_URL}
 	LANGUAGES C)
 
-set(MEMORYCHECK_COMMAND_OPTIONS "-q --tool=memcheck --leak-check=yes --num-callers=50 --trace-children=yes --leak-check=full --track-origins=yes --gen-suppressions=all")
+# --error-exitcode makes valgrind exit non-zero per process when it finds an
+# error, so a leaking test fails the memcheck step. Without it ctest only lists
+# defects after the run and still exits 0, so CI never caught them.
+# --errors-for-leak-kinds=definite limits that to definite leaks (not the noisier
+# "possible" kind). The suppressions file silences the definite leaks in the
+# system binaries (bash, mktemp, jq, ...) that the bats CLI test runs under
+# --trace-children; it is scoped to /usr/bin only and cannot mask a libjwt leak.
+set(MEMORYCHECK_COMMAND_OPTIONS "-q --tool=memcheck --leak-check=yes --num-callers=50 --trace-children=yes --leak-check=full --track-origins=yes --gen-suppressions=all --error-exitcode=1 --errors-for-leak-kinds=definite")
+# Seed the cache entry before include(CTest), which declares this same variable
+# with an empty default (no FORCE) and would otherwise win: a plain variable is
+# dropped when CTest.cmake creates the cache entry, leaving the field empty.
+set(MEMORYCHECK_SUPPRESSIONS_FILE "${CMAKE_SOURCE_DIR}/tests/valgrind-bats.supp"
+	CACHE FILEPATH "Valgrind leak suppressions for the memcheck job")
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 add_compile_options(-Wall -Werror -Wextra -Wunused)
