@@ -18,6 +18,22 @@ refute_sanitizer() {
 	return 0
 }
 
+# Issue #367: every key fixture must be found wherever the build directory
+# sits, so key paths resolve through ${SRCDIR} (exported by ctest), never a
+# build-dir-relative path that only works when the build directory is a direct
+# child of the source root. A depth-1 CI build (which always runs "make all"
+# first) would not catch a regression back to the latter, so pin it here: no
+# top-level key variable may be assigned such a path. The grep is anchored to
+# an assignment at column 0, so this test's own indented grep line and the
+# comment lines above it do not match themselves.
+@test "key fixtures resolve through \$SRCDIR, not a build-relative path (#367)" {
+	[ -n "${SRCDIR}" ]
+	[ -d "${SRCDIR}/tests/keys" ]
+	run grep -nE '^[A-Za-z_][A-Za-z_0-9]*=.*\.\./tests/keys' \
+		"${BATS_TEST_DIRNAME}/jwt-cli.bats"
+	[ "${status}" -ne 0 ]
+}
+
 @test "Generate a JWT with alg none" {
 	result="$(./tools/jwt-generate -v -a none -n)"
 	[ "$result" = ${BASIC_RES} ]
@@ -37,7 +53,7 @@ refute_sanitizer() {
 }
 
 HS256_RES="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.CM4dD95Nj0vSfMGtDas432AUW1HAo7feCiAbt5Yjuds"
-HS256_KEY="../tests/keys/oct_key_256.json"
+HS256_KEY="${SRCDIR}/tests/keys/oct_key_256.json"
 
 @test "Generate a JWT with alg HS256" {
 	result="$(./tools/jwt-generate -v -a HS256 -n -k ${HS256_KEY})"
@@ -76,7 +92,7 @@ CLAIM_RES="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhZG1pbiI6ZmFsc2UsImV4cCI6MTgz
 }
 
 # A key without an "alg" needs -a/--algorithm, and both spellings must work.
-NOALG_KEY="../tests/keys/oct_key_256_sig.json"
+NOALG_KEY="${SRCDIR}/tests/keys/oct_key_256_sig.json"
 
 @test "Verify with -a ALG as well as --algorithm=ALG" {
 	token="$(./tools/jwt-generate -q -n -a HS256 -k ${NOALG_KEY})"
@@ -209,9 +225,9 @@ EOF
 
 # JWE tools
 
-OCT256="../tests/keys/oct_dir_256.json"
-OCT256B="../tests/keys/oct_key_256_enc.json"
-RSAENC="../tests/keys/rsa_key_2048_enc.json"
+OCT256="${SRCDIR}/tests/keys/oct_dir_256.json"
+OCT256B="${SRCDIR}/tests/keys/oct_key_256_enc.json"
+RSAENC="${SRCDIR}/tests/keys/rsa_key_2048_enc.json"
 
 @test "JWE dir + A256GCM round-trip" {
 	tok="$(./tools/jwe-encrypt -k ${OCT256} -a dir -e A256GCM -j '{"a":1}')"
@@ -238,7 +254,7 @@ RSAENC="../tests/keys/rsa_key_2048_enc.json"
 }
 
 # The same key as OCT256B, flagged in error when loaded (a malformed "x5c").
-OCT256B_ERR="../tests/keys/oct_key_256_enc_bad_x5c.json"
+OCT256B_ERR="${SRCDIR}/tests/keys/oct_key_256_enc_bad_x5c.json"
 
 @test "JWE tools refuse a key in error" {
 	run ./tools/jwe-encrypt -k ${OCT256B_ERR} -a A256KW -e A256GCM -j '{}'
@@ -256,7 +272,7 @@ OCT256B_ERR="../tests/keys/oct_key_256_enc_bad_x5c.json"
 	[ "${status}" -ne 0 ]
 }
 
-ECENC="../tests/keys/ec_key_prime256v1_enc.json"
+ECENC="${SRCDIR}/tests/keys/ec_key_prime256v1_enc.json"
 
 @test "JWE Flattened JSON round-trip (auto-detect on decrypt)" {
 	tok="$(./tools/jwe-encrypt -k ${OCT256B} -a A256KW -e A256GCM \
@@ -530,9 +546,9 @@ mldsa_supported() {
 }
 
 # JWS JSON Serialization (multi-signature, RFC 7515 7.2) — issue #308
-EC_KEY="../tests/keys/ec_key_prime256v1.json"
-RS_KEY="../tests/keys/rsa_key_2048.json"
-JWS_RING="../tests/keys/jwks_jws_pair.json"
+EC_KEY="${SRCDIR}/tests/keys/ec_key_prime256v1.json"
+RS_KEY="${SRCDIR}/tests/keys/rsa_key_2048.json"
+JWS_RING="${SRCDIR}/tests/keys/jwks_jws_pair.json"
 
 @test "Generate a Flattened JWS and verify it" {
 	token="$(./tools/jwt-generate -q -n -F flat -k ${EC_KEY})"
@@ -607,7 +623,7 @@ JWS_RING="../tests/keys/jwks_jws_pair.json"
 # GHSA-mhc9-xvg5-qg29: --keyring verifies a Compact token as a one-signature
 # JWS (kid binding or a scan of the compatible keys), never as a keyless
 # checker that accepts an unsigned token.
-KEYRING="../tests/keys/jwks_keyring.json"
+KEYRING="${SRCDIR}/tests/keys/jwks_keyring.json"
 # {"alg":"none"} . {"sub":"admin","iss":"trusted","aud":"api"} . (unsigned)
 NONE_TOK="eyJhbGciOiJub25lIn0.eyJzdWIiOiJhZG1pbiIsImlzcyI6InRydXN0ZWQiLCJhdWQiOiJhcGkifQ."
 
