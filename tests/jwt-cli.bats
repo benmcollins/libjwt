@@ -773,15 +773,26 @@ FORGED_TOK="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiJ9.AAAA"
 	[ "$(echo "${output}" | grep -c 'Verified')" -eq 1 ]
 }
 
-# GHSA-g7xw-4cjw-2247: -h/-l print and exit 0 only as the sole argument. In a
-# token position (getopt permutes argv) they once exited 0 while the tokens
-# went unverified. Given with anything else they are now a usage error.
+# GHSA-g7xw-4cjw-2247: -h/-l print and exit 0 only as the sole argument and the
+# only option in it. In a token position (getopt permutes argv) they once exited
+# 0 while the tokens went unverified; clustered with another option into the one
+# argument (getopt reads -hv as -h -v) they likewise exited 0. Given with
+# anything else -- a token, a key, or another option, whether separate (-h -v)
+# or clustered (-hv) -- they are a usage error.
 @test "-h or -l alone exits 0, but with other arguments it is an error" {
 	run ./tools/jwt-verify -h
 	[ "${status}" -eq 0 ]
 	run ./tools/jwt-verify -l
 	[ "${status}" -eq 0 ]
 	echo "${output}" | grep -q 'Algorithms supported'
+	# The long forms, and a unique prefix, are also fine as the sole option.
+	run ./tools/jwt-verify --help
+	[ "${status}" -eq 0 ]
+	run ./tools/jwt-verify --list
+	[ "${status}" -eq 0 ]
+	echo "${output}" | grep -q 'Algorithms supported'
+	run ./tools/jwt-verify --he
+	[ "${status}" -eq 0 ]
 	# As the token argument, next to a key.
 	run ./tools/jwt-verify -q -k ${HS256_KEY} -h
 	[ "${status}" -eq 1 ]
@@ -795,6 +806,14 @@ FORGED_TOK="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiJ9.AAAA"
 	# A forged token spelled as an option (-l<forged>) is not a listing.
 	run ./tools/jwt-verify -q -k ${HS256_KEY} "-l${FORGED_TOK}"
 	[ "${status}" -eq 1 ]
+	# Clustered into the one argument: -h/-l must be the only option in it, so
+	# these are the same usage error as -h -v (exit 1), not a help/list at
+	# exit 0. -hk<file> and -hr<file> never open the file.
+	for opt in -hv -vh -lq -ql "-hk${HS256_KEY}" -laHS256 -hl; do
+		run ./tools/jwt-verify "${opt}"
+		[ "${status}" -eq 1 ]
+		echo "${output}" | grep -q 'take no other arguments'
+	done
 }
 
 # GHSA-g7xw-4cjw-2247: a key set with no keys (as after a rotation) must exit 1,

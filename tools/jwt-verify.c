@@ -218,7 +218,7 @@ int main(int argc, char *argv[])
 	int oc, err, verbose = 0;
 	int quiet = 0;
 	int signed_only;
-	int want_help = 0, want_list = 0;
+	int want_help = 0, want_list = 0, nopts = 0;
 
 	char *optstr = "hk:r:P:a:lvqp:";
 	struct option opttbl[] = {
@@ -235,6 +235,7 @@ int main(int argc, char *argv[])
 	};
 
 	while ((oc = getopt_long(argc, argv, optstr, opttbl, NULL)) != -1) {
+		nopts++;
 		switch (oc) {
 		case 'h':
 			want_help = 1;
@@ -296,12 +297,15 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	/* -h/-l print and exit 0 only when they are the sole argument. Given
-	 * with a token (or a key, or any other option) they would otherwise
-	 * exit 0 while the tokens went unverified (GHSA-g7xw-4cjw-2247), so
-	 * that is now a usage error. A later bad option still fails first. */
+	/* -h/-l print and exit 0 only when they are the sole argument and the
+	 * only option in it. Given with a token (or a key, or any other option)
+	 * they would otherwise exit 0 while the tokens went unverified
+	 * (GHSA-g7xw-4cjw-2247), so that is now a usage error. argc != 2 catches
+	 * a separate argument (a token, or -h -v); nopts != 1 catches options
+	 * clustered into the one argument (getopt reads -hv as -h -v), which
+	 * leave argc at 2. A later bad option still fails first. */
 	if (want_help || want_list) {
-		if (argc != 2)
+		if (argc != 2 || nopts != 1)
 			usage("--help and --list take no other arguments",
 			      EXIT_FAILURE);
 		if (want_help)
