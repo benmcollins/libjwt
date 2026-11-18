@@ -23,9 +23,14 @@ pair is rejected. This prevents a token from selecting an unexpected
 algorithm. For a General JSON token with several recipients, the recipient
 whose algorithm matches **-a** and whose key is **-k** is selected.
 
-The token may be given as the final argument or, if omitted, read from
-standard input. On success the decrypted plaintext is written to standard
-output. On any failure the program prints an error and exits non-zero.
+The token is given as the single argument or, with no argument, read as the
+whole of standard input. When it is read from standard input, one trailing
+newline is removed, and a NUL byte anywhere in the input is an error, as are
+empty input and a read error. A Compact token must be on one line: a second
+token, or a token split across lines, is an error rather than being joined.
+A JSON token may span lines. On success the decrypted plaintext is written
+to standard output. On any failure the program prints an error and exits
+non-zero.
 
 # OPTIONS
 

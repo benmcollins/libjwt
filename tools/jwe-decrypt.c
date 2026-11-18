@@ -10,6 +10,7 @@
 #include <jwt.h>
 #include <getopt.h>
 #include <string.h>
+#include <errno.h>
 
 #include "jwt-util.h"
 
@@ -30,13 +31,72 @@ Decrypt and authenticate a JSON Web Encryption (JWE) token\n\
 \n\
 The serialization (Compact or JSON, Flattened or General) is detected\n\
 automatically. For a General JSON token the recipient matching the given\n\
-key and --algorithm is selected. The token may be given as the final\n\
-argument or, if omitted, read from stdin. The configured --algorithm and\n\
---enc act as an allow-list: a token whose header does not match is\n\
-rejected. On success the decrypted plaintext is written to stdout.\n",
+key and --algorithm is selected. The configured --algorithm and --enc act\n\
+as an allow-list: a token whose header does not match is rejected. On\n\
+success the decrypted plaintext is written to stdout.\n\
+\n\
+The token is the one argument or, with no argument, the whole of stdin.\n\
+From stdin a trailing newline is dropped; a NUL byte anywhere, or (for a\n\
+Compact token) a second token or a token split over lines, is an error. A\n\
+JSON token may span lines. Empty stdin, or a read error, is an error.\n",
 		get_progname());
 
 	exit(exit_state);
+}
+
+/* The buffer for the one token read from stdin, so the token can be up to one
+ * byte shorter. Generous for a CLI; a longer token is rejected whole. */
+#define MAX_TOKEN_LEN (1024 * 1024)
+
+/* Read the whole of stdin as the single token into @buf (NUL-terminated).
+ * One trailing line end (LF, CRLF or a lone CR) is dropped. The serialization
+ * is detected as the library does it, from the first non-space byte: a
+ * Compact token is one line, so a CR or LF left in it -- a second token, or a
+ * token split over lines -- is an error rather than being joined; a JSON
+ * token ('{') may span lines and is left as read, so the parser rejects
+ * anything after it. A NUL byte anywhere, a token too long for @buf, or a
+ * read error rejects the whole input and nothing is decrypted. Returns 1 for
+ * a token, 0 for empty stdin, -1 for a NUL byte, -4 for an over-long token,
+ * -2 for a read error, and -3 for a CR or LF inside a Compact token. */
+static int read_stdin_token(char *buf, size_t size)
+{
+	size_t len = 0;
+	int c, nul = 0, toolong = 0;
+	const char *p;
+
+	while ((c = fgetc(stdin)) != EOF) {
+		if (c == '\0')
+			nul = 1;
+		else if (len + 1 >= size)
+			toolong = 1;
+		else
+			buf[len++] = (char)c;
+	}
+
+	if (ferror(stdin))
+		return -2;
+	if (nul)			/* a NUL takes priority over over-length */
+		return -1;
+	if (toolong)
+		return -4;
+
+	/* Drop one trailing line end, so a token with or without one both
+	 * decrypt; anything else left in a Compact token is caught below. */
+	if (len && buf[len - 1] == '\n')
+		len--;
+	if (len && buf[len - 1] == '\r')
+		len--;
+	buf[len] = '\0';
+
+	if (len == 0)
+		return 0;
+
+	for (p = buf; *p == ' ' || *p == '\t' || *p == '\n' || *p == '\r'; p++)
+		;
+	if (*p != '{' && strcspn(buf, "\r\n") != len)
+		return -3;
+
+	return 1;
 }
 
 int main(int argc, char *argv[])
@@ -44,7 +104,7 @@ int main(int argc, char *argv[])
 	jwe_checker_auto_t *checker = NULL;
 	jwk_set_auto_t *jwk_set = NULL;
 	const jwk_item_t *item = NULL;
-	char *key_file = NULL, *token = NULL, *tokbuf = NULL;
+	char *key_file = NULL, *token = NULL;
 	jwe_key_alg_t alg = JWE_ALG_NONE;
 	jwe_enc_t enc = JWE_ENC_NONE;
 	unsigned char *pt = NULL;
@@ -89,29 +149,38 @@ int main(int argc, char *argv[])
 	if (enc == JWE_ENC_NONE)
 		usage("A content encryption algorithm is required (-e)", EXIT_FAILURE);
 
-	/* Token from argv or stdin. */
+	/* The token is the one argument, or the whole of stdin. More than one
+	 * argument used to decrypt the first and silently ignore the rest. */
 	if (optind < argc) {
+		if (argc - optind > 1)
+			usage("Only one token argument is allowed", EXIT_FAILURE);
 		token = argv[optind];
 	} else {
-		size_t cap = 4096, len = 0;
-		int c;
+		static char tokbuf[MAX_TOKEN_LEN];
 
-		tokbuf = malloc(cap);
-		if (tokbuf == NULL)
-			exit(EXIT_FAILURE);
-		while ((c = fgetc(stdin)) != EOF) {
-			if (c == '\n' || c == '\r')
-				continue;
-			if (len + 1 >= cap) {
-				cap *= 2;
-				tokbuf = realloc(tokbuf, cap);
-				if (tokbuf == NULL)
-					exit(EXIT_FAILURE);
-			}
-			tokbuf[len++] = (char)c;
+		switch (read_stdin_token(tokbuf, sizeof(tokbuf))) {
+		case 1:
+			token = tokbuf;
+			break;
+		case 0:
+			fprintf(stderr, "ERROR: No token read from stdin\n");
+			return EXIT_FAILURE;
+		case -2:
+			fprintf(stderr, "ERROR: Could not read stdin: %s\n",
+				strerror(errno));
+			return EXIT_FAILURE;
+		case -3:
+			fprintf(stderr, "ERROR: stdin has more than one token "
+				"(a second token, or a token split over "
+				"lines)\n");
+			return EXIT_FAILURE;
+		case -4:
+			fprintf(stderr, "ERROR: Token is too long\n");
+			return EXIT_FAILURE;
+		default: /* -1 */
+			fprintf(stderr, "ERROR: Token has a NUL byte\n");
+			return EXIT_FAILURE;
 		}
-		tokbuf[len] = '\0';
-		token = tokbuf;
 	}
 
 	jwk_set = jwks_create_fromfile(key_file);
@@ -157,6 +226,5 @@ out:
 	 * borrows item from jwk_set, so free it before the set it borrows. */
 	jwe_checker_freep(&checker);
 	free(pt);
-	free(tokbuf);
 	return ret;
 }
