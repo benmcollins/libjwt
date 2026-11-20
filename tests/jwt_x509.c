@@ -913,7 +913,6 @@ END_TEST
  * the certificate of another P-256 key (ec_other_prime256v1.crt, which is
  * what 3.6.2 had on this key as its valid fixture) and with its own. */
 #define ERR_KEY		"Key is in error and cannot be used"
-#define ERR_POLICY	"Signature policy not met (0 of 1 verified)"
 #define ERR_EMBEDDED	"Embedded JWK is missing or not confirmed"
 
 /* An "x5t" as a JWK states it, and the "x5t#S256" of the two certificates. */
@@ -1036,7 +1035,10 @@ START_TEST(test_x5c_other_key_unusable)
 		ck_assert_int_eq(jwt_checker_setkeyring(checker, bad_set,
 					JWT_VERIFY_POLICY_ANY), 0);
 		ck_assert_int_ne(jwt_checker_verify(checker, token), 0);
-		ck_assert_str_eq(jwt_checker_error_msg(checker), ERR_POLICY);
+		/* #354: the errored key is skipped, leaving no compatible key;
+		 * the reason names the algorithm rather than only the count. */
+		ck_assert_str_eq(jwt_checker_error_msg(checker),
+				 "No keyring key can verify \"ES256\"");
 
 		ck_assert_int_gt(asprintf(&json, "{\"keys\":[{" EC_JWK
 				 ",\"x5c\":%s},{" EC_JWK ",\"x5c\":%s}]}",

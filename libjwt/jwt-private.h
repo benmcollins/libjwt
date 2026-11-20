@@ -194,6 +194,7 @@ struct jwt_signature {
 				/* input reuses these bytes, never re-encoded	*/
 	char *sig_b64;		/* base64url(signature)				*/
 	int verified;		/* checker: 1 if this signature verified	*/
+	char reason[JWT_ERR_LEN];/* checker: why it did NOT verify, else ""	*/
 };
 
 /******************************/
