@@ -354,13 +354,12 @@ static void jwk_process_x5c(jwt_json_t *jwk, jwk_item_t *item)
 	jwt_json_t *j_x5c, *j_cert, *j_x5t256;
 	size_t i, count;
 
-	j_x5c = jwt_json_obj_get(jwk, "x5c");
-	/* A JSON null member is treated as absent, the same on both JSON
-	 * backends: json-c already hands out a null as NULL, while Jansson
-	 * would otherwise see json_null() here and flag the key "not an array",
-	 * a cross-backend divergence (an in-error key is never used). */
-	if (j_x5c == NULL || jwt_json_is_null(j_x5c))
+	/* A member whose value is JSON null is present, and not an array, with
+	 * both JSON backends (json-c's jwt_json_obj_get() gives NULL for it, as
+	 * for none): such a key is in error. */
+	if (!jwt_json_obj_has(jwk, "x5c"))
 		return;
+	j_x5c = jwt_json_obj_get(jwk, "x5c");
 	if (!jwt_json_is_array(j_x5c)) {
 		jwt_write_error(item, "Invalid JWK: \"x5c\" is not an array");
 		return;
@@ -430,11 +429,10 @@ static void jwk_process_values(jwt_json_t *jwk, jwk_item_t *item)
 {
 	jwt_json_t *j_use, *j_ops_a, *j_kid, *j_alg;
 
-	/* Start with the ALG (4.4). A JSON null "alg" is treated as absent, the
-	 * same on both JSON backends (see jwk_process_x5c()): Jansson would
-	 * otherwise flag "Invalid alg type" where json-c reads it as absent. */
+	/* Start with the ALG (4.4). A JSON null "alg" is present, and not a
+	 * string, with both JSON backends (see jwk_process_x5c()). */
 	j_alg = jwt_json_obj_get(jwk, "alg");
-	if (j_alg && !jwt_json_is_null(j_alg)) {
+	if (jwt_json_obj_has(jwk, "alg")) {
 		if (!jwt_json_is_string(j_alg)) {
 			 jwt_write_error(item, "Invalid alg type");
 			 return;
@@ -523,6 +521,37 @@ static int process_octet(jwt_json_t *jwk, jwk_item_t *item)
 	return 0;
 }
 
+/* The private members of each key type that the backends read as base64url
+ * strings: RSA (@rfc{7518,6.3.2}, but "oth", an array), EC (@rfc{7518,6.2.2})
+ * and OKP (@rfc{8037,2}) "d", and AKP (@rfc{9964}) "priv". */
+static const char *const rsa_priv_members[] = { "d", "p", "q", "dp", "dq",
+						"qi", NULL };
+static const char *const d_priv_member[] = { "d", NULL };
+static const char *const akp_priv_member[] = { "priv", NULL };
+
+/* Put @item in error if one of the private members @names of its JWK is
+ * present with a value that is not a string, a JSON null included, and return
+ * non-zero. The caller then skips only the backend: the item still gets its
+ * "kid", "alg", "use" and "key_ops", as any other key that fails to load. This is checked here, before any backend, so that such a key gets
+ * one result with every JSON and crypto backend: json-c's jwt_json_obj_get()
+ * gives NULL for a null member, as for a missing one, and the backends read a
+ * private member that is not a string each in their own way (one failed the
+ * key, another loaded its public part). */
+static int jwk_priv_members_bad(jwk_item_t *item, const char *const *names)
+{
+	for (; *names != NULL; names++) {
+		if (jwt_json_obj_has(item->json, *names) &&
+		    !jwt_json_is_string(jwt_json_obj_get(item->json, *names))) {
+			jwt_write_error(item,
+					"Invalid JWK: \"%s\" is not a string",
+					*names);
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
 static jwk_item_t *jwk_process_one(jwk_set_t *jwk_set, jwt_json_t *jwk)
 {
 	const char *kty;
@@ -567,13 +596,16 @@ static jwk_item_t *jwk_process_one(jwk_set_t *jwk_set, jwt_json_t *jwk)
 
 	if (!strcmp(kty, "EC")) {
 		item->kty = JWK_KEY_TYPE_EC;
-		jwt_ops->process_ec(item->json, item);
+		if (!jwk_priv_members_bad(item, d_priv_member))
+			jwt_ops->process_ec(item->json, item);
 	} else if (!strcmp(kty, "RSA")) {
 		item->kty = JWK_KEY_TYPE_RSA;
-		jwt_ops->process_rsa(item->json, item);
+		if (!jwk_priv_members_bad(item, rsa_priv_members))
+			jwt_ops->process_rsa(item->json, item);
 	} else if (!strcmp(kty, "OKP")) {
 		item->kty = JWK_KEY_TYPE_OKP;
-		jwt_ops->process_eddsa(item->json, item);
+		if (!jwk_priv_members_bad(item, d_priv_member))
+			jwt_ops->process_eddsa(item->json, item);
 	} else if (!strcmp(kty, "AKP")) {
 		/* "AKP" is recognised in every build, so a public AKP key keeps
 		 * its type and its public form (jwks_export() minus "priv")
@@ -581,21 +613,27 @@ static jwk_item_t *jwk_process_one(jwk_set_t *jwk_set, jwt_json_t *jwk)
 		 * would strip nothing and leak the seed. Only a build with an
 		 * ML-DSA backend can load it; otherwise it stays in error. */
 		item->kty = JWK_KEY_TYPE_AKP;
+		if (jwk_priv_members_bad(item, akp_priv_member)) {
+			/* In error: no backend, but the common tail below. */
+		}
 #ifdef LIBJWT_HAVE_ML_DSA
 		/* Unlike the other process_* ops, process_mldsa may be NULL:
 		 * only backends with ML-DSA support set it. Fail cleanly
 		 * rather than dereferencing a NULL pointer. */
-		if (jwt_ops->process_mldsa == NULL) {
+		else if (jwt_ops->process_mldsa == NULL) {
 			jwt_write_error(item, "ML-DSA (AKP) keys are not "
 					"supported by the %s backend",
 					jwt_ops->name);
 			return item;
+		} else {
+			jwt_ops->process_mldsa(item->json, item);
 		}
-		jwt_ops->process_mldsa(item->json, item);
 #else
-		jwt_write_error(item, "ML-DSA (AKP) keys are not "
-				"supported in this build");
-		return item;
+		else {
+			jwt_write_error(item, "ML-DSA (AKP) keys are not "
+					"supported in this build");
+			return item;
+		}
 #endif
 	} else if (!strcmp(kty, "oct")) {
 		item->kty = JWK_KEY_TYPE_OCT;
@@ -938,11 +976,17 @@ static jwk_set_t *jwks_process(jwk_set_t *jwk_set, jwt_json_t *j_all, jwt_json_e
         /* Check for "keys" as in a JWKS */
         j_array = jwt_json_obj_get(j_all, "keys");
 
-        if (j_array == NULL) {
+        if (!jwt_json_obj_has(j_all, "keys")) {
                 /* Assume a single JSON Object for one JWK */
                 jwk_item = jwk_process_one(jwk_set, j_all);
                 if (jwk_item != NULL)
                         jwks_item_add(jwk_set, jwk_item);
+        } else if (!jwt_json_is_array(j_array)) {
+		/* @rfc{7517,5.1} "keys" is an array of JWKs. One that is
+		 * not (a JSON null too, which json-c's jwt_json_obj_get()
+		 * gives as NULL) fails the set, with both JSON backends. */
+		jwt_write_error(jwk_set,
+				"Invalid JWKS: \"keys\" is not an array");
         } else {
                 /* We have a list, so parse them all. */
                 jwt_json_arr_foreach(j_array, i, j_item) {

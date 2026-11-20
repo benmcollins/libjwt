@@ -655,7 +655,9 @@ int jwt_signature_add_protected_json(jwt_signature_t *signature,
  *
  * The value is parsed as JSON. The member is NOT integrity-protected and is
  * only emitted in the JSON serializations (@rfc{7515,7.2.1}). It must be
- * disjoint from this signature's protected header. ``crit`` and ``b64`` must
+ * disjoint from this signature's protected header, in which a parameter whose
+ * value is JSON null counts (with either JSON backend; before 3.8.0, json-c
+ * let such a name through to both headers). ``crit`` and ``b64`` must
  * be integrity protected (@rfc{7515,4.1.11}, @rfc{7797,3}) and are rejected
  * here, as are ``alg`` and duplicates; jwt_checker_verify() rejects a token
  * that carries either one unprotected.
@@ -841,7 +843,8 @@ void *jwt_builder_getctx(jwt_builder_t *builder);
  * the header when the token is generated (typically set in your callback), and
  * it must not be a Header Parameter name defined by RFC 7515 or JWA (such as
  * ``alg`` or ``typ``); otherwise generation will fail. If no names are
- * registered, no ``crit`` header is emitted.
+ * registered, no ``crit`` header is emitted. A parameter whose value is JSON
+ * null is present (before 3.8.0, json-c failed generation over it).
  *
  * @param builder Pointer to a builder object
  * @param header Name of the header parameter to mark as critical
@@ -884,6 +887,10 @@ int jwt_builder_setcrit(jwt_builder_t *builder, const char *header);
  *
  * The signature block is a cryptographic hash. Its length and format is
  * dependent on the algorithm being used.
+ *
+ * A signed token gets the ``"typ":"JWT"`` above only when its header has no
+ * ``typ``: an application's own is kept, a JSON null one included (before
+ * 3.8.0, json-c replaced a null one).
  *
  * A simple usage with no signature or payload would be:
  *
@@ -1226,7 +1233,8 @@ int jwt_checker_setalgs(jwt_checker_t *checker, const jwt_alg_t *algs, size_t n)
  * asserts the mandatory-claims discipline that profiles such as RFC 9068
  * (@c at+jwt) require -- e.g. @c {"iss","exp","aud","sub","client_id","jti"}.
  * The names are copied. Passing @p count as 0 (or @p claims as NULL) clears the
- * requirement.
+ * requirement. A claim whose value is JSON null is present (before 3.8.0,
+ * json-c called it missing).
  *
  * An @rfc{7797} unencoded (``"b64":false``) payload carries no claims
  * (@rfc{7797,7}), so any requirement rejects it (see jwt_checker_verify()).
@@ -1670,6 +1678,17 @@ int jwt_checker_verify_detached(jwt_checker_t *checker, const char *token,
  * JWT_VALUE_ERR_TYPE, when the named object is not of the type you requested
  * (e.g. you requested a string, but it's an integer value).
  *
+ * A member whose value is JSON null exists, and is of no type you can
+ * request: every getter returns JWT_VALUE_ERR_TYPE for it. A JWT_VALUE_JSON
+ * getter of a named member returns an object or an array; for a string,
+ * number or boolean it returns JWT_VALUE_ERR_TYPE too. Both hold with either
+ * JSON backend.
+ *
+ * @note Before 3.8.0, with json-c a JSON null member gave
+ *  JWT_VALUE_ERR_NOEXIST, and a JWT_VALUE_JSON getter returned the JSON text
+ *  of a scalar member, where with Jansson it failed with
+ *  JWT_VALUE_ERR_INVALID.
+ *
  * @remarks When getting a JSON value, you can set value.name = NULL, in which
  *  case the entire header is returned. Also, the resulting value.json_val
  *  will be using allocated memory and must be freed by the caller.
@@ -1756,7 +1775,8 @@ int jwt_checker_verify_detached(jwt_checker_t *checker, const char *token,
  * When setting a value, you must set the type, name, and the specific val for
  * the type. If the value already exists, then the function will return
  * JWT_VALUE_ERR_EXISTS and value.error will be set the same. If value.replace
- * is non-zero, then any existing value will be overwritten.
+ * is non-zero, then any existing value will be overwritten. A member whose
+ * value is JSON null exists (before 3.8.0, json-c overwrote it).
  *
  * @remarks When setting a JSON value, you can set value.name = NULL, in which case
  *  the entire header will be set to the JSON string pointed to by
@@ -1999,7 +2019,9 @@ int jwt_builder_time_offset(jwt_builder_t *builder, jwt_claims_t claim,
  * @note ``exp`` and ``nbf`` are "validate if present": the check only fails a
  * token when the claim @b is present and does not satisfy the comparison
  * above. A token that @b omits it passes, so enabling ``JWT_CLAIM_EXP`` does
- * @b not by itself require that a token carry an ``exp``. A value pinned with
+ * @b not by itself require that a token carry an ``exp``. One whose value is
+ * not an integer is present and fails, a JSON null included (before 3.8.0,
+ * json-c read a null one as absent and passed it). A value pinned with
  * jwt_checker_claim_set() (``iss``, ``aud`` or ``sub``) is different: the
  * claim must be present @b and match, so a token that omits it fails. To
  * reject tokens lacking any other claim, use jwt_checker_require().
@@ -2869,6 +2891,10 @@ int jwe_checker_setkey(jwe_checker_t *checker, jwe_key_alg_t alg,
  * Parses the five-part token, recovers the CEK using the configured key and
  * algorithms (@ref jwe_checker_setkey), and verifies the authentication tag.
  *
+ * A protected ``crit`` or ``zip`` header whose value is JSON null is present,
+ * and of the wrong type, with either JSON backend: it fails the token (before
+ * 3.8.0, json-c read it as absent and decrypted the token).
+ *
  * @param checker Pointer to a JWE checker object
  * @param token A nil-terminated compact JWE string
  * @param plaintext_len If non-NULL, set to the length of the returned
@@ -2889,6 +2915,17 @@ unsigned char *jwe_checker_decrypt(jwe_checker_t *checker, const char *token,
  * beginning with ``{`` is parsed as a JSON Serialization (Flattened or
  * General), otherwise as the Compact Serialization. For a General JWE the
  * checker selects the recipient matching its configured key and algorithm.
+ *
+ * A member whose value is JSON null is present, with either JSON backend: a
+ * null ``crit`` or ``zip`` header, or a null ``protected``, ``unprotected``,
+ * ``recipients``, ``header``, ``aad`` or ``encrypted_key`` member, is of the
+ * wrong type and fails the token, and a null header parameter counts in the
+ * rule that the protected, shared and per-recipient headers be disjoint
+ * (@rfc{7516,7.2.1}). Otherwise, a null parameter in the shared or
+ * per-recipient header is merged like any other, and the token decrypts.
+ * Before 3.8.0, json-c read such a member as absent, and failed a token with a
+ * null parameter in the shared or per-recipient header with an allocation
+ * error.
  *
  * @param checker Pointer to a JWE checker object
  * @param token A nil-terminated JWE string (compact or JSON)
@@ -2991,6 +3028,19 @@ const unsigned char *jwe_checker_get_aad(const jwe_checker_t *checker,
  * of its private member (under OpenSSL it encrypted to that key as well),
  * while its thumbprint (jwks_item_thumbprint()) and its public form were
  * those of the member it stated (GHSA-vmf4-mvgm-7vpv).
+ *
+ * A document with a ``"keys"`` member is a JWK Set (@rfc{7517,5}): that
+ * member must be an array, and one that is not (a JSON null included) sets
+ * the error of the set (jwks_error()) and adds no key. A document without one
+ * is a single JWK.
+ *
+ * @note Before 3.8.0 a ``"keys"`` that was not an array gave no key and no
+ * error, and with json-c a ``"keys":null`` was read as a single JWK (in error,
+ * as it has no ``kty``). An ``"alg":null`` or ``"x5c":null`` was read as
+ * absent (with json-c only, before 3.6.3), and so was a private member that
+ * was null with json-c; a private member that was not a string loaded the
+ * public key with some crypto backends. Each now puts the key in error with
+ * every backend (see jwks_item_error()).
  *
  * @param jwk_set Either NULL to create a new set, or an existing jwt_set
  *   to add new keys to it.
@@ -3464,12 +3514,18 @@ int jwks_item_is_private(const jwk_item_t *item);
  * @brief Check the error condition for this JWK
  *
  * A key is in error when it could not be loaded (a malformed or unsupported
- * JWK, one the active crypto backend rejected, or a private ``OKP`` or
- * ``AKP`` key that does not match the public key it states, see jwks_load())
- * or was flagged after it loaded (an ``alg`` that is not a string, a
- * malformed ``x5c``, an ``x5t#S256`` that is not that of its ``x5c`` leaf
- * certificate, or a leaf that does not hold the key of the JWK, see
- * jwks_item_x5c()). Such a key is unusable: LibJWT refuses it for signing,
+ * JWK, a private member that is not a string, one the active crypto backend
+ * rejected, or a private ``OKP`` or ``AKP`` key that does not match the public
+ * key it states, see jwks_load()) or was flagged after it loaded (an ``alg``
+ * that is not a string, a malformed ``x5c``, an ``x5t#S256`` that is not that
+ * of its ``x5c`` leaf certificate, or a leaf that does not hold the key of the
+ * JWK, see jwks_item_x5c()). A member whose value is JSON null is there, with
+ * a value of the wrong type, with either JSON backend: an ``"alg":null`` or
+ * ``"x5c":null`` puts the key in error, and so does a private member
+ * (``d``, ``p``, ``q``, ``dp``, ``dq`` or ``qi`` of ``RSA``, ``d`` of ``EC``
+ * or ``OKP``, ``priv`` of ``AKP``) that is null or another non-string, with
+ * every crypto backend, with the message ``Invalid JWK: "<name>" is not a
+ * string``. Such a key is unusable: LibJWT refuses it for signing,
  * verifying, encrypting and decrypting, and it has no thumbprint, certificate
  * chain or certificate thumbprints to read -- nor any in its public form
  * (jwks_item_export()), which drops its ``x5c`` binding too.

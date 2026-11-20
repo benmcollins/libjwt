@@ -1525,6 +1525,226 @@ START_TEST(header_b64_crit_null)
 }
 END_TEST
 
+/* A new builder that signs HS256 with oct_key_256.json (g_item), without
+ * "iat", and whose header has the members of the nameless JSON @hdr. */
+static jwt_builder_t *null_builder(char *hdr)
+{
+	jwt_builder_t *builder = jwt_builder_new();
+	jwt_value_t jval;
+
+	ck_assert_ptr_nonnull(builder);
+	ck_assert_int_eq(jwt_builder_setkey(builder, JWT_ALG_HS256, g_item), 0);
+	jwt_builder_enable_iat(builder, 0);
+	jwt_set_SET_JSON(&jval, NULL, hdr);
+	ck_assert_int_eq(jwt_builder_header_set(builder, &jval),
+			 JWT_VALUE_ERR_NONE);
+
+	return builder;
+}
+
+/* A claim or header that a nameless JSON object set to JSON null is there, of
+ * no type a getter asks for: JWT_VALUE_ERR_TYPE (json-c used to give
+ * JWT_VALUE_ERR_NOEXIST). A JWT_VALUE_JSON getter wants an object or an
+ * array, so a scalar is the wrong type as well, with both JSON backends. */
+START_TEST(null_member_getters)
+{
+	jwt_builder_auto_t *builder = NULL;
+	jwt_value_t jval;
+
+	SET_OPS();
+
+	builder = jwt_builder_new();
+	ck_assert_ptr_nonnull(builder);
+
+	jwt_set_SET_JSON(&jval, NULL, "{\"foo\":null,\"s\":\"str\",\"n\":5,"
+			 "\"b\":true,\"o\":{\"k\":null}}");
+	ck_assert_int_eq(jwt_builder_claim_set(builder, &jval),
+			 JWT_VALUE_ERR_NONE);
+	jwt_set_SET_JSON(&jval, NULL, "{\"x\":null}");
+	ck_assert_int_eq(jwt_builder_header_set(builder, &jval),
+			 JWT_VALUE_ERR_NONE);
+
+	jwt_set_GET_STR(&jval, "foo");
+	ck_assert_int_eq(jwt_builder_claim_get(builder, &jval),
+			 JWT_VALUE_ERR_TYPE);
+	jwt_set_GET_INT(&jval, "foo");
+	ck_assert_int_eq(jwt_builder_claim_get(builder, &jval),
+			 JWT_VALUE_ERR_TYPE);
+	jwt_set_GET_BOOL(&jval, "foo");
+	ck_assert_int_eq(jwt_builder_claim_get(builder, &jval),
+			 JWT_VALUE_ERR_TYPE);
+	jwt_set_GET_JSON(&jval, "foo");
+	ck_assert_int_eq(jwt_builder_claim_get(builder, &jval),
+			 JWT_VALUE_ERR_TYPE);
+	ck_assert_ptr_null(jval.json_val);
+
+	jwt_set_GET_STR(&jval, "x");
+	ck_assert_int_eq(jwt_builder_header_get(builder, &jval),
+			 JWT_VALUE_ERR_TYPE);
+	jwt_set_GET_JSON(&jval, "x");
+	ck_assert_int_eq(jwt_builder_header_get(builder, &jval),
+			 JWT_VALUE_ERR_TYPE);
+
+	/* A scalar is not JSON (an object or an array) either. */
+	jwt_set_GET_JSON(&jval, "s");
+	ck_assert_int_eq(jwt_builder_claim_get(builder, &jval),
+			 JWT_VALUE_ERR_TYPE);
+	ck_assert_ptr_null(jval.json_val);
+	jwt_set_GET_JSON(&jval, "n");
+	ck_assert_int_eq(jwt_builder_claim_get(builder, &jval),
+			 JWT_VALUE_ERR_TYPE);
+	jwt_set_GET_JSON(&jval, "b");
+	ck_assert_int_eq(jwt_builder_claim_get(builder, &jval),
+			 JWT_VALUE_ERR_TYPE);
+
+	/* An object holding a null is fine, and a missing member missing. */
+	jwt_set_GET_JSON(&jval, "o");
+	ck_assert_int_eq(jwt_builder_claim_get(builder, &jval),
+			 JWT_VALUE_ERR_NONE);
+	ck_assert_str_eq(jval.json_val, "{\"k\":null}");
+	free(jval.json_val);
+	jwt_set_GET_JSON(&jval, "nope");
+	ck_assert_int_eq(jwt_builder_claim_get(builder, &jval),
+			 JWT_VALUE_ERR_NOEXIST);
+}
+END_TEST
+
+/* Setting a claim or header that is there as JSON null, without replace, is
+ * refused: it exists (json-c used to overwrite it). */
+START_TEST(null_member_setters)
+{
+	jwt_builder_auto_t *builder = NULL;
+	jwt_value_t jval;
+
+	SET_OPS();
+
+	builder = jwt_builder_new();
+	ck_assert_ptr_nonnull(builder);
+
+	jwt_set_SET_JSON(&jval, NULL, "{\"foo\":null}");
+	ck_assert_int_eq(jwt_builder_claim_set(builder, &jval),
+			 JWT_VALUE_ERR_NONE);
+	jwt_set_SET_JSON(&jval, NULL, "{\"x\":null}");
+	ck_assert_int_eq(jwt_builder_header_set(builder, &jval),
+			 JWT_VALUE_ERR_NONE);
+
+	jwt_set_SET_STR(&jval, "foo", "bar");
+	ck_assert_int_eq(jwt_builder_claim_set(builder, &jval),
+			 JWT_VALUE_ERR_EXIST);
+	jwt_set_SET_INT(&jval, "foo", 1);
+	ck_assert_int_eq(jwt_builder_claim_set(builder, &jval),
+			 JWT_VALUE_ERR_EXIST);
+	jwt_set_SET_BOOL(&jval, "x", 1);
+	ck_assert_int_eq(jwt_builder_header_set(builder, &jval),
+			 JWT_VALUE_ERR_EXIST);
+	jwt_set_SET_JSON(&jval, "x", "{}");
+	ck_assert_int_eq(jwt_builder_header_set(builder, &jval),
+			 JWT_VALUE_ERR_EXIST);
+
+	/* With replace, it is replaced. */
+	jwt_set_SET_STR(&jval, "foo", "bar");
+	jval.replace = 1;
+	ck_assert_int_eq(jwt_builder_claim_set(builder, &jval),
+			 JWT_VALUE_ERR_NONE);
+	jwt_set_GET_STR(&jval, "foo");
+	ck_assert_int_eq(jwt_builder_claim_get(builder, &jval),
+			 JWT_VALUE_ERR_NONE);
+	ck_assert_str_eq(jval.str_val, "bar");
+}
+END_TEST
+
+/* @rfc{7515,7.2.1} A protected header parameter that is JSON null is in the
+ * protected header, so a signature's unprotected one with the same name
+ * overlaps it (json-c used to emit it in both). */
+START_TEST(null_member_overlap)
+{
+	jwt_builder_auto_t *builder = NULL;
+	jwt_signature_t *sig;
+	char_auto *out = NULL;
+
+	SET_OPS();
+
+	read_json("oct_key_256.json");
+
+	builder = null_builder("{\"x\":null}");
+	sig = jwt_builder_add_signature(builder, JWT_ALG_HS256, g_item);
+	ck_assert_ptr_nonnull(sig);
+	ck_assert_int_eq(jwt_signature_add_header_json(sig, "x", "\"u\""), 0);
+
+	out = jwt_builder_generate(builder);
+	ck_assert_ptr_null(out);
+	ck_assert_str_eq(jwt_builder_error_msg(builder),
+			 "protected and unprotected headers overlap");
+
+	/* The signature borrows the key: free it first. */
+	jwt_builder_free(builder);
+	builder = NULL;
+	free_key();
+}
+END_TEST
+
+/* @rfc{7515,4.1.11} "crit" may name a header parameter whose value is JSON
+ * null: it is in the header (json-c used to refuse it as not there). */
+START_TEST(null_member_crit)
+{
+	/* {"alg":"HS256","crit":["x"],"typ":"JWT","x":null} */
+	const char hdr[] = "eyJhbGciOiJIUzI1NiIsImNyaXQiOlsieCJdLCJ0eXAiOiJK"
+		"V1QiLCJ4IjpudWxsfQ.";
+	jwt_builder_auto_t *builder = NULL;
+	jwt_checker_auto_t *checker = NULL;
+	char_auto *out = NULL;
+
+	SET_OPS();
+
+	read_json("oct_key_256.json");
+
+	builder = null_builder("{\"x\":null}");
+	ck_assert_int_eq(jwt_builder_setcrit(builder, "x"), 0);
+
+	out = jwt_builder_generate(builder);
+	ck_assert_ptr_nonnull(out);
+	ck_assert_int_eq(strncmp(out, hdr, strlen(hdr)), 0);
+
+	checker = jwt_checker_new();
+	ck_assert_ptr_nonnull(checker);
+	ck_assert_int_eq(jwt_checker_setkey(checker, JWT_ALG_HS256, g_item), 0);
+	ck_assert_int_eq(jwt_checker_understands(checker, "x"), 0);
+	ck_assert_int_eq(jwt_checker_verify(checker, out), 0);
+
+	free_key();
+}
+END_TEST
+
+/* An application's "typ" that is JSON null is kept, in the Compact and the
+ * JSON serializations; the default "JWT" only goes where there is no "typ"
+ * (json-c used to replace the null). */
+START_TEST(null_member_typ)
+{
+	/* {"alg":"HS256","typ":null} */
+	const char hdr[] = "eyJhbGciOiJIUzI1NiIsInR5cCI6bnVsbH0";
+	jwt_serialization_t formats[] = { JWT_FORMAT_COMPACT,
+		JWT_FORMAT_JSON_FLAT, JWT_FORMAT_JSON_GENERAL };
+	size_t f;
+
+	SET_OPS();
+
+	read_json("oct_key_256.json");
+
+	for (f = 0; f < ARRAY_SIZE(formats); f++) {
+		jwt_builder_auto_t *builder = null_builder("{\"typ\":null}");
+		char_auto *out = NULL;
+
+		ck_assert_int_eq(jwt_builder_set_format(builder, formats[f]),
+				 0);
+		out = jwt_builder_generate(builder);
+		ck_assert_ptr_nonnull(out);
+		ck_assert_ptr_nonnull(strstr(out, hdr));
+	}
+
+	free_key();
+}
+END_TEST
+
 static Suite *libjwt_suite(const char *title)
 {
 	Suite *s;
@@ -1607,6 +1827,11 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, json_nul_refused, 0, i);
 	tcase_add_loop_test(tc_core, crit_appset_null_entry, 0, i);
 	tcase_add_loop_test(tc_core, header_b64_crit_null, 0, i);
+	tcase_add_loop_test(tc_core, null_member_getters, 0, i);
+	tcase_add_loop_test(tc_core, null_member_setters, 0, i);
+	tcase_add_loop_test(tc_core, null_member_overlap, 0, i);
+	tcase_add_loop_test(tc_core, null_member_crit, 0, i);
+	tcase_add_loop_test(tc_core, null_member_typ, 0, i);
 	tcase_set_timeout(tc_core, 60);
 	suite_add_tcase(s, tc_core);
 

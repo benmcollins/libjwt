@@ -668,17 +668,21 @@ START_TEST(test_latch_boundary)
 }
 END_TEST
 
-/* A JSON null member is treated as absent, the same under both JSON backends:
- * "x5c":null and "alg":null must not put the key in error (Jansson used to
- * flag them, json-c read them as absent -- a divergence that an in-error key
- * never being used would turn into one backend refusing what the other uses).
- * The key loads clean and verifies on both. */
+/* A member whose value is JSON null is present, with a value of the wrong
+ * type, the same under both JSON backends: "x5c":null and "alg":null put the
+ * key in error (Jansson always did; json-c used to read them as absent), so
+ * it is refused alike, rather than one backend using what the other refuses. */
 START_TEST(test_json_null_members)
 {
-	static const char * const variants[] = {
-		"{" EC_PUB_NOALG ",\"x5c\":null}",
-		"{" EC_PUB_NOALG ",\"alg\":null}",
-		"{" EC_PUB_NOALG ",\"alg\":null,\"x5c\":null}",
+	static const struct {
+		const char *json;
+		const char *msg;
+	} variants[] = {
+		{ "{" EC_PUB_NOALG ",\"x5c\":null}",
+		  "Invalid JWK: \"x5c\" is not an array" },
+		{ "{" EC_PUB_NOALG ",\"alg\":null}", "Invalid alg type" },
+		{ "{" EC_PUB_NOALG ",\"alg\":null,\"x5c\":null}",
+		  "Invalid alg type" },
 	};
 	jwk_set_t *signer_set;
 	const jwk_item_t *signer;
@@ -692,7 +696,7 @@ START_TEST(test_json_null_members)
 	tok = sign_tok(JWT_ALG_ES256, signer, NULL, JWT_FORMAT_COMPACT);
 
 	for (n = 0; n < ARRAY_SIZE(variants); n++) {
-		jwk_set_t *set = jwks_create(variants[n]);
+		jwk_set_t *set = jwks_create(variants[n].json);
 		const jwk_item_t *key;
 		jwt_checker_auto_t *c = jwt_checker_new();
 
@@ -700,13 +704,15 @@ START_TEST(test_json_null_members)
 		ck_assert_int_eq(jwks_error(set), 0);
 		key = jwks_item_get(set, 0);
 		ck_assert_ptr_nonnull(key);
-		/* The same error state on both backends: not in error. */
-		ck_assert_int_eq(jwks_item_error(key), 0);
+		/* The same error state on both backends: in error. */
+		ck_assert_int_ne(jwks_item_error(key), 0);
+		ck_assert_str_eq(jwks_item_error_msg(key), variants[n].msg);
 
-		/* And the same verify result: the key is usable. */
+		/* And the same verify result: the key is refused. */
 		ck_assert_ptr_nonnull(c);
-		ck_assert_int_eq(jwt_checker_setkey(c, JWT_ALG_ES256, key), 0);
-		ck_assert_int_eq(jwt_checker_verify(c, tok), 0);
+		ck_assert_int_ne(jwt_checker_setkey(c, JWT_ALG_ES256, key), 0);
+		ck_assert_str_eq(jwt_checker_error_msg(c), ERR_KEY);
+		ck_assert_int_ne(jwt_checker_verify(c, tok), 0);
 
 		jwks_free(set);
 	}

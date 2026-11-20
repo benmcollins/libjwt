@@ -358,21 +358,18 @@ int openssl_process_eddsa(jwt_json_t *jwk, jwk_item_t *item)
 		// LCOV_EXCL_STOP
 	}
 
+	/* A member that is not base64url, or decodes to nothing, fails here. */
 	if (!priv) {
 		pub_bin = set_one_octet(build, OSSL_PKEY_PARAM_PUB_KEY, x);
 		if (pub_bin == NULL) {
-			// LCOV_EXCL_START
 			jwt_write_error(item, "Error parsing pub key");
 			goto cleanup_eddsa;
-			// LCOV_EXCL_STOP
 		}
 	} else {
 		priv_bin = set_one_octet(build, OSSL_PKEY_PARAM_PRIV_KEY, d);
 		if (priv_bin == NULL) {
-			// LCOV_EXCL_START
 			jwt_write_error(item, "Error parsing private key");
 			goto cleanup_eddsa;
-			// LCOV_EXCL_STOP
 		}
 	}
 
@@ -740,12 +737,11 @@ int openssl_process_ec(jwt_json_t *jwk, jwk_item_t *item)
 	}
 
 	if (priv) {
+		/* A "d" that is not base64url, or decodes to nothing. */
 		bn = set_one_bn(build, OSSL_PKEY_PARAM_PRIV_KEY, d);
 		if (bn == NULL) {
-			// LCOV_EXCL_START
 			jwt_write_error(item, "Error parsing component d");
 			goto cleanup_ec;
-			// LCOV_EXCL_STOP
 		}
 	}
 

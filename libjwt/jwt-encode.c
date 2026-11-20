@@ -101,7 +101,7 @@ static int signature_set_header(jwt_json_t **obj, const char *key,
 			return 1; // LCOV_EXCL_LINE
 	}
 
-	if (jwt_json_obj_get(*obj, key) != NULL)
+	if (jwt_json_obj_has(*obj, key))
 		return 1;
 
 	val = jwt_json_parse(value_json, JWT_JSON_DECODE_ANY, NULL);
@@ -140,11 +140,12 @@ int jwt_signature_add_header_json(jwt_signature_t *signature,
 
 /* @rfc{7515,7.2.1} A header parameter must not appear in both a signature's
  * protected and unprotected header. obj_foreach stops (returns non-zero) at the
- * first member of @header that is also present in @protected. */
+ * first member of @header that is also present in @protected, even as a JSON
+ * null (see jwt_json_obj_has()). */
 static int overlap_cb(const char *key, jwt_json_t *value, void *ctx)
 {
 	(void)value;
-	return jwt_json_obj_get((const jwt_json_t *)ctx, key) != NULL;
+	return jwt_json_obj_has((const jwt_json_t *)ctx, key);
 }
 
 int jwt_header_params_overlap(const jwt_json_t *protected,
@@ -204,7 +205,8 @@ static jwt_json_t *build_protected(jwt_t *jwt, struct jwt_signature *s,
 		return NULL; // LCOV_EXCL_LINE
 	}
 
-	if (jwt_json_obj_get(prot, "typ") == NULL) {
+	/* An application's "typ", a JSON null one too, is kept. */
+	if (!jwt_json_obj_has(prot, "typ")) {
 		v = jwt_json_create_str("JWT");
 		if (v == NULL || jwt_json_obj_set(prot, "typ", v)) {
 			jwt_json_release(prot); // LCOV_EXCL_LINE
@@ -482,7 +484,8 @@ static int jwt_validate_crit(jwt_t *jwt, const jwt_json_t *hdr,
 			return 1;
 		}
 
-		if (jwt_json_obj_get(hdr, name) == NULL) {
+		/* A member whose value is JSON null is in the header. */
+		if (!jwt_json_obj_has(hdr, name)) {
 			jwt_write_error(jwt,
 				"\"crit\" lists \"%s\" which is not in the header",
 				name);

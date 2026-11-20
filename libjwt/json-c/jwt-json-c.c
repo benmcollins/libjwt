@@ -302,8 +302,9 @@ int jwt_json_is_int(const jwt_json_t *json)
 	const char *raw;
 	char *end = NULL;
 
+	/* A JSON null member (see jwt_json_obj_has()). */
 	if (!json)
-		return 0; // LCOV_EXCL_LINE
+		return 0;
 
 	obj = to_jc(json);
 	if (!json_object_is_type(obj, json_type_int))
@@ -341,13 +342,6 @@ int jwt_json_is_true(const jwt_json_t *json)
 {
 	return json && json_object_is_type(to_jc(json), json_type_boolean) &&
 	       json_object_get_boolean(to_jc(json));
-}
-
-int jwt_json_is_null(const jwt_json_t *json)
-{
-	/* json-c stores a JSON null as a C NULL, which jwt_json_obj_get()
-	 * already returns as absent, so a non-NULL value here is never null. */
-	return json_object_is_type(to_jc(json), json_type_null);
 }
 
 /* ================================================================

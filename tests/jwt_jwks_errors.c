@@ -263,6 +263,187 @@ START_TEST(test_jwks_empty)
 }
 END_TEST
 
+/* Load @json, a single JWK, and check that its one item is in error with
+ * @msg and is not private. With @no_key, it also holds no key: it failed
+ * before any backend loaded one (a key flagged after it loaded keeps its
+ * size, though it is never used). */
+static void check_item_error(const char *json, const char *msg, int no_key)
+{
+	jwk_set_auto_t *jwk_set = jwks_create(json);
+	const jwk_item_t *item;
+
+	ck_assert_ptr_nonnull(jwk_set);
+	ck_assert_int_eq(jwks_error(jwk_set), 0);
+	ck_assert_int_eq(jwks_item_count(jwk_set), 1);
+
+	item = jwks_item_get(jwk_set, 0);
+	ck_assert_ptr_nonnull(item);
+	ck_assert_int_ne(jwks_item_error(item), 0);
+	ck_assert_str_eq(jwks_item_error_msg(item), msg);
+	ck_assert_int_eq(jwks_item_is_private(item), 0);
+	if (no_key)
+		ck_assert_int_eq(jwks_item_key_bits(item), 0);
+}
+
+/* @rfc{7517,5.1} A "keys" member that is there but is not an array (a JSON
+ * null too) fails the set, with both JSON backends. It used to give an empty
+ * set without an error, or, for a null with json-c, read the document as one
+ * JWK with no "kty". */
+START_TEST(test_jwks_keys_not_array)
+{
+	static const char * const docs[] = {
+		"{\"keys\":null}",
+		"{\"keys\":\"not an array\"}",
+		"{\"keys\":5}",
+		"{\"keys\":{\"kty\":\"oct\",\"k\":\"AAAA\"}}",
+	};
+	size_t n;
+
+	SET_OPS();
+
+	for (n = 0; n < ARRAY_SIZE(docs); n++) {
+		jwk_set_auto_t *jwk_set = jwks_create(docs[n]);
+
+		ck_assert_ptr_nonnull(jwk_set);
+		ck_assert_int_ne(jwks_error(jwk_set), 0);
+		ck_assert_str_eq(jwks_error_msg(jwk_set),
+				 "Invalid JWKS: \"keys\" is not an array");
+		ck_assert_int_eq(jwks_item_count(jwk_set), 0);
+	}
+}
+END_TEST
+
+#define RSA_PUB	"\"kty\":\"RSA\",\"e\":\"AQAB\",\"n\":"				\
+	"\"0vx7agoebGcQSuuPiLJXZptN9nndrQmbXEps2aiAFbWhM78LhWx4cbbfAAtV"	\
+	"T86zwu1RK7aPFFxuhDR1L6tSoc_BJECPebWKRXjBZCiFV4n3oknjhMstn64tZ_2W-5JsG"	\
+	"Y4Hc5n9yBXArwl93lqt7_RN5w6Cf0h4QyQ5v-65YGjQR0_FDW2QvzqY368QQMicAtaSqz"	\
+	"s8KJZgnYb9c7d0zgdAZHzu6qMQvRL5hajrn1n91CbOpbISD08qNLyrdkt-bFTWhAI4vMQ"	\
+	"FH6wAvvL6F_\""
+#define EC_PUB	"\"kty\":\"EC\",\"crv\":\"P-256\","				\
+	"\"x\":\"Y--DdSpCZ5oF3j__h-SdNJIwvB5aI4AXzpRErGUjWrM\","		\
+	"\"y\":\"_bSTCXlDeU-pZZbOKDUVLANspSIeuKZfTM8rtXFG_RU\""
+#define OKP_PUB	"\"kty\":\"OKP\",\"crv\":\"Ed25519\","				\
+	"\"x\":\"HUj-14kN6N4i5qNVkfEhwKiCf-tSrvRHstQdtV8a5QM\""
+
+/* A JSON null "alg" or "x5c" is present, with a value of the wrong type: the
+ * key is in error, with both JSON backends (json-c used to read it as absent
+ * and load the key). */
+START_TEST(test_jwks_alg_x5c_null)
+{
+	SET_OPS();
+
+	check_item_error("{" RSA_PUB ",\"alg\":null}", "Invalid alg type", 0);
+	check_item_error("{" EC_PUB ",\"alg\":null}", "Invalid alg type", 0);
+	check_item_error("{" RSA_PUB ",\"x5c\":null}",
+			 "Invalid JWK: \"x5c\" is not an array", 0);
+	check_item_error("{" OKP_PUB ",\"x5c\":null}",
+			 "Invalid JWK: \"x5c\" is not an array", 0);
+}
+END_TEST
+
+/* A private member that is there with a value that is not a string (a JSON
+ * null too) puts the key in error with every JSON and crypto backend, before
+ * any backend reads it. json-c used to read a null one as absent and load the
+ * public key; with Jansson the crypto backends disagreed (OpenSSL failed the
+ * key, GnuTLS loaded the public part of an EC or OKP key, and MbedTLS marked
+ * such an OKP key private). */
+START_TEST(test_jwks_priv_member_null)
+{
+	static const struct {
+		const char *json;
+		const char *member;
+	} cases[] = {
+		/* RSA: one member null, all six null, a later one null, and
+		 * a number. */
+		{ "{" RSA_PUB ",\"d\":null}", "d" },
+		{ "{" RSA_PUB ",\"d\":null,\"p\":null,\"q\":null,"
+		  "\"dp\":null,\"dq\":null,\"qi\":null}", "d" },
+		{ "{" RSA_PUB ",\"d\":\"AQAB\",\"p\":\"AQAB\",\"q\":\"AQAB\","
+		  "\"dp\":\"AQAB\",\"dq\":\"AQAB\",\"qi\":null}", "qi" },
+		{ "{" RSA_PUB ",\"p\":12345678}", "p" },
+		/* EC and OKP "d". */
+		{ "{" EC_PUB ",\"d\":null}", "d" },
+		{ "{" EC_PUB ",\"d\":123}", "d" },
+		{ "{" OKP_PUB ",\"d\":null}", "d" },
+		{ "{\"kty\":\"OKP\",\"crv\":\"X25519\",\"d\":false}", "d" },
+		/* AKP "priv", whether or not the build can load AKP keys. */
+		{ "{\"kty\":\"AKP\",\"alg\":\"ML-DSA-44\",\"pub\":\"AAAA\","
+		  "\"priv\":null}", "priv" },
+	};
+	static const struct {
+		const char *json;
+		jwt_alg_t alg;
+	} kid_cases[] = {
+		{ "{" RSA_PUB ",\"kid\":\"k1\",\"alg\":\"RS256\",\"use\":\"sig\","
+		  "\"d\":null}", JWT_ALG_RS256 },
+		{ "{" EC_PUB ",\"kid\":\"k1\",\"alg\":\"ES256\",\"use\":\"sig\","
+		  "\"d\":5}", JWT_ALG_ES256 },
+		{ "{" OKP_PUB ",\"kid\":\"k1\",\"alg\":\"EdDSA\",\"use\":\"sig\","
+		  "\"d\":null}", JWT_ALG_EDDSA },
+		{ "{\"kty\":\"AKP\",\"kid\":\"k1\",\"alg\":\"HS256\","
+		  "\"use\":\"sig\",\"pub\":\"AAAA\",\"priv\":null}",
+		  JWT_ALG_HS256 },
+	};
+	size_t n;
+
+	SET_OPS();
+
+	for (n = 0; n < ARRAY_SIZE(cases); n++) {
+		char msg[64];
+
+		snprintf(msg, sizeof(msg), "Invalid JWK: \"%s\" is not a string",
+			 cases[n].member);
+		check_item_error(cases[n].json, msg, 1);
+	}
+
+	/* Only the backend is skipped: the key keeps its "kid" and "alg",
+	 * as any other key that fails to load, so it can still be named. */
+	for (n = 0; n < ARRAY_SIZE(kid_cases); n++) {
+		jwk_set_auto_t *jwk_set = jwks_create(kid_cases[n].json);
+		const jwk_item_t *item;
+
+		ck_assert_ptr_nonnull(jwk_set);
+		item = jwks_item_get(jwk_set, 0);
+		ck_assert_ptr_nonnull(item);
+		ck_assert_int_ne(jwks_item_error(item), 0);
+		ck_assert_ptr_nonnull(jwks_item_kid(item));
+		ck_assert_str_eq(jwks_item_kid(item), "k1");
+		ck_assert_int_eq(jwks_item_alg(item), kid_cases[n].alg);
+		ck_assert_int_eq(jwks_item_use(item), JWK_PUB_KEY_USE_SIG);
+		ck_assert_ptr_eq(jwks_find_bykid(jwk_set, "k1"), item);
+	}
+}
+END_TEST
+
+/* A key member that is a string but not base64url, or that decodes to
+ * nothing, puts the key in error (the message is the backend's own). */
+START_TEST(test_jwks_member_undecodable)
+{
+	static const char * const docs[] = {
+		"{" EC_PUB ",\"d\":\"\"}",
+		"{" EC_PUB ",\"d\":\"***\"}",
+		"{\"kty\":\"OKP\",\"crv\":\"Ed25519\",\"d\":\"\"}",
+		"{\"kty\":\"OKP\",\"crv\":\"Ed25519\",\"d\":\"***\"}",
+		"{\"kty\":\"OKP\",\"crv\":\"Ed25519\",\"x\":\"\"}",
+	};
+	size_t n;
+
+	SET_OPS();
+
+	for (n = 0; n < ARRAY_SIZE(docs); n++) {
+		jwk_set_auto_t *jwk_set = jwks_create(docs[n]);
+		const jwk_item_t *item;
+
+		ck_assert_ptr_nonnull(jwk_set);
+		item = jwks_item_get(jwk_set, 0);
+		ck_assert_ptr_nonnull(item);
+		ck_assert_int_ne(jwks_item_error(item), 0);
+		ck_assert_int_eq(jwks_item_is_private(item), 0);
+		ck_assert_int_eq(jwks_item_key_bits(item), 0);
+	}
+}
+END_TEST
+
 static Suite *libjwt_suite(const char *title)
 {
 	Suite *s;
@@ -285,6 +466,12 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, test_jwks_empty, 0, i);
 	tcase_add_loop_test(tc_core, test_jwks_unknown_kty, 0, i);
 	tcase_add_loop_test(tc_core, test_jwks_missing_kty, 0, i);
+
+	/* json-c behaves as Jansson does (JSON null members) */
+	tcase_add_loop_test(tc_core, test_jwks_keys_not_array, 0, i);
+	tcase_add_loop_test(tc_core, test_jwks_alg_x5c_null, 0, i);
+	tcase_add_loop_test(tc_core, test_jwks_priv_member_null, 0, i);
+	tcase_add_loop_test(tc_core, test_jwks_member_undecodable, 0, i);
 
 	tcase_set_timeout(tc_core, 30);
 
