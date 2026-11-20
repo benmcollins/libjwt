@@ -736,68 +736,6 @@ static int ecdh_keydatalen(jwe_key_alg_t alg, jwe_enc_t enc,
 	}
 }
 
-/* Append a length-prefixed (32-bit big-endian) datum to a buffer. */
-static void concat_put_data(unsigned char *buf, size_t *off,
-			    const unsigned char *data, size_t len)
-{
-	buf[(*off)++] = (unsigned char)((len >> 24) & 0xff);
-	buf[(*off)++] = (unsigned char)((len >> 16) & 0xff);
-	buf[(*off)++] = (unsigned char)((len >> 8) & 0xff);
-	buf[(*off)++] = (unsigned char)(len & 0xff);
-	if (len) {
-		memcpy(buf + *off, data, len);
-		*off += len;
-	}
-}
-
-/* @rfc{7518,4.6.2} Concat KDF (NIST SP 800-56A 5.8.1) with SHA-256. JWE needs
- * <= 32 octets (one SHA-256 block), so a single round suffices. */
-static int concat_kdf(const unsigned char *z, size_t z_len,
-		      const char *algid, const unsigned char *apu, size_t apu_len,
-		      const unsigned char *apv, size_t apv_len,
-		      size_t keydatalen, unsigned char *out)
-{
-	unsigned char hash[32];
-	unsigned char *buf;
-	size_t algid_len = strlen(algid);
-	size_t buf_len, off = 0, hlen = 0;
-	uint32_t bits = (uint32_t)(keydatalen * 8);
-	unsigned char counter[4] = { 0, 0, 0, 1 };
-	unsigned char supppub[4];
-	int ret = 1;
-
-	if (keydatalen > sizeof(hash))
-		return 1; // LCOV_EXCL_LINE
-
-	supppub[0] = (unsigned char)((bits >> 24) & 0xff);
-	supppub[1] = (unsigned char)((bits >> 16) & 0xff);
-	supppub[2] = (unsigned char)((bits >> 8) & 0xff);
-	supppub[3] = (unsigned char)(bits & 0xff);
-
-	/* counter || Z || OtherInfo (each length-prefixed) || SuppPubInfo */
-	buf_len = 4 + z_len + (4 + algid_len) + (4 + apu_len) + (4 + apv_len) + 4;
-	buf = jwt_malloc(buf_len);
-	if (buf == NULL)
-		return 1; // LCOV_EXCL_LINE
-
-	memcpy(buf + off, counter, 4); off += 4;
-	memcpy(buf + off, z, z_len); off += z_len;
-	concat_put_data(buf, &off, (const unsigned char *)algid, algid_len);
-	concat_put_data(buf, &off, apu, apu_len);
-	concat_put_data(buf, &off, apv, apv_len);
-	memcpy(buf + off, supppub, 4); off += 4;
-
-	if (psa_hash_compute(PSA_ALG_SHA_256, buf, off, hash, sizeof(hash),
-			     &hlen) == 0) {
-		memcpy(out, hash, keydatalen);
-		ret = 0;
-	}
-
-	jwt_scrub_and_free(buf, buf_len);
-
-	return ret;
-}
-
 /* Build an "epk" {kty:EC,crv,x,y} JWK from a PSA-exported NIST public point
  * (0x04 || X || Y, each @fieldlen bytes). */
 static jwt_json_t *epk_ec_to_json(const unsigned char *pub, size_t pub_len,
@@ -1073,9 +1011,10 @@ int mbedtls_ecdh_derive(jwe_key_alg_t alg, jwe_enc_t enc,
 	if (japv && jwt_json_is_string(japv))
 		apv = jwt_base64uri_decode(jwt_json_str_val(japv), &apv_len);
 
-	if (concat_kdf(zbuf, z_len, algid,
-		       apu, apu_len < 0 ? 0 : (size_t)apu_len,
-		       apv, apv_len < 0 ? 0 : (size_t)apv_len, keydatalen, out))
+	if (jwe_concat_kdf(&jwt_mbedtls_ops, zbuf, z_len, algid,
+			   apu, apu_len < 0 ? 0 : (size_t)apu_len,
+			   apv, apv_len < 0 ? 0 : (size_t)apv_len,
+			   keydatalen, out))
 		goto out; // LCOV_EXCL_LINE
 
 	*dk = out;

@@ -127,7 +127,13 @@ typedef enum {
 	JWE_ALG_A256KW,		/**< AES Key Wrap with 256-bit key */
 	JWE_ALG_RSA_OAEP,	/**< RSAES-OAEP using default (SHA-1) parameters */
 	JWE_ALG_RSA_OAEP_256,	/**< RSAES-OAEP using SHA-256 and MGF1 with SHA-256 */
-	JWE_ALG_ECDH_ES,	/**< ECDH-ES using Concat KDF (Direct Key Agreement) */
+	JWE_ALG_ECDH_ES,	/**< ECDH-ES using Concat KDF (Direct Key Agreement).
+				 *   The agreed key is the CEK, derived at the
+				 *   length the "enc" requires, so every
+				 *   @ref jwe_enc_t works, including the 48- and
+				 *   64-octet CEKs of A192CBC-HS384 and
+				 *   A256CBC-HS512 (before 3.8.0 these were
+				 *   rejected). */
 	JWE_ALG_ECDH_ES_A128KW,	/**< ECDH-ES using Concat KDF and CEK wrapped with A128KW */
 	JWE_ALG_ECDH_ES_A192KW,	/**< ECDH-ES using Concat KDF and CEK wrapped with A192KW */
 	JWE_ALG_ECDH_ES_A256KW,	/**< ECDH-ES using Concat KDF and CEK wrapped with A256KW */

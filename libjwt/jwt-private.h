@@ -933,6 +933,16 @@ int jwe_ecdh_derive(jwe_key_alg_t alg, jwe_enc_t enc, const jwk_item_t *key,
 		    int for_encrypt, jwt_json_t *hdr,
 		    unsigned char **dk, size_t *dk_len);
 
+/* @rfc{7518,4.6.2} NIST SP 800-56A Concat KDF (SHA-256, any @keydatalen) over
+ * the ECDH shared secret @z, using @ops's SHA-256. Shared by every backend's
+ * ecdh_derive. Fills @out with @keydatalen octets; returns 0 on success. */
+JWT_NO_EXPORT
+int jwe_concat_kdf(const struct jwt_crypto_ops *ops,
+		   const unsigned char *z, size_t z_len, const char *algid,
+		   const unsigned char *apu, size_t apu_len,
+		   const unsigned char *apv, size_t apv_len,
+		   size_t keydatalen, unsigned char *out);
+
 /* AES Key Wrap / Unwrap with a raw KEK (ECDH-ES+A*KW agreed key). */
 JWT_NO_EXPORT
 int jwe_aeskw_wrap_raw(const unsigned char *kek, size_t kek_len,

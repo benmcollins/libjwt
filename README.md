@@ -241,7 +241,9 @@ JWE content encryption ``enc`` | OpenSSL            | GnuTLS             | MbedT
 > [!NOTE]
 > ``ECDH-ES`` supports both Direct Key Agreement and the ``+A*KW`` key
 > wrapping modes, on the EC curves P-256/384/521 and the OKP curves
-> X25519/X448, with optional ``apu``/``apv`` PartyInfo. ``RSA1_5`` and
+> X25519/X448, with optional ``apu``/``apv`` PartyInfo. Direct Key
+> Agreement works with every ``enc``, including ``A192CBC-HS384`` and
+> ``A256CBC-HS512``. ``RSA1_5`` and
 > ``zip`` (compression) are intentionally not supported. Each backend
 > implements JWE natively. GnuTLS/Nettle cannot perform RSA-OAEP with SHA-1,
 > so the GnuTLS backend does not support plain ``RSA-OAEP`` (``RSA-OAEP-256``
