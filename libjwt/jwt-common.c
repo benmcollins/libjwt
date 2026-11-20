@@ -96,6 +96,10 @@ jwt_common_t *FUNC(new)(void)
 	/* @rfc{7797} base64url payloads by default (b64=true). */
 	__cmd->c.b64 = 1;
 
+#ifdef JWT_CHECKER
+	__cmd->c.max_size = JWT_CHECKER_MAX_SIZE_DEFAULT;
+#endif
+
 	__cmd->c.payload = jwt_json_create();
 	__cmd->c.headers = jwt_json_create();
 	__cmd->c.claims = CLAIMS_DEF;
@@ -689,22 +693,23 @@ static int __verify(jwt_common_t *__cmd, const char *token)
 		}
 	}
 
-	if (token == NULL || !strlen(token)) {
+	if (token == NULL || *token == '\0') {
 		jwt_write_error(__cmd, "Must pass a token");
 		return 1;
 	}
 
-	/* The token is copied whole and sliced into header, payload and
-	 * signature, each measured with a length held in int (jwt_parse(),
-	 * jwt_base64uri_decode(), and the signing input on the keyring path). A
-	 * length of INT_MAX or more does not fit that int, so a token that
-	 * long cannot be handled correctly. No real token is anywhere near
-	 * that large, so reject it here, before any of that runs. */
-	if (strlen(token) >= INT_MAX) {
-		// LCOV_EXCL_START
+	/* Reject a token longer than the checker's limit (1 MiB unless
+	 * jwt_checker_setmaxsize() changed it) here, before it is copied,
+	 * decoded or parsed. strnlen() stops one byte past the limit, so an
+	 * oversized token is not even measured in full. The token is sliced
+	 * into header, payload and signature, each measured with a length
+	 * held in int (jwt_parse(), jwt_base64uri_decode(), and the
+	 * signing input on the keyring path), so a length of INT_MAX or more
+	 * is refused whatever the limit says; the setter keeps the limit
+	 * below that anyway. */
+	if (jwt_token_too_large(token, __cmd->c.max_size)) {
 		jwt_write_error(__cmd, "Token too large");
 		return 1;
-		// LCOV_EXCL_STOP
 	}
 
 	/* @rfc{7515,7.2} A token whose first non-whitespace byte is '{' is a
@@ -886,6 +891,22 @@ int jwt_checker_setkeyring(jwt_checker_t *checker, const jwk_set_t *keyring,
 	checker->c.keyring = keyring;
 	checker->c.policy = policy;
 	checker->c.key_required = 1;
+
+	return 0;
+}
+
+int jwt_checker_setmaxsize(jwt_checker_t *checker, size_t size)
+{
+	if (checker == NULL)
+		return 1;
+
+	/* Out of range: refuse it and keep the limit the checker had. */
+	if (size == 0 || size > JWT_CHECKER_MAX_SIZE_CEILING) {
+		jwt_write_error(checker, "Invalid maximum token size");
+		return 1;
+	}
+
+	checker->c.max_size = size;
 
 	return 0;
 }

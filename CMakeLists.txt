@@ -435,6 +435,8 @@ if (CHECK_FOUND)
 
 	# The token a checker accepted (jwt_checker_verified_jwt())
 	list (APPEND UNIT_TESTS jwt_verified)
+	# Checker maximum token size (jwt_checker_setmaxsize)
+	list (APPEND UNIT_TESTS jwt_maxsize)
 
 	# JWS JSON Serialization (multi-signature)
 	list (APPEND UNIT_TESTS jws_json)
