@@ -6,6 +6,8 @@
    file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include <stdio.h>
+#include <string.h>
+#include <errno.h>
 #include <unistd.h>
 
 static char *pipe_cmd;
@@ -16,6 +18,7 @@ static FILE *json_fp;
 #include <windows.h>
 #else
 #include <sys/wait.h>
+#include <signal.h>
 #endif
 
 /* The length of the well-formed UTF-8 sequence (RFC 3629) that starts the
@@ -139,7 +142,11 @@ static inline int write_json(const char *title, const char *str)
 	}
 
 	if (pipe_fp) {
-		if (fwrite(str, 1, strlen(str), pipe_fp) < strlen(str)) {
+		/* A reader that stops reading (a short write with EPIPE) does
+		 * not by itself fail the token, matching the POSIX path: the
+		 * command's exit status decides. Any other write error does. */
+		if (fwrite(str, 1, strlen(str), pipe_fp) < strlen(str) &&
+		    errno != EPIPE) {
 			perror("fwrite");
 			exit_code = EXIT_FAILURE;
 		}
@@ -160,13 +167,20 @@ static inline int write_json(const char *title, const char *str)
 
 		if (pipe(pipe_fd)) {
 			perror(pipe_cmd);
-			exit(EXIT_FAILURE);
+			return EXIT_FAILURE;	// LCOV_EXCL_LINE
 		}
 
 		argv[2] = pipe_cmd;
 		pid = fork();
 
-		if (pid == 0) {
+		if (pid == -1) {
+			/* No child was made: close both ends and fail this
+			 * token rather than write to a pipe no one reads. */
+			perror(pipe_cmd);		// LCOV_EXCL_LINE
+			close(pipe_fd[0]);		// LCOV_EXCL_LINE
+			close(pipe_fd[1]);		// LCOV_EXCL_LINE
+			return EXIT_FAILURE;		// LCOV_EXCL_LINE
+		} else if (pid == 0) {
 			close(pipe_fd[1]);
 
 			if (json_fp == stderr)
@@ -184,10 +198,43 @@ static inline int write_json(const char *title, const char *str)
 	}
 
 	if (myfd) {
-		if (write(myfd, str, strlen(str)) < 0) {
-			perror(pipe_cmd);
-			exit(EXIT_FAILURE);
+		struct sigaction act, old;
+		size_t len = strlen(str), off = 0;
+
+		/* Ignore SIGPIPE only while writing, and only here in the
+		 * parent (set after fork() so the command does not inherit a
+		 * SIG_IGN that would outlive its execvp()). A command that
+		 * stops reading then gives write() EPIPE instead of killing
+		 * the tool, and its exit status still decides the token, as it
+		 * already does for a payload that fits the pipe buffer. */
+		memset(&act, 0, sizeof(act));
+		act.sa_handler = SIG_IGN;
+		sigemptyset(&act.sa_mask);
+		sigaction(SIGPIPE, &act, &old);
+
+		while (off < len) {
+			ssize_t n = write(myfd, str + off, len - off);
+
+			if (n < 0) {
+				if (errno == EINTR)
+					continue;	// LCOV_EXCL_LINE
+				/* The reader going away (EPIPE) is not an error:
+				 * the command's exit status decides. Any other
+				 * write error fails the token, but cannot be
+				 * produced reliably from a test. */
+				// LCOV_EXCL_START
+				if (errno != EPIPE) {
+					perror(pipe_cmd);
+					exit_code = EXIT_FAILURE;
+				}
+				// LCOV_EXCL_STOP
+				break;
+			}
+
+			off += (size_t)n;
 		}
+
+		sigaction(SIGPIPE, &old, NULL);
 	}
 #endif
 	else {
@@ -204,10 +251,12 @@ static inline int write_json(const char *title, const char *str)
 		close(myfd);
 		/* Only a command that ran to its end and exited 0 passes. One
 		 * that a signal ended (a crash, say) has no exit status, and
-		 * WEXITSTATUS() reads 0 for it. */
+		 * WEXITSTATUS() reads 0 for it. A write error above has already
+		 * failed the token, so a command that still exits 0 does not
+		 * clear that failure. */
 		if (waitpid(pid, &status, 0) != pid || !WIFEXITED(status))
 			exit_code = EXIT_FAILURE;
-		else
+		else if (WEXITSTATUS(status))
 			exit_code = WEXITSTATUS(status);
 	}
 #endif

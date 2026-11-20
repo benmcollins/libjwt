@@ -54,6 +54,11 @@ Another would be to use an external program to validate the
 \f[I]PAYLOAD\f[R] contents.
 A non\-0 exit status from the program will cause verification to fail,
 and so will the program being ended by a signal.
+.PP
+The command need not read all of its input: if it stops reading,
+\f[B]jwt\-verify\f[R] is not ended (no matter how large the JSON is),
+and the program\(cqs exit status, or a signal that ends it, still
+decides whether the token passes.
 .SS Options
 .TP
 \f[B]\-h\f[R], \f[B]\-\-help\f[R]

@@ -46,6 +46,10 @@ would be to use an external program to validate the _PAYLOAD_ contents. A non-0
 exit status from the program will cause verification to fail, and so will the
 program being ended by a signal.
 
+The command need not read all of its input: if it stops reading, **jwt-verify**
+is not ended (no matter how large the JSON is), and the program's exit status,
+or a signal that ends it, still decides whether the token passes.
+
 ## Options
 
 **\-h**, **\-\-help**

@@ -830,22 +830,61 @@ FORGED_TOK="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiJ9.AAAA"
 
 # The --print command is a validator: a token passes only if the command runs
 # to its end and exits 0. One that a signal ends has no exit status, which
-# read as 0. Each command reads its input first, so that the tool never
-# writes to a pipe nobody reads.
+# read as 0. Since issue #371 the command need not read its input first: the
+# tool ignores SIGPIPE while writing, so a command that stops reading is not
+# killed off, and its exit status alone decides.
 @test "A --print command that fails or is killed fails the token" {
-	run ./tools/jwt-verify -v -p 'cat > /dev/null' -k ${HS256_KEY} \
-		${HS256_RES}
+	run ./tools/jwt-verify -v -p true -k ${HS256_KEY} ${HS256_RES}
 	[ "${status}" -eq 0 ]
-	run ./tools/jwt-verify -v -p 'cat > /dev/null; exit 3' \
-		-k ${HS256_KEY} ${HS256_RES}
+	run ./tools/jwt-verify -v -p 'exit 3' -k ${HS256_KEY} ${HS256_RES}
 	[ "${status}" -eq 1 ]
-	run ./tools/jwt-verify -v -p 'cat > /dev/null; kill -9 $$' \
-		-k ${HS256_KEY} ${HS256_RES}
+	run ./tools/jwt-verify -v -p 'kill -9 $$' -k ${HS256_KEY} ${HS256_RES}
 	[ "${status}" -eq 1 ]
 	[ "$(echo "${output}" | grep -c 'Verified')" -eq 0 ]
-	run ./tools/jwt-generate -v -p 'cat > /dev/null; kill -9 $$' \
-		-a HS256 -k ${HS256_KEY}
+	run ./tools/jwt-generate -v -p 'kill -9 $$' -a HS256 -k ${HS256_KEY}
 	[ "${status}" -ne 0 ]
+}
+
+# Issue #371: the JSON is written to the --print command through a pipe, once
+# for the header and once for the payload. A payload larger than the pipe
+# buffer blocks in write() until the command reads it, and a command that
+# stops reading first (true, false, head -c) once killed the tool with SIGPIPE
+# (exit 141) in mid-run: the tokens after the big one were never processed and
+# buffered output was lost. The tool now ignores SIGPIPE while writing, so a
+# stopped reader no longer ends it and the command's exit status decides at any
+# size, exactly as for a token that fits the buffer. The 70000-byte claim makes
+# the payload exceed the 64 KiB pipe buffer; a good token sits before and after
+# the big one to prove the run is not cut short.
+BIG_CLAIM="s:pad=$(printf '%070000d' 0)"
+
+@test "A --print command surviving a payload larger than the pipe buffer (#371)" {
+	big="$(./tools/jwt-generate -q -n -k ${HS256_KEY} -c "${BIG_CLAIM}")"
+	[ "$(printf '%s' "${big}" | wc -c)" -gt 65536 ]
+	# -p true reads nothing and exits 0: all three tokens pass, none lost.
+	run ./tools/jwt-verify -v -p true -k ${HS256_KEY} \
+		${HS256_RES} "${big}" ${HS256_RES}
+	[ "${status}" -eq 0 ]
+	[ "$(echo "${output}" | grep -c 'Verified')" -eq 3 ]
+	# -p false reads nothing and exits 1: every token fails, with a [BAD].
+	run ./tools/jwt-verify -v -p false -k ${HS256_KEY} \
+		${HS256_RES} "${big}" ${HS256_RES}
+	[ "${status}" -eq 1 ]
+	[ "$(echo "${output}" | grep -c '\[BAD\]')" -eq 3 ]
+	# The same through stdin, one token per line.
+	run bash -c "printf '%s\n' ${HS256_RES} '${big}' ${HS256_RES} | \
+		./tools/jwt-verify -v -p true -k ${HS256_KEY} -"
+	[ "${status}" -eq 0 ]
+	[ "$(echo "${output}" | grep -c 'Verified')" -eq 3 ]
+	run bash -c "printf '%s\n' ${HS256_RES} '${big}' ${HS256_RES} | \
+		./tools/jwt-verify -v -p false -k ${HS256_KEY} -"
+	[ "${status}" -eq 1 ]
+	[ "$(echo "${output}" | grep -c '\[BAD\]')" -eq 3 ]
+	# jwt-generate shares write_json(): -p true passes, -p false fails.
+	run ./tools/jwt-generate -v -p true -n -k ${HS256_KEY} -c "${BIG_CLAIM}"
+	[ "${status}" -eq 0 ]
+	run ./tools/jwt-generate -v -p false -n -k ${HS256_KEY} -c "${BIG_CLAIM}"
+	[ "${status}" -eq 1 ]
+	refute_sanitizer
 }
 
 # GHSA-g7xw-4cjw-2247: --print runs its validator only with --verbose. Without
