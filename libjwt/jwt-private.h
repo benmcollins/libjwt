@@ -643,6 +643,10 @@ JWT_NO_EXPORT
 int jwt_base64uri_encode(char **_dst, const char *plain, int plain_len);
 JWT_NO_EXPORT
 void *jwt_base64uri_decode(const char *src, int *ret_len);
+/* As jwt_base64uri_decode(), for the @len bytes at @src, which need not be
+ * NUL-terminated (e.g. one part of a Compact token, decoded in place). */
+JWT_NO_EXPORT
+void *jwt_base64uri_decode_n(const char *src, int len, int *ret_len);
 
 /* Standard (non-URL) base64, used for the @rfc{7517,4.7} "x5c" certificate
  * chain. @out must hold at least 4*((inlen+2)/3) (encode) or 3*(inlen/4)
@@ -657,6 +661,20 @@ unsigned int base64_decode(const char *in, unsigned int inlen,
 JWT_NO_EXPORT
 jwt_t *jwt_verify_sig(jwt_t *jwt, const char *head, unsigned int head_len,
                    const char *sig);
+
+/* A signature decoded from base64url for jwt_verify_sig_raw(), so that the
+ * keys tried against one signature (a keyring scan) decode it only once.
+ * Start it as { NULL, 0 } and jwt_freemem() @buf when done. */
+struct jwt_sig_raw {
+	char *buf;	/* the decoded signature, once decoded		*/
+	int len;	/* its length: 0 until decoded, -1 if that failed	*/
+};
+
+/* jwt_verify_sig(), decoding a non-HMAC signature into @raw on first use and
+ * reusing it from there on. */
+JWT_NO_EXPORT
+jwt_t *jwt_verify_sig_raw(jwt_t *jwt, const char *head, unsigned int head_len,
+			  const char *sig_b64, struct jwt_sig_raw *raw);
 JWT_NO_EXPORT
 int jwt_sign(jwt_t *jwt, char **out, unsigned int *len, const char *str,
 	     unsigned int str_len);
@@ -717,6 +735,12 @@ int jwt_apply_b64_header(jwt_t *jwt);
  * key/keyring and policy. Returns 0 if the policy is satisfied. */
 JWT_NO_EXPORT
 int jwt_verify_json(jwt_checker_t *checker, const char *token);
+
+/* Checker: verify Compact @token against the checker's keyring, as the
+ * equivalent one-signature Flattened JSON token but without building or
+ * parsing that JSON. Returns 0 if the policy is satisfied. */
+JWT_NO_EXPORT
+int jwt_verify_compact_ring(jwt_checker_t *checker, const char *token);
 
 /* @rfc{7515,4.1.3} Build + confirm a verification key from the protected
  * header's "jwk" (embedded-JWK verify). Returns an owned jwk_set_t (caller

@@ -1151,17 +1151,18 @@ typedef enum {
  * the confirmed header key rather than the keyring, while a JWS JSON
  * Serialization is verified against the keyring.
  *
- * @note With the Jansson JSON backend, a Compact token whose unencoded
- * (@rfc{7797}) payload is not valid UTF-8 cannot be verified against a
- * keyring; use jwt_checker_setkey() for it.
+ * A Compact token is checked against a keyring directly, over its own bytes:
+ * it is split and decoded once, as on the single-key path, and costs about as
+ * much. Each further candidate key adds only its own signature check. A JWS
+ * JSON Serialization is parsed as JSON first.
  *
- * @note A Compact token is verified against a keyring by converting it to the
- * JSON Serialization and parsing that again, before anything in it is
- * checked. A hostile token, e.g. one full of control characters, then costs
- * about 15 bytes of memory per byte of token, where the single-key path needs
- * about one, and some 50 to 100 times its CPU time: a 64 MB token took about
- * 1 GB and several seconds. Limit the size of the tokens you accept before
- * verifying them.
+ * @note Before 3.8.0 a Compact token was verified against a keyring by
+ * converting it to the JSON Serialization and parsing that again: a hostile
+ * token, e.g. one full of control characters, could cost about 15 bytes of
+ * memory per byte of token and some 50 to 100 times the CPU time of the
+ * single-key path, and with the Jansson JSON backend a token whose unencoded
+ * (@rfc{7797}) payload was not valid UTF-8 failed with "Token is not valid
+ * UTF-8".
  *
  * @note Before 3.6.2 a Compact token was not checked against the keyring at
  * all: a checker given only a keyring rejected every signed Compact token
@@ -1631,10 +1632,9 @@ const jwk_item_t *jwt_checker_sig_key(const jwt_checker_t *checker,
  * (jwt_builder_generate() will not sign one either): such a payload is
  * rejected, never verified only up to the NUL. In the JWS JSON Serialization
  * it must also be a valid JSON string, which with the Jansson JSON backend
- * means valid UTF-8. With Jansson, that holds for a Compact token checked
- * against a keyring too, since it is verified as one (see
- * jwt_checker_setkeyring()): one whose payload is not valid UTF-8 fails with
- * "Token is not valid UTF-8", so verify it with jwt_checker_setkey() instead.
+ * means valid UTF-8. A Compact token takes any other bytes, whether checked
+ * with a single key or against a keyring (before 3.8.0, with Jansson, a
+ * keyring refused a payload that was not valid UTF-8).
  *
  * jwt_checker_verify() reads a base64url payload as a JWT claim set, though,
  * so it must be a JSON object (see jwt_builder_setpayload()): a binary
