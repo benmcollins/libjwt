@@ -72,6 +72,9 @@ void FUNC(free)(jwt_common_t *__cmd)
 	if (__cmd->c.embedded_owned != NULL)
 		jwks_free(__cmd->c.embedded_owned);
 
+	/* The checker's last accepted token (jwt_checker_verified_jwt()). */
+	jwt_free(__cmd->c.verified);
+
 	memset(__cmd, 0, sizeof(*__cmd));
 
 	jwt_freemem(__cmd);
@@ -654,6 +657,10 @@ static int __verify(jwt_common_t *__cmd, const char *token)
 		__cmd->c.n_signatures = 0;
 		__cmd->c.last_sig_count = 0;
 
+		/* The last accepted token goes before anything else runs, so
+		 * neither a failure here nor a callback sees it. */
+		jwt_freep(&__cmd->c.verified);
+
 		/* @rfc{7515,4.1.3} Drop a confirmed embedded key from a prior
 		 * verify before it can be borrowed by this one. */
 		if (__cmd->c.embedded_owned != NULL) {
@@ -804,6 +811,12 @@ static int __verify(jwt_common_t *__cmd, const char *token)
 			s->alg = jwt->alg;
 		}
 		__cmd->c.last_sig_count = 1;
+
+		/* Accepted: the checker keeps the token, with its claims,
+		 * protected header and verified alg, for
+		 * jwt_checker_verified_jwt() until its next verify. */
+		__cmd->c.verified = jwt;
+		jwt = NULL;
 	}
 
 	return __cmd->error;
@@ -1085,6 +1098,38 @@ const jwk_item_t *jwt_checker_sig_key(const jwt_checker_t *checker,
 	const struct jwt_signature *s = checker_sig_at(checker, index);
 
 	return (s != NULL && s->verified) ? s->key : NULL;
+}
+
+/* Both getters read only c.verified, which every verify releases before it
+ * does anything else and sets only once it has accepted the token: so after a
+ * failed verify, and inside a callback, there is nothing to read. */
+jwt_t *jwt_checker_verified_jwt(jwt_checker_t *checker)
+{
+	return checker ? checker->c.verified : NULL;
+}
+
+jwt_value_error_t jwt_checker_sig_header_get(jwt_checker_t *checker,
+					     unsigned int index,
+					     jwt_value_t *value)
+{
+	const struct jwt_signature *s;
+
+	if (value == NULL)
+		return JWT_VALUE_ERR_INVALID;
+
+	if (checker == NULL || checker->c.verified == NULL)
+		return value->error = JWT_VALUE_ERR_INVALID;
+
+	s = checker_sig_at(checker, index);
+	if (s == NULL || !s->verified)
+		return value->error = JWT_VALUE_ERR_INVALID;
+
+	/* A General signature keeps its own protected header. A Compact or
+	 * Flattened token's lives in the accepted jwt_t (the single-key
+	 * Compact path never had one on the signature; the others hand it
+	 * over), and never its unprotected "header". */
+	return __getter(s->protected ? s->protected :
+			checker->c.verified->headers, value);
 }
 #endif
 

@@ -1338,10 +1338,11 @@ static void jwt_report_policy(jwt_checker_t *checker, int n_verified,
  * policy, the claim checks and jti. @input, when not NULL, is the one
  * signature's signing input, @input_len bytes: a Compact token's own bytes up
  * to its last '.'. Otherwise each signature's is built from its protected
- * header and the payload. */
+ * header and the payload. @general is set for a General JWS JSON
+ * Serialization, whose signatures each keep their own header. */
 static int verify_sigs(jwt_checker_t *checker, const char *payload_b64,
 		       int payload_len, int pb64, const char *input,
-		       unsigned int input_len)
+		       unsigned int input_len, int general)
 {
 	jwt_auto_t *jwt = NULL;
 	struct jwt_signature *s;
@@ -1438,7 +1439,38 @@ static int verify_sigs(jwt_checker_t *checker, const char *payload_b64,
 		jwt_write_error(checker, "%s", claims_error(jwt));
 	}
 
-	return checker->error;
+	if (checker->error)
+		return 1;
+
+	/* Accepted: the checker keeps the token for jwt_checker_verified_jwt()
+	 * until its next verify. A Compact or Flattened token has one
+	 * signature, whose protected header (never the unprotected "header")
+	 * and algorithm become the token's; its header moves rather than is
+	 * copied, and jwt_checker_sig_header_get() then reads it here. A
+	 * General token has no single header or algorithm: each signature's
+	 * stays with it. */
+	if (general) {
+		jwt->headers = jwt_json_create();
+		if (jwt->headers == NULL) {
+			// LCOV_EXCL_START
+			jwt_write_error(checker, "Error allocating memory");
+			return 1;
+			// LCOV_EXCL_STOP
+		}
+		jwt->alg = JWT_ALG_INVAL;
+		jwt->key = NULL;
+	} else {
+		s = list_first_entry(&checker->c.signatures,
+				     struct jwt_signature, node);
+		jwt->headers = s->protected;
+		s->protected = NULL;
+		jwt->alg = s->alg;
+		jwt->key = s->key;
+	}
+	checker->c.verified = jwt;
+	jwt = NULL;
+
+	return 0;
 }
 
 /* @rfc{7515,7.2.2} A keyring checker verifies a Compact token as the
@@ -1480,7 +1512,7 @@ int jwt_verify_compact_ring(jwt_checker_t *checker, const char *token)
 		return 1;
 
 	return verify_sigs(checker, first + 1, (int)(last - first - 1), pb64,
-			   token, (unsigned int)(last - token));
+			   token, (unsigned int)(last - token), 0);
 }
 
 int jwt_verify_json(jwt_checker_t *checker, const char *token)
@@ -1488,7 +1520,7 @@ int jwt_verify_json(jwt_checker_t *checker, const char *token)
 	jwt_json_auto_t *root = NULL;
 	jwt_json_t *payload_j, *sigs;
 	const char *payload_b64;
-	int pb64 = -1;
+	int pb64 = -1, general;
 
 	/* Reset for a reused checker. */
 	checker->error = 0;
@@ -1513,7 +1545,8 @@ int jwt_verify_json(jwt_checker_t *checker, const char *token)
 	 * single signature's members to the top level. They are exclusive,
 	 * even when one is JSON null (see jwt_json_obj_has()). */
 	sigs = jwt_json_obj_get(root, "signatures");
-	if (jwt_json_obj_has(root, "signatures")) {
+	general = jwt_json_obj_has(root, "signatures");
+	if (general) {
 		size_t i, cnt;
 
 		if (jwt_json_obj_has(root, "protected") ||
@@ -1544,7 +1577,7 @@ int jwt_verify_json(jwt_checker_t *checker, const char *token)
 	}
 
 	return verify_sigs(checker, payload_b64, (int)strlen(payload_b64),
-			   pb64, NULL, 0);
+			   pb64, NULL, 0, general);
 }
 
 /* Read the "b64" flag from a base64url-encoded protected header. Default 1. */
@@ -1627,6 +1660,8 @@ int jwt_checker_verify_detached(jwt_checker_t *checker, const char *token,
 	 * signatures after an early failure here (e.g. a NUL rejected below). */
 	jwt_checker_error_clear(checker);
 	checker->c.last_sig_count = 0;
+	/* Nor may the last accepted token (jwt_checker_verified_jwt()). */
+	jwt_freep(&checker->c.verified);
 
 	if (token == NULL || !strlen(token)) {
 		jwt_write_error(checker, "Must pass a token");
