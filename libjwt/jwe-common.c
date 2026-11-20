@@ -1319,10 +1319,12 @@ static int FUNC(check_crit)(jwe_common_t *__cmd, jwt_json_t *hdr)
 	jwt_json_t *crit, *ent;
 	size_t n;
 
-	crit = jwt_json_obj_get(hdr, "crit");
-	if (crit == NULL)
+	/* A JSON null "crit" is present, and not an array (json-c's
+	 * jwt_json_obj_get() gives NULL for it, as for none). */
+	if (!jwt_json_obj_has(hdr, "crit"))
 		return 0;
 
+	crit = jwt_json_obj_get(hdr, "crit");
 	if (!jwt_json_is_array(crit)) {
 		jwt_write_error(__cmd, "JWE \"crit\" header must be an array");
 		return 1;
@@ -1411,7 +1413,8 @@ static unsigned char *FUNC(decrypt_compact)(jwe_common_t *__cmd,
 		return NULL;
 	}
 
-	if (jwt_json_obj_get(hdr, "zip") != NULL) {
+	/* Even a JSON null "zip" (see jwt_json_obj_has()). */
+	if (jwt_json_obj_has(hdr, "zip")) {
 		jwt_write_error(__cmd, "JWE \"zip\" is not supported");
 		return NULL;
 	}
@@ -1468,13 +1471,15 @@ unsigned char *FUNC(decrypt)(jwe_common_t *__cmd, const char *token,
 }
 
 /* Get a required string member of @obj. Returns its value or NULL (setting an
- * error) if absent or not a string. Type-checked so json-c does not abort. */
+ * error) if absent or not a string. Type-checked so json-c does not abort. A
+ * member whose value is JSON null is present and not a string, though json-c's
+ * jwt_json_obj_get() gives NULL for it. */
 static const char *FUNC(json_str_member)(jwe_common_t *__cmd, jwt_json_t *obj,
 					 const char *name, int required)
 {
 	jwt_json_t *m = jwt_json_obj_get(obj, name);
 
-	if (m == NULL) {
+	if (!jwt_json_obj_has(obj, name)) {
 		if (required)
 			jwt_write_error(__cmd, "JWE JSON missing \"%s\"", name);
 		return NULL;
@@ -1487,33 +1492,24 @@ static const char *FUNC(json_str_member)(jwe_common_t *__cmd, jwt_json_t *obj,
 	return jwt_json_str_val(m);
 }
 
-/* Context for the disjointness check: merge each visited key into @dst and flag
- * @dup if a key is already present (it then appeared in more than one header). */
-struct jwe_merge_ctx {
-	jwt_json_t *dst;
-	int dup;
-	int err;
-};
-
-static int FUNC(merge_disjoint_cb)(const char *key, jwt_json_t *value, void *p)
+/* Add the members of the header @hdr (an object, or NULL for none) to @dst,
+ * the union of the headers added so far. Returns 0, or 1 with *@dup set if one
+ * of them is already in @dst (a parameter in more than one header), or 1 on an
+ * allocation failure. A member whose value is JSON null counts and is copied:
+ * jwt_header_params_overlap() and jwt_json_obj_merge() see it with json-c too,
+ * where jwt_json_obj_get() and jwt_json_clone() of its value give NULL. */
+static int FUNC(add_disjoint)(jwt_json_t *dst, jwt_json_t *hdr, int *dup)
 {
-	struct jwe_merge_ctx *ctx = p;
+	if (hdr == NULL)
+		return 0;
 
-	if (jwt_json_obj_get(ctx->dst, key) != NULL) {
-		ctx->dup = 1;
-		return 1;	/* stop: a parameter occurred in two headers */
+	if (jwt_header_params_overlap(dst, hdr)) {
+		*dup = 1;
+		return 1;
 	}
 
-	{
-		jwt_json_t *cl = jwt_json_clone(value);
-
-		if (cl == NULL || jwt_json_obj_set(ctx->dst, key, cl)) {
-			ctx->err = 1; // LCOV_EXCL_LINE
-			return 1; // LCOV_EXCL_LINE
-		}
-	}
-
-	return 0;
+	/* @hdr is an object, so only an allocation failure is left. */
+	return jwt_json_obj_merge(dst, hdr) ? 1 : 0;
 }
 
 /* @rfc{7516,7.2.1} Build the effective JOSE header as the union of @prot, the
@@ -1524,34 +1520,21 @@ static int FUNC(merge_disjoint_cb)(const char *key, jwt_json_t *value, void *p)
 static jwt_json_t *FUNC(effective_header)(jwt_json_t *prot, jwt_json_t *unprot,
 					  jwt_json_t *rhdr, int *dup)
 {
-	struct jwe_merge_ctx ctx;
+	jwt_json_t *dst;
 
 	*dup = 0;
 
-	ctx.dst = jwt_json_clone(prot);
-	if (ctx.dst == NULL)
+	dst = jwt_json_clone(prot);
+	if (dst == NULL)
 		return NULL; // LCOV_EXCL_LINE
-	ctx.dup = 0;
-	ctx.err = 0;
 
-	if (unprot != NULL)
-		jwt_json_obj_foreach(unprot, FUNC(merge_disjoint_cb), &ctx);
-	if (!ctx.dup && !ctx.err && rhdr != NULL)
-		jwt_json_obj_foreach(rhdr, FUNC(merge_disjoint_cb), &ctx);
-
-	if (ctx.err) {
-		// LCOV_EXCL_START
-		jwt_json_release(ctx.dst);
-		return NULL;
-		// LCOV_EXCL_STOP
-	}
-	if (ctx.dup) {
-		jwt_json_release(ctx.dst);
-		*dup = 1;
+	if (FUNC(add_disjoint)(dst, unprot, dup) ||
+	    FUNC(add_disjoint)(dst, rhdr, dup)) {
+		jwt_json_release(dst);
 		return NULL;
 	}
 
-	return ctx.dst;
+	return dst;
 }
 
 /* @rfc{7516,7.2} Decrypt a JSON Serialization (Flattened or General). The
@@ -1603,7 +1586,7 @@ static unsigned char *FUNC(decrypt_json)(jwe_common_t *__cmd,
 		jwt_write_error(__cmd, "Not a JWE: missing enc header");
 		return NULL;
 	}
-	if (jwt_json_obj_get(prot, "zip") != NULL) {
+	if (jwt_json_obj_has(prot, "zip")) {
 		jwt_write_error(__cmd, "JWE \"zip\" is not supported");
 		return NULL;
 	}
@@ -1619,9 +1602,12 @@ static unsigned char *FUNC(decrypt_json)(jwe_common_t *__cmd,
 	}
 
 	/* @rfc{7516,7.2.1} The shared unprotected header (if any) must be an
-	 * object. */
+	 * object. Here and below, a member whose value is JSON null is present
+	 * (and of the wrong type), though json-c's jwt_json_obj_get() gives NULL
+	 * for it, as for a missing one: ask jwt_json_obj_has(). */
 	unprot = jwt_json_obj_get(obj, "unprotected");
-	if (unprot != NULL && !jwt_json_is_object(unprot)) {
+	if (jwt_json_obj_has(obj, "unprotected") &&
+	    !jwt_json_is_object(unprot)) {
 		jwt_write_error(__cmd, "JWE JSON \"unprotected\" is not an object");
 		return NULL;
 	}
@@ -1630,9 +1616,9 @@ static unsigned char *FUNC(decrypt_json)(jwe_common_t *__cmd,
 	 * hoists "header"/"encrypted_key" to the top level; the two forms are
 	 * mutually exclusive. */
 	recips = jwt_json_obj_get(obj, "recipients");
-	if (recips != NULL) {
-		if (jwt_json_obj_get(obj, "header") != NULL ||
-		    jwt_json_obj_get(obj, "encrypted_key") != NULL) {
+	if (jwt_json_obj_has(obj, "recipients")) {
+		if (jwt_json_obj_has(obj, "header") ||
+		    jwt_json_obj_has(obj, "encrypted_key")) {
 			jwt_write_error(__cmd,
 				"JWE JSON has both General and Flattened members");
 			return NULL;
@@ -1667,7 +1653,8 @@ static unsigned char *FUNC(decrypt_json)(jwe_common_t *__cmd,
 		}
 
 		rhdr = jwt_json_obj_get(rcp, "header");
-		if (rhdr != NULL && !jwt_json_is_object(rhdr)) {
+		if (jwt_json_obj_has(rcp, "header") &&
+		    !jwt_json_is_object(rhdr)) {
 			jwt_write_error(__cmd,
 				"JWE JSON recipient \"header\" is not an object");
 			return NULL;
@@ -1708,7 +1695,7 @@ static unsigned char *FUNC(decrypt_json)(jwe_common_t *__cmd,
 	 * via get_aad AFTER the content authenticates (an unauthenticated aad
 	 * must not be returned). */
 	aad_b64 = FUNC(json_str_member)(__cmd, obj, "aad", 0);
-	if (aad_b64 == NULL && jwt_json_obj_get(obj, "aad"))
+	if (aad_b64 == NULL && jwt_json_obj_has(obj, "aad"))
 		return NULL;
 	if (aad_b64 != NULL) {
 		int raw_len = 0;
@@ -1736,7 +1723,7 @@ static unsigned char *FUNC(decrypt_json)(jwe_common_t *__cmd,
 	/* The selected recipient's Encrypted Key (absent for dir / ECDH Direct);
 	 * a present-but-non-string encrypted_key is a structural error. */
 	ek_b64 = FUNC(json_str_member)(__cmd, sel_rcp, "encrypted_key", 0);
-	if (ek_b64 == NULL && jwt_json_obj_get(sel_rcp, "encrypted_key")) {
+	if (ek_b64 == NULL && jwt_json_obj_has(sel_rcp, "encrypted_key")) {
 		jwt_scrub_and_free(aad_raw, aad_raw_len);
 		return NULL;
 	}

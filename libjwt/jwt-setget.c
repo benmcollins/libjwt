@@ -13,6 +13,21 @@
 
 #include "jwt-private.h"
 
+/* Look up member @name of @which into *@val. A member whose value is JSON null
+ * is present, with a value of no type a getter asks for: json-c gives NULL
+ * for it (Jansson a null), so ask jwt_json_obj_has() before calling a NULL
+ * value missing, or json-c would report JWT_VALUE_ERR_NOEXIST where Jansson
+ * reports JWT_VALUE_ERR_TYPE. */
+static jwt_value_error_t get_member(jwt_json_t *which, const char *name,
+				    jwt_json_t **val)
+{
+	*val = jwt_json_obj_get(which, name);
+	if (*val == NULL && !jwt_json_obj_has(which, name))
+		return JWT_VALUE_ERR_NOEXIST;
+
+	return JWT_VALUE_ERR_NONE;
+}
+
 static jwt_value_error_t jwt_get_str(jwt_json_t *which, jwt_value_t *jval)
 {
 	jwt_json_t *val;
@@ -20,8 +35,7 @@ static jwt_value_error_t jwt_get_str(jwt_json_t *which, jwt_value_t *jval)
 	if (!jval->name || !strlen(jval->name))
 		return jval->error = JWT_VALUE_ERR_INVALID;
 
-	val = jwt_json_obj_get(which, jval->name);
-	if (val == NULL)
+	if (get_member(which, jval->name, &val))
 		return jval->error = JWT_VALUE_ERR_NOEXIST;
 	else if (!jwt_json_is_string(val))
 		return jval->error = JWT_VALUE_ERR_TYPE;
@@ -40,8 +54,7 @@ static jwt_value_error_t jwt_get_int(jwt_json_t *which, jwt_value_t *jval)
 	if (!jval->name || !strlen(jval->name))
 		return jval->error = JWT_VALUE_ERR_INVALID;
 
-	val = jwt_json_obj_get(which, jval->name);
-	if (val == NULL)
+	if (get_member(which, jval->name, &val))
 		return jval->error = JWT_VALUE_ERR_NOEXIST;
 	else if (!jwt_json_is_int(val))
 		return jval->error = JWT_VALUE_ERR_TYPE;
@@ -58,8 +71,7 @@ static jwt_value_error_t jwt_get_bool(jwt_json_t *which, jwt_value_t *jval)
 	if (!jval->name || !strlen(jval->name))
 		return jval->error = JWT_VALUE_ERR_INVALID;
 
-	val = jwt_json_obj_get(which, jval->name);
-	if (val == NULL)
+	if (get_member(which, jval->name, &val))
 		return jval->error = JWT_VALUE_ERR_NOEXIST;
 	else if (!jwt_json_is_bool(val))
 		return jval->error = JWT_VALUE_ERR_TYPE;
@@ -79,14 +91,21 @@ static jwt_value_error_t jwt_get_json(jwt_json_t *which, jwt_value_t *jval)
 	else
 		flags |= JWT_JSON_COMPACT;
 
-	if (jval->name && strlen(jval->name))
-		json_val = jwt_json_obj_get(which, jval->name);
-	else
+	if (jval->name && strlen(jval->name)) {
+		if (get_member(which, jval->name, &json_val))
+			return jval->error = JWT_VALUE_ERR_NOEXIST;
+
+		/* JWT_VALUE_JSON is an object or an array. A scalar (a null
+		 * too) is the wrong type, the same with both JSON backends:
+		 * Jansson cannot serialize one on its own, json-c can. */
+		if (!jwt_json_is_object(json_val) &&
+		    !jwt_json_is_array(json_val))
+			return jval->error = JWT_VALUE_ERR_TYPE;
+	} else {
 		json_val = which;
+	}
 
-	if (json_val == NULL)
-		return jval->error = JWT_VALUE_ERR_NOEXIST;
-
+	/* Only an allocation failure is left. */
 	jval->json_val = jwt_json_serialize(json_val, flags);
 	if (jval->json_val == NULL)
 		jval->error = JWT_VALUE_ERR_INVALID; // LCOV_EXCL_LINE
@@ -96,7 +115,8 @@ static jwt_value_error_t jwt_get_json(jwt_json_t *which, jwt_value_t *jval)
 
 static jwt_value_error_t jwt_obj_check(jwt_json_t *which, jwt_value_t *jval)
 {
-	if (jwt_json_obj_get(which, jval->name)) {
+	/* Even a member whose value is JSON null exists (see get_member()). */
+	if (jwt_json_obj_has(which, jval->name)) {
 		if (jval->replace)
 			jwt_json_obj_del(which, jval->name);
 		else

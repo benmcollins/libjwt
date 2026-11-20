@@ -2420,6 +2420,179 @@ START_TEST(test_json_null_member)
 }
 END_TEST
 
+/* HS256 (oct_key_256.json) Compact tokens with {"alg":"HS256"} over a payload
+ * that has a claim whose value is JSON null. */
+#define HS256_HDR	"eyJhbGciOiJIUzI1NiJ9."
+/* {"sub":"a","exp":null} */
+#define TOK_EXP_NULL	HS256_HDR "eyJzdWIiOiJhIiwiZXhwIjpudWxsfQ."	\
+	"C-lBSJx4zaWh8cm35Vy194ndTxv7lEg958zUNGgmu5k"
+/* {"sub":"a","nbf":null} */
+#define TOK_NBF_NULL	HS256_HDR "eyJzdWIiOiJhIiwibmJmIjpudWxsfQ."	\
+	"I8e-6GkXRk2MmSt0ffgQRGAEZLKkoDOkktrtcG2Ggl8"
+/* {"sub":"a","foo":null} */
+#define TOK_FOO_NULL	HS256_HDR "eyJzdWIiOiJhIiwiZm9vIjpudWxsfQ."	\
+	"dAIiNnmA8rNJpv5ibD01w57sl49xU2P27LZsDTNhkNE"
+
+/* {"alg":"HS256","x":null} */
+static const struct signed_hdr hdr_x_null = {
+	"eyJhbGciOiJIUzI1NiIsIngiOm51bGx9",
+	"KtDgzqtQYCkE_skWjhoFghGYH0CbWSLfGo1Un_z1h6U",
+};
+
+/* A JSON null "exp" or "nbf" is present, with a value that is not a number:
+ * the validate-if-present check fails it. json-c used to read it as absent and
+ * accept the token. */
+START_TEST(test_json_null_exp_nbf)
+{
+	const char *claims = "Failed one or more claims";
+	int keyring;
+
+	SET_OPS();
+
+	read_json("oct_key_256.json");
+
+	for (keyring = 0; keyring < 2; keyring++) {
+		ck_assert_str_eq(hdr_verify(TOK_EXP_NULL, keyring, NULL),
+				 claims);
+		ck_assert_str_eq(hdr_verify(TOK_NBF_NULL, keyring, NULL),
+				 claims);
+		/* Another null claim is no reason to fail. */
+		ck_assert_ptr_null(hdr_verify(TOK_FOO_NULL, keyring, NULL));
+	}
+
+	free_key();
+}
+END_TEST
+
+/* jwt_checker_require() asks for presence only: a claim whose value is JSON
+ * null is present. json-c used to call it missing. */
+START_TEST(test_json_null_require)
+{
+	const char *foo[] = { "foo" };
+	const char *bar[] = { "bar" };
+
+	SET_OPS();
+
+	read_json("oct_key_256.json");
+
+	{
+		jwt_checker_auto_t *c = jwt_checker_new();
+
+		ck_assert_ptr_nonnull(c);
+		ck_assert_int_eq(jwt_checker_setkey(c, JWT_ALG_HS256, g_item), 0);
+		ck_assert_int_eq(jwt_checker_require(c, foo, 1), 0);
+		ck_assert_int_eq(jwt_checker_verify(c, TOK_FOO_NULL), 0);
+	}
+
+	{
+		jwt_checker_auto_t *c = jwt_checker_new();
+
+		ck_assert_ptr_nonnull(c);
+		ck_assert_int_eq(jwt_checker_setkey(c, JWT_ALG_HS256, g_item), 0);
+		ck_assert_int_eq(jwt_checker_require(c, bar, 1), 0);
+		ck_assert_int_ne(jwt_checker_verify(c, TOK_FOO_NULL), 0);
+		ck_assert_str_eq(jwt_checker_error_msg(c),
+				 "Required claim \"bar\" is missing");
+	}
+
+	free_key();
+}
+END_TEST
+
+/* What jwt_claim_get() and jwt_header_get() return, from a verify callback. */
+struct null_gets {
+	jwt_value_error_t str, num, bool_, json, scalar, none, hdr_str,
+		hdr_json;
+};
+
+static int null_gets_cb(jwt_t *jwt, jwt_config_t *config)
+{
+	struct null_gets *g = config->ctx;
+	jwt_value_t v;
+
+	jwt_set_GET_STR(&v, "foo");
+	g->str = jwt_claim_get(jwt, &v);
+	jwt_set_GET_INT(&v, "foo");
+	g->num = jwt_claim_get(jwt, &v);
+	jwt_set_GET_BOOL(&v, "foo");
+	g->bool_ = jwt_claim_get(jwt, &v);
+	jwt_set_GET_JSON(&v, "foo");
+	g->json = jwt_claim_get(jwt, &v);
+	ck_assert_ptr_null(v.json_val);
+	jwt_set_GET_JSON(&v, "sub");
+	g->scalar = jwt_claim_get(jwt, &v);
+	ck_assert_ptr_null(v.json_val);
+	jwt_set_GET_STR(&v, "nope");
+	g->none = jwt_claim_get(jwt, &v);
+	jwt_set_GET_STR(&v, "x");
+	g->hdr_str = jwt_header_get(jwt, &v);
+	jwt_set_GET_JSON(&v, "x");
+	g->hdr_json = jwt_header_get(jwt, &v);
+
+	return 0;
+}
+
+/* A claim or header whose value is JSON null is there, of no type a getter
+ * asks for: JWT_VALUE_ERR_TYPE, not JWT_VALUE_ERR_NOEXIST as json-c gave. A
+ * JWT_VALUE_JSON getter wants an object or an array, so a scalar member is
+ * the wrong type too (Jansson failed it with JWT_VALUE_ERR_INVALID, and
+ * json-c returned its JSON text). */
+START_TEST(test_json_null_getters)
+{
+	/* {"alg":"HS256","x":null} over {"sub":"a","foo":null} */
+	const char *tok = "eyJhbGciOiJIUzI1NiIsIngiOm51bGx9."
+		"eyJzdWIiOiJhIiwiZm9vIjpudWxsfQ."
+		"c4edB0utbTuGzM-5Gd7mOPF-jJ_peg7fHywheoEOc0M";
+	jwt_checker_auto_t *c = NULL;
+	struct null_gets g;
+
+	SET_OPS();
+
+	read_json("oct_key_256.json");
+
+	memset(&g, 0xff, sizeof(g));
+	c = jwt_checker_new();
+	ck_assert_ptr_nonnull(c);
+	ck_assert_int_eq(jwt_checker_setkey(c, JWT_ALG_HS256, g_item), 0);
+	ck_assert_int_eq(jwt_checker_setcb(c, null_gets_cb, &g), 0);
+	ck_assert_int_eq(jwt_checker_verify(c, tok), 0);
+
+	ck_assert_int_eq(g.str, JWT_VALUE_ERR_TYPE);
+	ck_assert_int_eq(g.num, JWT_VALUE_ERR_TYPE);
+	ck_assert_int_eq(g.bool_, JWT_VALUE_ERR_TYPE);
+	ck_assert_int_eq(g.json, JWT_VALUE_ERR_TYPE);
+	ck_assert_int_eq(g.scalar, JWT_VALUE_ERR_TYPE);
+	ck_assert_int_eq(g.none, JWT_VALUE_ERR_NOEXIST);
+	ck_assert_int_eq(g.hdr_str, JWT_VALUE_ERR_TYPE);
+	ck_assert_int_eq(g.hdr_json, JWT_VALUE_ERR_TYPE);
+
+	free_key();
+}
+END_TEST
+
+/* @rfc{7515,7.2.1} A protected parameter whose value is JSON null is in the
+ * protected header, so the same name in the unprotected one overlaps it. */
+START_TEST(test_json_null_overlap)
+{
+	const char *header = "JWS unprotected header is invalid or overlaps";
+	char_auto *ok = NULL, *flat = NULL, *general = NULL;
+
+	SET_OPS();
+
+	read_json("oct_key_256.json");
+
+	ok = hdr_flat(&hdr_x_null, ",\"header\":{\"y\":\"u\"}");
+	flat = hdr_flat(&hdr_x_null, ",\"header\":{\"x\":\"u\"}");
+	general = hdr_general(&hdr_x_null, ",\"header\":{\"x\":\"u\"}", "");
+
+	ck_assert_ptr_null(hdr_verify(ok, 0, NULL));
+	ck_assert_str_eq(hdr_verify(flat, 0, NULL), header);
+	ck_assert_str_eq(hdr_verify(general, 0, NULL), header);
+
+	free_key();
+}
+END_TEST
+
 /* @rfc{7517,4} A JWK key component ("n"/"e"/"d" of RSA, "d" of EC, "x"/"d" of
  * OKP) is a base64url-encoded string. Given a number or boolean instead, it
  * must never be read as key material. json-c's jwt_json_str_val() used to
@@ -2433,10 +2606,10 @@ END_TEST
  * The invariant that holds on every crypto backend is is_private == 0: a
  * non-string component is never read as a private key. When the corrupt member
  * is a *required public* one (RSA "n", OKP "x"), no key can load at all, so the
- * item is in error with no bits. When it is the optional private "d" beside a
- * valid public key, OpenSSL rejects the whole key while GnuTLS and MbedTLS
- * ignore the non-string "d" and load the public key — neither forges a private
- * key, which is the point. */
+ * item is in error with no bits. A private "d" that is not a string fails the
+ * key too, before any backend reads it (see test_jwks_priv_member_null in
+ * jwt_jwks_errors.c): GnuTLS and MbedTLS used to ignore it and load the public
+ * key. */
 START_TEST(test_jwks_member_type_confusion)
 {
 	static const struct {
@@ -2847,6 +3020,10 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_json_parity, test_jwks_file_trailing_data, 0, i);
 	tcase_add_loop_test(tc_json_parity, test_json_null_array_element, 0, i);
 	tcase_add_loop_test(tc_json_parity, test_json_null_member, 0, i);
+	tcase_add_loop_test(tc_json_parity, test_json_null_exp_nbf, 0, i);
+	tcase_add_loop_test(tc_json_parity, test_json_null_require, 0, i);
+	tcase_add_loop_test(tc_json_parity, test_json_null_getters, 0, i);
+	tcase_add_loop_test(tc_json_parity, test_json_null_overlap, 0, i);
 	tcase_add_loop_test(tc_json_parity, test_jwks_member_type_confusion, 0, i);
 	tcase_add_loop_test(tc_json_parity, test_json_control_char_in_token, 0, i);
 	tcase_add_loop_test(tc_json_parity, test_json_control_char_in_jwks, 0, i);

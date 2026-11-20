@@ -362,7 +362,7 @@ static jwt_claims_t __verify_claims(jwt_t *jwt)
 				failed |= JWT_CLAIM_EXP;
 			}
 		} else if (err != JWT_VALUE_ERR_NOEXIST)
-			failed |= JWT_CLAIM_EXP; // LCOV_EXCL_LINE
+			failed |= JWT_CLAIM_EXP;
 	}
 
 	/* not valid before now */
@@ -375,7 +375,7 @@ static jwt_claims_t __verify_claims(jwt_t *jwt)
 				failed |= JWT_CLAIM_NBF;
 			}
 		} else if (err != JWT_VALUE_ERR_NOEXIST)
-			failed |= JWT_CLAIM_NBF; // LCOV_EXCL_LINE
+			failed |= JWT_CLAIM_NBF;
 	}
 
 	/* issuer doesn't match */
@@ -423,7 +423,8 @@ static int __verify_required(jwt_t *jwt)
 		jwt_value_t jval;
 
 		/* Presence is all we assert: a wrong-type claim (a numeric "exp",
-		 * an array "aud") still returns a non-NOEXIST error, i.e. present. */
+		 * an array "aud", a JSON null) still returns a non-NOEXIST error,
+		 * i.e. present. */
 		jwt_set_GET_STR(&jval, name);
 		if (jwt_claim_get(jwt, &jval) == JWT_VALUE_ERR_NOEXIST) {
 			if (!jwt->b64) {
