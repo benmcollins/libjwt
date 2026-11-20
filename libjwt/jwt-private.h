@@ -18,6 +18,7 @@
 #include <stdarg.h>
 #include <stddef.h>
 #include <limits.h>
+#include <string.h>
 #ifdef HAVE_OPENSSL
 /* Only the OpenSSL backend needs this, and those files include it directly.
  * Kept here under HAVE_OPENSSL so OpenSSL builds are unchanged; non-OpenSSL
@@ -40,6 +41,21 @@
 	jwt_config_t __name = { NULL, JWT_ALG_NONE, NULL}
 
 #define JWT_ERR_LEN 256
+
+/* The longest token a checker verifies by default (1 MiB), and the most that
+ * jwt_checker_setmaxsize() allows: a token's length is held in an int on the
+ * parse paths, so it must stay below INT_MAX. */
+#define JWT_CHECKER_MAX_SIZE_DEFAULT	((size_t)1024 * 1024)
+#define JWT_CHECKER_MAX_SIZE_CEILING	((size_t)INT_MAX - 1)
+
+/* Whether @token is longer than @max bytes, or too long for an int length
+ * (the INT_MAX backstop). Reads at most @max + 1 bytes of @token. */
+static inline int jwt_token_too_large(const char *token, size_t max)
+{
+	size_t len = strnlen(token, max + 1);
+
+	return len > max || len >= INT_MAX;
+}
 
 JWT_NO_EXPORT
 extern struct jwt_crypto_ops *jwt_ops;
@@ -171,6 +187,12 @@ struct jwt_common {
 	 * of every verify, so it is NULL while one runs and after any failure,
 	 * and at checker free. Never set on a builder. */
 	jwt_t *verified;
+
+	/* checker: the longest token jwt_checker_verify() and
+	 * jwt_checker_verify_detached() accept, in bytes (see
+	 * jwt_checker_setmaxsize()). Always within 1 and
+	 * JWT_CHECKER_MAX_SIZE_CEILING. Unused by the builder. */
+	size_t max_size;
 };
 
 struct jwt_builder {

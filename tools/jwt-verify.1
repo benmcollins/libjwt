@@ -44,6 +44,10 @@ A line of 1048576 bytes (1 MiB) or more, not counting its newline, or
 one that has a NUL byte in it, is not verified, not even in part, and
 counts as one token that failed.
 .PP
+A token on the command line is held to the library\(cqs default maximum
+token size of 1048576 bytes (1 MiB): a longer one fails with \(lqToken
+too large\(rq and is not parsed.
+.PP
 When using the \f[B]\-\-verbose\f[R] option, \f[B]jwt\-verify\f[R] will
 print the JSON \f[I]HEADER\f[R] and \f[I]PAYLOAD\f[R] to
 \f[B]stdout\f[R].

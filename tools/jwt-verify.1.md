@@ -38,6 +38,10 @@ newline. An empty line is a token that fails. A line of 1048576 bytes (1 MiB)
 or more, not counting its newline, or one that has a NUL byte in it, is not
 verified, not even in part, and counts as one token that failed.
 
+A token on the command line is held to the library's default maximum token
+size of 1048576 bytes (1 MiB): a longer one fails with "Token too large" and
+is not parsed.
+
 When using the **\-\-verbose** option, **jwt-verify** will print the JSON
 _HEADER_ and _PAYLOAD_ to **stdout**.
 

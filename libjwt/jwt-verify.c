@@ -1663,7 +1663,7 @@ int jwt_checker_verify_detached(jwt_checker_t *checker, const char *token,
 	/* Nor may the last accepted token (jwt_checker_verified_jwt()). */
 	jwt_freep(&checker->c.verified);
 
-	if (token == NULL || !strlen(token)) {
+	if (token == NULL || *token == '\0') {
 		jwt_write_error(checker, "Must pass a token");
 		return 1;
 	}
@@ -1671,15 +1671,23 @@ int jwt_checker_verify_detached(jwt_checker_t *checker, const char *token,
 	 * jwt_checker_verify() does: this path base64-decodes the protected
 	 * header and (for a JSON token) parses the raw token before it hands
 	 * the rebuilt token to jwt_checker_verify(), all with lengths held in
-	 * int. No real token is anywhere near INT_MAX bytes. */
-	if (strlen(token) >= INT_MAX) {
-		// LCOV_EXCL_START
+	 * int. The checker's limit applies (see jwt_checker_setmaxsize()), as
+	 * does the INT_MAX backstop. */
+	if (jwt_token_too_large(token, checker->c.max_size)) {
 		jwt_write_error(checker, "Token too large");
 		return 1;
-		// LCOV_EXCL_STOP
 	}
 	if (payload == NULL && len > 0) {
 		jwt_write_error(checker, "Must pass a payload");
+		return 1;
+	}
+	/* The payload counts too: the token that is verified is this one with
+	 * the payload attached, which jwt_checker_verify() holds to the same
+	 * limit. Encoded or not, the attached payload is at least @len bytes,
+	 * so a payload that alone exceeds the limit is refused here, before
+	 * it is encoded and spliced in. */
+	if (len > checker->c.max_size) {
+		jwt_write_error(checker, "Token too large");
 		return 1;
 	}
 

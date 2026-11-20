@@ -1266,6 +1266,39 @@ int jwt_checker_require(jwt_checker_t *checker, const char **claims,
 			unsigned int count);
 
 /**
+ * @brief Set the maximum size of a token this checker verifies
+ *
+ * jwt_checker_verify() and jwt_checker_verify_detached() reject a token
+ * longer than this many bytes (not counting its terminating NUL) with the
+ * error "Token too large", before any of it is copied, decoded or parsed,
+ * and reading no more of it than the limit plus one byte. Every token is
+ * held to it: Compact and JWS JSON Serialization alike, leading whitespace
+ * included. For jwt_checker_verify_detached() it applies both to the
+ * detached token as given and to the token rebuilt with the payload
+ * attached, which is the one that is verified, so a large detached payload
+ * needs a higher limit too.
+ *
+ * A new checker allows 1048576 bytes (1 MiB), far more than any real token
+ * needs. Lower it to match the tokens a service expects, or raise it if it
+ * genuinely handles larger ones. The limit stays until it is set again or
+ * the checker is freed; a new checker starts at the default.
+ *
+ * @p size must be at least 1 and at most ``INT_MAX - 1``, the longest token
+ * the library can handle. Anything else is refused: this returns non-zero
+ * with the error set in the checker, and the limit is left as it was.
+ *
+ * @note Before 3.8.0 there was no limit short of ``INT_MAX``, so a token
+ * over 1 MiB that verified then is now rejected unless the limit is raised.
+ *
+ * @param checker Pointer to a checker object
+ * @param size The maximum token length in bytes
+ * @return 0 on success, non-zero otherwise with error set in the checker
+ * @since 3.8.0
+ */
+JWT_EXPORT
+int jwt_checker_setmaxsize(jwt_checker_t *checker, size_t size);
+
+/**
  * @brief Verify using the key embedded in the header, pinned by thumbprint
  *
  * @rfc{7515,4.1.3} @rfc{9449}
@@ -1550,6 +1583,11 @@ int jwt_checker_understands(jwt_checker_t *checker, const char *header);
  *
  * These rules apply equally to jwt_checker_verify_detached().
  *
+ * A token longer than the checker's maximum size, 1 MiB unless changed with
+ * jwt_checker_setmaxsize(), is rejected with the error "Token too large"
+ * before it is parsed. Before 3.8.0 only a token of ``INT_MAX`` bytes or
+ * more was rejected that way.
+ *
  * @note If you set a callback for this checker, this is when it will be called.
  *
  * Once this returns 0, jwt_checker_verified_jwt() gives the accepted token
@@ -1730,6 +1768,12 @@ jwt_value_error_t jwt_checker_sig_header_get(jwt_checker_t *checker,
  * jwt_checker_verify() reads a base64url payload as a JWT claim set, though,
  * so it must be a JSON object (see jwt_builder_setpayload()): a binary
  * document can be signed base64url-encoded, but not verified.
+ *
+ * The checker's maximum token size (see jwt_checker_setmaxsize()) applies to
+ * @p token as given and to the token rebuilt with the payload attached (in
+ * its base64url form, about 4/3 of @p len, for a base64url payload), so the
+ * payload counts toward it. Either one over the limit, or a @p len over it
+ * on its own, fails with "Token too large" (since 3.8.0).
  *
  * Any error already set in @p checker is cleared on entry and every failure
  * sets one, so jwt_checker_error() and jwt_checker_error_msg() always reflect
