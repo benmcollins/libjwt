@@ -105,7 +105,19 @@ NOALG_KEY="${SRCDIR}/tests/keys/oct_key_256_sig.json"
 	# ...and an unknown one is reported by name.
 	run ./tools/jwt-verify -a BOGUS -k ${NOALG_KEY} "${token}"
 	[ "${status}" -ne 0 ]
-	echo "${output}" | grep -q 'Unknown algorithm \[BOGUS\]'
+	echo "${output}" | grep -qx 'Unknown algorithm \[BOGUS\]'
+	echo "${output}" | grep -qx 'Use -l to see a list of supported algorithms'
+}
+
+@test "jwt-generate reports an unknown algorithm with one blank line" {
+	run ./tools/jwt-generate -a BOGUS
+	[ "${status}" -ne 0 ]
+	echo "${output}" | grep -qx \
+		'ERROR: Unknown algorithm (use -l to see a list of supported algorithms)'
+	# Exactly one blank line between the error and the usage text.
+	after="$(echo "${output}" | grep -A2 '^ERROR: Unknown algorithm')"
+	[ "$(echo "${after}" | sed -n 2p)" = "" ]
+	[ "$(echo "${after}" | sed -n 3p | cut -c1-6)" = "Usage:" ]
 }
 
 @test "Generate JWKS from PEM Files" {

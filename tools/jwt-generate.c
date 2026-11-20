@@ -162,7 +162,7 @@ int main(int argc, char *argv[])
 			alg = jwt_str_alg(optarg);
 			if (alg >= JWT_ALG_INVAL) {
 				usage("Unknown algorithm (use -l to see a list of "
-				      "supported algorithms)\n", EXIT_FAILURE);
+				      "supported algorithms)", EXIT_FAILURE);
 			}
 			break;
 

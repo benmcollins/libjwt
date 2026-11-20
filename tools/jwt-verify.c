@@ -306,7 +306,7 @@ int main(int argc, char *argv[])
 			if (alg >= JWT_ALG_INVAL) {
 				fprintf(stderr, "Unknown algorithm [%s]\nUse "
 					"-l to see a list of supported "
-					"algorithms)\n", optarg);
+					"algorithms\n", optarg);
 				exit(EXIT_FAILURE);
 			}
 			alg_given = 1;
