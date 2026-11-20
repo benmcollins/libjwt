@@ -58,6 +58,22 @@ Retry if output file exists.
 .TP
 \f[B]\-d\f[R] \f[I]DIR\f[R], \f[B]\-\-dir\f[R]=\f[I]DIR\f[R]
 Directory to write key files to (default is `\f[B].\f[R]').
+.SH EXIT STATUS
+.TP
+\f[B]0\f[R]
+Every key in every input file was written.
+.TP
+\f[B]1\f[R]
+An input file could not be read or parsed, or held no keys; or a key was
+skipped, did not load, or its file could not be created or fully
+written.
+The keys that do convert are still written.
+.PP
+Each key that is not written is reported on \f[B]stderr\f[R], naming the
+input file and the key (by index, and by \f[B]kid\f[R] when it has one)
+and the reason.
+The output \f[B]\-d\f[R] directory must already exist, be a directory,
+and be writable; this is checked before any input is read.
 .SH BUGS
 See GitHub Issues: \c
 .UR https://github.com/benmcollins/libjwt/issues
