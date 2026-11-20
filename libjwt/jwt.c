@@ -482,9 +482,18 @@ static int _verify_sha_hmac(jwt_t *jwt, const char *head,
 jwt_t *jwt_verify_sig(jwt_t *jwt, const char *head, unsigned int head_len,
 		      const char *sig_b64)
 {
+	struct jwt_sig_raw raw = { NULL, 0 };
+
+	jwt_verify_sig_raw(jwt, head, head_len, sig_b64, &raw);
+	jwt_freemem(raw.buf);
+
+	return jwt;
+}
+
+jwt_t *jwt_verify_sig_raw(jwt_t *jwt, const char *head, unsigned int head_len,
+			  const char *sig_b64, struct jwt_sig_raw *raw)
+{
 	struct jwt_crypto_ops *ops;
-	int sig_len;
-	char_auto *sig = NULL;
 
 	switch (jwt->alg) {
 	/* HMAC */
@@ -523,8 +532,14 @@ jwt_t *jwt_verify_sig(jwt_t *jwt, const char *head, unsigned int head_len,
 		if (__check_key_bits(jwt))
 			break;
 
-		sig = jwt_base64uri_decode(sig_b64, &sig_len);
-		if (sig == NULL) {
+		/* Decoded once, then reused by every other key tried against
+		 * the same signature (see struct jwt_sig_raw). */
+		if (raw->len == 0) {
+			raw->buf = jwt_base64uri_decode(sig_b64, &raw->len);
+			if (raw->buf == NULL)
+				raw->len = -1;
+		}
+		if (raw->len < 0) {
 			jwt_write_error(jwt, "Error decoding signature");
 			break;
 		}
@@ -537,7 +552,7 @@ jwt_t *jwt_verify_sig(jwt_t *jwt, const char *head, unsigned int head_len,
 		}
 
 		if (ops->verify_sha_pem(jwt, head, head_len,
-					(unsigned char *)sig, sig_len))
+					(unsigned char *)raw->buf, raw->len))
 			jwt_write_error(jwt, "Token failed verification");
 		break;
 
@@ -718,16 +733,20 @@ base64_decode(const char *in, unsigned int inlen, unsigned char *out)
 
 void *jwt_base64uri_decode(const char *src, int *ret_len)
 {
-	void *buf;
-	char *new;
-	int len, i, z;
-
 	if (src == NULL || ret_len == NULL)
 		return NULL; // LCOV_EXCL_LINE
 			     // Should really be an abort
 
+	return jwt_base64uri_decode_n(src, (int)strlen(src), ret_len);
+}
+
+void *jwt_base64uri_decode_n(const char *src, int len, int *ret_len)
+{
+	void *buf;
+	char *new;
+	int i, z;
+
 	/* Decode based on RFC-4648 URI safe encoding. */
-	len = (int)strlen(src);
 
 	/* Validate length */
 	z = (len % 4);

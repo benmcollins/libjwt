@@ -1039,7 +1039,7 @@ START_TEST(test_compact_keyring_b64)
 	jwk_set_t *ring;
 	const jwk_item_t *ec;
 	char_auto *tok = NULL, *bad = NULL, *det = NULL, *det64 = NULL;
-	char_auto *bin = NULL;
+	char_auto *bin = NULL, *bindet = NULL;
 	jwt_checker_auto_t *one = NULL;
 	char *p;
 	size_t i;
@@ -1141,21 +1141,36 @@ START_TEST(test_compact_keyring_b64)
 		bin = jwt_builder_generate(b);
 		ck_assert_ptr_nonnull(bin);
 	}
+	{
+		jwt_builder_auto_t *b = jwt_builder_new();
+
+		ck_assert_int_eq(jwt_builder_setkey(b, JWT_ALG_ES256, ec), 0);
+		ck_assert_int_eq(jwt_builder_setpayload(b, binary,
+			sizeof(binary) - 1), 0);
+		ck_assert_int_eq(jwt_builder_setb64(b, 0), 0);
+		ck_assert_int_eq(jwt_builder_set_detached(b, 1), 0);
+		bindet = jwt_builder_generate(b);
+		ck_assert_ptr_nonnull(bindet);
+	}
 	one = jwt_checker_new();
 	ck_assert_int_eq(jwt_checker_setkey(one, JWT_ALG_ES256, ec), 0);
 	ck_assert_int_eq(jwt_checker_verify(one, bin), 0);
+	ck_assert_int_eq(jwt_checker_verify_detached(one, bindet, binary,
+		sizeof(binary) - 1), 0);
 	ck_assert_int_eq(jwt_checker_setkeyring(one, ring,
 		JWT_VERIFY_POLICY_ANY), 0);
-#ifdef HAVE_JSON_C
-	/* json-c carries any bytes in a JSON string, so the keyring verifies
-	 * the exact signed bytes. */
+	/* So does the keyring, under either JSON backend: a Compact token is
+	 * checked over its own bytes, never carried in a JSON string, so its
+	 * payload need not be valid UTF-8 even with Jansson (#355). */
 	ck_assert_int_eq(jwt_checker_verify(one, bin), 0);
 	ck_assert_ptr_eq(jwt_checker_sig_key(one, 0), ec);
-#else
-	/* Jansson cannot hold it in a JSON string: fail closed, with a reason. */
-	ck_assert_int_ne(jwt_checker_verify(one, bin), 0);
-	ck_assert_str_eq(jwt_checker_error_msg(one), "Token is not valid UTF-8");
-#endif
+	ck_assert_int_eq(jwt_checker_verify_detached(one, bindet, binary,
+		sizeof(binary) - 1), 0);
+	ck_assert_ptr_eq(jwt_checker_sig_key(one, 0), ec);
+	/* Not the bytes that were signed: no longer verifies. */
+	ck_assert_int_ne(jwt_checker_verify_detached(one, bindet, binary,
+		sizeof(binary) - 2), 0);
+	ck_assert_str_ne(jwt_checker_error_msg(one), "");
 
 	jwks_free(ring);
 }
@@ -2153,6 +2168,192 @@ START_TEST(test_keyring_scan_large)
 }
 END_TEST
 
+/* ---- One signature, several candidates: the same result each way ---- */
+START_TEST(test_compact_keyring_candidates)
+{
+	jwk_set_t *ring;
+	const jwk_item_t *signer;
+	char_auto *tok = NULL, *flat = NULL, *undec = NULL, *flip = NULL;
+	char *sig;
+	size_t p;
+
+	SET_OPS();
+
+	/* Two RSA keys and no "kid": an RS384 signature is tried against the
+	 * first ("alg"-less) key, fails, then verifies with the second. */
+	ring = jwks_create(NULL);
+	ck_assert_ptr_nonnull(ring);
+	ck_assert_ptr_nonnull(jwks_load_fromfile(ring,
+		KEYDIR "/rsa_key_2048_no_alg.json"));
+	ck_assert_ptr_nonnull(jwks_load_fromfile(ring,
+		KEYDIR "/rsa_key_4096.json"));
+	ck_assert_int_eq(jwks_error_any(ring), 0);
+	signer = jwks_item_get(ring, 1);
+	ck_assert_int_eq(jwks_item_alg(signer), JWT_ALG_RS384);
+
+	tok = compact_tok(JWT_ALG_RS384, signer, NULL);
+	ck_assert_ptr_nonnull(tok);
+	{
+		jwt_builder_auto_t *b = jwt_builder_new();
+		jwt_value_t v;
+
+		ck_assert_int_eq(jwt_builder_setkey(b, JWT_ALG_RS384, signer),
+				 0);
+		ck_assert_int_eq(jwt_builder_set_format(b,
+			JWT_FORMAT_JSON_FLAT), 0);
+		jwt_set_SET_STR(&v, "sub", "alice");
+		ck_assert_int_eq(jwt_builder_claim_set(b, &v),
+				 JWT_VALUE_ERR_NONE);
+		flat = jwt_builder_generate(b);
+		ck_assert_ptr_nonnull(flat);
+	}
+
+	/* The signature, not valid base64url (decoding fails for every
+	 * candidate), and with one bit changed (it decodes, verifies with
+	 * none). */
+	undec = strdup(tok);
+	ck_assert_ptr_nonnull(undec);
+	sig = strrchr(undec, '.') + 1;
+	sig[0] = '*';
+	flip = strdup(tok);
+	ck_assert_ptr_nonnull(flip);
+	sig = strrchr(flip, '.') + 1;
+	sig[0] = (sig[0] == 'A') ? 'B' : 'A';
+
+	for (p = 0; p < ARRAY_SIZE(both_pol); p++) {
+		jwt_checker_auto_t *c = jwt_checker_new();
+
+		ck_assert_int_eq(jwt_checker_setkeyring(c, ring, both_pol[p]),
+				 0);
+
+		ck_assert_int_eq(jwt_checker_verify(c, tok), 0);
+		ck_assert_ptr_eq(jwt_checker_sig_key(c, 0), signer);
+		ck_assert_int_eq(jwt_checker_verify(c, flat), 0);
+		ck_assert_ptr_eq(jwt_checker_sig_key(c, 0), signer);
+
+		ck_assert_int_ne(jwt_checker_verify(c, undec), 0);
+		ck_assert_str_eq(jwt_checker_error_msg(c), "No keyring key "
+				 "verified the signature (2 tried)");
+		ck_assert_int_eq(jwt_checker_sig_verified(c, 0), 0);
+		ck_assert_int_ne(jwt_checker_verify(c, flip), 0);
+		ck_assert_str_eq(jwt_checker_error_msg(c), "No keyring key "
+				 "verified the signature (2 tried)");
+	}
+
+	/* One candidate: its own reason, as on the single-key path. */
+	{
+		jwt_checker_auto_t *c = jwt_checker_new();
+		jwk_set_t *one = jwks_create(NULL);
+
+		ck_assert_ptr_nonnull(jwks_load_fromfile(one,
+			KEYDIR "/rsa_key_4096.json"));
+		ck_assert_int_eq(jwt_checker_setkeyring(c, one,
+			JWT_VERIFY_POLICY_ANY), 0);
+		ck_assert_int_ne(jwt_checker_verify(c, undec), 0);
+		ck_assert_str_eq(jwt_checker_error_msg(c),
+				 "Error decoding signature");
+		ck_assert_int_eq(jwt_checker_verify(c, tok), 0);
+		jwks_free(one);
+	}
+
+	jwks_free(ring);
+}
+END_TEST
+
+/* A malloc() that adds up what is asked of it, through jwt_set_alloc(). The
+ * plain free() lets memory cross between it and the default allocator. */
+static size_t alloc_total;
+
+static void *count_malloc(size_t size)
+{
+	alloc_total += size;
+
+	return malloc(size);
+}
+
+static void count_free(void *ptr)
+{
+	free(ptr);
+}
+
+/* Bytes allocated (through jwt_set_alloc()) by one verify of @tok by @c. */
+static size_t verify_alloc(jwt_checker_t *c, const char *tok)
+{
+	size_t total;
+	int ret;
+
+	ck_assert_int_eq(jwt_set_alloc(count_malloc, count_free), 0);
+	alloc_total = 0;
+	ret = jwt_checker_verify(c, tok);
+	total = alloc_total;
+	ck_assert_int_eq(jwt_set_alloc(NULL, NULL), 0);
+	ck_assert_int_eq(ret, 0);
+
+	return total;
+}
+
+#define BIG_CLAIM_LEN (256 * 1024)
+
+/* ---- A keyring of one costs about what jwt_checker_setkey() does ---- */
+START_TEST(test_compact_keyring_alloc)
+{
+	jwt_checker_auto_t *single = NULL, *ringed = NULL;
+	char_auto *blob = NULL, *tok = NULL;
+	jwk_set_t *ks, *ring;
+	const jwk_item_t *key;
+	size_t by_key, by_ring;
+
+	SET_OPS();
+
+	ks = load_one("oct_key_256.json");
+	key = jwks_item_get(ks, 0);
+	ring = load_one("oct_key_256.json");
+
+	/* A Compact token of some 350 KB: one long string claim. */
+	blob = malloc(BIG_CLAIM_LEN + 1);
+	ck_assert_ptr_nonnull(blob);
+	memset(blob, 'a', BIG_CLAIM_LEN);
+	blob[BIG_CLAIM_LEN] = '\0';
+	{
+		jwt_builder_auto_t *b = jwt_builder_new();
+		jwt_value_t v;
+
+		ck_assert_int_eq(jwt_builder_setkey(b, JWT_ALG_HS256, key), 0);
+		jwt_set_SET_STR(&v, "blob", blob);
+		ck_assert_int_eq(jwt_builder_claim_set(b, &v),
+				 JWT_VALUE_ERR_NONE);
+		tok = jwt_builder_generate(b);
+		ck_assert_ptr_nonnull(tok);
+	}
+	ck_assert_uint_gt(strlen(tok), BIG_CLAIM_LEN);
+
+	single = jwt_checker_new();
+	ck_assert_int_eq(jwt_checker_setkey(single, JWT_ALG_HS256, key), 0);
+	ringed = jwt_checker_new();
+	ck_assert_int_eq(jwt_checker_setkeyring(ringed, ring,
+		JWT_VERIFY_POLICY_ANY), 0);
+
+	/* Once each first, so nothing set up on a first use is counted. */
+	ck_assert_int_eq(jwt_checker_verify(single, tok), 0);
+	ck_assert_int_eq(jwt_checker_verify(ringed, tok), 0);
+
+	by_key = verify_alloc(single, tok);
+	by_ring = verify_alloc(ringed, tok);
+	ck_assert_ptr_eq(jwt_checker_sig_key(ringed, 0),
+			 jwks_item_get(ring, 0));
+
+	/* The token is decoded either way, and (with Jansson, whose allocations
+	 * are counted too) parsed. Converting it to JSON and parsing that again
+	 * more than doubled the keyring's share (#355); now it is no more than
+	 * about the single key's. */
+	ck_assert_uint_gt(by_key, BIG_CLAIM_LEN);
+	ck_assert_uint_lt(by_ring, by_key + by_key / 2);
+
+	jwks_free(ring);
+	jwks_free(ks);
+}
+END_TEST
+
 static Suite *libjwt_suite(const char *title)
 {
 	Suite *s;
@@ -2180,6 +2381,8 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, test_compact_keyring_b64, 0, i);
 	tcase_add_loop_test(tc_core, test_compact_keyring_reuse, 0, i);
 	tcase_add_loop_test(tc_core, test_compact_keyring_embedded, 0, i);
+	tcase_add_loop_test(tc_core, test_compact_keyring_candidates, 0, i);
+	tcase_add_loop_test(tc_core, test_compact_keyring_alloc, 0, i);
 	tcase_add_loop_test(tc_core, test_json_alg_pin, 0, i);
 	tcase_add_loop_test(tc_core, test_json_alg_none_cb, 0, i);
 	tcase_add_loop_test(tc_core, test_keyring_kid_type, 0, i);

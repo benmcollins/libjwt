@@ -16,13 +16,15 @@
 
 #include "jwt-private.h"
 
-static jwt_json_t *jwt_base64uri_decode_to_json(char *src)
+/* Decode the @src_len base64url bytes at @src (not necessarily NUL-terminated)
+ * and parse them as JSON. */
+static jwt_json_t *b64_to_json_n(const char *src, int src_len)
 {
 	jwt_json_t *js;
 	char *buf;
 	int len;
 
-	buf = jwt_base64uri_decode(src, &len);
+	buf = jwt_base64uri_decode_n(src, src_len, &len);
 
 	if (buf == NULL)
 		return NULL; // LCOV_EXCL_LINE
@@ -38,6 +40,11 @@ static jwt_json_t *jwt_base64uri_decode_to_json(char *src)
 	jwt_freemem(buf);
 
 	return js;
+}
+
+static jwt_json_t *jwt_base64uri_decode_to_json(const char *src)
+{
+	return b64_to_json_n(src, (int)strlen(src));
 }
 
 static int jwt_parse_payload(jwt_t *jwt, char *payload)
@@ -771,20 +778,25 @@ jwt_t *jwt_verify_complete(jwt_t *jwt, const jwt_config_t *config,
  * @rfc{7515,7.2} JWS JSON Serialization (multi-signature) verification
  * =================================================================== */
 
+/* A malloc'd, NUL-terminated copy of the @n bytes at @s. */
+static char *jwt_strn_dup(const char *s, size_t n)
+{
+	char *d = jwt_malloc(n + 1);
+
+	if (d != NULL) {
+		memcpy(d, s, n);
+		d[n] = '\0';
+	}
+
+	return d;
+}
+
 static char *jwt_str_dup(const char *s)
 {
-	size_t n;
-	char *d;
-
 	if (s == NULL)
 		return NULL; // LCOV_EXCL_LINE
 
-	n = strlen(s) + 1;
-	d = jwt_malloc(n);
-	if (d != NULL)
-		memcpy(d, s, n);
-
-	return d;
+	return jwt_strn_dup(s, strlen(s));
 }
 
 static const char *json_str(const jwt_json_t *obj, const char *key)
@@ -794,29 +806,24 @@ static const char *json_str(const jwt_json_t *obj, const char *key)
 	return (v && jwt_json_is_string(v)) ? jwt_json_str_val(v) : NULL;
 }
 
-/* Parse one signature entry (a General-form array element, or the Flattened
- * top-level object) into a new jwt_signature appended to the checker's list:
- * its verbatim base64url "protected" and "signature", the decoded protected
- * header, its algorithm, and the optional unprotected "header". *@pb64 is the
- * payload's "b64", agreed across entries (-1 until the first is parsed). */
-static int build_sig_entry(jwt_checker_t *checker, jwt_json_t *entry,
-			   int *pb64)
+/* Add one signature to the checker's list as a new jwt_signature: its
+ * verbatim base64url protected header (the @prot_len bytes at @prot_b64) and
+ * signature @sig_b64, the decoded protected header, its algorithm, and the
+ * optional unprotected "header" of JSON signature entry @entry (NULL for a
+ * Compact token, which has none). *@pb64 is the payload's "b64", agreed
+ * across entries (-1 until the first is parsed). Shared by the JSON
+ * serializations (build_sig_entry()) and the Compact keyring path
+ * (jwt_verify_compact_ring()), so every signature gets the same checks. */
+static int add_sig(jwt_checker_t *checker, const char *prot_b64, int prot_len,
+		   const char *sig_b64, const jwt_json_t *entry, int *pb64)
 {
 	jwt_json_t *prot_obj, *hdr_j, *hdr_clone = NULL;
-	const char *prot_b64, *sig_b64, *alg_str, *err;
+	const char *alg_str, *err;
 	struct jwt_signature *s;
 	jwt_alg_t alg;
 	int b64;
 
-	prot_b64 = json_str(entry, "protected");
-	sig_b64 = json_str(entry, "signature");
-	if (prot_b64 == NULL || sig_b64 == NULL) {
-		jwt_write_error(checker,
-			"JWS signature entry missing \"protected\"/\"signature\"");
-		return 1;
-	}
-
-	prot_obj = jwt_base64uri_decode_to_json((char *)prot_b64);
+	prot_obj = b64_to_json_n(prot_b64, prot_len);
 	if (prot_obj == NULL || !jwt_json_is_object(prot_obj)) {
 		jwt_json_release(prot_obj);
 		jwt_write_error(checker, "JWS protected header is not valid JSON");
@@ -851,8 +858,8 @@ static int build_sig_entry(jwt_checker_t *checker, jwt_json_t *entry,
 	*pb64 = b64;
 
 	/* Members that are JSON null count too (see jwt_json_obj_has()). */
-	hdr_j = jwt_json_obj_get(entry, "header");
-	if (jwt_json_obj_has(entry, "header")) {
+	hdr_j = entry ? jwt_json_obj_get(entry, "header") : NULL;
+	if (entry != NULL && jwt_json_obj_has(entry, "header")) {
 		if (!jwt_json_is_object(hdr_j) ||
 		    jwt_header_params_overlap(prot_obj, hdr_j)) {
 			jwt_json_release(prot_obj);
@@ -893,7 +900,7 @@ static int build_sig_entry(jwt_checker_t *checker, jwt_json_t *entry,
 	s->alg = alg;
 	s->protected = prot_obj;
 	s->header = hdr_clone;
-	s->protected_b64 = jwt_str_dup(prot_b64);
+	s->protected_b64 = jwt_strn_dup(prot_b64, (size_t)prot_len);
 	s->sig_b64 = jwt_str_dup(sig_b64);
 	if (s->protected_b64 == NULL || s->sig_b64 == NULL) {
 		jwt_write_error(checker, "Error allocating memory"); // LCOV_EXCL_LINE
@@ -901,6 +908,25 @@ static int build_sig_entry(jwt_checker_t *checker, jwt_json_t *entry,
 	}
 
 	return 0;
+}
+
+/* Parse one JWS JSON signature entry (a General-form array element, or the
+ * Flattened top-level object) into the checker's list with add_sig(). */
+static int build_sig_entry(jwt_checker_t *checker, jwt_json_t *entry,
+			   int *pb64)
+{
+	const char *prot_b64, *sig_b64;
+
+	prot_b64 = json_str(entry, "protected");
+	sig_b64 = json_str(entry, "signature");
+	if (prot_b64 == NULL || sig_b64 == NULL) {
+		jwt_write_error(checker,
+			"JWS signature entry missing \"protected\"/\"signature\"");
+		return 1;
+	}
+
+	return add_sig(checker, prot_b64, (int)strlen(prot_b64), sig_b64,
+		       entry, pb64);
 }
 
 struct member_find {
@@ -1050,10 +1076,12 @@ enum try_result {
  * inside jwt_verify_sig(). On success sets s->verified/s->key; on a failed
  * verify KEEPS the backend's reason in s->reason (it was discarded before
  * #354). The caller (verify_entry()) phrases a kty/alg rejection, which may be
- * a mere skip for a scan candidate but the whole story for an explicit key. */
+ * a mere skip for a scan candidate but the whole story for an explicit key.
+ * @raw holds the signature once decoded, shared by every candidate. */
 static enum try_result try_candidate(jwt_t *jwt, struct jwt_signature *s,
 				     const jwk_item_t *key, const char *input,
-				     unsigned int input_len)
+				     unsigned int input_len,
+				     struct jwt_sig_raw *raw)
 {
 	if (jwt_alg_required_kty(s->alg) != jwks_item_kty(key))
 		return TRY_WRONG_TYPE;
@@ -1075,7 +1103,7 @@ static enum try_result try_candidate(jwt_t *jwt, struct jwt_signature *s,
 	jwt->error = 0;
 	jwt->error_msg[0] = '\0';
 
-	jwt_verify_sig(jwt, input, input_len, s->sig_b64);
+	jwt_verify_sig_raw(jwt, input, input_len, s->sig_b64, raw);
 
 	if (!jwt->error) {
 		s->verified = 1;
@@ -1099,23 +1127,18 @@ static enum try_result try_candidate(jwt_t *jwt, struct jwt_signature *s,
 /* Verify one signature entry: run the optional per-signature callback, hold
  * the signature to the pinned algorithm, select the key (the checker's single
  * key, a "kid"-named keyring key, or every compatible keyring key), and
- * verify. */
+ * verify. @input is the signature's @rfc{7515,5.1} signing input, @input_len
+ * bytes (not NUL-terminated for a Compact token), passed to each candidate
+ * as is; the signature is decoded at most once for all of them. */
 static int verify_entry(jwt_checker_t *checker, jwt_t *jwt,
-			struct jwt_signature *s, const char *payload_b64,
-			int payload_len)
+			struct jwt_signature *s, const char *input,
+			unsigned int input_len)
 {
 	JWT_CONFIG_DECLARE(config);
 	const jwk_set_t *ring = checker->c.keyring;
-	char_auto *input = NULL;
+	struct jwt_sig_raw raw = { NULL, 0 };
 	const char *kid = NULL, *reason;
-	int prot_len, scan;
-
-	/* @rfc{7515,5.1} Signing input is the VERBATIM protected_b64 "." payload_b64. */
-	prot_len = (int)strlen(s->protected_b64);
-	input = jwt_malloc((size_t)prot_len + payload_len + 2);
-	if (input == NULL)
-		return 1; // LCOV_EXCL_LINE
-	sprintf(input, "%s.%s", s->protected_b64, payload_b64);
+	int scan;
 
 	/* This signature's header drives crit/callback. Its "b64" was already
 	 * validated (and agreed across entries) by build_sig_entry(). */
@@ -1199,8 +1222,8 @@ static int verify_entry(jwt_checker_t *checker, jwt_t *jwt,
 	if (config.key != NULL) {
 		/* Explicit key (kid match, single key, or callback override):
 		 * its rejection IS this signature's reason (#354). */
-		switch (try_candidate(jwt, s, config.key, input,
-				      (unsigned int)strlen(input))) {
+		switch (try_candidate(jwt, s, config.key, input, input_len,
+				      &raw)) {
 		case TRY_WRONG_TYPE:
 			sig_reason(s, "Key type does not match JWT alg");
 			break;
@@ -1234,9 +1257,8 @@ static int verify_entry(jwt_checker_t *checker, jwt_t *jwt,
 				continue;
 			/* A kty mismatch is not an attempt; a verify (pass or
 			 * fail) is. */
-			if (try_candidate(jwt, s, k, input,
-					  (unsigned int)strlen(input)) !=
-			    TRY_WRONG_TYPE)
+			if (try_candidate(jwt, s, k, input, input_len,
+					  &raw) != TRY_WRONG_TYPE)
 				tried++;
 			if (s->verified)
 				break;
@@ -1258,6 +1280,7 @@ static int verify_entry(jwt_checker_t *checker, jwt_t *jwt,
 			   "keyring", kid);
 	}
 
+	jwt_freemem(raw.buf);
 	jwt->headers = NULL;
 
 	return 0;
@@ -1308,15 +1331,163 @@ static void jwt_report_policy(jwt_checker_t *checker, int n_verified,
 	}
 }
 
+/* Verify the signatures on the checker's list (add_sig()) and the shared
+ * payload, the @payload_len bytes at @payload_b64 (not NUL-terminated for a
+ * Compact token), whose "b64" all of them agreed on as @pb64, then apply the
+ * policy, the claim checks and jti. @input, when not NULL, is the one
+ * signature's signing input, @input_len bytes: a Compact token's own bytes up
+ * to its last '.'. Otherwise each signature's is built from its protected
+ * header and the payload. */
+static int verify_sigs(jwt_checker_t *checker, const char *payload_b64,
+		       int payload_len, int pb64, const char *input,
+		       unsigned int input_len)
+{
+	jwt_auto_t *jwt = NULL;
+	struct jwt_signature *s;
+	int n_verified = 0, sig_ok;
+	size_t n_entries;
+
+	n_entries = checker->c.n_signatures;
+	checker->c.last_sig_count = (unsigned int)n_entries;
+
+	if (checker->c.key == NULL && checker->c.keyring == NULL) {
+		jwt_write_error(checker, "No key or keyring set");
+		return 1;
+	}
+
+	/* A transient JWT carrying the shared payload for the per-signature
+	 * verify and the read-only claim checks. @pb64 is the "b64" every
+	 * signature agreed on (see add_sig()). */
+	jwt = jwt_new();
+	if (jwt == NULL) {
+		jwt_write_error(checker, "Error allocating memory"); // LCOV_EXCL_LINE
+		return 1; // LCOV_EXCL_LINE
+	}
+	jwt->checker = checker;
+	jwt->b64 = pb64;
+	jwt_json_releasep(&jwt->claims);
+	/* Release the empty header object jwt_new() allocated: from here on
+	 * jwt->headers only ever borrows each signature's protected header. */
+	jwt_json_releasep(&jwt->headers);
+	if (pb64) {
+		jwt->claims = b64_to_json_n(payload_b64, payload_len);
+		if (jwt->claims == NULL) {
+			jwt_write_error(checker, "Error parsing payload");
+			return 1;
+		}
+	} else {
+		/* @rfc{7797,7} An unencoded payload is opaque, never JWT
+		 * claims: it is checked as the EMPTY claim set below. */
+		jwt->claims = jwt_json_create();
+		if (jwt->claims == NULL)
+			return 1; // LCOV_EXCL_LINE
+	}
+
+	list_for_each_entry(s, &checker->c.signatures, node) {
+		char_auto *buf = NULL;
+		const char *in = input;
+		unsigned int in_len = input_len;
+		int ret;
+
+		/* @rfc{7515,5.1} Signing input is the VERBATIM protected_b64
+		 * "." payload_b64. */
+		if (in == NULL) {
+			size_t prot_len = strlen(s->protected_b64);
+
+			buf = jwt_malloc(prot_len + (size_t)payload_len + 2);
+			if (buf == NULL) {
+				// LCOV_EXCL_START
+				jwt_write_error(checker, "Error allocating memory");
+				return 1;
+				// LCOV_EXCL_STOP
+			}
+			memcpy(buf, s->protected_b64, prot_len);
+			buf[prot_len] = '.';
+			memcpy(buf + prot_len + 1, payload_b64, payload_len);
+			buf[prot_len + 1 + payload_len] = '\0';
+			in = buf;
+			in_len = (unsigned int)(prot_len + 1 + payload_len);
+		}
+
+		ret = verify_entry(checker, jwt, s, in, in_len);
+		jwt->headers = NULL;
+		if (ret)
+			return 1;
+		if (s->verified)
+			n_verified++;
+	}
+
+	/* @rfc{7515,7.2} Policy: ANY accepts on the first verified signature;
+	 * ALL requires every signature in the token to verify. */
+	if (checker->c.policy == JWT_VERIFY_POLICY_ALL)
+		sig_ok = (n_verified == (int)n_entries);
+	else
+		sig_ok = (n_verified >= 1);
+
+	if (!sig_ok) {
+		jwt_report_policy(checker, n_verified, n_entries);
+	} else if (__verify_claims(jwt)) {
+		jwt_write_error(checker, "%s", claims_error(jwt));
+	} else if (__verify_required(jwt)) {
+		/* @rfc{9068} Required-claims-present, same as the compact path; the
+		 * specific "missing" error is written on the jwt. */
+		jwt_copy_error(checker, jwt);
+	} else if (__verify_jti(jwt)) {
+		/* jti runs only after signature + claims succeed. */
+		jwt_write_error(checker, "%s", claims_error(jwt));
+	}
+
+	return checker->error;
+}
+
+/* @rfc{7515,7.2.2} A keyring checker verifies a Compact token as the
+ * equivalent one-signature Flattened JWS JSON Serialization, so it gets exactly
+ * what a JSON token gets: a "kid" selects that ring key (no fallback), a
+ * kid-less token is tried against every compatible key, each under the
+ * alg/key-type binding and the key's "alg" pin; the typ/alg policy,
+ * per-signature callback, claims, required claims and jti all apply; and
+ * "none" is never accepted. The single-key Compact path only knows the single
+ * key, which jwt_checker_setkeyring() clears, so it would treat the checker as
+ * unkeyed and accept a forged unsigned token (GHSA-mhc9-xvg5-qg29).
+ *
+ * The token is not converted to JSON and parsed again (#355): it is split
+ * once, its protected header goes through the same add_sig() as a JSON
+ * signature's, and the signature is checked over the token's own bytes up to
+ * its LAST '.'. "protected" is the text before the FIRST '.', "signature" the
+ * text after the last, and "payload" everything between, so an @rfc{7797}
+ * unencoded payload containing '.' stays intact, and its bytes need not be
+ * valid UTF-8. */
+int jwt_verify_compact_ring(jwt_checker_t *checker, const char *token)
+{
+	const char *first, *last;
+	int pb64 = -1;
+
+	/* Reset for a reused checker. */
+	checker->error = 0;
+	checker->error_msg[0] = '\0';
+	checker->c.last_sig_count = 0;
+
+	first = strchr(token, '.');
+	last = strrchr(token, '.');
+	if (first == NULL || first == last) {
+		jwt_write_error(checker, "Invalid JWS Compact Serialization");
+		return 1;
+	}
+
+	if (add_sig(checker, token, (int)(first - token), last + 1, NULL,
+		    &pb64))
+		return 1;
+
+	return verify_sigs(checker, first + 1, (int)(last - first - 1), pb64,
+			   token, (unsigned int)(last - token));
+}
+
 int jwt_verify_json(jwt_checker_t *checker, const char *token)
 {
 	jwt_json_auto_t *root = NULL;
 	jwt_json_t *payload_j, *sigs;
-	jwt_auto_t *jwt = NULL;
 	const char *payload_b64;
-	struct jwt_signature *s;
-	int n_verified = 0, sig_ok, payload_len, pb64 = -1;
-	size_t n_entries;
+	int pb64 = -1;
 
 	/* Reset for a reused checker. */
 	checker->error = 0;
@@ -1336,7 +1507,6 @@ int jwt_verify_json(jwt_checker_t *checker, const char *token)
 		return 1;
 	}
 	payload_b64 = jwt_json_str_val(payload_j);
-	payload_len = (int)strlen(payload_b64);
 
 	/* @rfc{7515,7.2} General has a "signatures" array; Flattened hoists a
 	 * single signature's members to the top level. They are exclusive,
@@ -1372,88 +1542,19 @@ int jwt_verify_json(jwt_checker_t *checker, const char *token)
 		return 1;
 	}
 
-	n_entries = checker->c.n_signatures;
-	checker->c.last_sig_count = (unsigned int)n_entries;
-
-	if (checker->c.key == NULL && checker->c.keyring == NULL) {
-		jwt_write_error(checker, "No key or keyring set");
-		return 1;
-	}
-
-	/* A transient JWT carrying the shared payload for the per-signature
-	 * verify and the read-only claim checks. @pb64 is the "b64" every
-	 * signature agreed on (see build_sig_entry()). */
-	jwt = jwt_new();
-	if (jwt == NULL) {
-		jwt_write_error(checker, "Error allocating memory"); // LCOV_EXCL_LINE
-		return 1; // LCOV_EXCL_LINE
-	}
-	jwt->checker = checker;
-	jwt->b64 = pb64;
-	jwt_json_releasep(&jwt->claims);
-	/* Release the empty header object jwt_new() allocated: from here on
-	 * jwt->headers only ever borrows each signature's protected header. */
-	jwt_json_releasep(&jwt->headers);
-	if (pb64) {
-		jwt->claims = jwt_base64uri_decode_to_json((char *)payload_b64);
-		if (jwt->claims == NULL) {
-			jwt_write_error(checker, "Error parsing payload");
-			return 1;
-		}
-	} else {
-		/* @rfc{7797,7} An unencoded payload is opaque, never JWT
-		 * claims: it is checked as the EMPTY claim set below. */
-		jwt->claims = jwt_json_create();
-		if (jwt->claims == NULL)
-			return 1; // LCOV_EXCL_LINE
-	}
-
-	list_for_each_entry(s, &checker->c.signatures, node) {
-		if (verify_entry(checker, jwt, s, payload_b64, payload_len)) {
-			jwt->headers = NULL;
-			return 1;
-		}
-		if (s->verified)
-			n_verified++;
-	}
-	jwt->headers = NULL;
-
-	/* @rfc{7515,7.2} Policy: ANY accepts on the first verified signature;
-	 * ALL requires every signature in the token to verify. */
-	if (checker->c.policy == JWT_VERIFY_POLICY_ALL)
-		sig_ok = (n_verified == (int)n_entries);
-	else
-		sig_ok = (n_verified >= 1);
-
-	if (!sig_ok) {
-		jwt_report_policy(checker, n_verified, n_entries);
-	} else if (__verify_claims(jwt)) {
-		jwt_write_error(checker, "%s", claims_error(jwt));
-	} else if (__verify_required(jwt)) {
-		/* @rfc{9068} Required-claims-present, same as the compact path; the
-		 * specific "missing" error is written on the jwt. */
-		jwt_copy_error(checker, jwt);
-	} else if (__verify_jti(jwt)) {
-		/* jti runs only after signature + claims succeed. */
-		jwt_write_error(checker, "%s", claims_error(jwt));
-	}
-
-	return checker->error;
+	return verify_sigs(checker, payload_b64, (int)strlen(payload_b64),
+			   pb64, NULL, 0);
 }
 
 /* Read the "b64" flag from a base64url-encoded protected header. Default 1. */
 static int detached_b64(const char *prot_b64)
 {
 	jwt_json_auto_t *hdr = NULL;
-	char_auto *copy = NULL;
 	jwt_json_t *jb;
 
 	if (prot_b64 == NULL)
 		return 1;
-	copy = jwt_str_dup(prot_b64);
-	if (copy == NULL)
-		return 1; // LCOV_EXCL_LINE
-	hdr = jwt_base64uri_decode_to_json(copy);
+	hdr = jwt_base64uri_decode_to_json(prot_b64);
 	if (hdr == NULL)
 		return 1;
 	jb = jwt_json_obj_get(hdr, "b64");
