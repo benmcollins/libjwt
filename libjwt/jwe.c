@@ -6,6 +6,7 @@
    License, v. 2.0. If a copy of the MPL was not distributed with this
    file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -155,6 +156,100 @@ int jwe_ecdh_derive(jwe_key_alg_t alg, jwe_enc_t enc, const jwk_item_t *key,
 	if (ops == NULL || ops->ecdh_derive == NULL)
 		return 1; // LCOV_EXCL_LINE
 	return ops->ecdh_derive(alg, enc, key, for_encrypt, hdr, dk, dk_len);
+}
+
+/* Write @v as a 32-bit big-endian integer. */
+static void put_be32(unsigned char *p, uint32_t v)
+{
+	p[0] = (unsigned char)((v >> 24) & 0xff);
+	p[1] = (unsigned char)((v >> 16) & 0xff);
+	p[2] = (unsigned char)((v >> 8) & 0xff);
+	p[3] = (unsigned char)(v & 0xff);
+}
+
+/* Append a length-prefixed (32-bit big-endian) datum to a buffer. */
+static void concat_put_data(unsigned char *buf, size_t *off,
+			    const unsigned char *data, size_t len)
+{
+	put_be32(buf + *off, (uint32_t)len);
+	*off += 4;
+	if (len) {
+		memcpy(buf + *off, data, len);
+		*off += len;
+	}
+}
+
+#define CONCAT_KDF_HASH_LEN 32	/* SHA-256 */
+
+/* @rfc{7518,4.6.2} Concat KDF (NIST SP 800-56A 5.8.1) with SHA-256, using
+ * @ops's one-shot digest:
+ *
+ *   K(i) = SHA-256(counter_i || Z || OtherInfo),  i = 1 .. reps
+ *   DerivedKey = leftmost @keydatalen octets of K(1) || K(2) || ...
+ *
+ * where counter_i is i as a 32-bit big-endian integer, reps =
+ * ceil(keydatalen / 32), and OtherInfo = AlgorithmID || PartyUInfo ||
+ * PartyVInfo || SuppPubInfo (the first three length-prefixed, SuppPubInfo
+ * being keydatalen in bits as a 32-bit big-endian integer). Any @keydatalen is
+ * supported, so ECDH-ES (Direct) can derive the 48/64-octet CEKs of
+ * A192CBC-HS384/A256CBC-HS512 as well as the <= 32-octet AES-GCM/AES-KW keys.
+ * Returns 0 on success with @out filled. */
+int jwe_concat_kdf(const struct jwt_crypto_ops *ops,
+		   const unsigned char *z, size_t z_len, const char *algid,
+		   const unsigned char *apu, size_t apu_len,
+		   const unsigned char *apv, size_t apv_len,
+		   size_t keydatalen, unsigned char *out)
+{
+	unsigned char hash[64];
+	unsigned char *buf;
+	size_t algid_len, buf_len, off, done = 0;
+	uint32_t counter;
+	int ret = 1;
+
+	/* SuppPubInfo carries keydatalen in bits as a 32-bit integer. */
+	if (ops == NULL || ops->sha == NULL || algid == NULL || out == NULL ||
+	    keydatalen == 0 || keydatalen > UINT32_MAX / 8)
+		return 1; // LCOV_EXCL_LINE
+
+	algid_len = strlen(algid);
+
+	/* counter || Z || OtherInfo */
+	buf_len = 4 + z_len + (4 + algid_len) + (4 + apu_len) + (4 + apv_len) + 4;
+	buf = jwt_malloc(buf_len);
+	if (buf == NULL)
+		return 1; // LCOV_EXCL_LINE
+
+	off = 4;	/* the counter is written per round */
+	memcpy(buf + off, z, z_len);
+	off += z_len;
+	concat_put_data(buf, &off, (const unsigned char *)algid, algid_len);
+	concat_put_data(buf, &off, apu, apu_len);
+	concat_put_data(buf, &off, apv, apv_len);
+	put_be32(buf + off, (uint32_t)(keydatalen * 8));
+	off += 4;
+
+	for (counter = 1; done < keydatalen; counter++) {
+		unsigned int hlen = 0;
+		size_t n = keydatalen - done;
+
+		put_be32(buf, counter);
+		if (ops->sha(256, buf, off, hash, &hlen) ||
+		    hlen != CONCAT_KDF_HASH_LEN)
+			goto out; // LCOV_EXCL_LINE
+
+		if (n > CONCAT_KDF_HASH_LEN)
+			n = CONCAT_KDF_HASH_LEN;
+		memcpy(out + done, hash, n);
+		done += n;
+	}
+
+	ret = 0;
+
+out:
+	jwt_cleanse(hash, sizeof(hash));
+	jwt_scrub_and_free(buf, buf_len);
+
+	return ret;
 }
 
 /* @rfc{7518,4.4} AES Key Wrap / Unwrap with a raw KEK (the ECDH-ES agreed

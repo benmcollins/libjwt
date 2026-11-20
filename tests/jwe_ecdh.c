@@ -735,6 +735,231 @@ START_TEST(kat_rfc7518_appc_tampered_hdr)
 }
 END_TEST
 
+/* Every content encryption algorithm. ECDH-ES (Direct) derives a CEK of the
+ * enc's length: 16/24/32 octets for AES-GCM and 32/48/64 for AES-CBC-HMAC, so
+ * A192CBC-HS384 and A256CBC-HS512 need more than one Concat KDF round. */
+static const jwe_enc_t ALL_ENCS[] = {
+	JWE_ENC_A128GCM, JWE_ENC_A192GCM, JWE_ENC_A256GCM,
+	JWE_ENC_A128CBC_HS256, JWE_ENC_A192CBC_HS384, JWE_ENC_A256CBC_HS512,
+};
+
+/* @rfc{7518,4.6.2} ECDH-ES (Direct) round-trips with every enc on every NIST
+ * curve under the active backend. */
+START_TEST(rt_ec_all_enc)
+{
+	static const char *const keys[] = {
+		"ec_key_prime256v1_enc.json",
+		"ec_key_secp384r1_enc.json",
+		"ec_key_secp521r1_enc.json",
+	};
+	size_t k, e;
+
+	SET_OPS();
+
+	for (k = 0; k < ARRAY_SIZE(keys); k++)
+		for (e = 0; e < ARRAY_SIZE(ALL_ENCS); e++)
+			roundtrip(keys[k], ALL_ENCS[e]);
+}
+END_TEST
+
+/* The same on the OKP X-curves (skipped where the backend cannot load them). */
+START_TEST(rt_okp_all_enc)
+{
+	static const char *const keys[] = {
+		"okp_x25519_enc.json",
+		"okp_x448_enc.json",
+	};
+	size_t k, e;
+
+	SET_OPS();
+	if (gnutls_okp_jwk_broken(jwt_test_ops[_i].type))
+		return;
+
+	for (k = 0; k < ARRAY_SIZE(keys); k++)
+		for (e = 0; e < ARRAY_SIZE(ALL_ENCS); e++)
+			okp_roundtrip(keys[k], JWE_ALG_ECDH_ES, ALL_ENCS[e]);
+}
+END_TEST
+
+/* External known-answer vectors: Project Wycheproof
+ * testvectors_v1/json_web_encryption_test.json (C2SP/wycheproof on GitHub),
+ * test group "jwe_ec", tcIds 78-81 ("acceptsEcdhEsA256Gcm",
+ * "acceptsEcdhEsA128CbcHs256", "acceptsEcdhEsA192CbcHs384",
+ * "acceptsEcdhEsA256CbcHs512"), all "result": "valid". The group's private
+ * key is the RFC 7518 Appendix C P-256 "Bob" key, i.e.
+ * tests/keys/ec_key_prime256v1_rfc7518_c_enc.json, and every plaintext is
+ * "foo" (hex 666f6f). tcIds 80 and 81 need a 48- and a 64-octet CEK, so they
+ * only decrypt with the full multi-round Concat KDF. */
+static const struct {
+	jwe_enc_t enc;
+	const char *jwe;
+} WYCHEPROOF_ECDH_ES[] = {
+	/* tcId 78 */
+	{ JWE_ENC_A256GCM,
+	  "eyJhbGciOiJFQ0RILUVTIiwiZW5jIjoiQTI1NkdDTSIsImVwayI6eyJrdHkiOiJF"
+	  "QyIsIngiOiJVVG5YNXUtdFBIdG1pOEFpN0gxV3dXODl2RG5Fc2lpVkdtNkU2Z2l0"
+	  "d3hZIiwieSI6InhKN296QjdDYzZpcWtTYnJXMDRvTUZDNEFMWE9Sd1VzTTBvdUZj"
+	  "cU55QUkiLCJjcnYiOiJQLTI1NiJ9fQ..iNb-34xvFG8M4MI5.6RXw."
+	  "EBpJ0EC39zNuSyZqSFMlvw" },
+	/* tcId 79 */
+	{ JWE_ENC_A128CBC_HS256,
+	  "eyJhbGciOiJFQ0RILUVTIiwiZW5jIjoiQTEyOENCQy1IUzI1NiIsImVwayI6eyJr"
+	  "dHkiOiJFQyIsIngiOiJaYVVtQUQ3UXM2VkQzQmUyVTVNZmRYcS1mbHhWQWZfTW5o"
+	  "dVFNYzFEXzZVIiwieSI6InR5ck5FOFl6eFU3UTZ5SHMwcUFELV9TMlFkY1BXdDg2"
+	  "anlNS1BUZUdibGciLCJjcnYiOiJQLTI1NiJ9fQ..ANTia7KFASPuVluJoWzksA."
+	  "kyivxxBQM412o5J8yrgGTQ.D-aHzy07zhj3nMBauohSTA" },
+	/* tcId 80 */
+	{ JWE_ENC_A192CBC_HS384,
+	  "eyJhbGciOiJFQ0RILUVTIiwiZW5jIjoiQTE5MkNCQy1IUzM4NCIsImVwayI6eyJr"
+	  "dHkiOiJFQyIsIngiOiJhNG1GMGlQZTA1RnFRcXV4RU41U0hEWjdreDdJaVhMTlkw"
+	  "WXpsWnJ4V2ZzIiwieSI6Im5pN0JhUTd5d2YyaWllX2NpZ18tWnB3Z3J6RkxIcHgx"
+	  "cmptQlNfcmV3eFEiLCJjcnYiOiJQLTI1NiJ9fQ..Y5DdmICU3_O-mzSVsPxNvg."
+	  "Y6evmTZ14UUyCeZLND-AFA._1W6s7XJ091oDyX4x_WNdwe62sHIAUUj" },
+	/* tcId 81 */
+	{ JWE_ENC_A256CBC_HS512,
+	  "eyJhbGciOiJFQ0RILUVTIiwiZW5jIjoiQTI1NkNCQy1IUzUxMiIsImVwayI6eyJr"
+	  "dHkiOiJFQyIsIngiOiJrZGU4dnFQZjRkQnpXdE9BMmZPdnlHeW9TUWV1MUNaUHVr"
+	  "MXh0dFl6NDN3IiwieSI6ImhldDhvbGZMWUFJc1h3aWxYTjlZYWpnVDhELV9fVk1L"
+	  "eTlIQUVKYXJtaGsiLCJjcnYiOiJQLTI1NiJ9fQ..0G12ehbKyO5OUQ-ZaNOo2w."
+	  "S2GLVuQMMV_GMwej3KQclA.4xn4IsvQz_3qhfOWHSGdBkmkCY3Q_chXPKekt4tbadA" },
+};
+
+START_TEST(kat_wycheproof_ecdh_es)
+{
+	size_t v;
+
+	SET_OPS();
+	read_json("ec_key_prime256v1_rfc7518_c_enc.json");
+
+	for (v = 0; v < ARRAY_SIZE(WYCHEPROOF_ECDH_ES); v++) {
+		jwe_checker_auto_t *checker = NULL;
+		unsigned char *pt = NULL;
+		size_t pt_len = 0;
+
+		checker = jwe_checker_new();
+		ck_assert_ptr_nonnull(checker);
+		ck_assert_int_eq(jwe_checker_setkey(checker, JWE_ALG_ECDH_ES,
+					WYCHEPROOF_ECDH_ES[v].enc, g_item), 0);
+		pt = jwe_checker_decrypt(checker, WYCHEPROOF_ECDH_ES[v].jwe,
+					 &pt_len);
+		ck_assert_msg(pt != NULL, "Wycheproof vector %zu: %s", v,
+			      jwe_checker_error_msg(checker));
+		ck_assert_int_eq(pt_len, 3);
+		ck_assert_mem_eq(pt, "foo", 3);
+		free(pt);
+	}
+
+	free_key();
+}
+END_TEST
+
+/* @rfc{7518,4.6.2} Multi-round Concat KDF known answers, with PartyInfo.
+ *
+ * Inputs are the RFC 7518 Appendix C keys: Bob's static P-256 key
+ * (tests/keys/ec_key_prime256v1_rfc7518_c_enc.json) and Alice's ephemeral
+ * key (d = "0_NxaRPUMQoAJt50Gz8YiTr8gRTwyEaCumd-MToTmIo", whose public half
+ * is the epk below), apu = "Alice", apv = "Bob". The shared secret is
+ *
+ *   Z = 9e56d91d817135d372834283bf84269cfb316ea3da806a48f6daa7798cfe90c4
+ *
+ * The expected CEKs were computed independently in Python with hashlib, as
+ * SHA-256(counter || Z || OtherInfo) for counter = 1, 2 (32-bit big-endian),
+ * concatenated and truncated, where OtherInfo = len32("enc") || "enc" ||
+ * len32("Alice") || "Alice" || len32("Bob") || "Bob" || be32(keydatalen*8)
+ * (the same code reproduces the RFC's A128GCM key "VqqN6vgjbSBcIijNcacQGg"):
+ *
+ *   A192CBC-HS384 (48 octets):
+ *     60597bbf9eb991c5162f19f3728c27440a74602fa26ace48796b6a9322dd13cb
+ *     c26d50be3342992dccb45c81a7b5d5b7
+ *   A256CBC-HS512 (64 octets):
+ *     3986aa79f6396420e580e5d3890f623fee5d4522307929eb99ee3425a001ecc1
+ *     75b1754e3fb644ce825034b562523e9a8806bca8d76afa861e9b79515803225d
+ *
+ * Each token was then produced in Python (the "cryptography" package's
+ * AES-CBC + hmac) with that CEK, IV = 000102...0f, and PT as the plaintext.
+ * Decrypting it proves the derived CEK matches byte-for-byte, including the
+ * second-round octets, the counter and the SuppPubInfo bit length. */
+static const struct {
+	jwe_enc_t enc;
+	const char *jwe;
+} KAT_KDF_MULTIROUND[] = {
+	{ JWE_ENC_A192CBC_HS384,
+	  "eyJhbGciOiJFQ0RILUVTIiwiZW5jIjoiQTE5MkNCQy1IUzM4NCIsImFwdSI6IlFX"
+	  "eHBZMlUiLCJhcHYiOiJRbTlpIiwiZXBrIjp7Imt0eSI6IkVDIiwiY3J2IjoiUC0y"
+	  "NTYiLCJ4IjoiZ0kwR0FJTEJkdTdUNTNha3JGbU15R2NzRjNuNWRPN01td05CSEtX"
+	  "NVNWMCIsInkiOiJTTFdfeFNmZnpsUFdySEVWSTMwREhNXzRlZ1Z3dDNOUXFlVUQ3"
+	  "bk1GcHBzIn19..AAECAwQFBgcICQoLDA0ODw."
+	  "k3CGlw6wNbJbH4CYiReAWUQ98Gu7MVt5-AHwsvmd93gyVxcZQWznNquqiz0eZgrD."
+	  "Uff00h9HF8A81dM0glAagsjLiPEmymr-" },
+	{ JWE_ENC_A256CBC_HS512,
+	  "eyJhbGciOiJFQ0RILUVTIiwiZW5jIjoiQTI1NkNCQy1IUzUxMiIsImFwdSI6IlFX"
+	  "eHBZMlUiLCJhcHYiOiJRbTlpIiwiZXBrIjp7Imt0eSI6IkVDIiwiY3J2IjoiUC0y"
+	  "NTYiLCJ4IjoiZ0kwR0FJTEJkdTdUNTNha3JGbU15R2NzRjNuNWRPN01td05CSEtX"
+	  "NVNWMCIsInkiOiJTTFdfeFNmZnpsUFdySEVWSTMwREhNXzRlZ1Z3dDNOUXFlVUQ3"
+	  "bk1GcHBzIn19..AAECAwQFBgcICQoLDA0ODw."
+	  "CJ5u-ciUOxeguYydCd9VPMunOxHZpG1XJi6Bq8m-cosRB033wPsqRh5XvvkOlumA."
+	  "EYntgD2b88j52vEUdjcVLYs_0AtnshvLJLRIuu71KAQ" },
+};
+
+START_TEST(kat_kdf_multiround)
+{
+	size_t v;
+
+	SET_OPS();
+	read_json("ec_key_prime256v1_rfc7518_c_enc.json");
+
+	for (v = 0; v < ARRAY_SIZE(KAT_KDF_MULTIROUND); v++) {
+		jwe_checker_auto_t *checker = NULL;
+		unsigned char *pt = NULL;
+		size_t pt_len = 0;
+
+		checker = jwe_checker_new();
+		ck_assert_ptr_nonnull(checker);
+		ck_assert_int_eq(jwe_checker_setkey(checker, JWE_ALG_ECDH_ES,
+					KAT_KDF_MULTIROUND[v].enc, g_item), 0);
+		pt = jwe_checker_decrypt(checker, KAT_KDF_MULTIROUND[v].jwe,
+					 &pt_len);
+		ck_assert_msg(pt != NULL, "KDF KAT %zu: %s", v,
+			      jwe_checker_error_msg(checker));
+		ck_assert_int_eq(pt_len, strlen(PT));
+		ck_assert_mem_eq(pt, PT, pt_len);
+		free(pt);
+	}
+
+	free_key();
+}
+END_TEST
+
+/* Guard against a vacuous pass: the A256CBC-HS512 KAT with one authentication
+ * tag character corrupted must be rejected. (A KDF whose second round were
+ * wrong would derive a bad AES key half, which the plaintext check above
+ * catches; this checks the MAC half is really enforced.) */
+START_TEST(kat_kdf_multiround_tampered)
+{
+	jwe_checker_auto_t *checker = NULL;
+	char_auto *tok = NULL;
+	unsigned char *pt = NULL;
+	size_t pt_len = 0, len;
+
+	SET_OPS();
+	read_json("ec_key_prime256v1_rfc7518_c_enc.json");
+
+	tok = strdup(KAT_KDF_MULTIROUND[1].jwe);
+	ck_assert_ptr_nonnull(tok);
+	len = strlen(tok);
+	tok[len - 2] = (tok[len - 2] == 'A') ? 'B' : 'A';
+
+	checker = jwe_checker_new();
+	ck_assert_int_eq(jwe_checker_setkey(checker, JWE_ALG_ECDH_ES,
+					    JWE_ENC_A256CBC_HS512, g_item), 0);
+	pt = jwe_checker_decrypt(checker, tok, &pt_len);
+	ck_assert_ptr_null(pt);
+	ck_assert_int_eq(jwe_checker_error(checker), 1);
+
+	free_key();
+}
+END_TEST
+
 /* Both backends route ECDH-ES to the OpenSSL EVP_PKEY, so a token from one
  * provider must decrypt under all. */
 START_TEST(interop)
@@ -813,6 +1038,11 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, partyinfo_replace, 0, i);
 	tcase_add_loop_test(tc_core, kat_rfc7518_appc, 0, i);
 	tcase_add_loop_test(tc_core, kat_rfc7518_appc_tampered_hdr, 0, i);
+	tcase_add_loop_test(tc_core, rt_ec_all_enc, 0, i);
+	tcase_add_loop_test(tc_core, rt_okp_all_enc, 0, i);
+	tcase_add_loop_test(tc_core, kat_wycheproof_ecdh_es, 0, i);
+	tcase_add_loop_test(tc_core, kat_kdf_multiround, 0, i);
+	tcase_add_loop_test(tc_core, kat_kdf_multiround_tampered, 0, i);
 	tcase_add_test(tc_core, interop);
 
 	tcase_set_timeout(tc_core, 30);

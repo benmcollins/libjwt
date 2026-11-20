@@ -690,76 +690,6 @@ static int ecdh_keydatalen(jwe_key_alg_t alg, jwe_enc_t enc,
 	}
 }
 
-/* Append a length-prefixed (32-bit big-endian) datum to a buffer. */
-static void concat_put_data(unsigned char *buf, size_t *off,
-			    const unsigned char *data, size_t len)
-{
-	buf[(*off)++] = (unsigned char)((len >> 24) & 0xff);
-	buf[(*off)++] = (unsigned char)((len >> 16) & 0xff);
-	buf[(*off)++] = (unsigned char)((len >> 8) & 0xff);
-	buf[(*off)++] = (unsigned char)(len & 0xff);
-	if (len) {
-		memcpy(buf + *off, data, len);
-		*off += len;
-	}
-}
-
-/* @rfc{7518,4.6.2} Concat KDF (NIST SP 800-56A 5.8.1) with SHA-256. JWE only
- * ever needs <= 32 octets (one SHA-256 block), so a single round suffices.
- * OtherInfo = AlgorithmID || PartyUInfo || PartyVInfo || SuppPubInfo, each
- * length-prefixed; SuppPubInfo is the keydatalen in bits (32-bit BE). */
-static int concat_kdf(const unsigned char *z, size_t z_len,
-		      const char *algid, const unsigned char *apu, size_t apu_len,
-		      const unsigned char *apv, size_t apv_len,
-		      size_t keydatalen, unsigned char *out)
-{
-	unsigned char hash[SHA256_DIGEST_LENGTH];
-	unsigned char *buf;
-	size_t algid_len = strlen(algid);
-	size_t buf_len, off = 0;
-	uint32_t bits = (uint32_t)(keydatalen * 8);
-	EVP_MD_CTX *mdctx = NULL;
-	unsigned char counter[4] = { 0, 0, 0, 1 };
-	unsigned char supppub[4];
-	unsigned int hlen = 0;
-	int ret = 1;
-
-	if (keydatalen > SHA256_DIGEST_LENGTH)
-		return 1; // LCOV_EXCL_LINE
-
-	supppub[0] = (unsigned char)((bits >> 24) & 0xff);
-	supppub[1] = (unsigned char)((bits >> 16) & 0xff);
-	supppub[2] = (unsigned char)((bits >> 8) & 0xff);
-	supppub[3] = (unsigned char)(bits & 0xff);
-
-	/* counter || Z || OtherInfo */
-	buf_len = 4 + z_len + (4 + algid_len) + (4 + apu_len) + (4 + apv_len) + 4;
-	buf = jwt_malloc(buf_len);
-	if (buf == NULL)
-		return 1; // LCOV_EXCL_LINE
-
-	memcpy(buf + off, counter, 4); off += 4;
-	memcpy(buf + off, z, z_len); off += z_len;
-	concat_put_data(buf, &off, (const unsigned char *)algid, algid_len);
-	concat_put_data(buf, &off, apu, apu_len);
-	concat_put_data(buf, &off, apv, apv_len);
-	memcpy(buf + off, supppub, 4); off += 4;
-
-	mdctx = EVP_MD_CTX_new();
-	if (mdctx != NULL &&
-	    EVP_DigestInit_ex(mdctx, EVP_sha256(), NULL) == 1 &&
-	    EVP_DigestUpdate(mdctx, buf, off) == 1 &&
-	    EVP_DigestFinal_ex(mdctx, hash, &hlen) == 1) {
-		memcpy(out, hash, keydatalen);
-		ret = 0;
-	}
-
-	EVP_MD_CTX_free(mdctx);
-	jwt_scrub_and_free(buf, buf_len);
-
-	return ret;
-}
-
 /* Build an "epk" JWK object {kty,crv,x,y} from an EC public EVP_PKEY. */
 static jwt_json_t *epk_to_json(EVP_PKEY *pkey, const char *crv)
 {
@@ -1094,8 +1024,10 @@ int openssl_ecdh_derive(jwe_key_alg_t alg, jwe_enc_t enc,
 	if (japv && jwt_json_is_string(japv))
 		apv = jwt_base64uri_decode(jwt_json_str_val(japv), &apv_len);
 
-	if (concat_kdf(z, z_len, algid, apu, apu_len < 0 ? 0 : (size_t)apu_len,
-		       apv, apv_len < 0 ? 0 : (size_t)apv_len, keydatalen, out))
+	if (jwe_concat_kdf(&jwt_openssl_ops, z, z_len, algid,
+			   apu, apu_len < 0 ? 0 : (size_t)apu_len,
+			   apv, apv_len < 0 ? 0 : (size_t)apv_len,
+			   keydatalen, out))
 		goto out; // LCOV_EXCL_LINE
 
 	*dk = out;
