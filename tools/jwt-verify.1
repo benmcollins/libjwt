@@ -23,6 +23,11 @@ algorithm, so it must either be in the key file (as the \f[B]alg\f[R]
 attribute), or passed on the command line with the \f[B]\-a\f[R]
 argument.
 .PP
+An unsigned token (\f[B]\(lqalg\(rq:\(lqnone\(rq\f[R]) is rejected
+unless \f[B]\-a none\f[R] is given with neither \f[B]\-k\f[R] nor
+\f[B]\-r\f[R] (RFC 8725 §3.2); such a token is then only decoded, since
+there is no signature to check.
+.PP
 \f[B]jwt\-verify\f[R] will not assume the algorithm from the JWT itself
 (for security reasons), however, the algorithm in the JWT must match
 what you provide to \f[B]jwt\-verify\f[R].
@@ -82,6 +87,9 @@ any tokens passed to the program.
 See \f[B]\-l\f[R] for values of \f[I]ALG\f[R].
 Not accepted with \f[B]\-\-keyring\f[R], where a key\(cqs own
 \f[B]alg\f[R], if it has one, pins the algorithm.
+With neither \f[B]\-k\f[R] nor \f[B]\-r\f[R], \f[B]\-a none\f[R] accepts
+an unsigned (\f[B]\(lqalg\(rq:\(lqnone\(rq\f[R]) token, which is then
+only decoded; without it, such a token is rejected.
 .TP
 \f[B]\-k\f[R] \f[I]FILE\f[R], \f[B]\-\-key\f[R]=\f[I]FILE\f[R]
 Path to a file containing a key in JSON Web Key format.
@@ -113,8 +121,10 @@ so it is a usage error.
 .SH EXIT STATUS
 .TP
 \f[B]0\f[R]
-Every token was verified (its signature checked with \f[B]\-k\f[R] or
-\f[B]\-r\f[R]; with neither, an unsigned token is only decoded).
+Every token was verified: its signature checked with \f[B]\-k\f[R] or
+\f[B]\-r\f[R], or, with neither, the token is unsigned and \f[B]\-a
+none\f[R] was given, so it is only decoded.
+With neither and no \f[B]\-a none\f[R], every token fails.
 .TP
 \f[B]1\f[R]
 A token failed, there was no token to verify (nothing to read on

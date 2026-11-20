@@ -21,6 +21,10 @@ with **-k** requires specifying the algorithm, so it must either be in
 the key file (as the **alg** attribute), or passed on the command line
 with the **-a** argument.
 
+An unsigned token (**"alg":"none"**) is rejected unless **-a none** is given
+with neither **-k** nor **-r** (RFC 8725 §3.2); such a token is then only
+decoded, since there is no signature to check.
+
 **jwt-verify** will not assume the algorithm from the JWT itself (for
 security reasons), however, the algorithm in the JWT must match what
 you provide to **jwt-verify**.
@@ -71,7 +75,9 @@ or a signal that ends it, still decides whether the token passes.
   ~ Specify the algorithm to be used when verifying the signature block of
   any tokens passed to the program. See **-l** for values of _ALG_. Not
   accepted with **\-\-keyring**, where a key's own **alg**, if it has one,
-  pins the algorithm.
+  pins the algorithm. With neither **-k** nor **-r**, **-a none** accepts an
+  unsigned (**"alg":"none"**) token, which is then only decoded; without it,
+  such a token is rejected.
 
 **\-k** _FILE_, **\-\-key**=_FILE_
   ~ Path to a file containing a key in JSON Web Key format. If your keys are
@@ -99,8 +105,9 @@ or a signal that ends it, still decides whether the token passes.
 # EXIT STATUS
 
 **0**
-  ~ Every token was verified (its signature checked with **-k** or **-r**; with
-  neither, an unsigned token is only decoded).
+  ~ Every token was verified: its signature checked with **-k** or **-r**, or,
+  with neither, the token is unsigned and **-a none** was given, so it is only
+  decoded. With neither and no **-a none**, every token fails.
 
 **1**
   ~ A token failed, there was no token to verify (nothing to read on
