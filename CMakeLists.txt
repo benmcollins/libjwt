@@ -433,6 +433,9 @@ if (CHECK_FOUND)
 	# Checker and Builder
 	list (APPEND UNIT_TESTS jwt_builder jwt_checker jwt_flipflop jwt_xbackend)
 
+	# The token a checker accepted (jwt_checker_verified_jwt())
+	list (APPEND UNIT_TESTS jwt_verified)
+
 	# JWS JSON Serialization (multi-signature)
 	list (APPEND UNIT_TESTS jws_json)
 

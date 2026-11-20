@@ -344,7 +344,10 @@ typedef void (*jwt_free_t)(void *);
 /** @ingroup jwt_alg_grp
  * Get the jwt_alg_t set for this JWT object.
  *
- * Returns the jwt_alg_t type for this JWT object.
+ * Returns the jwt_alg_t type for this JWT object. On the token that
+ * jwt_checker_verified_jwt() returns, this is the algorithm its signature
+ * verified with, or ::JWT_ALG_INVAL for a General JWS JSON Serialization
+ * (see there).
  *
  * @param jwt Pointer to a JWT object.
  * @returns Returns a jwt_alg_t type for this object.
@@ -1335,9 +1338,12 @@ int jwt_checker_enable_embedded_jwk_keyring(jwt_checker_t *checker,
  *
  * Treat what the callback sees as unverified: the header and claims count as
  * verified only once jwt_checker_verify() (or jwt_checker_verify_detached())
- * returns 0. Act on them (e.g. record them) only then, or act on the claims
- * in a jti callback (jwt_checker_setjti()), which runs after the signature
- * and claim checks. In a JWS JSON Serialization with several signatures,
+ * returns 0. Act on them (e.g. record them) only then, reading them from
+ * jwt_checker_verified_jwt() and jwt_checker_sig_header_get(), or act on the
+ * claims in a jti callback (jwt_checker_setjti()), which runs after the
+ * signature and claim checks. Keep no pointer into the @ref jwt_t the
+ * callback receives: it may be freed as soon as the verify returns. In a JWS
+ * JSON Serialization with several signatures,
  * each has its own header, and under ::JWT_VERIFY_POLICY_ANY the token is
  * accepted if one of them verifies, so a header the callback saw may belong
  * to a signature that did not. The callback is not told which signature it
@@ -1446,7 +1452,10 @@ int jwt_checker_setcb(jwt_checker_t *checker, jwt_callback_t cb, void *ctx);
  * the token under either policy. For a JWS JSON Serialization, and a Compact
  * token checked against a keyring, the jwt_t it receives holds the claims
  * but no header (jwt_header_get() fails), and jwt_get_alg() names the last
- * signature's algorithm, whether or not that signature verified.
+ * signature's algorithm, whether or not that signature verified. Once
+ * jwt_checker_verify() returns 0, jwt_checker_verified_jwt() and
+ * jwt_checker_sig_header_get() give the claims, the protected headers and the
+ * verified algorithm.
  *
  * The ctx is passed to the callback via the @ref jwt_config_t structure.
  *
@@ -1529,6 +1538,12 @@ int jwt_checker_understands(jwt_checker_t *checker, const char *header);
  *
  * @note If you set a callback for this checker, this is when it will be called.
  *
+ * Once this returns 0, jwt_checker_verified_jwt() gives the accepted token
+ * (its claims and, for a Compact or Flattened token, its protected header and
+ * verified algorithm) and jwt_checker_sig_header_get() each verified
+ * signature's protected header, until the next verify call on @p checker.
+ * This call releases the previous token first, whatever its outcome.
+ *
  * @param checker Pointer to a checker object
  * @param token A string containing a token to be verified
  * @return 0 on success, non-zero otherwise with error set in the checker
@@ -1604,6 +1619,82 @@ const jwk_item_t *jwt_checker_sig_key(const jwt_checker_t *checker,
 				      unsigned int index);
 
 /**
+ * @brief The token that the last verify accepted
+ *
+ * After jwt_checker_verify() or jwt_checker_verify_detached() returns 0, the
+ * checker keeps the token it accepted. Read it with jwt_claim_get(),
+ * jwt_header_get(), jwt_get_alg() and jwt_get_cnf():
+ *
+ * - **Claims.** The token's claims. An @rfc{7797} unencoded
+ *   (``"b64":false``) payload is not JWT claims, so its claim set is empty.
+ * - **Header and algorithm.** For a Compact or Flattened token, its protected
+ *   header and the algorithm its signature verified with, which is how to
+ *   learn it when the key has no ``"alg"``. A General JWS JSON Serialization
+ *   has a header per signature, so here the header is empty and jwt_get_alg()
+ *   returns ::JWT_ALG_INVAL: read each verified signature's header, ``"alg"``
+ *   included, with jwt_checker_sig_header_get().
+ * - **Unprotected members.** A JWS JSON signature's unprotected ``"header"``
+ *   is not integrity protected, so it is never part of the token returned.
+ *
+ * Nothing is returned after a failed verify, even where
+ * jwt_checker_sig_verified() reports a signature as verified (e.g. the token
+ * expired, failed a claim check or did not meet ::JWT_VERIFY_POLICY_ALL), nor
+ * to a verify or ``jti`` callback, which runs while the token is being
+ * verified: use the @ref jwt_t passed to the callback there.
+ *
+ * A ::JWT_VALUE_STR read from the token (e.g. with jwt_claim_get()) points
+ * into it, so it lasts only as long as the token does. Do not free or modify
+ * the token.
+ *
+ * @param checker Pointer to a checker object
+ * @return The accepted token, or NULL if there is none (including a NULL
+ *  @p checker). It belongs to @p checker, which keeps it only until the next
+ *  jwt_checker_verify() or jwt_checker_verify_detached() call on @p checker
+ *  (even one that fails at once, as on a NULL or empty token) or
+ *  jwt_checker_free().
+ * @since 3.8.0
+ */
+JWT_EXPORT
+jwt_t *jwt_checker_verified_jwt(jwt_checker_t *checker);
+
+/**
+ * @brief Get a protected-header member of one verified signature
+ *
+ * After jwt_checker_verify() or jwt_checker_verify_detached() returns 0,
+ * reads a member of the protected header of signature @p index the way
+ * jwt_header_get() reads one from a @ref jwt_t. Set @p value up with one of
+ * the jwt_set_GET_*() macros, e.g. jwt_set_GET_STR(&value, "kid"), or
+ * jwt_set_GET_JSON(&value, NULL) for the whole header. This is how to read
+ * each signature's header, including its ``"alg"``, in a General JWS JSON
+ * Serialization; for a Compact or Flattened token (index 0) it reads the same
+ * header as jwt_header_get() on jwt_checker_verified_jwt().
+ *
+ * Only a signature that verified is readable, and only once the token was
+ * accepted: under ::JWT_VERIFY_POLICY_ANY a signature that did not verify is
+ * not, and after a failed verify none is, nor during one (from a verify or
+ * ``jti`` callback). A signature's unprotected ``"header"`` is never read.
+ *
+ * As with jwt_checker_verified_jwt(), a ::JWT_VALUE_STR value points into
+ * data the checker owns until its next verify call or jwt_checker_free(); a
+ * ::JWT_VALUE_JSON value is a new string for the caller to free, as from
+ * jwt_header_get().
+ *
+ * @param checker Pointer to a checker object
+ * @param index A signature index in ``[0, jwt_checker_sig_count())``
+ * @param value A jwt_value_t structure with relevant actions filled in
+ * @return JWT_VALUE_ERR_NONE on success; JWT_VALUE_ERR_INVALID if @p checker
+ *  or @p value is NULL, the last verify did not accept a token, or signature
+ *  @p index does not exist or did not verify; otherwise as jwt_header_get()
+ *  (e.g. JWT_VALUE_ERR_NOEXIST for an absent member). The value.error field
+ *  matches the return value whenever @p value is not NULL.
+ * @since 3.8.0
+ */
+JWT_EXPORT
+jwt_value_error_t jwt_checker_sig_header_get(jwt_checker_t *checker,
+					     unsigned int index,
+					     jwt_value_t *value);
+
+/**
  * @brief Verify a token whose payload was detached
  *
  * Verifies a token produced with jwt_builder_set_detached() (or any JWS with a
@@ -1628,7 +1719,8 @@ const jwk_item_t *jwt_checker_sig_key(const jwt_checker_t *checker,
  *
  * Any error already set in @p checker is cleared on entry and every failure
  * sets one, so jwt_checker_error() and jwt_checker_error_msg() always reflect
- * this call.
+ * this call. Likewise the token the last verify accepted is released on entry,
+ * and on success jwt_checker_verified_jwt() returns this one (see there).
  *
  * @param checker Pointer to a checker object
  * @param token A string containing the (detached) token to verify
@@ -2089,7 +2181,12 @@ int jwt_checker_time_leeway(jwt_checker_t *checker, jwt_claims_t claim,
 /**
  * @defgroup jwt_object_grp JWT Functions
  *
- * @brief Get and set claims and headers on a jwt_t during a callback
+ * @brief Get and set claims and headers on a jwt_t
+ *
+ * A @ref jwt_t is never created by the application. LibJWT passes one to a
+ * builder or checker callback, while the token is being generated or
+ * verified, and jwt_checker_verified_jwt() returns the token a checker
+ * accepted.
  *
  * For most usage, setting values in the builder object is enough to provide
  * all the information you would like set in a JWT token. However, if some
@@ -2107,7 +2204,9 @@ int jwt_checker_time_leeway(jwt_checker_t *checker, jwt_claims_t claim,
 /**
  * @brief Set a value in the header of a JWT
  *
- * @param jwt Pointer to a jwt_t token, previously created with jwt_create()
+ * @param jwt Pointer to a jwt_t token: the one passed to a builder callback
+ *  (jwt_builder_setcb()). A checker's token is read-only (see
+ *  jwt_checker_setcb() and jwt_checker_verified_jwt()).
  * @param value A jwt_value_t structure with relevant actions filled in
  * @return A jwt_value_error_t value, JWT_VALUE_ERR_NONE being success. The
  *  value.error field will match this return value.
@@ -2119,7 +2218,8 @@ jwt_value_error_t jwt_header_set(jwt_t *jwt, jwt_value_t *value);
 /**
  * @brief Get a value from the header of a JWT
  *
- * @param jwt Pointer to a jwt_t token, previously created with jwt_create()
+ * @param jwt Pointer to a jwt_t token: the one passed to a builder or checker
+ *  callback, or the one jwt_checker_verified_jwt() returns
  * @param value A jwt_value_t structure with relevant actions filled in
  * @return A jwt_value_error_t value, JWT_VALUE_ERR_NONE being success. The
  *  value.error field will match this return value.
@@ -2131,7 +2231,9 @@ jwt_value_error_t jwt_header_get(jwt_t *jwt, jwt_value_t *value);
 /**
  * @brief Delete a value from the header of a JWT
  *
- * @param jwt Pointer to a jwt_t token, previously created with jwt_create()
+ * @param jwt Pointer to a jwt_t token: the one passed to a builder callback
+ *  (jwt_builder_setcb()). A checker's token is read-only (see
+ *  jwt_checker_setcb() and jwt_checker_verified_jwt()).
  * @param header The name of the header to delete, or NULL to clear the entire
  *  header
  * @return A jwt_value_error_t value, JWT_VALUE_ERR_NONE being success.
@@ -2143,7 +2245,9 @@ jwt_value_error_t jwt_header_del(jwt_t *jwt, const char *header);
 /**
  * @brief Set a value in the claims of a JWT
  *
- * @param jwt Pointer to a jwt_t token, previously created with jwt_create()
+ * @param jwt Pointer to a jwt_t token: the one passed to a builder callback
+ *  (jwt_builder_setcb()). A checker's token is read-only (see
+ *  jwt_checker_setcb() and jwt_checker_verified_jwt()).
  * @param value A jwt_value_t structure with relevant actions filled in
  * @return A jwt_value_error_t value, JWT_VALUE_ERR_NONE being success. The
  *  value.error field will match this return value.
@@ -2155,7 +2259,8 @@ jwt_value_error_t jwt_claim_set(jwt_t *jwt, jwt_value_t *value);
 /**
  * @brief Get a value from the claims of a JWT
  *
- * @param jwt Pointer to a jwt_t token, previously created with jwt_create()
+ * @param jwt Pointer to a jwt_t token: the one passed to a builder or checker
+ *  callback, or the one jwt_checker_verified_jwt() returns
  * @param value A jwt_value_t structure with relevant actions filled in
  * @return A jwt_value_error_t value, JWT_VALUE_ERR_NONE being success. The
  *  value.error field will match this return value.
@@ -2167,7 +2272,9 @@ jwt_value_error_t jwt_claim_get(jwt_t *jwt, jwt_value_t *value);
 /**
  * @brief Delete a value from the claims of a JWT
  *
- * @param jwt Pointer to a jwt_t token, previously created with jwt_create()
+ * @param jwt Pointer to a jwt_t token: the one passed to a builder callback
+ *  (jwt_builder_setcb()). A checker's token is read-only (see
+ *  jwt_checker_setcb() and jwt_checker_verified_jwt()).
  * @param claim The name of the claim to delete, or NULL to clear all claims
  * @return A jwt_value_error_t value, JWT_VALUE_ERR_NONE being success.
  * @since 3.0.0
@@ -2242,10 +2349,12 @@ int jwt_builder_setcnf(jwt_builder_t *builder, const char *member,
  * @rfc{7800}
  *
  * Returns the value of @c cnf.@p member (e.g. @c "jkt", @c "kid",
- * @c "x5t#S256") of a token. Because a verifier obtains the @ref jwt_t inside
- * its jwt_checker_setcb() callback, this is where you call it to confirm a
- * presented proof-of-possession key; as with anything the callback reads, the
- * value is verified only once jwt_checker_verify() returns 0.
+ * @c "x5t#S256") of a token. A verifier can call it on the @ref jwt_t that
+ * jwt_checker_verified_jwt() returns once jwt_checker_verify() returns 0, to
+ * confirm a presented proof-of-possession key against a verified value, or in
+ * its jwt_checker_setcb() callback, where, as with anything the callback
+ * reads, the value counts as verified only once jwt_checker_verify() returns
+ * 0.
  *
  * @param jwt Pointer to a jwt_t token
  * @param member The confirmation member name to read

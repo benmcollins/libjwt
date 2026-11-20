@@ -164,6 +164,13 @@ struct jwt_common {
 	 * it must outlive the verify (jwt_checker_sig_key() borrows it), so it is
 	 * reset at the start of each verify and freed at checker free. */
 	jwk_set_t *embedded_owned;
+
+	/* checker: the token the last verify accepted (claims; for a Compact or
+	 * Flattened token also its protected header and verified alg), handed
+	 * out by jwt_checker_verified_jwt(). Owned here: released at the start
+	 * of every verify, so it is NULL while one runs and after any failure,
+	 * and at checker free. Never set on a builder. */
+	jwt_t *verified;
 };
 
 struct jwt_builder {
