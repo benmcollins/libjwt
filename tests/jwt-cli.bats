@@ -235,6 +235,125 @@ RSAENC="${SRCDIR}/tests/keys/rsa_key_2048_enc.json"
 	[ "${result}" = '{"a":1}' ]
 }
 
+# Issue #375: jwe-decrypt reads the one token correctly. stdin is read whole,
+# never truncated at a NUL byte and never with its lines joined; a Compact
+# token is one line (a second token or a token split over lines is an error),
+# while a JSON token may span lines. Exactly one token argument is accepted.
+# Modeled on the jwt-verify stdin cases above.
+@test "jwe-decrypt stdin rejects a NUL byte and decrypts nothing" {
+	tok="$(./tools/jwe-encrypt -k ${OCT256} -a dir -e A256GCM -j '{"a":1}')"
+	tok2="$(./tools/jwe-encrypt -k ${OCT256} -a dir -e A256GCM -j '{"b":2}')"
+	# A token, a NUL byte, then junk used to decrypt the token with exit 0.
+	run ./tools/jwe-decrypt -k ${OCT256} -a dir -e A256GCM \
+		< <(printf '%s\0junk\n' "${tok}")
+	[ "${status}" -eq 1 ]
+	echo "${output}" | grep -q 'NUL byte'
+	[ "$(echo "${output}" | grep -c '{"a":1}')" -eq 0 ]
+	refute_sanitizer
+	# A NUL byte then a whole second token: the token in front is not used.
+	run ./tools/jwe-decrypt -k ${OCT256} -a dir -e A256GCM \
+		< <(printf '%s\0%s\n' "${tok}" "${tok2}")
+	[ "${status}" -eq 1 ]
+	[ "$(echo "${output}" | grep -c '{"a":1}')" -eq 0 ]
+	# A NUL byte inside the token, and as the very first byte, both error.
+	run ./tools/jwe-decrypt -k ${OCT256} -a dir -e A256GCM \
+		< <(printf '%s\0%s\n' "${tok:0:20}" "${tok:20}")
+	[ "${status}" -eq 1 ]
+	echo "${output}" | grep -q 'NUL byte'
+	run ./tools/jwe-decrypt -k ${OCT256} -a dir -e A256GCM \
+		< <(printf '\0%s\n' "${tok}")
+	[ "${status}" -eq 1 ]
+	echo "${output}" | grep -q 'NUL byte'
+	refute_sanitizer
+}
+
+@test "jwe-decrypt stdin rejects an over-long token (distinct from NUL)" {
+	# More than MAX_TOKEN_LEN (1 MiB) of input, no NUL: read_stdin_token()
+	# returns -4 and the tool says it is too long, not a NUL-byte error.
+	run ./tools/jwe-decrypt -k ${OCT256} -a dir -e A256GCM \
+		< <(head -c 1100000 /dev/zero | tr '\000' 'a')
+	[ "${status}" -eq 1 ]
+	echo "${output}" | grep -q 'too long'
+	[ "$(echo "${output}" | grep -c 'NUL byte')" -eq 0 ]
+	refute_sanitizer
+}
+
+@test "jwe-decrypt stdin rejects a second token or a split Compact token" {
+	tok="$(./tools/jwe-encrypt -k ${OCT256} -a dir -e A256GCM -j '{"a":1}')"
+	tok2="$(./tools/jwe-encrypt -k ${OCT256} -a dir -e A256GCM -j '{"b":2}')"
+	# Two Compact tokens on two lines used to be joined into one bad token.
+	run ./tools/jwe-decrypt -k ${OCT256} -a dir -e A256GCM \
+		< <(printf '%s\n%s\n' "${tok}" "${tok2}")
+	[ "${status}" -eq 1 ]
+	echo "${output}" | grep -q 'more than one token'
+	refute_sanitizer
+	# A Compact token split over two lines used to be rejoined and decrypt.
+	run ./tools/jwe-decrypt -k ${OCT256} -a dir -e A256GCM \
+		< <(printf '%s\n%s\n' "${tok:0:30}" "${tok:30}")
+	[ "${status}" -eq 1 ]
+	[ "$(echo "${output}" | grep -c '{"a":1}')" -eq 0 ]
+	refute_sanitizer
+}
+
+@test "jwe-decrypt stdin decrypts with or without a trailing newline" {
+	tok="$(./tools/jwe-encrypt -k ${OCT256} -a dir -e A256GCM -j '{"a":1}')"
+	result="$(printf '%s\n' "${tok}" | \
+		./tools/jwe-decrypt -k ${OCT256} -a dir -e A256GCM)"
+	[ "${result}" = '{"a":1}' ]
+	result="$(printf '%s' "${tok}" | \
+		./tools/jwe-decrypt -k ${OCT256} -a dir -e A256GCM)"
+	[ "${result}" = '{"a":1}' ]
+	# A trailing CRLF is a line end too and is dropped.
+	result="$(printf '%s\r\n' "${tok}" | \
+		./tools/jwe-decrypt -k ${OCT256} -a dir -e A256GCM)"
+	[ "${result}" = '{"a":1}' ]
+}
+
+@test "jwe-decrypt stdin accepts a pretty-printed JSON token" {
+	# jq . reformats the JSON serialization across several lines; both the
+	# Flattened and General forms must still decrypt from stdin.
+	ftok="$(./tools/jwe-encrypt -k ${OCT256} -a dir -e A256GCM \
+		-f json-flat -j '{"j":1}')"
+	gtok="$(./tools/jwe-encrypt -k ${OCT256} -a dir -e A256GCM \
+		-f json-general -j '{"g":2}')"
+	result="$(jq . <<< "${ftok}" | \
+		./tools/jwe-decrypt -k ${OCT256} -a dir -e A256GCM)"
+	[ "${result}" = '{"j":1}' ]
+	result="$(jq . <<< "${gtok}" | \
+		./tools/jwe-decrypt -k ${OCT256} -a dir -e A256GCM)"
+	[ "${result}" = '{"g":2}' ]
+}
+
+@test "jwe-decrypt accepts only one token argument" {
+	tok="$(./tools/jwe-encrypt -k ${OCT256} -a dir -e A256GCM -j '{"a":1}')"
+	tok2="$(./tools/jwe-encrypt -k ${OCT256} -a dir -e A256GCM -j '{"b":2}')"
+	# A second argument used to be silently ignored, with exit 0.
+	run ./tools/jwe-decrypt -k ${OCT256} -a dir -e A256GCM "${tok}" "${tok2}"
+	[ "${status}" -eq 1 ]
+	echo "${output}" | grep -q 'Only one token argument'
+	[ "$(echo "${output}" | grep -c '{"a":1}')" -eq 0 ]
+	run ./tools/jwe-decrypt -k ${OCT256} -a dir -e A256GCM "${tok}" junk
+	[ "${status}" -eq 1 ]
+	[ "$(echo "${output}" | grep -c '{"a":1}')" -eq 0 ]
+	refute_sanitizer
+	# One argument still decrypts.
+	result="$(./tools/jwe-decrypt -k ${OCT256} -a dir -e A256GCM "${tok}")"
+	[ "${result}" = '{"a":1}' ]
+}
+
+@test "jwe-decrypt tells empty stdin from a read error" {
+	# Empty stdin and a read error both exit 1, with distinct messages.
+	run ./tools/jwe-decrypt -k ${OCT256} -a dir -e A256GCM < /dev/null
+	[ "${status}" -eq 1 ]
+	echo "${output}" | grep -q 'No token read from stdin'
+	refute_sanitizer
+	# A directory cannot be read: the errno is reported, not taken for empty.
+	run ./tools/jwe-decrypt -k ${OCT256} -a dir -e A256GCM < .
+	[ "${status}" -eq 1 ]
+	echo "${output}" | grep -q 'Could not read stdin'
+	refute_sanitizer
+}
+
 @test "JWE A256KW + A256CBC-HS512 round-trip" {
 	tok="$(./tools/jwe-encrypt -k ${OCT256} -a A256KW -e A256CBC-HS512 -j '{"b":2}')"
 	result="$(echo "${tok}" | ./tools/jwe-decrypt -k ${OCT256} -a A256KW -e A256CBC-HS512)"
