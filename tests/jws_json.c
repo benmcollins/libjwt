@@ -390,18 +390,68 @@ START_TEST(test_edges)
 		ck_assert_int_eq(jwt_checker_verify(c1, t4), 0);
 	}
 
-	/* (c3) A setkey() signer still makes a Compact token, also when
-	 * setkey() follows a lone add_signature(). */
+	/* (c3) setkey() after a lone add_signature() adds a signer of its
+	 * own rather than taking that one over, even with the same key: two
+	 * signatures, so the token is promoted to General (setkey()'s first),
+	 * and a Compact one is refused. setkey(JWT_ALG_NONE, NULL) then removes
+	 * only setkey()'s signer. test_setkey_node covers every order. */
 	{
 		jwt_builder_auto_t *b5 = jwt_builder_new();
 		char_auto *t5 = NULL;
 
-		ck_assert_ptr_nonnull(jwt_builder_add_signature(b5,
-			JWT_ALG_ES256, ec));
+		sig = jwt_builder_add_signature(b5, JWT_ALG_ES256, ec);
+		ck_assert_ptr_nonnull(sig);
+		ck_assert_int_eq(jwt_signature_add_protected_json(sig, "kid",
+			"\"k5\""), 0);
 		ck_assert_int_eq(jwt_builder_setkey(b5, JWT_ALG_ES256, ec), 0);
 		t5 = jwt_builder_generate(b5);
 		ck_assert_ptr_nonnull(t5);
+		ck_assert_ptr_nonnull(strstr(t5, "\"signatures\""));
 		ck_assert_int_eq(jwt_checker_verify(c1, t5), 0);
+		ck_assert_uint_eq(jwt_checker_sig_count(c1), 2);
+		ck_assert_int_eq(jwt_checker_sig_verified(c1, 0), 1);
+		ck_assert_int_eq(jwt_checker_sig_verified(c1, 1), 1);
+
+		ck_assert_int_eq(jwt_builder_set_format(b5,
+			JWT_FORMAT_COMPACT), 0);
+		ck_assert_ptr_null(jwt_builder_generate(b5));
+		ck_assert_str_eq(jwt_builder_error_msg(b5),
+			"Compact serialization cannot carry multiple "
+			"signatures");
+
+		jwt_builder_error_clear(b5);
+		ck_assert_int_eq(jwt_builder_setkey(b5, JWT_ALG_NONE, NULL), 0);
+		ck_assert_ptr_null(jwt_builder_generate(b5));
+		ck_assert_str_eq(jwt_builder_error_msg(b5),
+			"Compact serialization cannot carry a "
+			"jwt_builder_add_signature() signer");
+	}
+
+	/* (c4) A JSON token fails, rather than drop the signature, when a
+	 * signer's key cannot sign (too short for its alg), whichever kind of
+	 * signer it is. */
+	{
+		jwk_set_t *sks = load_one("oct_key_128_too_small.json");
+		const jwk_item_t *small = jwks_item_get(sks, 0);
+		jwt_builder_auto_t *b6 = jwt_builder_new();
+		jwt_builder_auto_t *b7 = jwt_builder_new();
+
+		ck_assert_int_eq(jwt_builder_setkey(b6, JWT_ALG_ES256, ec), 0);
+		ck_assert_ptr_nonnull(jwt_builder_add_signature(b6,
+			JWT_ALG_HS256, small));
+		ck_assert_ptr_null(jwt_builder_generate(b6));
+		ck_assert_str_eq(jwt_builder_error_msg(b6),
+				 "Key too short for HS256: 128 bits");
+
+		ck_assert_int_eq(jwt_builder_setkey(b7, JWT_ALG_HS256, small),
+				 0);
+		ck_assert_ptr_nonnull(jwt_builder_add_signature(b7,
+			JWT_ALG_ES256, ec));
+		ck_assert_ptr_null(jwt_builder_generate(b7));
+		ck_assert_str_eq(jwt_builder_error_msg(b7),
+				 "Key too short for HS256: 128 bits");
+
+		jwks_free(sks);
 	}
 
 	/* (d) A verify callback runs per signature: allow then reject. */
@@ -2354,6 +2404,416 @@ START_TEST(test_compact_keyring_alloc)
 }
 END_TEST
 
+/* ====================================================================
+ * #361: jwt_builder_setkey() owns one signer node of its own, first in the
+ * list; it never takes over a jwt_builder_add_signature() signer, whatever
+ * the call order, and the builder callback's key makes that signer's
+ * signature in every serialization.
+ *
+ * Keys: A = ES256 (P-256), B = RS256, C = ES384 (P-384). Every signature is
+ * checked against each key, so each must verify with its own key and no
+ * other, and an add_signature() signer must carry its own protected "kid"
+ * (the key's letter), where the setkey() signer carries none.
+ * ==================================================================== */
+
+enum { K_A, K_B, K_C, K_NUM };
+
+static const char * const sn_file[K_NUM] = {
+	"ec_key_prime256v1.json", "rsa_key_2048.json", "ec_key_secp384r1.json",
+};
+static const jwt_alg_t sn_alg[K_NUM] = {
+	JWT_ALG_ES256, JWT_ALG_RS256, JWT_ALG_ES384,
+};
+static const char * const sn_kid[K_NUM] = { "A", "B", "C" };
+
+#define SN_MAX	3
+
+/* One expected signature: the key it verifies with, and whether it is an
+ * add_signature() signer (so it carries that key's "kid"). */
+struct sn_sig {
+	int k;
+	int kid;
+};
+
+/* Decode base64url @in (@len chars) into a NUL-terminated malloc'd string. */
+static char *b64url_dec(const char *in, size_t len)
+{
+	static const char tbl[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+		"abcdefghijklmnopqrstuvwxyz0123456789-_";
+	char *out = malloc(len + 1);
+	unsigned int acc = 0;
+	int bits = 0;
+	size_t i, o = 0;
+
+	ck_assert_ptr_nonnull(out);
+	for (i = 0; i < len; i++) {
+		const char *p = strchr(tbl, in[i]);
+
+		ck_assert_ptr_nonnull(p);
+		acc = (acc << 6) | (unsigned int)(p - tbl);
+		bits += 6;
+		if (bits >= 8) {
+			bits -= 8;
+			out[o++] = (char)((acc >> bits) & 0xff);
+		}
+	}
+	out[o] = '\0';
+
+	return out;
+}
+
+/* The protected header of each signature of @tok, decoded, in token order.
+ * Returns how many there are. */
+static int sn_headers(const char *tok, char *hdr[SN_MAX])
+{
+	static const char mark[] = "\"protected\":\"";
+	const char *p = tok;
+	int n = 0;
+
+	if (tok[0] != '{') {
+		const char *dot = strchr(tok, '.');
+
+		ck_assert_ptr_nonnull(dot);
+		hdr[0] = b64url_dec(tok, (size_t)(dot - tok));
+		return 1;
+	}
+
+	while ((p = strstr(p, mark)) != NULL) {
+		const char *end;
+
+		p += strlen(mark);
+		end = strchr(p, '"');
+		ck_assert_ptr_nonnull(end);
+		ck_assert_int_lt(n, SN_MAX);
+		hdr[n++] = b64url_dec(p, (size_t)(end - p));
+		p = end;
+	}
+
+	return n;
+}
+
+/* @tok must be in @fmt and carry exactly the @n signatures @want, in order:
+ * each verifies with its own key and no other, has its key's "alg", and
+ * carries its own "kid" if, and only if, add_signature() made it. */
+static void sn_check(const char *tok, jwt_serialization_t fmt,
+		     const struct sn_sig *want, int n,
+		     const jwk_item_t *keys[K_NUM])
+{
+	char *hdr[SN_MAX] = { NULL, NULL, NULL };
+	int i, k;
+
+	ck_assert_ptr_nonnull(tok);
+	switch (fmt) {
+	case JWT_FORMAT_COMPACT:
+		ck_assert_int_ne(tok[0], '{');
+		break;
+	case JWT_FORMAT_JSON_FLAT:
+		ck_assert_int_eq(tok[0], '{');
+		ck_assert_ptr_null(strstr(tok, "\"signatures\""));
+		break;
+	default:
+		ck_assert_ptr_nonnull(strstr(tok, "\"signatures\""));
+		break;
+	}
+
+	ck_assert_int_eq(sn_headers(tok, hdr), n);
+	for (i = 0; i < n; i++) {
+		char_auto *alg = NULL, *kid = NULL;
+
+		ck_assert_int_gt(asprintf(&alg, "\"alg\":\"%s\"",
+					  jwt_alg_str(sn_alg[want[i].k])), 0);
+		ck_assert_ptr_nonnull(strstr(hdr[i], alg));
+		if (want[i].kid) {
+			ck_assert_int_gt(asprintf(&kid, "\"kid\":\"%s\"",
+						  sn_kid[want[i].k]), 0);
+			ck_assert_ptr_nonnull(strstr(hdr[i], kid));
+		} else {
+			ck_assert_ptr_null(strstr(hdr[i], "\"kid\""));
+		}
+		free(hdr[i]);
+	}
+
+	for (k = 0; k < K_NUM; k++) {
+		jwt_checker_auto_t *c = jwt_checker_new();
+		int signs = 0;
+
+		ck_assert_int_eq(jwt_checker_setkey(c, sn_alg[k], keys[k]), 0);
+		for (i = 0; i < n; i++)
+			signs |= (want[i].k == k);
+
+		if (!signs) {
+			ck_assert_int_ne(jwt_checker_verify(c, tok), 0);
+			continue;
+		}
+
+		ck_assert_int_eq(jwt_checker_verify(c, tok), 0);
+		ck_assert_uint_eq(jwt_checker_sig_count(c), (unsigned int)n);
+		for (i = 0; i < n; i++)
+			ck_assert_int_eq(jwt_checker_sig_verified(c, i),
+					 want[i].k == k);
+	}
+}
+
+/* Builder steps. */
+enum { OP_END, OP_ADD, OP_SETKEY, OP_UNSET };
+
+struct sn_order {
+	struct { int op, k; } step[4];
+	struct sn_sig sig[SN_MAX];	/* the signers, in token order */
+	int n;
+	int promoted;			/* the calls select General */
+};
+
+START_TEST(test_setkey_node)
+{
+	static const struct sn_order orders[] = {
+		/* add_signature(A), setkey(B) */
+		{ { { OP_ADD, K_A }, { OP_SETKEY, K_B } },
+		  { { K_B, 0 }, { K_A, 1 } }, 2, 1 },
+		/* setkey(B), add_signature(A) */
+		{ { { OP_SETKEY, K_B }, { OP_ADD, K_A } },
+		  { { K_B, 0 }, { K_A, 1 } }, 2, 1 },
+		/* add_signature(A), add_signature(C), setkey(B) */
+		{ { { OP_ADD, K_A }, { OP_ADD, K_C }, { OP_SETKEY, K_B } },
+		  { { K_B, 0 }, { K_A, 1 }, { K_C, 1 } }, 3, 1 },
+		/* add_signature(A), setkey(JWT_ALG_NONE, NULL) */
+		{ { { OP_ADD, K_A }, { OP_UNSET, 0 } },
+		  { { K_A, 1 } }, 1, 0 },
+		/* setkey(B), add_signature(A), setkey(JWT_ALG_NONE, NULL) */
+		{ { { OP_SETKEY, K_B }, { OP_ADD, K_A }, { OP_UNSET, 0 } },
+		  { { K_A, 1 } }, 1, 1 },
+		/* setkey(B), setkey(JWT_ALG_NONE, NULL), add_signature(A) */
+		{ { { OP_SETKEY, K_B }, { OP_UNSET, 0 }, { OP_ADD, K_A } },
+		  { { K_A, 1 } }, 1, 0 },
+		/* add_signature(A), setkey(B), setkey(C): one setkey() node */
+		{ { { OP_ADD, K_A }, { OP_SETKEY, K_B }, { OP_SETKEY, K_C } },
+		  { { K_C, 0 }, { K_A, 1 } }, 2, 1 },
+		/* setkey(B), setkey(C) */
+		{ { { OP_SETKEY, K_B }, { OP_SETKEY, K_C } },
+		  { { K_C, 0 } }, 1, 0 },
+	};
+	jwk_set_t *sets[K_NUM];
+	const jwk_item_t *keys[K_NUM];
+	size_t o, f, when;
+	int k;
+
+	SET_OPS();
+
+	for (k = 0; k < K_NUM; k++) {
+		sets[k] = load_one(sn_file[k]);
+		keys[k] = jwks_item_get(sets[k], 0);
+	}
+
+	for (o = 0; o < ARRAY_SIZE(orders); o++)
+	for (f = 0; f < ARRAY_SIZE(all_fmt); f++)
+	for (when = 0; when < 2; when++) {
+		const struct sn_order *ord = &orders[o];
+		jwt_builder_auto_t *b = jwt_builder_new();
+		jwt_serialization_t eff = all_fmt[f];
+		char_auto *tok = NULL;
+		const char *err = NULL;
+		size_t s;
+
+		ck_assert_ptr_nonnull(b);
+
+		/* The format set before the signer calls: a second signer
+		 * promotes it to General. Set after them, it stands. */
+		if (when == 0) {
+			ck_assert_int_eq(jwt_builder_set_format(b, all_fmt[f]),
+					 0);
+			if (ord->promoted)
+				eff = JWT_FORMAT_JSON_GENERAL;
+		}
+
+		for (s = 0; s < ARRAY_SIZE(ord->step); s++) {
+			int sk = ord->step[s].k;
+			jwt_signature_t *sig;
+			char_auto *kid = NULL;
+
+			switch (ord->step[s].op) {
+			case OP_ADD:
+				sig = jwt_builder_add_signature(b, sn_alg[sk],
+								keys[sk]);
+				ck_assert_ptr_nonnull(sig);
+				ck_assert_int_gt(asprintf(&kid, "\"%s\"",
+							  sn_kid[sk]), 0);
+				ck_assert_int_eq(jwt_signature_add_protected_json(
+					sig, "kid", kid), 0);
+				break;
+			case OP_SETKEY:
+				ck_assert_int_eq(jwt_builder_setkey(b,
+					sn_alg[sk], keys[sk]), 0);
+				break;
+			case OP_UNSET:
+				ck_assert_int_eq(jwt_builder_setkey(b,
+					JWT_ALG_NONE, NULL), 0);
+				break;
+			default:
+				break;
+			}
+		}
+
+		if (when == 1)
+			ck_assert_int_eq(jwt_builder_set_format(b, all_fmt[f]),
+					 0);
+
+		if (eff == JWT_FORMAT_COMPACT && ord->n > 1)
+			err = "Compact serialization cannot carry multiple "
+				"signatures";
+		else if (eff == JWT_FORMAT_COMPACT && ord->sig[0].kid)
+			err = "Compact serialization cannot carry a "
+				"jwt_builder_add_signature() signer";
+		else if (eff == JWT_FORMAT_JSON_FLAT && ord->n > 1)
+			err = "Flattened serialization allows only one "
+				"signature";
+
+		tok = jwt_builder_generate(b);
+		if (err != NULL) {
+			/* Never an unsigned (or short-handed) token. */
+			ck_assert_ptr_null(tok);
+			ck_assert_str_eq(jwt_builder_error_msg(b), err);
+			continue;
+		}
+
+		sn_check(tok, eff, ord->sig, ord->n, keys);
+	}
+
+	for (k = 0; k < K_NUM; k++)
+		jwks_free(sets[k]);
+}
+END_TEST
+
+struct sn_cb_ctx {
+	const jwk_item_t *key;
+	jwt_alg_t alg;
+};
+
+/* A builder callback that picks the signing key and alg. */
+static int cb_sn_key(jwt_t *jwt, jwt_config_t *config)
+{
+	struct sn_cb_ctx *x = config->ctx;
+
+	(void)jwt;
+	config->key = x->key;
+	config->alg = x->alg;
+
+	return 0;
+}
+
+START_TEST(test_setkey_node_cb)
+{
+	jwk_set_t *sets[K_NUM];
+	const jwk_item_t *keys[K_NUM];
+	struct sn_cb_ctx pick[2], clear = { NULL, JWT_ALG_NONE };
+	const struct sn_sig only_a[] = { { K_A, 0 } };
+	const struct sn_sig a_c[] = { { K_A, 0 }, { K_C, 1 } };
+	const struct sn_sig only_c[] = { { K_C, 1 } };
+	size_t f, p;
+	int k, with_setkey;
+
+	SET_OPS();
+
+	for (k = 0; k < K_NUM; k++) {
+		sets[k] = load_one(sn_file[k]);
+		keys[k] = jwks_item_get(sets[k], 0);
+	}
+
+	/* The callback picks A, naming its alg or leaving it to the key. */
+	pick[0].key = keys[K_A];
+	pick[0].alg = JWT_ALG_ES256;
+	pick[1].key = keys[K_A];
+	pick[1].alg = JWT_ALG_NONE;
+
+	for (f = 0; f < ARRAY_SIZE(all_fmt); f++)
+	for (p = 0; p < ARRAY_SIZE(pick); p++)
+	for (with_setkey = 0; with_setkey < 2; with_setkey++) {
+		jwt_builder_auto_t *b = jwt_builder_new();
+		jwt_builder_auto_t *b2 = jwt_builder_new();
+		char_auto *tok = NULL, *tok2 = NULL;
+		jwt_signature_t *sig;
+
+		/* (1) The callback's key makes the one signature, also when
+		 * setkey(B) was called, and also when it was not. */
+		ck_assert_int_eq(jwt_builder_set_format(b, all_fmt[f]), 0);
+		if (with_setkey)
+			ck_assert_int_eq(jwt_builder_setkey(b, JWT_ALG_RS256,
+							    keys[K_B]), 0);
+		ck_assert_int_eq(jwt_builder_setcb(b, cb_sn_key, &pick[p]), 0);
+		tok = jwt_builder_generate(b);
+		sn_check(tok, all_fmt[f], only_a, 1, keys);
+
+		/* (2) Beside an add_signature(C) signer, the callback's key
+		 * still makes the setkey() signer's signature, first; C keeps
+		 * its own. Compact and Flattened carry one signature only. */
+		ck_assert_int_eq(jwt_builder_set_format(b2, all_fmt[f]), 0);
+		if (with_setkey)
+			ck_assert_int_eq(jwt_builder_setkey(b2, JWT_ALG_RS256,
+							    keys[K_B]), 0);
+		sig = jwt_builder_add_signature(b2, JWT_ALG_ES384, keys[K_C]);
+		ck_assert_ptr_nonnull(sig);
+		ck_assert_int_eq(jwt_signature_add_protected_json(sig, "kid",
+			"\"C\""), 0);
+		ck_assert_int_eq(jwt_builder_setcb(b2, cb_sn_key, &pick[p]),
+				 0);
+		if (with_setkey) {
+			/* setkey() first: two signers promoted it to General. */
+			ck_assert_int_eq(jwt_builder_set_format(b2,
+				all_fmt[f]), 0);
+		}
+		tok2 = jwt_builder_generate(b2);
+		switch (all_fmt[f]) {
+		case JWT_FORMAT_COMPACT:
+			ck_assert_ptr_null(tok2);
+			ck_assert_str_eq(jwt_builder_error_msg(b2), with_setkey ?
+				"Compact serialization cannot carry multiple "
+				"signatures" :
+				"Compact serialization cannot carry a "
+				"jwt_builder_add_signature() signer");
+			break;
+		case JWT_FORMAT_JSON_FLAT:
+			ck_assert_ptr_null(tok2);
+			ck_assert_str_eq(jwt_builder_error_msg(b2),
+				"Flattened serialization allows only one "
+				"signature");
+			break;
+		default:
+			sn_check(tok2, all_fmt[f], a_c, 2, keys);
+			break;
+		}
+	}
+
+	/* (3) A callback that takes the key away: the setkey() signer can't
+	 * go out as "none" in a JSON form, but with no setkey() signer only
+	 * the add_signature() ones are left to sign. */
+	for (f = 1; f < ARRAY_SIZE(all_fmt); f++) {
+		jwt_builder_auto_t *b = jwt_builder_new();
+		jwt_builder_auto_t *b2 = jwt_builder_new();
+		char_auto *tok = NULL;
+		jwt_signature_t *sig;
+
+		ck_assert_int_eq(jwt_builder_set_format(b, all_fmt[f]), 0);
+		ck_assert_int_eq(jwt_builder_setkey(b, JWT_ALG_RS256,
+						    keys[K_B]), 0);
+		ck_assert_int_eq(jwt_builder_setcb(b, cb_sn_key, &clear), 0);
+		ck_assert_ptr_null(jwt_builder_generate(b));
+		ck_assert_str_eq(jwt_builder_error_msg(b),
+			"A JSON-serialized JWS cannot use \"none\"");
+
+		ck_assert_int_eq(jwt_builder_set_format(b2, all_fmt[f]), 0);
+		sig = jwt_builder_add_signature(b2, JWT_ALG_ES384, keys[K_C]);
+		ck_assert_ptr_nonnull(sig);
+		ck_assert_int_eq(jwt_signature_add_protected_json(sig, "kid",
+			"\"C\""), 0);
+		ck_assert_int_eq(jwt_builder_setcb(b2, cb_sn_key, &clear), 0);
+		tok = jwt_builder_generate(b2);
+		sn_check(tok, all_fmt[f], only_c, 1, keys);
+	}
+
+	for (k = 0; k < K_NUM; k++)
+		jwks_free(sets[k]);
+}
+END_TEST
+
 static Suite *libjwt_suite(const char *title)
 {
 	Suite *s;
@@ -2388,6 +2848,8 @@ static Suite *libjwt_suite(const char *title)
 	tcase_add_loop_test(tc_core, test_keyring_kid_type, 0, i);
 	tcase_add_loop_test(tc_core, test_keyring_key_use, 0, i);
 	tcase_add_loop_test(tc_core, test_msg_unify, 0, i);
+	tcase_add_loop_test(tc_core, test_setkey_node, 0, i);
+	tcase_add_loop_test(tc_core, test_setkey_node_cb, 0, i);
 
 	tcase_set_timeout(tc_core, 60);
 

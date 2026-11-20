@@ -546,6 +546,28 @@ void jwt_builder_error_clear(jwt_builder_t *builder);
  * succeeds (with a key that works, or with ::JWT_ALG_NONE and a NULL key to
  * ask for unsigned tokens) or a callback supplies the key.
  *
+ * **The setkey() signer.** This function owns one signer of its own, apart
+ * from the ones jwt_builder_add_signature() adds, whatever the order of the
+ * calls. The first call with a key makes it, the first signature of the token;
+ * later calls replace its key and algorithm; ::JWT_ALG_NONE with a NULL key
+ * removes it. It never changes or replaces a jwt_builder_add_signature()
+ * signer, which keeps its key and its per-signature headers. With such a
+ * signer present, adding this one makes two signers and selects
+ * ::JWT_FORMAT_JSON_GENERAL, as a second jwt_builder_add_signature() does
+ * (a later jwt_builder_set_format() still applies, and then
+ * jwt_builder_generate() fails for a form that cannot carry them all).
+ *
+ * A Compact token (::JWT_FORMAT_COMPACT) carries this signer only: if a
+ * jwt_builder_add_signature() signer is set, jwt_builder_generate() fails
+ * rather than emit a Compact token without it, so removing this signer never
+ * leaves an unsigned Compact token in place of one. A builder callback
+ * (jwt_builder_setcb()) that sets a key and algorithm signs this signer's
+ * signature with them, in every format.
+ *
+ * @note Before 3.8.0, a call after jwt_builder_add_signature() re-keyed that
+ * signer (the first one) instead of adding its own, and a callback's key was
+ * used for the Compact form only.
+ *
  * @param builder Pointer to a builder object
  * @param alg A valid jwt_alg_t type
  * @param key A JWK key object
@@ -590,7 +612,10 @@ typedef struct jwt_signature jwt_signature_t;
  *
  * The default is ::JWT_FORMAT_COMPACT. Selecting a JSON form makes
  * jwt_builder_generate() emit the JWS JSON Serialization. Adding a second
- * signer with jwt_builder_add_signature() also forces ::JWT_FORMAT_JSON_GENERAL.
+ * signer, with jwt_builder_add_signature() or with jwt_builder_setkey() beside
+ * one, also selects ::JWT_FORMAT_JSON_GENERAL. A format selected after that
+ * stands: jwt_builder_generate() then fails rather than drop a signer from a
+ * form that carries only one.
  *
  * @param builder Pointer to a builder object
  * @param format A ::jwt_serialization_t value
@@ -603,16 +628,25 @@ int jwt_builder_set_format(jwt_builder_t *builder, jwt_serialization_t format);
 /**
  * @brief Add an additional signer to a builder
  *
- * The first signer is set with jwt_builder_setkey(); this adds further ones for
- * a multi-signature JWS JSON Serialization. The second signer automatically
- * promotes the format to ::JWT_FORMAT_JSON_GENERAL. Each signature signs over
- * its own protected header and the shared payload, so signers may use different
- * algorithms (e.g. RS256 and ES256). ``alg`` must not be ::JWT_ALG_NONE.
+ * This adds a signer of its own for a JWS JSON Serialization, beside the one
+ * jwt_builder_setkey() sets, whatever the order of the calls: the
+ * jwt_builder_setkey() signer's signature comes first, then these in the
+ * order they were added. jwt_builder_setkey() never changes or replaces a
+ * signer added here, so the returned handle keeps this key and its
+ * per-signature headers (jwt_signature_add_protected_json(),
+ * jwt_signature_add_header_json()) for every token, and a builder callback's
+ * key and algorithm (jwt_builder_setcb()) apply to the jwt_builder_setkey()
+ * signer only. The second signer, of either kind, automatically selects
+ * ::JWT_FORMAT_JSON_GENERAL. Each signature signs over its own protected
+ * header and the shared payload, so signers may use different algorithms
+ * (e.g. RS256 and ES256). ``alg`` must not be ::JWT_ALG_NONE.
  *
  * A Compact token carries only the jwt_builder_setkey() signer. If the only
  * signer was added with this function, select ::JWT_FORMAT_JSON_FLAT or
  * ::JWT_FORMAT_JSON_GENERAL: in ::JWT_FORMAT_COMPACT, jwt_builder_generate()
- * fails rather than emit a token without it.
+ * fails rather than emit a token without it (also after
+ * jwt_builder_setkey(::JWT_ALG_NONE, NULL), which removes only the
+ * jwt_builder_setkey() signer).
  *
  * A key that is in error (jwks_item_error()) is refused, and no signer is
  * added. As with jwt_builder_setkey(), the builder then emits no unsigned
@@ -787,12 +821,29 @@ int jwt_builder_enable_iat(jwt_builder_t *builder, int enable);
  * change, or remove claims and header attributes. It can also use the
  * jwt_value_t structure to set a key and alg to use when signing the token.
  *
+ * The config's ``key`` and ``alg`` start out as the jwt_builder_setkey()
+ * signer's (none, if it was not set), and whatever the callback leaves there
+ * makes that signer's signature, in every format: the Compact token's, and the
+ * first signature of a JSON one. When jwt_builder_setkey() was not called, a
+ * key the callback sets acts as that signer for this token (in a JSON form, one
+ * more signature, ahead of the jwt_builder_add_signature() ones). Given a key
+ * and ::JWT_ALG_NONE, it signs with the key's own ``"alg"``. The
+ * jwt_builder_add_signature() signers always keep their own key and algorithm.
+ * A JSON form cannot carry an unsigned signature, so jwt_builder_generate()
+ * fails if the callback takes the key away from a jwt_builder_setkey() signer.
+ *
  * The ctx value is also passed to the callback as part of the jwt_value_t
  * struct.
  *
  * @note Calling this with a NULL cb param and a new ctx param after already
  * setting the callback will allow updating the ctx passed to the callback.
  * Calling with both values as NULL will disable the callback completely.
+ *
+ * @note Before 3.8.0, a callback that set a key and left the algorithm as
+ * ::JWT_ALG_NONE produced an unsigned (``"alg":"none"``) Compact token, unless
+ * a key refused for being in error was pending; it is now signed with the
+ * key's own ``"alg"``. The JSON forms ignored the callback's key and algorithm,
+ * signing with the stored signers only.
  *
  * @param builder Pointer to a builder object
  * @param cb Pointer to a callback function
