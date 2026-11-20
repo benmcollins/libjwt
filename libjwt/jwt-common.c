@@ -228,17 +228,37 @@ int FUNC(setkey)(jwt_common_t *__cmd, const jwt_alg_t alg,
 	/* Any key the builder accepts, or no key at all, settles a refusal. */
 	__cmd->c.key_required = 0;
 
-	/* @rfc{7515,7.2} Mirror the primary signer into the first signature, so
-	 * a JSON-format build (and any later add_signature) sees it in the list.
-	 * Repeated setkey() updates that same first node rather than appending. */
-	{
-		struct jwt_signature *s = jwt_signature_first_or_add(&__cmd->c);
+	/* @rfc{7515,7.2} setkey() owns one signer node of its own, first in the
+	 * list: the first call makes it, later calls update it, and
+	 * setkey(JWT_ALG_NONE, NULL) removes it. It never touches a node that
+	 * jwt_builder_add_signature() made, whose handle keeps its key and its
+	 * headers, whatever the call order. */
+	if (alg == JWT_ALG_NONE && key == NULL) {
+		struct jwt_signature *s = __cmd->c.setkey_sig;
+
+		if (s != NULL) {
+			list_del(&s->node);
+			jwt_signature_free(s);
+			__cmd->c.setkey_sig = NULL;
+			__cmd->c.n_signatures--;
+		}
+	} else {
+		struct jwt_signature *s = __cmd->c.setkey_sig;
 
 		if (s == NULL) {
-			// LCOV_EXCL_START
-			jwt_write_error(__cmd, "Error allocating memory");
-			return 1;
-			// LCOV_EXCL_STOP
+			s = jwt_signature_prepend(&__cmd->c);
+			if (s == NULL) {
+				// LCOV_EXCL_START
+				jwt_write_error(__cmd, "Error allocating memory");
+				return 1;
+				// LCOV_EXCL_STOP
+			}
+			__cmd->c.setkey_sig = s;
+
+			/* @rfc{7515,7.2.1} A second signer requires the
+			 * General JSON form, as in add_signature(). */
+			if (__cmd->c.n_signatures > 1)
+				__cmd->c.format = JWT_FORMAT_JSON_GENERAL;
 		}
 		s->alg = alg;
 		s->key = key;
@@ -1325,15 +1345,14 @@ char *FUNC(generate)(jwt_common_t *__cmd)
 		return NULL;
 	}
 
-	/* A key set earlier was refused for being in error (key_required) and a
-	 * callback supplied a replacement but no alg: sign with that key's own
-	 * "alg", so the token is signed as it was before the key was refused,
-	 * not emitted unsigned ("alg":"none"). Without a replacement key the
-	 * Compact path below still withholds the unsigned token (__key_refused).
-	 * A callback that sets the alg itself, or a key that carries none, is
-	 * unaffected. */
-	if (__cmd->c.key_required && config.alg == JWT_ALG_NONE &&
-	    config.key != NULL)
+	/* A callback that supplied a key but no alg (for one, a replacement
+	 * for a key refused for being in error, key_required): sign with that
+	 * key's own "alg", as jwt_builder_setkey(JWT_ALG_NONE, key) does and as
+	 * the JSON forms do, not emit the Compact token unsigned
+	 * ("alg":"none"). Without a key the Compact path below still withholds
+	 * the unsigned token after a refusal (__key_refused). A callback that
+	 * sets the alg itself, or a key that carries none, is unaffected. */
+	if (config.alg == JWT_ALG_NONE && config.key != NULL)
 		config.alg = config.key->alg;
 
 	/* Callback may have changed this */
@@ -1411,14 +1430,21 @@ char *FUNC(generate)(jwt_common_t *__cmd)
 		return NULL;
 	}
 
-	/* @rfc{7515,7.2} JSON Serialization (one or more signatures). */
+	/* @rfc{7515,7.2} JSON Serialization (one or more signatures). The
+	 * callback's config alg/key (now in jwt) sign the setkey() signer's
+	 * signature, as in the Compact form. With no setkey() node, a key the
+	 * callback supplied acts as that signer: one more signature, first. */
 	if (__cmd->c.format != JWT_FORMAT_COMPACT) {
-		if (__cmd->c.n_signatures == 0) {
+		int n_sigs = __cmd->c.n_signatures;
+
+		if (__cmd->c.setkey_sig == NULL && jwt->key != NULL)
+			n_sigs++;
+
+		if (n_sigs == 0) {
 			jwt_write_error(__cmd, "No key set for JSON serialization");
 			return NULL;
 		}
-		if (__cmd->c.format == JWT_FORMAT_JSON_FLAT &&
-		    __cmd->c.n_signatures > 1) {
+		if (__cmd->c.format == JWT_FORMAT_JSON_FLAT && n_sigs > 1) {
 			jwt_write_error(__cmd,
 				"Flattened serialization allows only one signature");
 			return NULL;
@@ -1436,19 +1462,16 @@ char *FUNC(generate)(jwt_common_t *__cmd)
 		return NULL;
 	}
 
-	/* That signature is the jwt_builder_setkey() signer, which setkey()
-	 * mirrors into the first node. A lone node that does not match it was
-	 * added with jwt_builder_add_signature(): the token would be emitted
-	 * without that signer (unsigned, when setkey() was never called), so
-	 * refuse it instead of dropping it. */
-	if (__cmd->c.n_signatures == 1) {
-		struct jwt_signature *s = jwt_signature_first(&__cmd->c);
-
-		if (s->alg != __cmd->c.alg || s->key != __cmd->c.key) {
-			jwt_write_error(__cmd, "Compact serialization cannot "
-				"carry a jwt_builder_add_signature() signer");
-			return NULL;
-		}
+	/* That signature is the jwt_builder_setkey() signer (its own node, or
+	 * none at all). A lone node that is not it was added with
+	 * jwt_builder_add_signature(): the token would be emitted without that
+	 * signer (unsigned, when setkey() was never called or was undone with
+	 * JWT_ALG_NONE), so refuse it instead of dropping it. */
+	if (__cmd->c.n_signatures == 1 &&
+	    jwt_signature_first(&__cmd->c) != __cmd->c.setkey_sig) {
+		jwt_write_error(__cmd, "Compact serialization cannot "
+			"carry a jwt_builder_add_signature() signer");
+		return NULL;
 	}
 
 	/* The token is about to go out unsigned. Not if that is only because

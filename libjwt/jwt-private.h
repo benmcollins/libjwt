@@ -101,10 +101,14 @@ struct jwt_common {
 	 * The single-signature Compact path uses .alg/.key above and an empty
 	 * list, keeping its behavior byte-identical. The signature list is
 	 * materialized by jwt_builder_setkey()/add_signature() (builder) or the
-	 * JSON parse (checker); it is iterated only for the JSON serializations. */
+	 * JSON parse (checker); it is iterated only for the JSON serializations.
+	 * builder: @setkey_sig is the one node jwt_builder_setkey() owns (first
+	 * in the list, NULL when it set none); add_signature() nodes are never
+	 * it. FUNC(generate) signs it with the callback's config alg/key. */
 	jwt_serialization_t format;	/* builder: emit form; default COMPACT (0) */
 	ll_t signatures;		/* list of struct jwt_signature		*/
 	int n_signatures;
+	struct jwt_signature *setkey_sig;
 
 	/* checker: a borrowed multi-key set (JWKS) and the multi-signature
 	 * verification policy. NULL keyring => the single .key above is used. */
@@ -718,12 +722,15 @@ struct jwt_signature *jwt_signature_first(struct jwt_common *cmd);
 JWT_NO_EXPORT
 struct jwt_signature *jwt_signature_append(struct jwt_common *cmd);
 JWT_NO_EXPORT
-struct jwt_signature *jwt_signature_first_or_add(struct jwt_common *cmd);
+struct jwt_signature *jwt_signature_prepend(struct jwt_common *cmd);
 JWT_NO_EXPORT
 void jwt_signature_free(struct jwt_signature *s);
 
 /* Builder: serialize @cmd's signatures + finalized claims (@jwt->claims) into a
- * JWS JSON Serialization (Flattened or General). Returns a malloc'd string. */
+ * JWS JSON Serialization (Flattened or General). Returns a malloc'd string.
+ * @jwt->alg/@jwt->key are the jwt_builder_setkey() signer's, as the callback
+ * left them: they sign @cmd->setkey_sig, or, with no such node, a first
+ * signature of their own when @jwt->key is set. */
 JWT_NO_EXPORT
 char *jwt_encode_json(jwt_t *jwt, struct jwt_common *cmd);
 
