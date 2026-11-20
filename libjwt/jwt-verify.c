@@ -1212,11 +1212,14 @@ static int verify_entry(jwt_checker_t *checker, jwt_t *jwt,
 			break;	/* verified, or try_candidate set the reason */
 		}
 	} else if (scan) {
-		size_t i, n = jwks_item_count(ring);
+		const jwk_item_t *k;
 		int tried = 0;
 
-		for (i = 0; i < n && !s->verified; i++) {
-			const jwk_item_t *k = jwks_item_get(ring, i);
+		/* Walk the ring's list once, in order (as ring_find_kid()
+		 * does), so the first key that verifies -- the one
+		 * jwt_checker_sig_key() reports -- is unchanged. Fetching by
+		 * index re-walked the list per key: O(n^2) per scan (#356). */
+		list_for_each_entry(k, &ring->head, node) {
 			jwt_alg_t kalg = jwks_item_alg(k);
 
 			/* config.alg is JWT_ALG_NONE here only if the
@@ -1236,6 +1239,8 @@ static int verify_entry(jwt_checker_t *checker, jwt_t *jwt,
 					  (unsigned int)strlen(input)) !=
 			    TRY_WRONG_TYPE)
 				tried++;
+			if (s->verified)
+				break;
 		}
 
 		/* #354 Summarize the scan: the single tried candidate keeps its

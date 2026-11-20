@@ -2007,10 +2007,156 @@ START_TEST(test_msg_unify)
 }
 END_TEST
 
+/* ---- A large keyring scanned for a kid-less token (#356) ---- */
+
+/* The size of the generated keyring: 10,000 "oct" keys, the size #356
+ * measured. The scan used to fetch each key by index, walking the ring from its
+ * head every time. This test checks behavior only: ring order, the first key
+ * that verifies, the number of keys tried and the reject messages. It does not
+ * check the scan's complexity, and the old quadratic scan passes it too. No
+ * timeout can tell the two apart: the linear scan under valgrind is slower than
+ * the quadratic one run natively. */
+#define BIG_RING_N 10000
+
+/* The signer: a 33-byte HS256 key that is no filler key. It carries a "kid" to
+ * identify it in the ring, but the tokens below have none, so the ring is
+ * scanned. */
+#define BIG_RING_SIGNER "{\"kty\":\"oct\",\"alg\":\"HS256\",\"kid\":\"last\"," \
+	"\"k\":\"BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB\"}"
+
+/* A JWKS of @n distinct 33-byte HS256 keys, none of them the signer's. */
+static char *big_ring_json(size_t n)
+{
+	/* ,{"kty":"oct","alg":"HS256","k":"<36 x A><8 digits>"} is 79 bytes */
+	const size_t per = 96;
+	char *json, ent[96];
+	size_t i, cap, off;
+	int len;
+
+	cap = 16 + n * per;
+	json = malloc(cap);
+	ck_assert_ptr_nonnull(json);
+
+	memcpy(json, "{\"keys\":[", 9);
+	off = 9;
+	for (i = 0; i < n; i++) {
+		/* Each entry goes to a fixed buffer first, so no snprintf
+		 * size is ever derived from a previous return value. */
+		len = snprintf(ent, sizeof(ent), "%s{\"kty\":\"oct\","
+			       "\"alg\":\"HS256\","
+			       "\"k\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+			       "%08zu\"}", i ? "," : "", i);
+		ck_assert_int_gt(len, 0);
+		ck_assert_uint_lt((size_t)len, sizeof(ent));
+		ck_assert_uint_lt(off + (size_t)len + 3, cap);
+		memcpy(json + off, ent, (size_t)len);
+		off += (size_t)len;
+	}
+	memcpy(json + off, "]}", 3);
+
+	return json;
+}
+
+static void big_ring_reject(const jwk_set_t *ring, const char *tok,
+			    const char *want)
+{
+	size_t p;
+
+	for (p = 0; p < ARRAY_SIZE(both_pol); p++) {
+		jwt_checker_auto_t *c = jwt_checker_new();
+
+		ck_assert_int_eq(jwt_checker_setkeyring(c, ring, both_pol[p]),
+				 0);
+		ck_assert_int_ne(jwt_checker_verify(c, tok), 0);
+		ck_assert_str_eq(jwt_checker_error_msg(c), want);
+		ck_assert_uint_eq(jwt_checker_sig_count(c), 1);
+		ck_assert_int_eq(jwt_checker_sig_verified(c, 0), 0);
+		ck_assert_ptr_null(jwt_checker_sig_key(c, 0));
+	}
+}
+
+static void big_ring_accept(const jwk_set_t *ring, const char *tok,
+			    const jwk_item_t *want)
+{
+	size_t p;
+
+	for (p = 0; p < ARRAY_SIZE(both_pol); p++) {
+		jwt_checker_auto_t *c = jwt_checker_new();
+
+		ck_assert_int_eq(jwt_checker_setkeyring(c, ring, both_pol[p]),
+				 0);
+		ck_assert_int_eq(jwt_checker_verify(c, tok), 0);
+		ck_assert_uint_eq(jwt_checker_sig_count(c), 1);
+		ck_assert_int_eq(jwt_checker_sig_verified(c, 0), 1);
+		ck_assert_ptr_eq(jwt_checker_sig_key(c, 0), want);
+	}
+}
+
+START_TEST(test_keyring_scan_large)
+{
+	char_auto *json = NULL, *tok = NULL, *tok512 = NULL, *want = NULL;
+	jwk_set_t *ring, *signer_ks, *other_ks;
+	const jwk_item_t *signer, *last;
+
+	SET_OPS();
+
+	json = big_ring_json(BIG_RING_N - 1);
+	ring = jwks_create(json);
+	ck_assert_ptr_nonnull(ring);
+	ck_assert_int_eq(jwks_error_any(ring), 0);
+	ck_assert_uint_eq(jwks_item_count(ring), BIG_RING_N - 1);
+
+	signer_ks = jwks_create(BIG_RING_SIGNER);
+	ck_assert_ptr_nonnull(signer_ks);
+	signer = jwks_item_get(signer_ks, 0);
+	ck_assert_ptr_nonnull(signer);
+	tok = compact_tok(JWT_ALG_HS256, signer, NULL);
+	ck_assert_ptr_nonnull(tok);
+
+	/* An HS512 token, signed with a 66-byte key that is in no ring. */
+	other_ks = jwks_create("{\"kty\":\"oct\",\"k\":\""
+		"CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"
+		"CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC\"}");
+	ck_assert_ptr_nonnull(other_ks);
+	tok512 = compact_tok(JWT_ALG_HS512, jwks_item_get(other_ks, 0), NULL);
+	ck_assert_ptr_nonnull(tok512);
+
+	/* The signer is absent: every HS256 key is tried and none verifies. */
+	ck_assert_int_gt(asprintf(&want, "No keyring key verified the "
+				  "signature (%d tried)", BIG_RING_N - 1), 0);
+	big_ring_reject(ring, tok, want);
+
+	/* No ring key has the token's alg: each one is skipped untried. */
+	big_ring_reject(ring, tok512, "No keyring key can verify \"HS512\"");
+
+	/* With the signer last in the ring, the scan reaches and reports it. */
+	ck_assert_ptr_nonnull(jwks_load(ring, BIG_RING_SIGNER));
+	ck_assert_uint_eq(jwks_item_count(ring), BIG_RING_N);
+	last = jwks_item_get(ring, BIG_RING_N - 1);
+	ck_assert_ptr_nonnull(last);
+	ck_assert_str_eq(jwks_item_kid(last), "last");
+	big_ring_accept(ring, tok, last);
+
+	/* Ring order is kept: a second copy of the signer after it is never
+	 * reached, so the first key that verifies is still the one reported. */
+	ck_assert_ptr_nonnull(jwks_load(ring, BIG_RING_SIGNER));
+	ck_assert_uint_eq(jwks_item_count(ring), BIG_RING_N + 1);
+	ck_assert_ptr_ne(jwks_item_get(ring, BIG_RING_N), last);
+	big_ring_accept(ring, tok, last);
+
+	/* The signer's alg still pins it: the HS512 token is refused. */
+	big_ring_reject(ring, tok512, "No keyring key can verify \"HS512\"");
+
+	jwks_free(other_ks);
+	jwks_free(signer_ks);
+	jwks_free(ring);
+}
+END_TEST
+
 static Suite *libjwt_suite(const char *title)
 {
 	Suite *s;
-	TCase *tc_core;
+	TCase *tc_core, *tc_scale;
 	int i = ARRAY_SIZE(jwt_test_ops);
 
 	s = suite_create(title);
@@ -2043,6 +2189,13 @@ static Suite *libjwt_suite(const char *title)
 	tcase_set_timeout(tc_core, 60);
 
 	suite_add_tcase(s, tc_core);
+
+	/* Its own case, with room for the 10,000-key ring under valgrind. The
+	 * timeout only keeps memcheck from timing out: it is no speed check. */
+	tc_scale = tcase_create("jws_json_scale");
+	tcase_add_loop_test(tc_scale, test_keyring_scan_large, 0, i);
+	tcase_set_timeout(tc_scale, 300);
+	suite_add_tcase(s, tc_scale);
 
 	return s;
 }

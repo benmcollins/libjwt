@@ -1117,7 +1117,8 @@ typedef enum {
  * ``kid``; if there is none, that signature does not verify (there is no
  * fallback to the other keys). A ``kid`` that is not a string, in either
  * header, fails the verification. A signature without a ``kid`` is tried
- * against every compatible candidate.
+ * against every compatible candidate, in ring order, until one verifies; that
+ * first key is the one jwt_checker_sig_key() reports.
  *
  * Each candidate is held to the usual algorithm/key-type binding and, when the
  * key declares an ``"alg"``, to exactly that algorithm. The ``"typ"`` and
@@ -1169,6 +1170,11 @@ typedef enum {
  *
  * @note Before 3.6.3 a ring key in error was still a candidate, as was a key
  * in error that the callback supplied (GHSA-4jp4-6w6j-ff4q).
+ *
+ * @note A signature without a ``kid`` costs one pass over the ring, plus a
+ * verify for each compatible candidate, and a token that verifies with none
+ * of them always pays for all of it. Before 3.8.0 that pass took time
+ * quadratic in the size of the ring (about 0.4 s for a ring of 10,000 keys).
  *
  * @param checker Pointer to a checker object
  * @param keyring A JWKS of candidate keys (borrowed, not freed by the checker)
