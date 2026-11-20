@@ -141,6 +141,24 @@ static int process_one(jwt_checker_t *checker, int signed_only,
 	return err;
 }
 
+/* read_line() looks at every byte of a line so that a NUL byte, or a line
+ * that does not fit, fails the whole line (GHSA-g7xw-4cjw-2247). Reading one
+ * byte at a time with fgetc() takes the stdin lock once per byte, which on
+ * macOS is most of the run time on bulk input (#373). getc_unlocked() inside
+ * a single flockfile()/funlockfile() region takes the lock once per line and
+ * reads the exact same bytes. These three names are POSIX; mingw-w64 declares
+ * none of them, so the plain fgetc() loop (which locks per byte there) is kept
+ * for _WIN32 -- the Windows build is not the one with the stdin-lock cost. */
+#ifdef _WIN32
+#define stdin_lock()	((void)0)
+#define stdin_getc()	fgetc(stdin)
+#define stdin_unlock()	((void)0)
+#else
+#define stdin_lock()	flockfile(stdin)
+#define stdin_getc()	getc_unlocked(stdin)
+#define stdin_unlock()	funlockfile(stdin)
+#endif
+
 /* Read one line of stdin into @buf, without its newline. Returns 1 for a
  * line (the last one needs no newline), 0 at the end of the input or on a
  * read error, and -1 for a line that does not fit in @buf or has a NUL byte
@@ -152,12 +170,15 @@ static int read_line(char *buf, size_t size)
 	size_t len = 0;
 	int c, ret = 1;
 
-	while ((c = fgetc(stdin)) != EOF && c != '\n') {
+	/* One lock for the whole line, not one per byte. */
+	stdin_lock();
+	while ((c = stdin_getc()) != EOF && c != '\n') {
 		if (c == '\0' || len + 1 >= size)
 			ret = -1;
 		else
 			buf[len++] = (char)c;
 	}
+	stdin_unlock();
 
 	/* The end of the input, or a read error: a line cut short by one is
 	 * not a token either. */
